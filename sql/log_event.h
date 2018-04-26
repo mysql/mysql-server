@@ -2955,6 +2955,14 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
 #endif /* defined(MYSQL_SERVER) */
 
   friend class Old_rows_log_event;
+
+  /**
+    This bitmap is used as a backup for the write set while we calculate
+    the values for any hidden generated columns (functional indexes). In order
+    to calculate the values, the columns must be marked in the write set. After
+    the values are caluclated, we set the write set back to it's original value.
+  */
+  MY_BITMAP write_set_backup;
 };
 
 /**
@@ -3096,7 +3104,7 @@ class Update_rows_log_event : public Rows_log_event,
   Update_rows_log_event(THD *, TABLE *, const Table_id &table_id,
                         bool is_transactional, const uchar *extra_row_info);
 
-  void init(MY_BITMAP const *cols);
+  void init(MY_BITMAP const *cols, const MY_BITMAP &cols_to_subtract);
 #endif
 
   virtual ~Update_rows_log_event();

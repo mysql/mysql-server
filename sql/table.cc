@@ -29,6 +29,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <algorithm>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -2313,6 +2314,12 @@ static bool fix_fields_gcol_func(THD *thd, Field *field) {
   DBUG_ASSERT(func_expr);
   DBUG_ENTER("fix_fields_gcol_func");
 
+  // Insert a error handler that takes care of converting column names to
+  // functional index names. Since functional indexes is implemented as
+  // indexed hidden generated columns, we may end up printing out the
+  // auto-generated column name if we don't have an extra error handler.
+  Functional_index_error_handler functional_index_error_handler(field, thd);
+
   /*
     Set-up the TABLE_LIST object to be a list with a single table
     Set alias and real name to table name and get database name from file name.
@@ -2342,7 +2349,12 @@ static bool fix_fields_gcol_func(THD *thd, Field *field) {
   func_expr->walk(&Item::change_context_processor, Item::WALK_POSTFIX,
                   (uchar *)context);
   save_where = thd->where;
-  thd->where = "generated column function";
+
+  if (field->is_field_for_functional_index()) {
+    thd->where = "functional index";
+  } else {
+    thd->where = "generated column function";
+  }
 
   /* Save the context before fixing the fields*/
   save_use_only_table_context = thd->lex->use_only_table_context;
@@ -2898,7 +2910,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   */
 
   bitmap_size = share->column_bitmap_size;
-  if (!(bitmaps = (uchar *)alloc_root(root, bitmap_size * 5))) goto err;
+  if (!(bitmaps = (uchar *)alloc_root(root, bitmap_size * 7))) goto err;
   bitmap_init(&outparam->def_read_set, (my_bitmap_map *)bitmaps, share->fields,
               false);
   bitmap_init(&outparam->def_write_set,
@@ -2909,6 +2921,12 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
               share->fields, false);
   bitmap_init(&outparam->def_fields_set_during_insert,
               (my_bitmap_map *)(bitmaps + bitmap_size * 4), share->fields,
+              false);
+  bitmap_init(&outparam->fields_for_functional_indexes,
+              (my_bitmap_map *)(bitmaps + bitmap_size * 5), share->fields,
+              false);
+  bitmap_init(&outparam->pack_row_tmp_set,
+              (my_bitmap_map *)(bitmaps + bitmap_size * 6), share->fields,
               false);
   outparam->default_column_bitmaps();
 
@@ -2930,6 +2948,12 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
           *vfield_ptr = NULL;
           error = 4;  // in case no error is reported
           goto err;
+        }
+
+        // Mark hidden generated columns for functional indexes.
+        if ((*field_ptr)->is_field_for_functional_index()) {
+          bitmap_set_bit(&outparam->fields_for_functional_indexes,
+                         (*field_ptr)->field_index);
         }
         *(vfield_ptr++) = *field_ptr;
       }

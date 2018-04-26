@@ -3263,7 +3263,8 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
                                       : Field::itRAW;
           /* Only HA_PART_KEY_SEG is used */
           key_parts->flag = key_part_info->key_part_flag;
-          trace_keypart.add_utf8(key_parts->field->field_name);
+          trace_keypart.add_utf8(
+              get_field_name_or_expression(thd, key_part_info->field));
         }
         param.real_keynr[param.keys++] = idx;
       }
@@ -15003,7 +15004,8 @@ void append_range(String *out, const KEY_PART_INFO *key_part,
       out->append(STRING_WITH_LEN(" <= "));
   }
 
-  out->append(key_part->field->field_name);
+  out->append(get_field_name_or_expression(key_part->field->table->in_use,
+                                           key_part->field));
 
   if (!(flag & NO_MAX_RANGE)) {
     if (flag & NEAR_MAX)

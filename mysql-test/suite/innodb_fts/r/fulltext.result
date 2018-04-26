@@ -7,9 +7,9 @@ INSERT INTO t1 VALUES('MySQL has now support', 'for full-text search'),
 ('Full-text search in MySQL', 'implements vector space model');
 ANALYZE TABLE t1;
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	NULL	5	NULL	NULL	YES	FULLTEXT			YES
-t1	1	a	2	b	NULL	5	NULL	NULL	YES	FULLTEXT			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	NULL	5	NULL	NULL	YES	FULLTEXT			YES	NULL
+t1	1	a	2	b	NULL	5	NULL	NULL	YES	FULLTEXT			YES	NULL
 select * from t1 where MATCH(a,b) AGAINST ("collections");
 a	b
 Full-text indexes	are called collections
@@ -256,9 +256,9 @@ ANALYZE TABLE t2;
 Table	Op	Msg_type	Msg_text
 test.t2	analyze	status	OK
 show keys from t2;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t2	1	tig	1	ticket	A	3	NULL	NULL	YES	BTREE			YES
-t2	1	tix	1	inhalt	NULL	3	NULL	NULL	YES	FULLTEXT			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t2	1	tig	1	ticket	A	3	NULL	NULL	YES	BTREE			YES	NULL
+t2	1	tix	1	inhalt	NULL	3	NULL	NULL	YES	FULLTEXT			YES	NULL
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (

@@ -101,10 +101,10 @@ ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 SHOW INDEXES FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	b	1	b	A	0	32	NULL		SPATIAL			YES
-t1	1	fi_a	1	a	A	0	NULL	NULL	YES	BTREE			YES
-t1	1	a	1	a	NULL	0	NULL	NULL	YES	FULLTEXT			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	b	1	b	A	0	32	NULL		SPATIAL			YES	NULL
+t1	1	fi_a	1	a	A	0	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	a	1	a	NULL	0	NULL	NULL	YES	FULLTEXT			YES	NULL
 # Attempt to add a foreign key on column with SPATIAL index.
 # The SPATIAL index cannot be used so this becomes an attempt at
 # creating a foreign key on a GEOMETRY column which is not supported

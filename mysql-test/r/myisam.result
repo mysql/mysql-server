@@ -44,9 +44,9 @@ optimize table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 show index from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	a	A	5	NULL	NULL		BTREE			YES
-t1	1	b	1	b	A	2	NULL	NULL		BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	a	A	5	NULL	NULL		BTREE			YES	NULL
+t1	1	b	1	b	A	2	NULL	NULL		BTREE			YES	NULL
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	Table is already up to date
@@ -54,9 +54,9 @@ optimize table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	Table is already up to date
 show index from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	a	A	5	NULL	NULL		BTREE			YES
-t1	1	b	1	b	A	2	NULL	NULL		BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	a	A	5	NULL	NULL		BTREE			YES	NULL
+t1	1	b	1	b	A	2	NULL	NULL		BTREE			YES	NULL
 drop table t1;
 create table t1 (a int not null, b int not null, c int not null, primary key (a),key(b)) engine=myisam;
 insert into t1 values (3,3,3),(1,1,1),(2,2,2),(4,4,4);
@@ -364,13 +364,13 @@ analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	Table is already up to date
 show index from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	b	1	b	A	5	NULL	NULL	YES	BTREE			YES
-t1	1	c	1	c	A	5	NULL	NULL	YES	BTREE			YES
-t1	1	a	1	a	A	2	NULL	NULL		BTREE			YES
-t1	1	a	2	b	A	5	NULL	NULL	YES	BTREE			YES
-t1	1	c_2	1	c	A	5	NULL	NULL	YES	BTREE			YES
-t1	1	c_2	2	a	A	5	NULL	NULL		BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	b	1	b	A	5	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	c	1	c	A	5	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	a	1	a	A	2	NULL	NULL		BTREE			YES	NULL
+t1	1	a	2	b	A	5	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	c_2	1	c	A	5	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	c_2	2	a	A	5	NULL	NULL		BTREE			YES	NULL
 explain select * from t1,t2 where t1.a=t2.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	a	NULL	NULL	NULL	2	100.00	NULL
@@ -629,15 +629,15 @@ analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	Table is already up to date
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
 alter table t1 disable keys;
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
 create table t2 (a int);
 set @@rand_seed1=31415926,@@rand_seed2=2718281828;
 insert t1 select * from t2;
@@ -645,15 +645,15 @@ analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
 alter table t1 enable keys;
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	Table is already up to date
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	1000	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	1000	NULL	NULL	YES	BTREE			YES	NULL
 alter table t1 engine=heap;
 alter table t1 disable keys;
 Warnings:
@@ -662,8 +662,8 @@ analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	note	The storage engine for the table doesn't support analyze
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	NULL	500	NULL	NULL	YES	HASH			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	NULL	500	NULL	NULL	YES	HASH			YES	NULL
 drop table t1,t2;
 create table t1 ( a tinytext, b char(1), index idx (a(1),b) );
 insert into t1 values (null,''), (null,'');
@@ -710,8 +710,8 @@ analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show index from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	10	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	10	NULL	NULL	YES	BTREE			YES	NULL
 insert into t1 values (11);
 delete from t1 where a=11;
 check table t1;
@@ -721,8 +721,8 @@ analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	Table is already up to date
 show index from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	10	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	10	NULL	NULL	YES	BTREE			YES	NULL
 set myisam_stats_method=nulls_equal;
 show variables like 'myisam_stats_method';
 Variable_name	Value
@@ -733,8 +733,8 @@ analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show index from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	5	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	5	NULL	NULL	YES	BTREE			YES	NULL
 insert into t1 values (11);
 delete from t1 where a=11;
 check table t1;
@@ -744,8 +744,8 @@ analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	Table is already up to date
 show index from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	5	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	5	NULL	NULL	YES	BTREE			YES	NULL
 set myisam_stats_method=DEFAULT;
 show variables like 'myisam_stats_method';
 Variable_name	Value
@@ -756,8 +756,8 @@ analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show index from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	10	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	10	NULL	NULL	YES	BTREE			YES	NULL
 insert into t1 values (11);
 delete from t1 where a=11;
 check table t1;
@@ -767,8 +767,8 @@ analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	Table is already up to date
 show index from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	10	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	10	NULL	NULL	YES	BTREE			YES	NULL
 drop table t1;
 set myisam_stats_method=nulls_ignored;
 show variables like 'myisam_stats_method';
@@ -786,21 +786,21 @@ analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show index from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	2	NULL	NULL	YES	BTREE			YES
-t1	1	a	2	b	A	4	NULL	NULL	YES	BTREE			YES
-t1	1	a	3	c	A	4	NULL	NULL	YES	BTREE			YES
-t1	1	a	4	d	A	4	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	2	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	a	2	b	A	4	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	a	3	c	A	4	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	a	4	d	A	4	NULL	NULL	YES	BTREE			YES	NULL
 delete from t1;
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show index from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE			YES
-t1	1	a	2	b	A	0	NULL	NULL	YES	BTREE			YES
-t1	1	a	3	c	A	0	NULL	NULL	YES	BTREE			YES
-t1	1	a	4	d	A	0	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	a	2	b	A	0	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	a	3	c	A	0	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	a	4	d	A	0	NULL	NULL	YES	BTREE			YES	NULL
 set myisam_stats_method=DEFAULT;
 drop table t1;
 create table t1(
@@ -1914,16 +1914,16 @@ analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	8	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	8	NULL	NULL	YES	BTREE			YES	NULL
 alter table t1 disable keys;
 alter table t1 enable keys;
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	Table is already up to date
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	8	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	8	NULL	NULL	YES	BTREE			YES	NULL
 drop table t1;
 create table t1 (c1 int) engine=myisam pack_keys=0;
 create table t2 (c1 int) engine=myisam pack_keys=1;

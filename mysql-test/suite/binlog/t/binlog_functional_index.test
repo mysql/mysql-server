@@ -1,0 +1,59 @@
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+--source include/have_grep.inc
+
+--echo # Check that the hidden generated column is not included in the binlog
+--echo # regardless of binlog_row_image
+
+SET @start_row_image_value = @@session.binlog_row_image;
+
+CREATE TABLE t1 (col1 INT, col2 INT NOT NULL, col3 INT, col4 INT, UNIQUE INDEX ((ABS(col2))));
+SET @@session.binlog_row_image = MINIMAL;
+INSERT INTO t1 VALUES (1, 2, 3, 4), (2, 3, 4, 5);
+UPDATE t1 SET col1 = 2 WHERE ABS(col2) = 2;
+SET @@session.binlog_row_image = FULL;
+INSERT INTO t1 VALUES (10, 20, 30, 40), (20, 30, 40, 50);
+UPDATE t1 SET col1 = 20 WHERE ABS(col2) = 20;
+SET @@session.binlog_row_image = NOBLOB;
+INSERT INTO t1 VALUES (100, 200, 300, 400), (200, 300, 400, 500);
+UPDATE t1 SET col1 = 200 WHERE ABS(col2) = 200;
+DROP TABLE t1;
+
+FLUSH LOGS;
+
+--let $datadir = `SELECT @@GLOBAL.DATADIR`
+--let $mysqlbinlog_only_decoded_rows = 1
+--let $mysqlbinlog_parameters = $datadir/binlog.000001
+--source include/mysqlbinlog.inc
+
+# Clear the binlog
+RESET MASTER;
+
+--echo # Check that when the only unique NOT NULL index is a functional index,
+--echo # the binary log contains a full before-image regardless of
+--echo # binlog_row_image.
+CREATE TABLE t1 (
+  col1 INT NOT NULL
+, col2 INT NOT NULL
+, col3 INT NOT NULL
+, UNIQUE INDEX idx1 ((ABS(col1))));
+INSERT INTO t1 VALUES (1, 1, 1);
+
+SET binlog_row_image = MINIMAL;
+UPDATE t1 SET col2 = 2 WHERE ABS(col1) = 1;
+
+SET binlog_row_image = FULL;
+UPDATE t1 SET col2 = 3 WHERE ABS(col1) = 1;
+
+SET binlog_row_image = NOBLOB;
+UPDATE t1 SET col2 = 4 WHERE ABS(col1) = 1;
+
+DROP TABLE t1;
+FLUSH LOGS;
+
+SET @@session.binlog_row_image = @start_row_image_value;
+
+--let $datadir = `SELECT @@GLOBAL.DATADIR`
+--let $mysqlbinlog_only_decoded_rows = 1
+--let $mysqlbinlog_parameters = $datadir/binlog.000001
+--source include/mysqlbinlog.inc

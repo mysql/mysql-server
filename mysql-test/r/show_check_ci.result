@@ -83,10 +83,11 @@ def			SHOW_STATISTICS	Index_type	Index_type	253	44	5	N	129	0	255
 def			SHOW_STATISTICS	Comment	Comment	253	32	0	N	1	0	255
 def	mysql	indexes	SHOW_STATISTICS	Index_comment	Index_comment	253	8192	0	N	#	0	255
 def			SHOW_STATISTICS	Visible	Visible	253	12	3	N	1	0	255
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	a	A	5	NULL	NULL		BTREE			YES
-t1	1	b	1	b	A	2	NULL	NULL		BTREE			YES
-t1	1	b	2	c	A	4	NULL	NULL		BTREE			YES
+def			SHOW_STATISTICS	Expression	Expression	252	4294967295	0	Y	144	0	255
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	a	A	5	NULL	NULL		BTREE			YES	NULL
+t1	1	b	1	b	A	2	NULL	NULL		BTREE			YES	NULL
+t1	1	b	2	c	A	4	NULL	NULL		BTREE			YES	NULL
 insert into t1 values (5,5,5);
 ERROR 23000: Duplicate entry '5' for key 'PRIMARY'
 -- Here we enable metadata just to check that the collation of the
@@ -176,11 +177,11 @@ def					Msg_text	250	1572864	2	Y	0	31	255
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show index from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	f1	A	1	NULL	NULL		BTREE			YES
-t1	0	PRIMARY	2	f2	A	3	NULL	NULL		BTREE			YES
-t1	0	PRIMARY	3	f3	A	9	NULL	NULL		BTREE			YES
-t1	0	PRIMARY	4	f4	A	18	NULL	NULL		BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	f1	A	1	NULL	NULL		BTREE			YES	NULL
+t1	0	PRIMARY	2	f2	A	3	NULL	NULL		BTREE			YES	NULL
+t1	0	PRIMARY	3	f3	A	9	NULL	NULL		BTREE			YES	NULL
+t1	0	PRIMARY	4	f4	A	18	NULL	NULL		BTREE			YES	NULL
 -- Here we enable metadata just to check that the collation of the
 -- resultset is non-binary for string type. This should be changed
 -- after Bug#29394 is implemented.
@@ -193,11 +194,11 @@ def					Msg_text	250	1572864	2	Y	0	31	255
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 show index from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	f1	A	1	NULL	NULL		BTREE			YES
-t1	0	PRIMARY	2	f2	A	3	NULL	NULL		BTREE			YES
-t1	0	PRIMARY	3	f3	A	9	NULL	NULL		BTREE			YES
-t1	0	PRIMARY	4	f4	A	18	NULL	NULL		BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	f1	A	1	NULL	NULL		BTREE			YES	NULL
+t1	0	PRIMARY	2	f2	A	3	NULL	NULL		BTREE			YES	NULL
+t1	0	PRIMARY	3	f3	A	9	NULL	NULL		BTREE			YES	NULL
+t1	0	PRIMARY	4	f4	A	18	NULL	NULL		BTREE			YES	NULL
 drop table t1;
 create temporary table t1 (a int not null);
 show create table t1;
@@ -709,8 +710,9 @@ def			SHOW_STATISTICS	Index_type	Index_type	253	11	5	N	129	0	63
 def			SHOW_STATISTICS	Comment	Comment	253	8	0	N	1	0	63
 def	mysql	indexes	SHOW_STATISTICS	Index_comment	Index_comment	253	2048	0	N	#	0	63
 def			SHOW_STATISTICS	Visible	Visible	253	3	3	N	1	0	63
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	field1	A	0	750	NULL		BTREE			YES
+def			SHOW_STATISTICS	Expression	Expression	252	4294967295	0	Y	144	0	63
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	field1	A	0	750	NULL		BTREE			YES	NULL
 drop table t1;
 create table t1 (
 c1 int NOT NULL,
@@ -927,8 +929,9 @@ def			SHOW_STATISTICS	Index_type	Index_type	253	33	5	N	129	0	33
 def			SHOW_STATISTICS	Comment	Comment	253	24	0	N	1	0	33
 def	mysql	indexes	SHOW_STATISTICS	Index_comment	Index_comment	253	6144	0	N	#	0	33
 def			SHOW_STATISTICS	Visible	Visible	253	9	3	N	1	0	33
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	c	A	0	NULL	NULL		BTREE			YES
+def			SHOW_STATISTICS	Expression	Expression	252	4294967295	0	Y	144	0	33
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	c	A	0	NULL	NULL		BTREE			YES	NULL
 ----------------------------------------------------------------
 SELECT
 TABLE_CATALOG,
@@ -1342,7 +1345,7 @@ show columns from `a\b` from `mysqlttest\1`;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
 show keys from `mysqlttest\1`.`a\b`;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 drop table `mysqlttest\1`.`a\b`;
 drop database `mysqlttest\1`;
 show engine foobar status;
@@ -1726,9 +1729,9 @@ DB_ROLL_PTR		#	#	#	#	#	#	#
 # With fix, following statements should not show the hidden index and
 # index columns.
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	c1	A	0	NULL	NULL		BTREE			YES
-t1	1	c2d	1	c2	A	0	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	c1	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	c2d	1	c2	A	0	NULL	NULL	YES	BTREE			YES	NULL
 SELECT table_schema, table_name, index_name, column_name FROM
 INFORMATION_SCHEMA.STATISTICS WHERE table_name='t1';
 TABLE_SCHEMA	TABLE_NAME	INDEX_NAME	COLUMN_NAME
@@ -1744,14 +1747,14 @@ test	PRIMARY	t1	c1
 # EXTENDED keyword is introduced to list the hidden index and index
 # columns.
 SHOW EXTENDED INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	c1	A	0	NULL	NULL		BTREE			YES
-t1	0	PRIMARY	2	DB_TRX_ID	A	NULL	NULL	NULL		BTREE			YES
-t1	0	PRIMARY	3	DB_ROLL_PTR	A	NULL	NULL	NULL		BTREE			YES
-t1	0	PRIMARY	4	c2	A	NULL	NULL	NULL	YES	BTREE			YES
-t1	0	PRIMARY	5	c3	A	NULL	NULL	NULL	YES	BTREE			YES
-t1	1	c2d	1	c2	A	0	NULL	NULL	YES	BTREE			YES
-t1	1	c2d	2	c1	A	NULL	NULL	NULL		BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	c1	A	0	NULL	NULL		BTREE			YES	NULL
+t1	0	PRIMARY	2	DB_TRX_ID	A	NULL	NULL	NULL		BTREE			YES	NULL
+t1	0	PRIMARY	3	DB_ROLL_PTR	A	NULL	NULL	NULL		BTREE			YES	NULL
+t1	0	PRIMARY	4	c2	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	0	PRIMARY	5	c3	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	c2d	1	c2	A	0	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	c2d	2	c1	A	NULL	NULL	NULL		BTREE			YES	NULL
 DROP TABLE t1;
 #
 # Bug#27387773 COLUMN OPTION FOR DESCRIBE IS IGNORED

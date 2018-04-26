@@ -304,14 +304,14 @@ analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show indexes from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	1	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	1	NULL	NULL	YES	BTREE			YES	NULL
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show indexes from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	1	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	1	NULL	NULL	YES	BTREE			YES	NULL
 drop table t1;
 create table t1 (a int)
 partition by hash (a);

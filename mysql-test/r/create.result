@@ -969,13 +969,13 @@ CREATE TABLE t1(c1 VARCHAR(33), KEY (c1) USING BTREE);
 DROP TABLE t1;
 CREATE TABLE t1(c1 VARCHAR(33), KEY USING BTREE (c1) USING HASH) ENGINE=MEMORY;
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	c1	1	c1	NULL	0	NULL	NULL	YES	HASH			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	c1	1	c1	NULL	0	NULL	NULL	YES	HASH			YES	NULL
 DROP TABLE t1;
 CREATE TABLE t1(c1 VARCHAR(33), KEY USING HASH (c1) USING BTREE) ENGINE=MEMORY;
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	c1	1	c1	A	NULL	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	c1	1	c1	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
 DROP TABLE t1;
 create user mysqltest_1@'test@test';
 ERROR HY000: Malformed hostname (illegal symbol: '@')

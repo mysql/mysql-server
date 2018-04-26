@@ -207,16 +207,16 @@ def	db_datadict	my_idx2	db_datadict	t1	UNIQUE
 def	db_datadict	PRIMARY	db_datadict	t1	PRIMARY KEY
 def	db_datadict	PRIMARY	db_datadict	t2	PRIMARY KEY
 SHOW INDEXES FROM db_datadict.t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	f1	###	###	###	###	###	###	###		YES
-t1	0	PRIMARY	2	f2	###	###	###	###	###	###	###		YES
-t1	0	my_idx1	1	f6	###	###	###	###	###	###	###		YES
-t1	0	my_idx1	2	f1	###	###	###	###	###	###	###		YES
-t1	0	my_idx2	1	f3	###	###	###	###	###	###	###		YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	f1	###	###	###	###	###	###	###		YES	NULL
+t1	0	PRIMARY	2	f2	###	###	###	###	###	###	###		YES	NULL
+t1	0	my_idx1	1	f6	###	###	###	###	###	###	###		YES	NULL
+t1	0	my_idx1	2	f1	###	###	###	###	###	###	###		YES	NULL
+t1	0	my_idx2	1	f3	###	###	###	###	###	###	###		YES	NULL
 SHOW INDEXES FROM db_datadict.t2;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t2	0	PRIMARY	1	f1	###	###	###	###	###	###	###		YES
-t2	0	PRIMARY	2	f2	###	###	###	###	###	###	###		YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t2	0	PRIMARY	1	f1	###	###	###	###	###	###	###		YES	NULL
+t2	0	PRIMARY	2	f2	###	###	###	###	###	###	###		YES	NULL
 # Establish connection testuser1 (user=testuser1)
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
@@ -230,12 +230,12 @@ def	db_datadict	my_idx1	db_datadict	t1	UNIQUE
 def	db_datadict	my_idx2	db_datadict	t1	UNIQUE
 def	db_datadict	PRIMARY	db_datadict	t1	PRIMARY KEY
 SHOW INDEXES FROM db_datadict.t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	f1	###	###	###	###	###	###	###		YES
-t1	0	PRIMARY	2	f2	###	###	###	###	###	###	###		YES
-t1	0	my_idx1	1	f6	###	###	###	###	###	###	###		YES
-t1	0	my_idx1	2	f1	###	###	###	###	###	###	###		YES
-t1	0	my_idx2	1	f3	###	###	###	###	###	###	###		YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	f1	###	###	###	###	###	###	###		YES	NULL
+t1	0	PRIMARY	2	f2	###	###	###	###	###	###	###		YES	NULL
+t1	0	my_idx1	1	f6	###	###	###	###	###	###	###		YES	NULL
+t1	0	my_idx1	2	f1	###	###	###	###	###	###	###		YES	NULL
+t1	0	my_idx2	1	f3	###	###	###	###	###	###	###		YES	NULL
 SHOW INDEXES FROM db_datadict.t2;
 ERROR 42000: SELECT command denied to user 'testuser1'@'localhost' for table 't2'
 # Switch to connection default and close connection testuser1

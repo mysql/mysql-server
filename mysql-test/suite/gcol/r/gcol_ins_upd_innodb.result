@@ -780,7 +780,7 @@ Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 a	int(11)	NULL	NO		NULL	NULL	#	
 b	int(11)	NULL	YES		NULL	VIRTUAL GENERATED	#	
 SHOW KEYS FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 DROP TEMPORARY TABLE t1;
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;

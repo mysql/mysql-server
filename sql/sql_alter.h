@@ -34,6 +34,7 @@
 #include "my_sqlcommand.h"
 #include "mysql/psi/psi_base.h"
 #include "nullable.h"
+#include "sql/dd/types/column.h"
 #include "sql/gis/srid.h"
 #include "sql/mdl.h"                // MDL_request
 #include "sql/mem_root_array.h"     // Mem_root_array
@@ -326,7 +327,7 @@ class Alter_info {
   Mem_root_array<const Alter_column *> alter_list;
   // List of keys, used by both CREATE and ALTER TABLE.
 
-  Mem_root_array<const Key_spec *> key_list;
+  Mem_root_array<Key_spec *> key_list;
   // Keys to be renamed.
   Mem_root_array<const Alter_rename_key *> alter_rename_key_list;
 
@@ -399,7 +400,8 @@ class Alter_info {
                  List<String> *interval_list, const CHARSET_INFO *cs,
                  bool has_explicit_collation, uint uint_geom_type,
                  class Generated_column *gcol_info, const char *opt_after,
-                 Nullable<gis::srid_t> srid);
+                 Nullable<gis::srid_t> srid,
+                 dd::Column::enum_hidden_type hidden);
 
  private:
   Alter_info &operator=(const Alter_info &rhs);  // not implemented

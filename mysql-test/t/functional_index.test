@@ -1,0 +1,404 @@
+CREATE TABLE t1 (int_col INTEGER, string_col VARCHAR(255));
+INSERT INTO t1 (int_col, string_col) VALUES (-1, "foo"), (1, "bar");
+
+CREATE INDEX int_func_index ON t1 ((ABS(int_col)));
+CREATE INDEX string_func_index ON t1 ((SUBSTRING(string_col, 1, 2)));
+
+--echo # We should see the functional index syntax in SHOW CREATE TABLE
+SHOW CREATE TABLE t1;
+
+--echo # INFORMATION_SCHEMA.STATISTICS should show the expression and no column
+--echo # name
+SELECT * FROM INFORMATION_SCHEMA.STATISTICS
+WHERE INDEX_NAME IN ('int_func_index', 'string_func_index');
+
+--echo # INFORMATION_SCHEMA.COLUMNS should not show the hidden generated
+--echo # columns.
+SELECT COUNT(*) AS should_be_2 FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME = "t1";
+
+--echo # INFORMATION_SCHEMA.INNODB_COLUMNS should not show the hidden generated
+--echo # columns.
+SELECT COUNT(*) AS should_be_2 FROM INFORMATION_SCHEMA.INNODB_COLUMNS c
+JOIN INFORMATION_SCHEMA.INNODB_TABLES t ON (c.TABLE_ID = t.TABLE_ID)
+WHERE t.NAME = "test/t1";
+
+--echo # The optimizer should be able to make use of the functional index.
+--echo # Also, the query printed as a warning from EXPLAIN should display the
+--echo # expression and not the name of the hidden generated column.
+EXPLAIN SELECT * FROM t1 WHERE SUBSTRING(string_col, 1, 2) = "fo";
+EXPLAIN SELECT * FROM t1 WHERE ABS(int_col) = 1;
+
+--echo # Creating multiple nameless functional indexes should automatically
+--echo # generate new names that doesn't collide.
+CREATE TABLE t2 (
+  col1 INT,
+  INDEX ((col1 * 2)),
+  INDEX ((col1 * 4)),
+  INDEX ((col1 * 6)));
+
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+--echo # Adding a multi-column index with both a functional part and a
+--echo # non-functional part should work just fine.
+CREATE INDEX combined_index ON t1 ((int_col + int_col), string_col);
+
+SHOW CREATE TABLE t1;
+
+--echo # ...and, the optimizer should be able to use this multi-column index
+EXPLAIN SELECT * FROM t1 WHERE int_col + int_col = 2 AND string_col = "bar";
+
+--echo # Test that if we have a string column with the same name as a function,
+--echo # we will pick the function. To pick the column, skip the enclosing
+--echo # parentheses around the expression.
+ALTER TABLE t1 ADD COLUMN rand VARCHAR(255);
+--error ER_FUNCTIONAL_INDEX_FUNCTION_IS_NOT_ALLOWED
+CREATE INDEX name_collision ON t1 ((rand(2)));
+--error ER_FUNCTIONAL_INDEX_FUNCTION_IS_NOT_ALLOWED
+CREATE INDEX name_collision ON t1 ((`rand`(2)));
+DROP TABLE t1;
+
+--echo # Check that in case of errors when saving data to the generated column,
+--echo # the functional index name is printed and not the auto generated name
+--echo # of the generated column.
+CREATE TABLE t1 (f1 JSON, f2 VARCHAR(255));
+CREATE INDEX my_functional_index ON t1 ((CAST(f1 AS DECIMAL(2, 1))));
+CREATE INDEX my_functional_index_2 ON t1 ((CAST(f2 AS CHAR(1))));
+
+--error ER_FUNCTIONAL_INDEX_ON_JSON_OR_GEOMETRY_FUNCTION
+CREATE INDEX idx1 ON t1 ((CAST(f2 AS JSON)));
+
+--error ER_WARN_DATA_OUT_OF_RANGE_FUNCTIONAL_INDEX
+INSERT INTO t1 (f1) VALUES (CAST(1000 AS JSON));
+--error ER_TRUNCATED_WRONG_VALUE
+INSERT INTO t1 (f2) VALUES ("lorem ipsum");
+
+--echo # In non-strict mode, a warning should be printed.
+SET @@sql_mode='';
+INSERT INTO t1 (f1) VALUES (CAST(1000 AS JSON));
+INSERT INTO t1 (f2) VALUES ("lorem ipsum");
+
+DROP TABLE t1;
+SET @@sql_mode=DEFAULT;
+
+CREATE TABLE t1 (t1_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+--error ER_FUNCTIONAL_INDEX_REF_AUTO_INCREMENT
+CREATE INDEX idx1 ON t1 ((t1_id + t1_id));
+DROP TABLE t1;
+
+--echo # Check that "SHOW KEYS" prints out the expression for generated columns
+--echo # (Column_name should be NULL, and Expression should contain the
+--echo # expression).
+CREATE TABLE t1 (col1 INT, col2 INT);
+CREATE INDEX idx1 ON t1 (col1, (col1 + col2));
+SHOW KEYS FROM t1;
+
+--echo # Create a funtional index with many functional key parts
+# NOTE: Enable when bug#27168185 is fixed
+# CREATE INDEX idx2 ON t1 (col1 + 1, col1 + 2, col1 + 3, col1 + 4, col1 + 5);
+
+--echo # Check that if we try to add a column with the same name as a hidden
+--echo # column, we get an internal error. The column name of the generated
+--echo # column is calculated as MD5(index_name + key_part_number).
+SELECT MD5(CONCAT("idx1", "1"));
+
+--error ER_INTERNAL_ERROR
+ALTER TABLE t1 ADD COLUMN `56fb28970273a50c6f31dec0fe3b175b` INT NOT NULL;
+
+DROP TABLE t1;
+
+--echo # Creating a functional index on already existing columns using
+--echo # ALTER TABLE should work just fine.
+CREATE TABLE t1 (col1 INT, col2 INT);
+ALTER TABLE t1 ADD INDEX ((ABS(col1))), ADD INDEX ((ABS(col2)));
+SHOW CREATE TABLE t1;
+
+--echo # Adding a functional index to a column that is created in the same
+--echo # ALTER TABLE statement should work.
+ALTER TABLE t1 ADD COLUMN col3 INT, ADD INDEX ((col1 - col3));
+
+DROP TABLE t1;
+
+--echo # Adding a functional index using CREATE TABLE should work
+CREATE TABLE t1 (col1 INT, INDEX ((ABS(col1))));
+DROP TABLE t1;
+
+--echo # Print out functional indexes on a temporary table. Note that
+--echo # "Column_name" should be empty (NULL), and Expression should contain the
+--echo # expression for the functional index.
+CREATE TEMPORARY TABLE t1(a INT);
+CREATE INDEX idx ON t1 ((ABS(a)));
+SHOW KEYS FROM t1;
+DROP TABLE t1;
+
+--error ER_WRONG_KEY_COLUMN_FUNCTIONAL_INDEX
+CREATE TABLE t1 (col1 INT, INDEX ((CONCAT(''))));
+
+--echo # Check that a functional index cannot be a part of the primary key
+--error ER_FUNCTIONAL_INDEX_PRIMARY_KEY
+CREATE TABLE t1 (col1 INT, PRIMARY KEY ((ABS(col1))));
+--error ER_FUNCTIONAL_INDEX_PRIMARY_KEY
+CREATE TABLE t1 (col1 INT, PRIMARY KEY (col1, (ABS(col1))));
+--error ER_FUNCTIONAL_INDEX_PRIMARY_KEY
+CREATE TABLE t1 (col1 INT, col2 INT, PRIMARY KEY (col1, (ABS(col1)), col2));
+
+CREATE TABLE t1 (col1 INT, col2 INT);
+--error ER_FUNCTIONAL_INDEX_PRIMARY_KEY
+ALTER TABLE t1 ADD PRIMARY KEY ((ABS(col1)));
+--error ER_FUNCTIONAL_INDEX_PRIMARY_KEY
+ALTER TABLE t1 ADD PRIMARY KEY (col2, (ABS(col1)));
+--error ER_FUNCTIONAL_INDEX_PRIMARY_KEY
+ALTER TABLE t1 ADD PRIMARY KEY (col1, col2, (ABS(col1)));
+DROP TABLE t1;
+
+--echo # Check that descending functional index works
+CREATE TABLE t1 (col1 INT, INDEX ((ABS(col1)) DESC));
+EXPLAIN SELECT col1 FROM t1 WHERE ABS(col1) < 1 ORDER BY ABS(col1) DESC;
+DROP TABLE t1;
+
+--echo # Test integer index over a JSON key
+CREATE TABLE t1(f1 JSON, INDEX idx1 ((CAST(f1->"$.id" AS UNSIGNED))));
+INSERT INTO t1 VALUES(CAST('{"id":1}' AS JSON)), (CAST('{"id":2}' AS JSON)),
+  (CAST('{"id":3}' AS JSON)), (CAST('{"id":4}' AS JSON)),
+  (CAST('{"id":5}' AS JSON)), (CAST('{"id":6}' AS JSON)),
+  (CAST('{"id":7}' AS JSON)), (CAST('{"id":8}' AS JSON)),
+  (CAST('{"id":9}' AS JSON)), (CAST('{"id":10}' AS JSON));
+
+SELECT * FROM t1 WHERE f1->"$.id"= 5;
+EXPLAIN SELECT * FROM t1 WHERE f1->"$.id"= 5;
+SELECT * FROM t1 WHERE f1->"$.id" IN (1,2,3);
+EXPLAIN SELECT * FROM t1 WHERE f1->"$.id" IN (1,2,3);
+
+DROP TABLE t1;
+
+--echo Test string index over a JSON key
+
+CREATE TABLE t1(f1 JSON, INDEX idx1 ((CAST(f1->>"$.id" AS CHAR(10)))));
+
+INSERT INTO t1 VALUES
+  (CAST('{"id":"a"}' AS JSON)), (CAST('{"id":"b"}' AS JSON)),
+  (CAST('{"id":"v"}' AS JSON)), (CAST('{"id":"c"}' AS JSON)),
+  (CAST('{"id":"x"}' AS JSON)), (CAST('{"id":"\'z"}' AS JSON)),
+  (JSON_OBJECT("id",JSON_QUOTE("n"))), (CAST('{"id":"w"}' AS JSON)),
+  (CAST('{"id":"m"}' AS JSON)), (CAST('{"id":"q"}' AS JSON));
+
+SELECT * FROM t1 WHERE CAST(f1->>"$.id" AS CHAR(10)) = "\"n\"";
+EXPLAIN SELECT * FROM t1 WHERE CAST(f1->>"$.id" AS CHAR(10)) = "\"n\"";
+SELECT * FROM t1 WHERE CAST(f1->>"$.id" AS CHAR(10)) IN ("'z", "\"n\"","a");
+EXPLAIN SELECT * FROM t1 WHERE CAST(f1->>"$.id" AS CHAR(10)) IN ("'z", "\"n\"","a");
+
+DROP TABLE t1;
+
+CREATE TABLE t1(f1 JSON, INDEX idx1 ((CAST(f1->>"$.name" AS CHAR(30)) COLLATE utf8mb4_bin)));
+
+INSERT INTO t1 VALUES
+  ('{"name": "james"}'),
+  ('{"name": "JAMES"}'),
+  ('{"name": "Peter"}'),
+  ('{"name": "parker"}');
+
+--echo # Should not return any rows, and should use the index
+SELECT * FROM t1 WHERE f1->>"$.name" = "James";
+EXPLAIN SELECT * FROM t1 WHERE f1->>"$.name" = "James";
+
+--echo # Should return one row, and should use the index
+SELECT * FROM t1 WHERE f1->>"$.name" = "james";
+EXPLAIN SELECT * FROM t1 WHERE f1->>"$.name" = "james";
+
+--echo # Should return one row, and should use the index
+SELECT * FROM t1 WHERE CAST(f1->>"$.name" AS CHAR(30)) COLLATE utf8mb4_bin = "james";
+EXPLAIN SELECT * FROM t1 WHERE CAST(f1->>"$.name" AS CHAR(30)) COLLATE utf8mb4_bin = "james";
+
+DROP TABLE t1;
+
+--echo # See that optimizer trace doesn't reveal the name of the hidden
+--echo # generated column.
+CREATE TABLE t1 (col1 INT, INDEX ((col1 + col1)));
+SET optimizer_trace="enabled=on";
+SELECT col1 FROM t1 WHERE col1 + col1 = 10;
+SELECT TRACE FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+DROP TABLE t1;
+
+--echo # Test that doing an UPDATE on a hidden generated column returns "column
+--echo # not found".
+
+CREATE TABLE t1 (col1 INT, INDEX idx1 ((col1 + col1)));
+
+--echo # Get the expected name of the hidden generated column.
+SELECT MD5(CONCAT("idx1", "0"));
+
+--error ER_BAD_FIELD_ERROR
+UPDATE t1 SET 45197ac678c1210c4a64bf22351853e7 = 123;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#28037245 VIRTUAL COLUMN IS ALLOWED IN THE WHERE CLAUSE FOR SQL
+--echo #              QUERY
+--echo #
+CREATE TABLE t3 (c1 INT);
+CREATE INDEX int_func_index ON t3 ((ABS(c1)));
+
+--echo # Get the expected column name of the functional index
+SELECT MD5(CONCAT('int_func_index', '0'));
+
+--error ER_BAD_FIELD_ERROR
+SELECT * FROM t3 WHERE 7cf759b4f03e729c90aa40cc68dd8780=1;
+DROP TABLE t3;
+
+--echo #
+--echo # Bug#28037375 ALTER TABLE DROP OF A NORMAL COLUMN RAISES ERROR
+--echo #
+CREATE TABLE t6 (c1 INT, c2 INT);
+CREATE INDEX int_func_index ON t6 ((ABS(c1)));
+ALTER TABLE t6 DROP COLUMN c2;
+DROP TABLE t6;
+
+--echo # Check that a functional index on a function that returns geometry data
+--echo # isn't allowed.
+--error ER_SPATIAL_FUNCTIONAL_INDEX
+CREATE TABLE t1(x VARCHAR(100), KEY ((ST_GeomFromText(x))));
+
+--echo # See that we don't print out the names of the hidden generated columns,
+--echo # but rather the expression that they represent.
+CREATE TABLE t1(x VARCHAR(30), INDEX idx ((CAST(x->>'$.name' AS CHAR(30)))));
+INSERT INTO t1 VALUES ('{"name":"knut"}');
+EXPLAIN FORMAT=JSON SELECT * FROM t1 WHERE CAST(x->>'$.name' AS CHAR(30)) = 'knut';
+DROP TABLE t1;
+
+--echo # Check that we cannot drop the last visible column when we have hidden
+--echo # generated columns.
+CREATE TABLE t(x INT, KEY((1+1)));
+--error ER_TABLE_MUST_HAVE_COLUMNS
+ALTER TABLE t DROP COLUMN x;
+DROP TABLE t;
+
+--echo # See that we print out the correct error message in case of duplicate
+--echo # index names.
+CREATE TABLE t (x INT);
+CREATE INDEX idx ON t ((x+1));
+--error ER_DUP_KEYNAME
+CREATE INDEX idx ON t ((x+2));
+DROP TABLE t;
+
+--echo #
+--echo # Bug#28206859 SERVER CRASHED WHEN NORMAL INDEX WAS CREATED USING NEW
+--echo #              FUNCTIONAL INDEX SYNTAX
+--echo #
+--error ER_FUNCTIONAL_INDEX_ON_FIELD
+CREATE TABLE t2(a INT, b INT, INDEX id2 ((a)));
+
+--echo #
+--echo # Bug#28206912 ASSERTION `TABLE_LIST->TABLE' FAILED.
+--echo #
+--error ER_BAD_FIELD_ERROR
+CREATE TABLE t2(a INT, b INT, INDEX id2 ((a+b+c)));
+
+--echo #
+--echo # Bug#28216475 SIG 11 IN ITEM_FIELD::REPLACE_FIELD_PROCESSOR DURING
+--echo #              CREATE TABLE
+--echo #
+--error ER_FUNCTIONAL_INDEX_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE IF NOT EXISTS table470 ( pk INTEGER AUTO_INCREMENT, a1
+VARCHAR(3) NOT NULL, b1 DATETIME NOT NULL, c1 TEXT NOT NULL, d1 TEXT NULL,
+PRIMARY KEY (a1), KEY ((VALUES(d1))));
+
+--error ER_FUNCTIONAL_INDEX_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE  table44 ( pk INTEGER AUTO_INCREMENT, a1 TEXT NOT NULL, b1
+DATETIME NOT NULL, c1 TIME NOT NULL, d1 BLOB NOT NULL, PRIMARY KEY (a1), KEY
+((VALUES(d1))));
+
+--echo #
+--echo # Bug #28222789 SIG 11 IN BITMAP<64U>::INTERSECT DURING CREATE INDEX
+--echo #
+CREATE TABLE t1 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int_nokey int(11) DEFAULT NULL,
+  col_int_key int(11) DEFAULT NULL,
+  col_date_key date DEFAULT NULL,
+  col_date_nokey date DEFAULT NULL,
+  col_time_key time DEFAULT NULL,
+  col_time_nokey time DEFAULT NULL,
+  col_datetime_key datetime DEFAULT NULL,
+  col_datetime_nokey datetime DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_date_key (col_date_key),
+  KEY col_time_key (col_time_key),
+  KEY col_datetime_key (col_datetime_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key),
+  KEY ind25 ((dayofmonth(col_time_nokey))),
+  KEY ind211 ((cast(col_date_nokey as date))),
+  KEY ind602 ((is_uuid(col_time_nokey)))
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4
+COLLATE=utf8mb4_0900_ai_ci;
+
+--error ER_FUNCTIONAL_INDEX_REF_AUTO_INCREMENT
+CREATE INDEX ind320 ON t1 ((pk >= col_time_nokey LIKE
+ST_GeomFromGeoJSON(col_varchar_key) ));
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#28218591 WRONG ERROR MESSAGE WHILE CREATING FUNCTIONAL INDEX
+--echo #
+--error ER_WRONG_KEY_COLUMN_FUNCTIONAL_INDEX
+CREATE TABLE t(a INT, b INT, INDEX c((null)));
+
+--echo # Blank functional index name should give a "Incorrect index name" error
+--error ER_WRONG_NAME_FOR_INDEX
+CREATE TABLE t1(x INT, KEY `` ((x + 1)));
+
+--echo # Check that we don't use the functional index in case of a collation
+--echo # mismatch
+CREATE TABLE t(x VARCHAR(10), KEY k ((CAST(CONCAT(x,x) AS BINARY))));
+INSERT INTO t VALUES ('x');
+EXPLAIN SELECT * FROM t WHERE CONCAT(x,x) = 'XX';
+DROP TABLE t;
+
+--echo #
+--echo # Bug#28244585 ERROR WHILE CREATING TABLE WITH FUNCTIONAL INDEXES INSIDE
+--echo #              PROCEDURES.
+DELIMITER //;
+CREATE PROCEDURE p1() BEGIN
+  CREATE TABLE t(a INT,b INT,UNIQUE INDEX i((a+b)));
+END//
+DELIMITER ;//
+CALL p1();
+--error ER_TABLE_EXISTS_ERROR
+CALL p1();
+DROP TABLE t;
+CALL p1();
+DROP TABLE t;
+DROP PROCEDURE p1;
+
+
+--echo # Code coverage tests
+CREATE TABLE t1 (
+  col1 FLOAT
+, col2 TIMESTAMP
+, col3 YEAR
+, INDEX ((ABS(col1)))
+, INDEX ((ADDDATE(col2, INTERVAL 2 DAY)))
+, INDEX ((ABS(col3)))
+);
+
+DROP TABLE t1;
+
+--error ER_FUNCTIONAL_INDEX_ON_LOB
+CREATE TABLE t1 (
+  col4 TEXT NOT NULL
+, INDEX ((ST_AsBinary(col4)))
+);
+
+--echo # See that we get a reasonable error message when trying to remove a
+--echo # column that is a part of a functional index.
+CREATE TABLE t1 (col1 INT, col2 INT, col3 INT, INDEX idx ((col1 + col2 + col3)));
+--error ER_CANNOT_DROP_COLUMN_FUNCTIONAL_INDEX
+ALTER TABLE t1 DROP COLUMN col2;
+--error ER_CANNOT_DROP_COLUMN_FUNCTIONAL_INDEX
+ALTER TABLE t1 DROP COLUMN col3;
+ALTER TABLE t1 DROP INDEX idx;
+ALTER TABLE t1 DROP COLUMN col3;
+DROP TABLE t1;

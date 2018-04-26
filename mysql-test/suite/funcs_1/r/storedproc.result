@@ -22837,8 +22837,8 @@ f1	f2	f3
 10	30	50
 Table	Op	Msg_type	Msg_text
 db_storedproc.res_t9	analyze	status	OK
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-res_t9	1	index_1	1	f1	A	1	5	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+res_t9	1	index_1	1	f1	A	1	5	NULL	YES	BTREE			YES	NULL
 DROP PROCEDURE sp6;
 drop table res_t9;
 Warnings:

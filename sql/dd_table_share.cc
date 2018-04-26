@@ -1058,6 +1058,8 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
     reg_field->comment.length = comment.length();
   }
 
+  reg_field->set_hidden(col_obj->hidden());
+
   // Field is prepared. Store it in 'share'
   share->field[field_nr] = reg_field;
 

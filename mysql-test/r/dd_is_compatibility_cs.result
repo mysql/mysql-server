@@ -18,15 +18,15 @@ CREATE TABLE t1 (i INTEGER, KEY cached_key(i)) ENGINE=INNODB STATS_PERSISTENT=0;
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10),
 (11), (12), (13), (14), (15), (16), (17), (18), (19);
 SHOW KEYS FROM t1 WHERE key_name LIKE 'cached%';
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	cached_key	1	i	A	19	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	cached_key	1	i	A	19	NULL	NULL	YES	BTREE			YES	NULL
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 # After ANALYZE, cardinality is correct.
 SHOW KEYS FROM t1 WHERE key_name LIKE 'cached%';
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	cached_key	1	i	A	19	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	cached_key	1	i	A	19	NULL	NULL	YES	BTREE			YES	NULL
 DROP TABLE t1;
 SET information_schema_stats_expiry=0;
 # Getting latest statistics does not need ANALYZE.
@@ -35,8 +35,8 @@ INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
 # Wait until InnoDB background thread updates the statistics.
 # Cardinality is correct even without ANALYZE.
 SHOW KEYS FROM t1 WHERE key_name LIKE 'latest%';
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	latest_key	1	i	A	#	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	latest_key	1	i	A	#	NULL	NULL	YES	BTREE			YES	NULL
 DROP TABLE t1;
 SET information_schema_stats_expiry=default;
 #########################################################
@@ -321,27 +321,27 @@ disconnect con2;
 CREATE TABLE t1 ( a INT, KEY (a) INVISIBLE );
 CREATE TABLE t2 ( a INT, KEY (a) INVISIBLE ) ENGINE=MyISAM;
 SHOW KEYS FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE			NO
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE			NO	NULL
 SHOW KEYS FROM t2;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t2	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			NO
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t2	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			NO	NULL
 CREATE TABLE t3 ( a INT, KEY (a));
 SHOW KEYS FROM t3;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t3	1	a	1	a	A	0	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t3	1	a	1	a	A	0	NULL	NULL	YES	BTREE			YES	NULL
 ALTER TABLE t3 ALTER INDEX a INVISIBLE;
 SHOW KEYS FROM t3;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t3	1	a	1	a	A	0	NULL	NULL	YES	BTREE			NO
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t3	1	a	1	a	A	0	NULL	NULL	YES	BTREE			NO	NULL
 CREATE TABLE t4 ( a INT, KEY (a)) ENGINE=MyISAM;
 SHOW KEYS FROM t4;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t4	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t4	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
 ALTER TABLE t4 ALTER INDEX a INVISIBLE;
 SHOW KEYS FROM t4;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t4	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			NO
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t4	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			NO	NULL
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;

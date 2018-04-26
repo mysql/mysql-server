@@ -272,6 +272,7 @@ def	information_schema	STATISTICS	INDEX_TYPE	14		NO	varchar	11	33	NULL	NULL	NULL
 def	information_schema	STATISTICS	COMMENT	15		NO	varchar	8	24	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select			NULL
 def	information_schema	STATISTICS	INDEX_COMMENT	16	NULL	NO	varchar	2048	6144	NULL	NULL	NULL	utf8	utf8_bin	varchar(2048)			select			NULL
 def	information_schema	STATISTICS	IS_VISIBLE	17		NO	varchar	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select			NULL
+def	information_schema	STATISTICS	EXPRESSION	18	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_bin	longtext			select			NULL
 def	information_schema	ST_GEOMETRY_COLUMNS	TABLE_CATALOG	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	ST_GEOMETRY_COLUMNS	TABLE_SCHEMA	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	ST_GEOMETRY_COLUMNS	TABLE_NAME	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
@@ -719,6 +720,7 @@ NULL	information_schema	STATISTICS	PACKED	binary	0	0	NULL	NULL	binary(0)
 3.0000	information_schema	STATISTICS	COMMENT	varchar	8	24	utf8	utf8_general_ci	varchar(8)
 3.0000	information_schema	STATISTICS	INDEX_COMMENT	varchar	2048	6144	utf8	utf8_bin	varchar(2048)
 3.0000	information_schema	STATISTICS	IS_VISIBLE	varchar	3	9	utf8	utf8_general_ci	varchar(3)
+1.0000	information_schema	STATISTICS	EXPRESSION	longtext	4294967295	4294967295	utf8	utf8_bin	longtext
 3.0000	information_schema	ST_GEOMETRY_COLUMNS	TABLE_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	ST_GEOMETRY_COLUMNS	TABLE_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	ST_GEOMETRY_COLUMNS	TABLE_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)

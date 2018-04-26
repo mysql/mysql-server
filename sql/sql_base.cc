@@ -8706,6 +8706,13 @@ bool setup_fields(THD *thd, Ref_item_array ref_item_array, List<Item> &fields,
                  ("thd->mark_used_columns: %d", thd->mark_used_columns));
       DBUG_RETURN(true); /* purecov: inspected */
     }
+
+    // Check that we don't have a field that is hidden from users. This should
+    // be caught in Item_field::fix_fields.
+    DBUG_ASSERT(
+        item->type() != Item::FIELD_ITEM ||
+        !static_cast<const Item_field *>(item)->field->is_hidden_from_user());
+
     if (!ref.is_null()) {
       ref[0] = item;
       ref.pop_front();
@@ -8881,15 +8888,24 @@ bool insert_fields(THD *thd, Name_resolution_context *context,
       Item *const item = field_iterator.create_item(thd);
       if (!item) DBUG_RETURN(true); /* purecov: inspected */
       DBUG_ASSERT(item->fixed);
-      /* cache the table for the Item_fields inserted by expanding stars */
-      if (item->type() == Item::FIELD_ITEM && tables->cacheable_table)
-        ((Item_field *)item)->cached_table = tables;
 
-      if (!found) {
-        found = true;
-        it->replace(item); /* Replace '*' with the first found item. */
-      } else
-        it->after(item); /* Add 'item' to the SELECT list. */
+      bool is_hidden_from_user = false;
+      if (item->type() == Item::FIELD_ITEM) {
+        Item_field *field = static_cast<Item_field *>(item);
+        is_hidden_from_user = field->field->is_hidden_from_user();
+        /* cache the table for the Item_fields inserted by expanding stars */
+        if (tables->cacheable_table) field->cached_table = tables;
+      }
+
+      // If the column is hidden from users, do not add this column in place
+      // of '*'.
+      if (!is_hidden_from_user) {
+        if (!found) {
+          found = true;
+          it->replace(item); /* Replace '*' with the first found item. */
+        } else
+          it->after(item); /* Add 'item' to the SELECT list. */
+      }
 
       /*
         Set privilege information for the fields of newly created views.
@@ -9299,6 +9315,9 @@ bool fill_record(THD *thd, TABLE *table, Field **ptr, List<Item> &values,
   Field *field;
   List_iterator_fast<Item> v(values);
   while ((field = *ptr++) && !thd->is_error()) {
+    // Skip fields invisible to the user
+    if (field->is_hidden_from_user()) continue;
+
     Item *const value = v++;
     DBUG_ASSERT(field->table == table);
 

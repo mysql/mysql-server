@@ -156,24 +156,24 @@ key (n3, n4, n1, n2),
 key (n4, n1, n2, n3) ) engine=Myisam;
 alter table t1 disable keys;
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	n1	1	n1	A	0	NULL	NULL		BTREE			YES
-t1	1	n1_2	1	n1	A	NULL	NULL	NULL		BTREE	disabled		YES
-t1	1	n1_2	2	n2	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
-t1	1	n1_2	3	n3	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
-t1	1	n1_2	4	n4	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
-t1	1	n2	1	n2	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
-t1	1	n2	2	n3	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
-t1	1	n2	3	n4	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
-t1	1	n2	4	n1	A	NULL	NULL	NULL		BTREE	disabled		YES
-t1	1	n3	1	n3	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
-t1	1	n3	2	n4	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
-t1	1	n3	3	n1	A	NULL	NULL	NULL		BTREE	disabled		YES
-t1	1	n3	4	n2	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
-t1	1	n4	1	n4	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
-t1	1	n4	2	n1	A	NULL	NULL	NULL		BTREE	disabled		YES
-t1	1	n4	3	n2	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
-t1	1	n4	4	n3	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	n1	1	n1	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	n1_2	1	n1	A	NULL	NULL	NULL		BTREE	disabled		YES	NULL
+t1	1	n1_2	2	n2	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+t1	1	n1_2	3	n3	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+t1	1	n1_2	4	n4	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+t1	1	n2	1	n2	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+t1	1	n2	2	n3	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+t1	1	n2	3	n4	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+t1	1	n2	4	n1	A	NULL	NULL	NULL		BTREE	disabled		YES	NULL
+t1	1	n3	1	n3	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+t1	1	n3	2	n4	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+t1	1	n3	3	n1	A	NULL	NULL	NULL		BTREE	disabled		YES	NULL
+t1	1	n3	4	n2	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+t1	1	n4	1	n4	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+t1	1	n4	2	n1	A	NULL	NULL	NULL		BTREE	disabled		YES	NULL
+t1	1	n4	3	n2	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+t1	1	n4	4	n3	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
 insert into t1 values(10,RAND()*1000,RAND()*1000,RAND());
 insert into t1 values(9,RAND()*1000,RAND()*1000,RAND());
 insert into t1 values(8,RAND()*1000,RAND()*1000,RAND());
@@ -186,24 +186,24 @@ insert into t1 values(2,RAND()*1000,RAND()*1000,RAND());
 insert into t1 values(1,RAND()*1000,RAND()*1000,RAND());
 alter table t1 enable keys;
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	n1	1	n1	A	10	NULL	NULL		BTREE			YES
-t1	1	n1_2	1	n1	A	10	NULL	NULL		BTREE			YES
-t1	1	n1_2	2	n2	A	10	NULL	NULL	YES	BTREE			YES
-t1	1	n1_2	3	n3	A	10	NULL	NULL	YES	BTREE			YES
-t1	1	n1_2	4	n4	A	10	NULL	NULL	YES	BTREE			YES
-t1	1	n2	1	n2	A	10	NULL	NULL	YES	BTREE			YES
-t1	1	n2	2	n3	A	10	NULL	NULL	YES	BTREE			YES
-t1	1	n2	3	n4	A	10	NULL	NULL	YES	BTREE			YES
-t1	1	n2	4	n1	A	10	NULL	NULL		BTREE			YES
-t1	1	n3	1	n3	A	10	NULL	NULL	YES	BTREE			YES
-t1	1	n3	2	n4	A	10	NULL	NULL	YES	BTREE			YES
-t1	1	n3	3	n1	A	10	NULL	NULL		BTREE			YES
-t1	1	n3	4	n2	A	10	NULL	NULL	YES	BTREE			YES
-t1	1	n4	1	n4	A	10	NULL	NULL	YES	BTREE			YES
-t1	1	n4	2	n1	A	10	NULL	NULL		BTREE			YES
-t1	1	n4	3	n2	A	10	NULL	NULL	YES	BTREE			YES
-t1	1	n4	4	n3	A	10	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	n1	1	n1	A	10	NULL	NULL		BTREE			YES	NULL
+t1	1	n1_2	1	n1	A	10	NULL	NULL		BTREE			YES	NULL
+t1	1	n1_2	2	n2	A	10	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	n1_2	3	n3	A	10	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	n1_2	4	n4	A	10	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	n2	1	n2	A	10	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	n2	2	n3	A	10	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	n2	3	n4	A	10	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	n2	4	n1	A	10	NULL	NULL		BTREE			YES	NULL
+t1	1	n3	1	n3	A	10	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	n3	2	n4	A	10	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	n3	3	n1	A	10	NULL	NULL		BTREE			YES	NULL
+t1	1	n3	4	n2	A	10	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	n4	1	n4	A	10	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	n4	2	n1	A	10	NULL	NULL		BTREE			YES	NULL
+t1	1	n4	3	n2	A	10	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	n4	4	n3	A	10	NULL	NULL	YES	BTREE			YES	NULL
 drop table t1;
 create table t1 (i int unsigned not null auto_increment primary key);
 alter table t1 rename t2;
@@ -316,18 +316,18 @@ insert into t1 values(1,2), (2,2), (3, 2);
 insert into t1 values(1,1), (2,1), (3, 1);
 alter table t1 add unique (a,b), add key (b);
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	a	1	a	A	3	NULL	NULL	YES	BTREE			YES
-t1	0	a	2	b	A	300	NULL	NULL	YES	BTREE			YES
-t1	1	b	1	b	A	100	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	a	1	a	A	3	NULL	NULL	YES	BTREE			YES	NULL
+t1	0	a	2	b	A	300	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	b	1	b	A	100	NULL	NULL	YES	BTREE			YES	NULL
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	a	1	a	A	3	NULL	NULL	YES	BTREE			YES
-t1	0	a	2	b	A	300	NULL	NULL	YES	BTREE			YES
-t1	1	b	1	b	A	100	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	a	1	a	A	3	NULL	NULL	YES	BTREE			YES	NULL
+t1	0	a	2	b	A	300	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	b	1	b	A	100	NULL	NULL	YES	BTREE			YES	NULL
 drop table t1;
 CREATE TABLE t1 (
 Host varchar(16) binary NOT NULL default '',
@@ -338,9 +338,9 @@ ALTER TABLE t1 DISABLE KEYS;
 LOCK TABLES t1 WRITE;
 INSERT INTO t1 VALUES ('localhost','root'),('localhost',''),('games','monty');
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE			YES
-t1	0	PRIMARY	2	User	A	0	NULL	NULL		BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE			YES	NULL
+t1	0	PRIMARY	2	User	A	0	NULL	NULL		BTREE			YES	NULL
 ALTER TABLE t1 ENABLE KEYS;
 UNLOCK TABLES;
 CHECK TABLES t1;
@@ -355,23 +355,23 @@ KEY  (Host)
 ) ENGINE=MyISAM;
 ALTER TABLE t1 DISABLE KEYS;
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE			YES
-t1	0	PRIMARY	2	User	A	0	NULL	NULL		BTREE			YES
-t1	1	Host	1	Host	A	NULL	NULL	NULL		BTREE	disabled		YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE			YES	NULL
+t1	0	PRIMARY	2	User	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	Host	1	Host	A	NULL	NULL	NULL		BTREE	disabled		YES	NULL
 LOCK TABLES t1 WRITE;
 INSERT INTO t1 VALUES ('localhost','root'),('localhost','');
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE			YES
-t1	0	PRIMARY	2	User	A	0	NULL	NULL		BTREE			YES
-t1	1	Host	1	Host	A	NULL	NULL	NULL		BTREE	disabled		YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE			YES	NULL
+t1	0	PRIMARY	2	User	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	Host	1	Host	A	NULL	NULL	NULL		BTREE	disabled		YES	NULL
 ALTER TABLE t1 ENABLE KEYS;
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE			YES
-t1	0	PRIMARY	2	User	A	2	NULL	NULL		BTREE			YES
-t1	1	Host	1	Host	A	1	NULL	NULL		BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE			YES	NULL
+t1	0	PRIMARY	2	User	A	2	NULL	NULL		BTREE			YES	NULL
+t1	1	Host	1	Host	A	1	NULL	NULL		BTREE			YES	NULL
 UNLOCK TABLES;
 CHECK TABLES t1;
 Table	Op	Msg_type	Msg_text
@@ -393,10 +393,10 @@ KEY  (Host)
 LOCK TABLES t1 WRITE;
 ALTER TABLE t1 DISABLE KEYS;
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE			YES
-t1	0	PRIMARY	2	User	A	0	NULL	NULL		BTREE			YES
-t1	1	Host	1	Host	A	NULL	NULL	NULL		BTREE	disabled		YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE			YES	NULL
+t1	0	PRIMARY	2	User	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	Host	1	Host	A	NULL	NULL	NULL		BTREE	disabled		YES	NULL
 DROP TABLE t1;
 create table t1 (a int);
 alter table t1 rename to ``;
@@ -579,38 +579,38 @@ drop table t1;
 drop table if exists t1;
 create table t1 (a int, key(a)) engine=myisam;
 show indexes from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
 "this used not to disable the index"
 alter table t1 modify a int, disable keys;
 show indexes from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
 alter table t1 enable keys;
 show indexes from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
 alter table t1 modify a bigint, disable keys;
 show indexes from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
 alter table t1 enable keys;
 show indexes from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
 alter table t1 add b char(10), disable keys;
 show indexes from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
 alter table t1 add c decimal(10,2), enable keys;
 show indexes from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
 "this however did"
 alter table t1 disable keys;
 show indexes from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
 desc t1;
 Field	Type	Null	Key	Default	Extra
 a	bigint(20)	YES	MUL	NULL	
@@ -619,83 +619,83 @@ c	decimal(10,2)	YES		NULL
 alter table t1 add d decimal(15,5);
 "The key should still be disabled"
 show indexes from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
 drop table t1;
 "Now will test with one unique index"
 create table t1(a int, b char(10), unique(a)) engine=myisam;
 show indexes from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
 alter table t1 disable keys;
 show indexes from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
 alter table t1 enable keys;
 "If no copy on noop change, this won't touch the data file"
 "Unique index, no change"
 alter table t1 modify a int, disable keys;
 show indexes from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
 "Change the type implying data copy"
 "Unique index, no change"
 alter table t1 modify a bigint, disable keys;
 show indexes from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
 alter table t1 modify a bigint;
 show indexes from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
 alter table t1 modify a int;
 show indexes from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
 drop table t1;
 "Now will test with one unique and one non-unique index"
 create table t1(a int, b char(10), unique(a), key(b)) engine=myisam;
 show indexes from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
-t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
 alter table t1 disable keys;
 show indexes from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
-t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
 alter table t1 enable keys;
 "If no copy on noop change, this won't touch the data file"
 "The non-unique index will be disabled"
 alter table t1 modify a int, disable keys;
 show indexes from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
-t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
 alter table t1 enable keys;
 show indexes from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
-t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
 "Change the type implying data copy"
 "The non-unique index will be disabled"
 alter table t1 modify a bigint, disable keys;
 show indexes from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
-t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
 "Change again the type, but leave the indexes as_is"
 alter table t1 modify a int;
 show indexes from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
-t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
 "Try the same. When data is no copied on similar tables, this is noop"
 alter table t1 modify a int;
 show indexes from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
-t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
 drop table t1;
 create database mysqltest;
 create table t1 (c1 int);
@@ -731,12 +731,12 @@ DROP TABLE IF EXISTS bug24219;
 DROP TABLE IF EXISTS bug24219_2;
 CREATE TABLE bug24219 (a INT, INDEX(a)) ENGINE=MyISAM;
 SHOW INDEX FROM bug24219;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-bug24219	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+bug24219	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
 ALTER TABLE bug24219 RENAME TO bug24219_2, DISABLE KEYS;
 SHOW INDEX FROM bug24219_2;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-bug24219_2	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+bug24219_2	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
 DROP TABLE bug24219_2;
 drop table if exists table_24562;
 create table table_24562(
@@ -1187,8 +1187,8 @@ Field	Type	Null	Key	Default	Extra
 int_field	int(10) unsigned	NO	MUL	NULL	
 char_field	char(10)	YES		NULL	
 SHOW INDEXES FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	int_field	1	int_field	A	0	NULL	NULL		BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	int_field	1	int_field	A	0	NULL	NULL		BTREE			YES	NULL
 INSERT INTO t1 VALUES (1, "edno"), (1, "edno"), (2, "dve"), (3, "tri"), (5, "pet");
 "Non-copy data change - new frm, but old data and index files"
 ALTER TABLE t1
@@ -2596,39 +2596,39 @@ SET sql_mode = default;
 # index comment or the lack of comment for the indexes.
 CREATE TABLE t1(fld1 int, key key1(fld1));
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE			YES	NULL
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT 'test';
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		test	YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		test	YES	NULL
 DROP TABLE t1;
 CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'test');
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		test	YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		test	YES	NULL
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1);
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE			YES	NULL
 DROP TABLE t1;
 CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'test');
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		test	YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		test	YES	NULL
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT 'success';
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		success	YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		success	YES	NULL
 DROP TABLE t1;
 CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'old comment');
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		old comment	YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		old comment	YES	NULL
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT 'new comment';
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		new comment	YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		new comment	YES	NULL
 DROP TABLE t1;
 #
 # Bug#19635706
@@ -2727,56 +2727,56 @@ SET sql_mode= @orig_sql_mode;
 #comment using INPLACE algorithm reports an error.
 CREATE TABLE t1(fld1 int, key key1(fld1)) ENGINE= INNODB;
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE			YES	NULL
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT 'test',
 ALGORITHM= INPLACE;
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		test	YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		test	YES	NULL
 DROP TABLE t1;
 CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'test') ENGINE= MyISAM;
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		test	YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		test	YES	NULL
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1), ALGORITHM=INPLACE;
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
 DROP TABLE t1;
 CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'test') ENGINE= INNODB;
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		test	YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		test	YES	NULL
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT 'success',
 ALGORITHM= INPLACE;
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		success	YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		success	YES	NULL
 DROP TABLE t1;
 CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'old comment') ENGINE=MyISAM;
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		old comment	YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		old comment	YES	NULL
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT 'new comment',
 ALGORITHM= INPLACE;
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		new comment	YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		new comment	YES	NULL
 DROP TABLE t1;
 #Test cases with merge threshold specified in the index comment.
 CREATE TABLE t1(fld1 int, key key1(fld1)) ENGINE=INNODB;
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE			YES	NULL
 SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_INDEXES WHERE NAME='key1';
 MERGE_THRESHOLD
 50
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT
 'MERGE_THRESHOLD=45';
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		MERGE_THRESHOLD=45	YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		MERGE_THRESHOLD=45	YES	NULL
 SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_INDEXES WHERE NAME='key1';
 MERGE_THRESHOLD
 45
@@ -2784,15 +2784,15 @@ DROP TABLE t1;
 CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'MERGE_THRESHOLD=40')
 ENGINE=INNODB;
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		MERGE_THRESHOLD=40	YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		MERGE_THRESHOLD=40	YES	NULL
 SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_INDEXES WHERE NAME='key1';
 MERGE_THRESHOLD
 40
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1);
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE			YES	NULL
 SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_INDEXES WHERE NAME='key1';
 MERGE_THRESHOLD
 50
@@ -2800,16 +2800,16 @@ DROP TABLE t1;
 CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'MERGE_THRESHOLD=40')
 ENGINE=INNODB;
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		MERGE_THRESHOLD=40	YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		MERGE_THRESHOLD=40	YES	NULL
 SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_INDEXES WHERE NAME='key1';
 MERGE_THRESHOLD
 40
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT
 'MERGE_THRESHOLD=45';
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		MERGE_THRESHOLD=45	YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	key1	1	fld1	A	0	NULL	NULL	YES	BTREE		MERGE_THRESHOLD=45	YES	NULL
 SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_INDEXES WHERE NAME='key1';
 MERGE_THRESHOLD
 45

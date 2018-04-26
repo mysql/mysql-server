@@ -17,9 +17,9 @@ analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	id	A	1	NULL	NULL		BTREE			YES
-t1	1	st_key	1	st	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	id	A	1	NULL	NULL		BTREE			YES	NULL
+t1	1	st_key	1	st	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
 repair table t1 extended;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
@@ -27,9 +27,9 @@ analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	id	A	1	NULL	NULL		BTREE			YES
-t1	1	st_key	1	st	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	id	A	1	NULL	NULL		BTREE			YES	NULL
+t1	1	st_key	1	st	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
 drop table t1;
 repair table t1 use_frm;
 Table	Op	Msg_type	Msg_text
@@ -56,8 +56,8 @@ ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	Table is already up to date
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	5	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	5	NULL	NULL	YES	BTREE			YES	NULL
 SET myisam_repair_threads=@@global.myisam_repair_threads;
 DROP TABLE t1;
 CREATE TABLE t1(a INT);

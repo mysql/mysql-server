@@ -676,7 +676,7 @@ public:
 
   // Adaptor function for calling create() with Mem_root_array<key_part_spec>
   bool create(NDBDICT *dict, const char* mock_name, const char* child_name,
-              const Mem_root_array<const Key_part_spec*> &key_part_list,
+              const Mem_root_array<Key_part_spec*> &key_part_list,
               const NDBCOL * col_types[])
   {
     // Convert List<Key_part_spec> into null terminated const char* array
@@ -685,9 +685,7 @@ public:
       unsigned i = 0;
       for (const Key_part_spec *key : key_part_list)
       {
-        char col_name_buf[FN_REFLEN];
-        const char* col_name = lex2str(key->field_name, col_name_buf);
-        col_names[i++] = strdup(col_name);
+        col_names[i++] = strdup(key->get_field_name());
       }
       col_names[i] = 0;
     }
@@ -1433,7 +1431,6 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
 
   // return real mysql error to avoid total randomness..
   const int err_default= HA_ERR_CANNOT_ADD_FOREIGN;
-  char tmpbuf[FN_REFLEN];
 
   assert(thd->lex != 0);
   for (const Key_spec *key : thd->lex->alter_info->key_list)
@@ -1469,14 +1466,14 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
       const NDBTAB * tab= child_tab.get_table();
       for (const Key_part_spec *col : fk->columns)
       {
-        const NDBCOL * ndbcol= tab->getColumn(lex2str(col->field_name,
-                                                      tmpbuf));
+        const NDBCOL * ndbcol= tab->getColumn(col->get_field_name());
         if (ndbcol == 0)
         {
           push_warning_printf(thd, Sql_condition::SL_WARNING,
                               ER_CANNOT_ADD_FOREIGN,
                               "Child table %s has no column %s in NDB",
-                              child_tab.get_table()->getName(), tmpbuf);
+                              child_tab.get_table()->getName(),
+                              col->get_field_name());
           DBUG_RETURN(err_default);
         }
         childcols[pos++]= ndbcol;
@@ -1606,14 +1603,14 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
       const NDBTAB * tab= parent_tab.get_table();
       for (const Key_part_spec *col : fk->ref_columns)
       {
-        const NDBCOL * ndbcol= tab->getColumn(lex2str(col->field_name,
-                                                      tmpbuf));
+        const NDBCOL * ndbcol= tab->getColumn(col->get_field_name());
         if (ndbcol == 0)
         {
           push_warning_printf(thd, Sql_condition::SL_WARNING,
                               ER_CANNOT_ADD_FOREIGN,
                               "Parent table %s has no column %s in NDB",
-                              parent_tab.get_table()->getName(), tmpbuf);
+                              parent_tab.get_table()->getName(),
+                              col->get_field_name());
           DBUG_RETURN(err_default);
         }
         parentcols[pos++]= ndbcol;

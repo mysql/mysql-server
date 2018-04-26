@@ -1282,6 +1282,9 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   }
 
   for (ptr = table->field; (field = *ptr); ptr++) {
+    // Skip fields that are hidden from the user.
+    if (field->is_hidden_from_user()) continue;
+
     uint flags = field->flags;
     enum_field_types field_type = field->real_type();
 
@@ -1452,9 +1455,24 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     for (uint j = 0; j < key_info->user_defined_key_parts; j++, key_part++) {
       if (j) packet->append(',');
 
-      if (key_part->field)
-        append_identifier(thd, packet, key_part->field->field_name,
-                          strlen(key_part->field->field_name));
+      if (key_part->field) {
+        // If this fields represents a functional index, print the expression
+        // instead of the column name.
+        if (key_part->field->is_field_for_functional_index()) {
+          DBUG_ASSERT(key_part->field->gcol_info);
+
+          StringBuffer<STRING_BUFFER_USUAL_SIZE> s;
+          s.set_charset(system_charset_info);
+          key_part->field->gcol_info->print_expr(thd, &s);
+          packet->append("(");
+          packet->append(s);
+          packet->append(")");
+        } else {
+          append_identifier(thd, packet, key_part->field->field_name,
+                            strlen(key_part->field->field_name));
+        }
+      }
+
       if (key_part->field &&
           (key_part->length !=
                table->field[key_part->fieldnr - 1]->key_length() &&
@@ -4023,7 +4041,13 @@ static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
 
       // COLUMN_NAME
       str = (key_part->field ? key_part->field->field_name : "?unknown field?");
-      table->field[TMP_TABLE_KEYS_COLUMN_NAME]->store(str, strlen(str), cs);
+
+      if (key_part->field && key_part->field->is_hidden_from_user()) {
+        table->field[TMP_TABLE_KEYS_COLUMN_NAME]->set_null();
+      } else {
+        table->field[TMP_TABLE_KEYS_COLUMN_NAME]->store(str, strlen(str), cs);
+        table->field[TMP_TABLE_KEYS_COLUMN_NAME]->set_notnull();
+      }
 
       if (show_table->file) {
         // COLLATION
@@ -4108,6 +4132,17 @@ static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
       table->field[TMP_TABLE_KEYS_IS_VISIBLE]->store(is_visible,
                                                      strlen(is_visible), cs);
       table->field[TMP_TABLE_KEYS_IS_VISIBLE]->set_notnull();
+
+      // Expression for functional key parts
+      if (key_info->key_part->field->is_hidden_from_user()) {
+        Generated_column *gcol = key_info->key_part->field->gcol_info;
+
+        table->field[TMP_TABLE_KEYS_EXPRESSION]->store(
+            gcol->expr_str.str, gcol->expr_str.length, cs);
+        table->field[TMP_TABLE_KEYS_EXPRESSION]->set_notnull();
+      } else {
+        table->field[TMP_TABLE_KEYS_EXPRESSION]->set_null();
+      }
 
       if (schema_table_store_record(thd, table)) DBUG_RETURN(1);
     }
@@ -4814,6 +4849,8 @@ ST_FIELD_INFO tmp_table_keys_fields_info[] = {
     {"INDEX_COMMENT", INDEX_COMMENT_MAXLEN, MYSQL_TYPE_STRING, 0, 0,
      "Index_comment", OPEN_FRM_ONLY},
     {"IS_VISIBLE", 4, MYSQL_TYPE_STRING, 0, 1, "Visible", OPEN_FULL_TABLE},
+    {"EXPRESSION", MAX_FIELD_BLOBLENGTH, MYSQL_TYPE_STRING, 0, 1, "Expression",
+     OPEN_FULL_TABLE},
     {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}};
 
 ST_FIELD_INFO user_privileges_fields_info[] = {

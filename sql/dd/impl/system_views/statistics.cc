@@ -55,8 +55,9 @@ Statistics_base::Statistics_base() {
                          "idx.name COLLATE utf8_tolower_ci");
   m_target_def.add_field(FIELD_SEQ_IN_INDEX, "SEQ_IN_INDEX",
                          "icu.ordinal_position");
-  m_target_def.add_field(FIELD_COLUMN_NAME, "COLUMN_NAME",
-                         "col.name COLLATE utf8_tolower_ci");
+  m_target_def.add_field(
+      FIELD_COLUMN_NAME, "COLUMN_NAME",
+      "IF (col.hidden = 'SQL', NULL, col.name COLLATE utf8_tolower_ci)");
   m_target_def.add_field(FIELD_COLLATION, "COLLATION",
                          "CASE WHEN icu.order = 'DESC' THEN 'D' "
                          "WHEN icu.order = 'ASC'  THEN 'A' "
@@ -79,6 +80,10 @@ Statistics_base::Statistics_base() {
   m_target_def.add_field(FIELD_INDEX_COMMENT, "INDEX_COMMENT", "idx.comment");
   m_target_def.add_field(FIELD_IS_VISIBLE, "IS_VISIBLE",
                          "IF (idx.is_visible, 'YES', 'NO')");
+
+  m_target_def.add_field(
+      FIELD_EXPRESSION, "EXPRESSION",
+      "IF (col.hidden = 'SQL', col.generation_expression_utf8, NULL)");
 
   m_target_def.add_from("mysql.index_column_usage icu");
   m_target_def.add_from("JOIN mysql.indexes idx ON idx.id=icu.index_id");

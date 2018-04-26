@@ -16,9 +16,9 @@ _id	varbinary(32)	NO	PRI	null	STORED GENERATED
 $ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	geometry	NO	MUL	null	STORED GENERATED
 0 rows affected
 ### Indexes of spatial1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-spatial1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
-spatial1	1	one	1	$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	A	0	32	null		SPATIAL			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+spatial1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
+spatial1	1	one	1	$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	A	0	32	null		SPATIAL			YES	null
 0 rows affected
 ############################
 
@@ -29,8 +29,8 @@ doc	json	YES		null
 _id	varbinary(32)	NO	PRI	null	STORED GENERATED
 0 rows affected
 ### Indexes of spatial1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-spatial1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+spatial1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
 ############################
 
@@ -57,9 +57,9 @@ _id	varbinary(32)	NO	PRI	null	STORED GENERATED
 $ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	geometry	NO	MUL	null	STORED GENERATED
 0 rows affected
 ### Indexes of spatial1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-spatial1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
-spatial1	1	one	1	$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	A	0	32	null		SPATIAL			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+spatial1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
+spatial1	1	one	1	$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	A	0	32	null		SPATIAL			YES	null
 0 rows affected
 ############################
 
@@ -71,8 +71,8 @@ doc	json	YES		null
 _id	varbinary(32)	NO	PRI	null	STORED GENERATED
 0 rows affected
 ### Indexes of spatial1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-spatial1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+spatial1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
 ############################
 
@@ -87,9 +87,9 @@ _id	varbinary(32)	NO	PRI	null	STORED GENERATED
 $ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	geometry	NO	MUL	null	STORED GENERATED
 0 rows affected
 ### Indexes of spatial1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-spatial1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
-spatial1	1	one	1	$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	A	0	32	null		SPATIAL			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+spatial1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
+spatial1	1	one	1	$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	A	0	32	null		SPATIAL			YES	null
 0 rows affected
 ############################
 
@@ -185,10 +185,10 @@ _id	varbinary(32)	NO	PRI	null	STORED GENERATED
 $ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	geometry	NO	MUL	null	STORED GENERATED
 0 rows affected
 ### Indexes of spatial1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-spatial1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
-spatial1	1	one	1	$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	A	0	32	null		SPATIAL			YES
-spatial1	1	two	1	$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	A	0	32	null		SPATIAL			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+spatial1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
+spatial1	1	one	1	$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	A	0	32	null		SPATIAL			YES	null
+spatial1	1	two	1	$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	A	0	32	null		SPATIAL			YES	null
 0 rows affected
 ############################
 
@@ -203,9 +203,9 @@ _id	varbinary(32)	NO	PRI	null	STORED GENERATED
 $ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	geometry	NO	MUL	null	STORED GENERATED
 0 rows affected
 ### Indexes of spatial1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-spatial1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
-spatial1	1	two	1	$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	A	0	32	null		SPATIAL			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+spatial1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
+spatial1	1	two	1	$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	A	0	32	null		SPATIAL			YES	null
 0 rows affected
 ############################
 
@@ -227,10 +227,10 @@ $ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	geometry	NO	MUL	null	STORED GE
 $ix_gj_r_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	geometry	NO	MUL	null	STORED GENERATED
 0 rows affected
 ### Indexes of spatial1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-spatial1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
-spatial1	1	two	1	$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	A	0	32	null		SPATIAL			YES
-spatial1	1	three	1	$ix_gj_r_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	A	0	32	null		SPATIAL			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+spatial1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
+spatial1	1	two	1	$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	A	0	32	null		SPATIAL			YES	null
+spatial1	1	three	1	$ix_gj_r_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	A	0	32	null		SPATIAL			YES	null
 0 rows affected
 ############################
 

@@ -5108,11 +5108,11 @@ bool mysql_test_parse_for_slave(THD *thd) {
                                 the @see first_keyword pointer to insert first.
   @param srid                   The SRID for this column (only relevant if this
                                 is a geometry column).
+  @param hidden                 Whether or not this field shoud be hidden.
 
   @return
     Return 0 if ok
 */
-
 bool Alter_info::add_field(THD *thd, const LEX_STRING *field_name,
                            enum_field_types type, const char *length,
                            const char *decimals, uint type_modifier,
@@ -5121,7 +5121,8 @@ bool Alter_info::add_field(THD *thd, const LEX_STRING *field_name,
                            List<String> *interval_list, const CHARSET_INFO *cs,
                            bool has_explicit_collation, uint uint_geom_type,
                            Generated_column *gcol_info, const char *opt_after,
-                           Nullable<gis::srid_t> srid) {
+                           Nullable<gis::srid_t> srid,
+                           dd::Column::enum_hidden_type hidden) {
   Create_field *new_field;
   uint8 datetime_precision = decimals ? atoi(decimals) : 0;
   DBUG_ENTER("add_field_to_list");
@@ -5201,7 +5202,7 @@ bool Alter_info::add_field(THD *thd, const LEX_STRING *field_name,
       new_field->init(thd, field_name->str, type, length, decimals,
                       type_modifier, default_value, on_update_value, comment,
                       change, interval_list, cs, has_explicit_collation,
-                      uint_geom_type, gcol_info, srid))
+                      uint_geom_type, gcol_info, srid, hidden))
     DBUG_RETURN(1);
 
   create_list.push_back(new_field);

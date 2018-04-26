@@ -1992,20 +1992,20 @@ ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 SHOW INDEXES FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	b_index	1	b	A	0	NULL	NULL	YES	BTREE			YES
-t1	1	a_index	1	a	A	0	NULL	NULL	YES	BTREE			YES
-t1	1	c_index	1	c	A	0	NULL	NULL	YES	BTREE			YES
-t1	1	e_index	1	e	A	0	NULL	NULL	YES	BTREE			YES
-t1	1	type	1	f	A	0	NULL	NULL	YES	BTREE			YES
-t1	1	i_index	1	i	A	0	NULL	NULL	YES	BTREE			YES
-t1	1	j_index	1	j	A	0	NULL	NULL	YES	BTREE			YES
-t1	1	k_index	1	k	A	0	NULL	NULL	YES	BTREE		A comment	YES
-t1	1	k_index2	1	k	A	0	NULL	NULL	YES	BTREE		Another comment	YES
-t1	1	l_index	1	l	A	0	NULL	NULL	YES	BTREE			YES
-t1	1	m_index	1	m	A	0	NULL	NULL	YES	BTREE			YES
-t1	1	n_index	1	n	A	0	NULL	NULL	YES	BTREE			YES
-t1	1	o_index	1	o	A	0	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	b_index	1	b	A	0	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	a_index	1	a	A	0	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	c_index	1	c	A	0	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	e_index	1	e	A	0	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	type	1	f	A	0	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	i_index	1	i	A	0	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	j_index	1	j	A	0	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	k_index	1	k	A	0	NULL	NULL	YES	BTREE		A comment	YES	NULL
+t1	1	k_index2	1	k	A	0	NULL	NULL	YES	BTREE		Another comment	YES	NULL
+t1	1	l_index	1	l	A	0	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	m_index	1	m	A	0	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	n_index	1	n	A	0	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	o_index	1	o	A	0	NULL	NULL	YES	BTREE			YES	NULL
 DROP TABLE t1;
 #
 # WL#8907: Parser refactoring: merge all SELECT rules into one.

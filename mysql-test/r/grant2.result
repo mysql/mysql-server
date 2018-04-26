@@ -625,8 +625,8 @@ a
 SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra
 SHOW KEYS FROM t3;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t3	0	PRIMARY	1	a	A	0	NULL	NULL		BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t3	0	PRIMARY	1	a	A	0	NULL	NULL		BTREE			YES	NULL
 #
 # SHOW CREATE TABLE.
 #

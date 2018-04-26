@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
 #include "sql/sql_list.h"
 
 class Create_field;
+class Item;
 class THD;
 struct MEM_ROOT;
 
@@ -84,11 +85,30 @@ extern KEY_CREATE_INFO default_key_create_info;
 
 class Key_part_spec {
  public:
-  Key_part_spec(const LEX_CSTRING &name, uint len, enum_order ord)
-      : field_name(name),
-        length(len),
-        is_ascending((ord == ORDER_DESC) ? false : true),
-        is_explicit(ord != ORDER_NOT_RELEVANT) {}
+  Key_part_spec(Item *expression, enum_order order)
+      : m_is_ascending((order == ORDER_DESC) ? false : true),
+        m_is_explicit(order != ORDER_NOT_RELEVANT),
+        m_field_name(nullptr),
+        m_prefix_length(0),
+        m_expression(expression),
+        m_has_expression(true) {}
+
+  Key_part_spec(const char *column_name, Item *expression, enum_order order)
+      : m_is_ascending((order == ORDER_DESC) ? false : true),
+        m_is_explicit(order != ORDER_NOT_RELEVANT),
+        m_field_name(column_name),
+        m_prefix_length(0),
+        m_expression(expression),
+        m_has_expression(true) {}
+
+  Key_part_spec(LEX_CSTRING column_name, uint prefix_length, enum_order order)
+      : m_is_ascending((order == ORDER_DESC) ? false : true),
+        m_is_explicit(order != ORDER_NOT_RELEVANT),
+        m_field_name(column_name.str),
+        m_prefix_length(prefix_length),
+        m_expression(nullptr),
+        m_has_expression(false) {}
+
   bool operator==(const Key_part_spec &other) const;
   /**
     Construct a copy of this Key_part_spec. field_name is copied
@@ -103,20 +123,90 @@ class Key_part_spec {
     return new (mem_root) Key_part_spec(*this);
   }
 
-  const LEX_CSTRING field_name;
-  const uint length;
+  const char *get_field_name() const { return m_field_name; }
+
+  uint get_prefix_length() const { return m_prefix_length; }
+
+  Item *get_expression() const {
+    DBUG_ASSERT(has_expression());
+    return m_expression;
+  }
+
+  /**
+    @retval true  if this is an ascending index.
+    @retval false if this is a descending index.
+  */
+  bool is_ascending() const { return m_is_ascending; }
+
+  /**
+    @retval true  if the user explicitly specified the index direction when
+                  creating the index.
+    @retval false if the user didn't specify the index direction.
+  */
+  bool is_explicit() const { return m_is_explicit; }
+
+  /**
+    Resolve the expression that this key part contains. Should only be called
+    if has_expression() returns true.
+
+    @param thd thread handler.
+
+    @retval true if an error occured.
+    @retval false on success.
+  */
+  bool resolve_expression(THD *thd);
+
+  /**
+    Set the name and the prefix length of the column this key part references.
+    The supplied column name string should have a lifetime equal to or longer
+    than this Key_part_spec
+
+    @param name the new column that this key part points to.
+    @param prefix_length the prefix length of the index, or 0 if no length is
+                         specified.
+  */
+  void set_name_and_prefix_length(const char *name, uint prefix_length);
+
+  /**
+    @retval true if this index has an expression. In that case, this a
+                 functional key part.
+    @retval false if this index doesn't have an expression. In that case this
+                  key part references a normal column.
+  */
+  bool has_expression() const { return m_has_expression; }
+
+ private:
   /// true <=> ascending, false <=> descending.
-  const bool is_ascending;
+  const bool m_is_ascending;
+
   /// true <=> ASC/DESC is explicitly specified, false <=> implicit ASC
-  const bool is_explicit;
+  const bool m_is_explicit;
+
+  /// The name of the column that this key part points to.
+  const char *m_field_name;
+
+  /// The prefix length of this index.
+  uint m_prefix_length;
+
+  /**
+    The indexed expression if this is a functional key part. If this key part
+    points to a "normal" column, m_expression is nullptr.
+  */
+  Item *m_expression;
+
+  /**
+    Whether this key part has an expression or not. If so, this is a functional
+    key part.
+  */
+  bool m_has_expression;
 };
 
 class Key_spec {
  public:
   const keytype type;
   const KEY_CREATE_INFO key_create_info;
-  Mem_root_array<const Key_part_spec *> columns;
-  const LEX_CSTRING name;
+  Mem_root_array<Key_part_spec *> columns;
+  LEX_CSTRING name;
   const bool generated;
   /**
     A flag to determine if we will check for duplicate indexes.
@@ -137,7 +227,7 @@ class Key_spec {
         check_for_duplicate_indexes(check_for_duplicate_indexes_arg) {
     columns.reserve(cols.elements);
     List_iterator<Key_part_spec> it(cols);
-    const Key_part_spec *column;
+    Key_part_spec *column;
     while ((column = it++)) columns.push_back(column);
   }
 
@@ -150,7 +240,7 @@ class Foreign_key_spec : public Key_spec {
   const LEX_CSTRING orig_ref_db;
   const LEX_CSTRING ref_table;
   const LEX_CSTRING orig_ref_table;
-  Mem_root_array<const Key_part_spec *> ref_columns;
+  Mem_root_array<Key_part_spec *> ref_columns;
   const fk_option delete_opt;
   const fk_option update_opt;
   const fk_match_opt match_opt;
@@ -177,7 +267,7 @@ class Foreign_key_spec : public Key_spec {
     if (ref_cols) {
       ref_columns.reserve(ref_cols->elements);
       List_iterator<Key_part_spec> it(*ref_cols);
-      const Key_part_spec *ref_column;
+      Key_part_spec *ref_column;
       while ((ref_column = it++)) ref_columns.push_back(ref_column);
     }
   }

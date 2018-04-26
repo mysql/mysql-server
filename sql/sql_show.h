@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -120,6 +120,7 @@ enum find_files_result { FIND_FILES_OK, FIND_FILES_OOM, FIND_FILES_DIR };
 #define TMP_TABLE_KEYS_COMMENT 12
 #define TMP_TABLE_KEYS_INDEX_COMMENT 13
 #define TMP_TABLE_KEYS_IS_VISIBLE 14
+#define TMP_TABLE_KEYS_EXPRESSION 15
 
 find_files_result find_files(THD *thd, List<LEX_STRING> *files, const char *db,
                              const char *path, const char *wild, bool dir,

@@ -32,6 +32,7 @@
 #include <string.h>
 #include <algorithm>
 #include <atomic>
+#include <cstring>
 #include <memory>
 #include <new>
 #include <string>
@@ -49,6 +50,8 @@
 #include "my_dbug.h"
 #include "my_io.h"
 #include "my_loglevel.h"
+#include "my_md5.h"
+#include "my_md5_size.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
@@ -66,6 +69,7 @@
 #include "mysqld_error.h"  // ER_*
 #include "nullable.h"
 #include "prealloced_array.h"
+#include "scope_guard.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"            // check_fk_parent_table_access
 #include "sql/binlog.h"                      // mysql_bin_log
@@ -138,6 +142,7 @@
 #include "sql/sql_show.h"
 #include "sql/sql_tablespace.h"  // validate_tablespace_name
 #include "sql/sql_time.h"        // make_truncated_value_warning
+#include "sql/sql_tmp_table.h"   // create_tmp_field
 #include "sql/sql_trigger.h"     // change_trigger_table_name
 #include "sql/srs_fetcher.h"
 #include "sql/strfunc.h"  // find_type2
@@ -1323,9 +1328,9 @@ void Foreign_key_parents_invalidator::invalidate(THD *thd) {
 
   SYNOPSIS
    mysql_rm_table()
-   thd			Thread handle
-   tables		List of tables to delete
-   if_exists		If 1, don't give error if one table doesn't exists
+   thd      Thread handle
+   tables   List of tables to delete
+   if_exists    If 1, don't give error if one table doesn't exists
 
   NOTES
     Will delete all tables that can be deleted and give a compact error
@@ -3665,8 +3670,8 @@ struct sort_keys {
     check_duplicates_in_interval()
     thd           Thread handle
     set_or_name   "SET" or "ENUM" string for warning message
-    name	  name of the checked column
-    typelib	  list of values for the column
+    name    name of the checked column
+    typelib   list of values for the column
     dup_val_count  returns count of duplicate elements
 
   DESCRIPTION
@@ -4315,7 +4320,16 @@ bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
         redefinition if we are changing a field in the SELECT part
       */
       if (field_no < (*select_field_pos) || dup_no >= (*select_field_pos)) {
-        my_error(ER_DUP_FIELDNAME, MYF(0), sql_field->field_name);
+        if (dup_field->hidden == dd::Column::enum_hidden_type::HT_HIDDEN_SQL) {
+          std::string error_description;
+          error_description.append("The column name '");
+          error_description.append(sql_field->field_name);
+          error_description.append("' is already in use by a hidden column");
+
+          my_error(ER_INTERNAL_ERROR, MYF(0), error_description.c_str());
+        } else
+          my_error(ER_DUP_FIELDNAME, MYF(0), sql_field->field_name);
+
         DBUG_RETURN(true);
       } else {
         /* Field redefined */
@@ -4421,7 +4435,7 @@ static void calculate_field_offsets(List<Create_field> *create_list) {
    @param[in]  is_ha_has_desc_index Whether storage supports desc indexes
 */
 
-static bool count_keys(const Mem_root_array<const Key_spec *> &key_list,
+static bool count_keys(const Mem_root_array<Key_spec *> &key_list,
                        uint *key_count, uint *key_parts, uint *fk_key_count,
                        Mem_root_array<bool> *redundant_keys,
                        bool is_ha_has_desc_index) {
@@ -4470,7 +4484,7 @@ static bool count_keys(const Mem_root_array<const Key_spec *> &key_list,
         (*key_parts) += key->columns.size();
         for (uint i = 0; i < key->columns.size(); i++) {
           const Key_part_spec *kp = key->columns[i];
-          if (!kp->is_ascending && !is_ha_has_desc_index) {
+          if (!kp->is_ascending() && !is_ha_has_desc_index) {
             my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "descending indexes");
             return true;
           }
@@ -4494,30 +4508,47 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
     Find the matching table column.
   */
   uint field = 0;
-  Create_field *sql_field;
+  Create_field *sql_field = nullptr;
   DBUG_ASSERT(create_list);
-  List_iterator<Create_field> it(*create_list);
-  while ((sql_field = it++) &&
-         my_strcasecmp(system_charset_info, column->field_name.str,
-                       sql_field->field_name))
+  for (Create_field &it : *create_list) {
+    if ((column->has_expression() ||
+         it.hidden == dd::Column::enum_hidden_type::HT_VISIBLE) &&
+        my_strcasecmp(system_charset_info, column->get_field_name(),
+                      it.field_name) == 0) {
+      sql_field = &it;
+      break;
+    }
     field++;
-  if (!sql_field) {
-    my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0), column->field_name.str);
+  }
+
+  if (sql_field == nullptr) {
+    my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0), column->get_field_name());
     DBUG_RETURN(true);
   }
+
+  Functional_index_error_handler functional_index_error_handler(
+      sql_field, {key->name.str, key->name.length}, thd);
 
   /*
     Virtual generated column checks.
   */
   if (sql_field->is_virtual_gcol()) {
     const char *errmsg = NULL;
-    if (key->type == KEYTYPE_FULLTEXT)
+    if (key->type == KEYTYPE_FULLTEXT) {
       errmsg = "Fulltext index on virtual generated column";
-    else if (key->type == KEYTYPE_SPATIAL ||
-             sql_field->sql_type == MYSQL_TYPE_GEOMETRY)
+      functional_index_error_handler.force_error_code(
+          ER_FULLTEXT_FUNCTIONAL_INDEX);
+    } else if (key->type == KEYTYPE_SPATIAL ||
+               sql_field->sql_type == MYSQL_TYPE_GEOMETRY) {
       errmsg = "Spatial index on virtual generated column";
-    else if (key->type == KEYTYPE_PRIMARY)
+      functional_index_error_handler.force_error_code(
+          ER_SPATIAL_FUNCTIONAL_INDEX);
+    } else if (key->type == KEYTYPE_PRIMARY) {
       errmsg = "Defining a virtual generated column as primary key";
+      functional_index_error_handler.force_error_code(
+          ER_FUNCTIONAL_INDEX_PRIMARY_KEY);
+    }
+
     if (errmsg) {
       my_error(ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN, MYF(0), errmsg);
       DBUG_RETURN(true);
@@ -4534,7 +4565,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
 
   // JSON columns cannot be used as keys.
   if (sql_field->sql_type == MYSQL_TYPE_JSON) {
-    my_error(ER_JSON_USED_AS_KEY, MYF(0), column->field_name.str);
+    my_error(ER_JSON_USED_AS_KEY, MYF(0), column->get_field_name());
     DBUG_RETURN(true);
   }
 
@@ -4548,9 +4579,9 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
   */
   for (const Key_part_spec *dup_column : key->columns) {
     if (dup_column == column) break;
-    if (!my_strcasecmp(system_charset_info, column->field_name.str,
-                       dup_column->field_name.str)) {
-      my_error(ER_DUP_FIELDNAME, MYF(0), column->field_name.str);
+    if (!my_strcasecmp(system_charset_info, column->get_field_name(),
+                       dup_column->get_field_name())) {
+      my_error(ER_DUP_FIELDNAME, MYF(0), column->get_field_name());
       DBUG_RETURN(true);
     }
   }
@@ -4563,7 +4594,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
         sql_field->charset == &my_charset_bin ||
         sql_field->charset->mbminlen > 1 ||  // ucs2 doesn't work yet
         (*ft_key_charset && sql_field->charset != *ft_key_charset)) {
-      my_error(ER_BAD_FT_COLUMN, MYF(0), column->field_name.str);
+      my_error(ER_BAD_FT_COLUMN, MYF(0), column->get_field_name());
       DBUG_RETURN(true);
     }
     *ft_key_charset = sql_field->charset;
@@ -4605,10 +4636,11 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
       case MYSQL_TYPE_VARCHAR:
       case MYSQL_TYPE_ENUM:
       case MYSQL_TYPE_SET:
-        column_length = column->length * sql_field->charset->mbmaxlen;
+        column_length =
+            column->get_prefix_length() * sql_field->charset->mbmaxlen;
         break;
       default:
-        column_length = column->length;
+        column_length = column->get_prefix_length();
     }
 
     if (key->type == KEYTYPE_SPATIAL ||
@@ -4626,7 +4658,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
         my_error(ER_SPATIAL_UNIQUE_INDEX, MYF(0));
         DBUG_RETURN(true);
       }
-      if (column->is_explicit) {
+      if (column->is_explicit()) {
         my_error(ER_WRONG_USAGE, MYF(0), "spatial/fulltext/hash index",
                  "explicit index order");
         DBUG_RETURN(true);
@@ -4661,11 +4693,11 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
 
     if (is_blob(sql_field->sql_type)) {
       if (!(file->ha_table_flags() & HA_CAN_INDEX_BLOBS)) {
-        my_error(ER_BLOB_USED_AS_KEY, MYF(0), column->field_name.str);
+        my_error(ER_BLOB_USED_AS_KEY, MYF(0), column->get_field_name());
         DBUG_RETURN(true);
       }
       if (!column_length) {
-        my_error(ER_BLOB_KEY_WITHOUT_LENGTH, MYF(0), column->field_name.str);
+        my_error(ER_BLOB_KEY_WITHOUT_LENGTH, MYF(0), column->get_field_name());
         DBUG_RETURN(true);
       }
     }
@@ -4721,7 +4753,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
       } else {
         key_info->flags |= HA_NULL_PART_KEY;
         if (!(file->ha_table_flags() & HA_NULL_IN_KEY)) {
-          my_error(ER_NULL_COLUMN_IN_INDEX, MYF(0), column->field_name.str);
+          my_error(ER_NULL_COLUMN_IN_INDEX, MYF(0), column->get_field_name());
           DBUG_RETURN(true);
         }
         if (key->type == KEYTYPE_SPATIAL ||
@@ -4735,7 +4767,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
 
   key_part_info->fieldnr = field;
   key_part_info->offset = static_cast<uint16>(sql_field->offset);
-  key_part_info->key_part_flag |= column->is_ascending ? 0 : HA_REVERSE_SORT;
+  key_part_info->key_part_flag |= column->is_ascending() ? 0 : HA_REVERSE_SORT;
 
   size_t key_part_length = sql_field->key_length;
 
@@ -4792,7 +4824,22 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
       key_part_length = column_length;
   }  // column_length
   else if (key_part_length == 0) {
-    my_error(ER_WRONG_KEY_COLUMN, MYF(0), column->field_name.str);
+    if (sql_field->hidden == dd::Column::enum_hidden_type::HT_HIDDEN_SQL) {
+      // In case this is a functional index, print a more friendly error
+      // message.
+      Item *expression = column->get_expression();
+      auto flags =
+          enum_query_type(QT_NO_DB | QT_NO_TABLE | QT_FORCE_INTRODUCERS);
+      String out;
+      expression->print(&out, flags);
+
+      // Append a NULL-terminator, since Item::print does not necessarily add
+      // one.
+      out.append('\0');
+      my_error(ER_WRONG_KEY_COLUMN_FUNCTIONAL_INDEX, MYF(0), out.ptr());
+    } else {
+      my_error(ER_WRONG_KEY_COLUMN, MYF(0), column->get_field_name());
+    }
     DBUG_RETURN(true);
   }
   if (key_part_length > file->max_key_part_length(create_info) &&
@@ -5865,11 +5912,12 @@ static bool prepare_foreign_key(THD *thd, HA_CREATE_INFO *create_info,
   for (size_t column_nr = 0; column_nr < fk_key->ref_columns.size();
        column_nr++) {
     const Key_part_spec *col = fk_key->columns[column_nr];
+
     /* Check that referencing column exists and is not virtual. */
     List_iterator<Create_field> find_it(alter_info->create_list);
     Create_field *find;
     while ((find = find_it++)) {
-      if (my_strcasecmp(system_charset_info, col->field_name.str,
+      if (my_strcasecmp(system_charset_info, col->get_field_name(),
                         find->field_name) == 0) {
         break;
       }
@@ -5886,17 +5934,17 @@ static bool prepare_foreign_key(THD *thd, HA_CREATE_INFO *create_info,
 
     if (find->is_virtual_gcol()) {
       my_error(ER_FK_CANNOT_USE_VIRTUAL_COLUMN, MYF(0), fk_info->name,
-               col->field_name.str);
+               col->get_field_name());
       DBUG_RETURN(true);
     }
 
-    fk_info->key_part[column_nr] = col->field_name;
-
+    fk_info->key_part[column_nr].str = col->get_field_name();
+    fk_info->key_part[column_nr].length = std::strlen(col->get_field_name());
     const Key_part_spec *fk_col = fk_key->ref_columns[column_nr];
 
     // Always store column names in lower case.
     char buff[NAME_LEN + 1];
-    my_stpncpy(buff, fk_col->field_name.str, NAME_LEN);
+    my_stpncpy(buff, fk_col->get_field_name(), NAME_LEN);
     my_casedn_str(system_charset_info, buff);
     fk_info->fk_key_part[column_nr].str = sql_strdup(buff);
     fk_info->fk_key_part[column_nr].length = strlen(buff);
@@ -6057,11 +6105,12 @@ static bool prepare_key(THD *thd, HA_CREATE_INFO *create_info,
     List_iterator<Create_field> it(*create_list);
     Create_field *sql_field;
     while ((sql_field = it++) &&
-           my_strcasecmp(system_charset_info, first_col->field_name.str,
+           my_strcasecmp(system_charset_info, first_col->get_field_name(),
                          sql_field->field_name))
       ;
     if (!sql_field) {
-      my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0), first_col->field_name.str);
+      my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0),
+               first_col->get_field_name());
       DBUG_RETURN(true);
     }
     key_info->name =
@@ -6272,6 +6321,427 @@ static bool check_promoted_index(const handler *file,
   return false;
 }
 
+namespace {
+/**
+  This class is used as an input argument to Item::walk, and takes care of
+  replacing the field pointer in Item_field with pointers to a
+  Create_field_wrapper. This allows us to get the metadata for a column that
+  isn't created yet (Create_field).
+*/
+class Replace_field_processor_arg {
+ public:
+  Replace_field_processor_arg(THD *thd, List<Create_field> *fields,
+                              const HA_CREATE_INFO *create_info,
+                              const char *functional_index_name)
+      : m_thd(thd),
+        m_fields(fields),
+        m_create_info(create_info),
+        m_functional_index_name(functional_index_name) {}
+
+  const HA_CREATE_INFO *create_info() const { return m_create_info; }
+
+  const THD *thd() const { return m_thd; }
+
+  List<Create_field> const *fields() const { return m_fields; }
+
+  const char *functional_index_name() const { return m_functional_index_name; }
+
+ private:
+  THD *m_thd;
+  List<Create_field> *m_fields;
+  const HA_CREATE_INFO *m_create_info;
+  const char *m_functional_index_name;
+};
+}  // namespace
+
+bool Item_field::replace_field_processor(uchar *arg) {
+  Replace_field_processor_arg *targ =
+      pointer_cast<Replace_field_processor_arg *>(arg);
+
+  if (field_name == nullptr) {
+    // Ideally we should be able to handle the function DEFAULT() as well,
+    // but that seems rather difficult since it relies on having a TABLE object
+    // available (which we obviously don't have during CREATE TABLE). So
+    // disallow that function for now.
+    DBUG_ASSERT(type() == Item::INSERT_VALUE_ITEM ||
+                type() == Item::DEFAULT_VALUE_ITEM);
+    my_error(ER_FUNCTIONAL_INDEX_FUNCTION_IS_NOT_ALLOWED, MYF(0),
+             targ->functional_index_name());
+    return true;
+  }
+
+  const Create_field *create_field = nullptr;
+  for (const Create_field &create_field_it : *targ->fields()) {
+    if (strcmp(field_name, create_field_it.field_name) == 0) {
+      create_field = &create_field_it;
+      break;
+    }
+  }
+
+  if (create_field) {
+    field = new (targ->thd()->mem_root) Create_field_wrapper(create_field);
+    switch (create_field->sql_type) {
+      case MYSQL_TYPE_TINY_BLOB:
+      case MYSQL_TYPE_MEDIUM_BLOB:
+      case MYSQL_TYPE_LONG_BLOB:
+      case MYSQL_TYPE_BLOB: {
+        const CHARSET_INFO *charset =
+            get_sql_field_charset(create_field, targ->create_info());
+        set_data_type_string(blob_length_by_type(create_field->sql_type),
+                             charset);
+
+        if (create_field->charset == nullptr) {
+          // We have code in a later stage that expects a character set to be
+          // present in the Create_field object, so assign it now if it isn't
+          // already assigned.
+          Create_field *create_field_nonconst =
+              const_cast<Create_field *>(create_field);
+          create_field_nonconst->charset = charset;
+        }
+        break;
+      }
+      case MYSQL_TYPE_STRING:
+      case MYSQL_TYPE_VARCHAR: {
+        const CHARSET_INFO *charset =
+            get_sql_field_charset(create_field, targ->create_info());
+        set_data_type_string(create_field->char_length, charset);
+        if (create_field->charset == nullptr) {
+          // We have code in a later stage that expects a character set to be
+          // present in the Create_field object, so assign it now if it isn't
+          // already assigned.
+          Create_field *create_field_nonconst =
+              const_cast<Create_field *>(create_field);
+          create_field_nonconst->charset = charset;
+        }
+        break;
+      }
+      case MYSQL_TYPE_NEWDECIMAL: {
+        uint precision = my_decimal_length_to_precision(
+            create_field->char_length, create_field->decimals,
+            create_field->is_unsigned);
+        set_data_type_decimal(precision, create_field->decimals);
+        break;
+      }
+      case MYSQL_TYPE_DATETIME2: {
+        set_data_type_datetime(create_field->decimals);
+        break;
+      }
+      case MYSQL_TYPE_TIMESTAMP2: {
+        set_data_type_timestamp(create_field->decimals);
+        break;
+      }
+      case MYSQL_TYPE_NEWDATE: {
+        set_data_type_date();
+        break;
+      }
+      case MYSQL_TYPE_TIME2: {
+        set_data_type_time(create_field->decimals);
+        break;
+      }
+      case MYSQL_TYPE_YEAR: {
+        set_data_type_year();
+        break;
+      }
+      case MYSQL_TYPE_INT24:
+      case MYSQL_TYPE_TINY:
+      case MYSQL_TYPE_SHORT:
+      case MYSQL_TYPE_LONG:
+      case MYSQL_TYPE_LONGLONG:
+      case MYSQL_TYPE_BIT: {
+        fix_char_length(create_field->char_length);
+        set_data_type(create_field->sql_type);
+        collation.set_numeric();
+        break;
+      }
+      case MYSQL_TYPE_DOUBLE: {
+        set_data_type_double();
+        decimals = create_field->decimals;
+        break;
+      }
+      case MYSQL_TYPE_FLOAT: {
+        set_data_type_float();
+        decimals = create_field->decimals;
+        break;
+      }
+      case MYSQL_TYPE_JSON: {
+        set_data_type_json();
+        break;
+      }
+      case MYSQL_TYPE_GEOMETRY: {
+        set_data_type_geometry();
+        break;
+      }
+      case MYSQL_TYPE_ENUM: {
+        set_data_type(create_field->sql_type);
+        const CHARSET_INFO *charset =
+            get_sql_field_charset(create_field, targ->create_info());
+        collation.collation = charset;
+
+        size_t max_length = 0;
+        for (const String &it : create_field->interval_list) {
+          max_length = std::max(max_length, it.length());
+        }
+        fix_char_length(
+            std::min(max_length, static_cast<size_t>(MAX_FIELD_WIDTH)));
+        break;
+      }
+      case MYSQL_TYPE_SET: {
+        set_data_type(create_field->sql_type);
+        const CHARSET_INFO *charset =
+            get_sql_field_charset(create_field, targ->create_info());
+        collation.collation = charset;
+
+        size_t total_length = 0;
+        for (const String &it : create_field->interval_list) {
+          total_length += it.length();
+        }
+
+        // Add space for one comma between each element
+        total_length += (create_field->interval_list.elements - 1);
+        fix_char_length(
+            std::min(total_length, static_cast<size_t>(MAX_FIELD_WIDTH)));
+        break;
+      }
+      default: { DBUG_ASSERT(false); /* purecov: deadcode */ }
+    }
+
+    fixed = true;
+  } else {
+    // If the field could not be found, it means that we have added a reference
+    // to a non-existing field. Report an error and return.
+    my_error(ER_BAD_FIELD_ERROR, MYF(0), field_name, "functional index");
+    return true;
+  }
+
+  unsigned_flag = (create_field->sql_type == MYSQL_TYPE_BIT ||
+                   (field->flags & UNSIGNED_FLAG));
+  maybe_null = create_field->maybe_null;
+  field->field_length = max_length;
+  return false;
+}
+
+/**
+  Check if the given key name exists in the array of keys. The lookup is
+  case sensitive.
+
+  @param keys the array to check for the key name in
+  @param key_name the key name to look for.
+  @param key_to_ignore a pointer to the key we don't want to check against. This
+         is used when checking for duplicate functional index names.
+
+  @retval true if the key name exists in the array
+  @retval false if the key name doesn't exist in the array
+*/
+static bool key_name_exists(const Mem_root_array<Key_spec *> &keys,
+                            const std::string &key_name,
+                            const Key_spec *key_to_ignore) {
+  for (Key_spec *key_spec : keys) {
+    if (key_spec == key_to_ignore) {
+      continue;
+    }
+
+    if (key_spec->name.str != nullptr &&
+        my_strcasecmp(system_charset_info, key_name.c_str(),
+                      key_spec->name.str) == 0) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+  Create a name for the hidden generated column that represents the functional
+  key part. The name is a hash of the index name and the key part number.
+
+  @param key_name the name of the index.
+  @param key_part_number the key part number, starting from zero.
+  @param mem_root the MEM_ROOT where the column name should be allocated.
+
+  @returns the name for the hidden generated column, allocated on the supplied
+           MEM_ROOT
+*/
+static const char *make_functional_index_column_name(
+    const std::string &key_name, int key_part_number, MEM_ROOT *mem_root) {
+  std::string combined_name;
+  combined_name.append(key_name);
+  combined_name.append(std::to_string(key_part_number));
+
+  uchar digest[MD5_HASH_SIZE];
+  compute_md5_hash(pointer_cast<char *>(digest), combined_name.c_str(),
+                   combined_name.size());
+
+  // + 1 for the null terminator
+  char *output = new (mem_root) char[(MD5_HASH_SIZE * 2) + 1];
+  array_to_hex(output, digest, MD5_HASH_SIZE);
+
+  // Ensure that the null terminator is present
+  output[(MD5_HASH_SIZE * 2)] = '\0';
+  return output;
+}
+
+/**
+  Prepares a functional index by adding a hidden indexed generated column for
+  the key part.
+
+  A functional index is implemented as a hidden generated column over the
+  expression specified in the index, and the hidden generated column is then
+  indexed. This function adds a hidden generated column to the Create_list,
+  and updates the key specification to point to this new column. The generated
+  column is given a name that is a hash of the key name and the key part number.
+
+  @param thd The thread handler
+  @param key_spec The index that contains the key part.-
+  @param alter_info A structure describing the changes to be carried out. This
+                    stucture will be updated with the new generated column.
+  @param kp The specification of the key part. This contains the expression we
+            will create a generated column for, and it will be updated to point
+            at the newly created generated column.
+  @param key_part_number The number of the key part.
+  @param create_info A structure describing the table to be created
+
+  @retval true on error
+  @retval false on success
+*/
+static bool add_functional_index_to_create_list(THD *thd, Key_spec *key_spec,
+                                                Alter_info *alter_info,
+                                                Key_part_spec *kp,
+                                                uint key_part_number,
+                                                HA_CREATE_INFO *create_info) {
+  // A functional index cannot be a primary key
+  if (key_spec->type == KEYTYPE_PRIMARY) {
+    my_error(ER_FUNCTIONAL_INDEX_PRIMARY_KEY, MYF(0));
+    return true;
+  }
+
+  // If the key isn't given a name explicitly by the user, we must auto-generate
+  // a name here. "Normal" indexes will be given a name in prepare_key(), but
+  // that is too late for functional indexes since we want the hidden generated
+  // column name to be based on the index name.
+  if (key_spec->name.str == nullptr) {
+    std::string key_name;
+    int count = 2;
+    key_name.assign("functional_index");
+    while (key_name_exists(alter_info->key_list, key_name, nullptr)) {
+      key_name.assign("functional_index_");
+      key_name.append(std::to_string(count++));
+    }
+
+    key_spec->name.length = key_name.size();
+    key_spec->name.str = strmake_root(thd->stmt_arena->mem_root,
+                                      key_name.c_str(), key_name.size());
+  } else {
+    // Check that the key name isn't already in use. Normally we check for
+    // duplicate key names in prepare_key(), but for functional indexes we have
+    // to do it a bit earlier. The reason is that the name of the hidden
+    // generated column is a hash of the key name and the key part number. If we
+    // have the same index name twice, we will end up with two hidden columns
+    // with the same name. And, since prepare_create_field() is called before
+    // prepare_key(), we will get a "duplicate field name" error instead of the
+    // expected "duplicate key name" error. Thus, we do a pre-check for
+    // duplicate functional index names here.
+    if (key_name_exists(alter_info->key_list,
+                        {key_spec->name.str, key_spec->name.length},
+                        key_spec)) {
+      my_error(ER_DUP_KEYNAME, MYF(0), key_spec->name.str);
+      return true;
+    }
+  }
+
+  // First we need to resolve the expression in the functional index so that we
+  // know the correct collation, data type, length etc...
+  ulong saved_privilege = thd->want_privilege;
+  thd->want_privilege = SELECT_ACL;
+
+  {
+    // Create a scope guard so that we are guaranteed that the privileges are
+    // set back to the original value.
+    auto handler_guard = create_scope_guard(
+        [thd, saved_privilege]() { thd->want_privilege = saved_privilege; });
+
+    Functional_index_error_handler error_handler(
+        {key_spec->name.str, key_spec->name.length}, thd);
+
+    Item *expr = kp->get_expression();
+    if (expr->type() == Item::FIELD_ITEM) {
+      my_error(ER_FUNCTIONAL_INDEX_ON_FIELD, MYF(0));
+      return true;
+    }
+
+    Replace_field_processor_arg replace_field_argument(
+        thd, &alter_info->create_list, create_info, key_spec->name.str);
+    if (expr->walk(&Item::replace_field_processor, Item::WALK_PREFIX,
+                   reinterpret_cast<uchar *>(&replace_field_argument))) {
+      return true;
+    }
+
+    if (kp->resolve_expression(thd)) return true;
+  }
+
+  const char *field_name = make_functional_index_column_name(
+      {key_spec->name.str, key_spec->name.length}, key_part_number,
+      thd->stmt_arena->mem_root);
+
+  Item *item = kp->get_expression();
+
+  // Ensure that we aren't trying to index a field
+  DBUG_ASSERT(item->type() != Item::FIELD_ITEM);
+
+  TABLE tmp_table;
+  TABLE_SHARE share;
+  tmp_table.s = &share;
+  init_tmp_table_share(thd, &share, "", 0, "", "", nullptr);
+
+  tmp_table.s->db_create_options = 0;
+  tmp_table.s->db_low_byte_first = false;
+  tmp_table.set_not_started();
+
+  Create_field *cr = generate_create_field(thd, item, &tmp_table);
+  if (cr == nullptr) {
+    return true; /* purecov: deadcode */
+  }
+
+  if (is_blob(cr->sql_type)) {
+    my_error(ER_FUNCTIONAL_INDEX_ON_LOB, MYF(0));
+    return true;
+  }
+
+  cr->field_name = field_name;
+  cr->field = nullptr;
+  cr->hidden = dd::Column::enum_hidden_type::HT_HIDDEN_SQL;
+  cr->stored_in_db = false;
+
+  Generated_column *gcol_info = new (thd->mem_root) Generated_column();
+  gcol_info->expr_item = kp->get_expression();
+  gcol_info->set_field_stored(false);
+  gcol_info->set_field_type(cr->sql_type);
+  cr->gcol_info = gcol_info;
+  alter_info->create_list.push_back(cr);
+  alter_info->flags |= Alter_info::ALTER_ADD_COLUMN;
+
+  kp->set_name_and_prefix_length(field_name, 0);
+  return false;
+}
+
+/**
+  Check if the given column exists in the create list.
+
+  @param column_name the column name to look for.
+  @param create_list the create list where the search is performed.
+
+  @retval true the column exists in the create list.
+  @retval false the column does not exist in the create list.
+*/
+static bool column_exists_in_create_list(const char *column_name,
+                                         List<Create_field> &create_list) {
+  for (const auto &it : create_list) {
+    if (my_strcasecmp(system_charset_info, column_name, it.field_name) == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // Prepares the table and key structures for table creation.
 bool mysql_prepare_create_table(
     THD *thd, const char *error_schema_name, const char *error_table_name,
@@ -6343,6 +6813,30 @@ bool mysql_prepare_create_table(
 
   if (create_info->row_type == ROW_TYPE_DYNAMIC)
     create_info->table_options |= HA_OPTION_PACK_RECORD;
+
+  // Go through all functional key parts. For each functional key part, resolve
+  // the expression and add a hidden generated column to the create list.
+  for (Key_spec *key : alter_info->key_list) {
+    if (key->type == KEYTYPE_FOREIGN) continue;
+
+    for (size_t j = 0; j < key->columns.size(); ++j) {
+      Key_part_spec *key_part_spec = key->columns[j];
+      // In the case of procedures, the Key_part_spec may both have an
+      // expression and a field name assigned to it. But the hidden generated
+      // will not exist in the create list, so we will have to add it.
+      if (!key_part_spec->has_expression() ||
+          (key_part_spec->get_field_name() != nullptr &&
+           column_exists_in_create_list(key_part_spec->get_field_name(),
+                                        alter_info->create_list))) {
+        continue;
+      }
+
+      if (add_functional_index_to_create_list(thd, key, alter_info,
+                                              key_part_spec, j, create_info)) {
+        DBUG_RETURN(true);
+      }
+    }
+  }
 
   /*
     Prepare fields.
@@ -6738,11 +7232,11 @@ static bool set_table_default_charset(THD *thd, HA_CREATE_INFO *create_info,
 
   SYNOPSIS
     prepare_blob_field()
-    sql_field		Field to check
+    sql_field   Field to check
 
   RETURN
-    0	ok
-    1	Error (sql_field can't be converted to blob)
+    0 ok
+    1 Error (sql_field can't be converted to blob)
         In this case the error is given
 */
 
@@ -6864,8 +7358,15 @@ static bool create_table_impl(
   DBUG_PRINT("enter", ("db: '%s'  table: '%s'  tmp: %d", db, table_name,
                        internal_tmp_table));
 
-  /* Check for duplicate fields and check type of table to create */
-  if (!alter_info->create_list.elements) {
+  // Check that we have at least one visible column.
+  bool has_visible_column = false;
+  for (const Create_field &create_field : alter_info->create_list) {
+    if (create_field.hidden == dd::Column::enum_hidden_type::HT_VISIBLE) {
+      has_visible_column = true;
+      break;
+    }
+  }
+  if (!has_visible_column) {
     my_error(ER_TABLE_MUST_HAVE_COLUMNS, MYF(0));
     DBUG_RETURN(true);
   }
@@ -8561,7 +9062,7 @@ bool mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
 
   SYNOPSIS
     mysql_create_like_table()
-    thd		Thread object
+    thd    Thread object
     table       Table list element for target table
     src_table   Table list element for source table
     create_info Create info
@@ -11323,7 +11824,7 @@ static bool upgrade_old_temporal_types(THD *thd, Alter_info *alter_info) {
         temporal_field->init(thd, def->field_name, sql_type, NULL, NULL,
                              (def->flags & NOT_NULL_FLAG), default_value,
                              update_value, &def->comment, def->change, NULL,
-                             NULL, false, 0, NULL, def->m_srid))
+                             NULL, false, 0, NULL, def->m_srid, def->hidden))
       DBUG_RETURN(true);
 
     temporal_field->field = def->field;
@@ -11671,6 +12172,41 @@ static bool alter_column_name_or_default(Alter_info *alter_info,
   DBUG_RETURN(false);
 }
 
+/**
+  Check if the given column index is in use by a functional index.
+
+  @param table The table where the column exists.
+  @param field_index The column index.
+
+  @retval true if the column is in use by a functional index.
+  @retval false if the column is not in use by a functional index.
+*/
+static bool is_field_used_by_functional_index(TABLE *table, uint field_index) {
+  MY_BITMAP dependent_fields;
+  my_bitmap_map bitbuf[bitmap_buffer_size(MAX_FIELDS) / sizeof(my_bitmap_map)];
+  bitmap_init(&dependent_fields, bitbuf, table->s->fields, 0);
+  MY_BITMAP *save_old_read_set = table->read_set;
+  table->read_set = &dependent_fields;
+
+  for (Field **vfield_ptr = table->vfield; *vfield_ptr; vfield_ptr++) {
+    Field *tmp_vfield = *vfield_ptr;
+    if (!tmp_vfield->is_field_for_functional_index()) {
+      continue;
+    }
+
+    DBUG_ASSERT(tmp_vfield->gcol_info && tmp_vfield->gcol_info->expr_item);
+    Mark_field mark_fld(MARK_COLUMNS_TEMP);
+    tmp_vfield->gcol_info->expr_item->walk(
+        &Item::mark_field_in_map, Item::WALK_PREFIX, (uchar *)&mark_fld);
+    if (bitmap_is_set(table->read_set, field_index)) {
+      table->read_set = save_old_read_set;
+      return true;
+    }
+  }
+  table->read_set = save_old_read_set;
+  return false;
+}
+
 // Prepare Create_field and Key_spec objects for ALTER and upgrade.
 bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
                              HA_CREATE_INFO *create_info,
@@ -11679,7 +12215,7 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
   /* New column definitions are added here */
   List<Create_field> new_create_list;
   /* New key definitions are added here */
-  Mem_root_array<const Key_spec *> new_key_list(thd->mem_root);
+  Mem_root_array<Key_spec *> new_key_list(thd->mem_root);
   // DROP instructions for foreign keys and virtual generated columns
   Mem_root_array<const Alter_drop *> new_drop_list(thd->mem_root);
 
@@ -11745,7 +12281,14 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
         */
         if (table->vfield &&
             table->is_field_used_by_generated_columns(field->field_index)) {
-          my_error(ER_DEPENDENT_BY_GENERATED_COLUMN, MYF(0), field->field_name);
+          // Check if the field is referenced by a functional index.
+          if (is_field_used_by_functional_index(table, field->field_index)) {
+            my_error(ER_CANNOT_DROP_COLUMN_FUNCTIONAL_INDEX, MYF(0),
+                     field->field_name);
+          } else {
+            my_error(ER_DEPENDENT_BY_GENERATED_COLUMN, MYF(0),
+                     field->field_name);
+          }
           DBUG_RETURN(true);
         }
 
@@ -12032,13 +12575,18 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
       // only known case where the difference matters is in case of indexes on
       // geometry columns, which can't have explicit ordering. Therefore, in the
       // case of a geometry column, we pass ORDER_NOT_RELEVANT.
-      key_parts.push_back(new (*THR_MALLOC) Key_part_spec(
-          to_lex_cstring(cfield->field_name), key_part_length,
-          key_part->key_part_flag & HA_REVERSE_SORT
-              ? ORDER_DESC
-              : (key_part->field->type() == MYSQL_TYPE_GEOMETRY
-                     ? ORDER_NOT_RELEVANT
-                     : ORDER_ASC)));
+      enum_order order = key_part->key_part_flag & HA_REVERSE_SORT
+                             ? ORDER_DESC
+                             : (key_part->field->type() == MYSQL_TYPE_GEOMETRY
+                                    ? ORDER_NOT_RELEVANT
+                                    : ORDER_ASC);
+      if (key_part->field->is_field_for_functional_index()) {
+        key_parts.push_back(new (*THR_MALLOC) Key_part_spec(
+            cfield->field_name, key_part->field->gcol_info->expr_item, order));
+      } else {
+        key_parts.push_back(new (*THR_MALLOC) Key_part_spec(
+            to_lex_cstring(cfield->field_name), key_part_length, order));
+      }
     }
     if (key_parts.elements) {
       KEY_CREATE_INFO key_create_info(key_info->is_visible);
@@ -12984,6 +13532,119 @@ static bool collect_fk_names_for_dropped_fks(THD *thd, const char *db,
 }
 
 /**
+  This function will check if we are dropping a functional index. In that
+  case, the function will add any related hidden generated columns to the drop
+  list as well.
+
+  @param thd Thread handler
+  @param alter_info The changes to be carried out
+  @param table_list The current table reference
+
+  @retval true on error (my_error is already called)
+  @retval false on success
+ */
+static bool handle_drop_functional_index(THD *thd, Alter_info *alter_info,
+                                         TABLE_LIST *table_list) {
+  // Check if we are dropping a functional index. In that case, we need to drop
+  // the source column as well.
+  for (const Alter_drop *drop : alter_info->drop_list) {
+    if (drop->type == Alter_drop::KEY) {
+      for (uint j = 0; j < table_list->table->s->keys; j++) {
+        const KEY &key_info = table_list->table->s->key_info[j];
+        if (my_strcasecmp(system_charset_info, key_info.name, drop->name) ==
+            0) {
+          for (uint k = 0; k < key_info.user_defined_key_parts; ++k) {
+            const KEY_PART_INFO &key_part = key_info.key_part[k];
+            if (key_part.field->is_field_for_functional_index()) {
+              // Add column to drop list
+              Alter_drop *drop = new (thd->mem_root)
+                  Alter_drop(Alter_drop::COLUMN, key_part.field->field_name);
+              alter_info->drop_list.push_back(drop);
+              alter_info->flags |= Alter_info::ALTER_DROP_COLUMN;
+            }
+          }
+        }
+      }
+    } else if (drop->type == Alter_drop::COLUMN) {
+      for (uint j = 0; j < table_list->table->s->fields; j++) {
+        Field *field = table_list->table->s->field[j];
+        if (my_strcasecmp(system_charset_info, field->field_name, drop->name) ==
+                0 &&
+            field->is_field_for_functional_index()) {
+          my_error(ER_CANNOT_DROP_COLUMN_FUNCTIONAL_INDEX, MYF(0),
+                   field->field_name);
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+  This function will check if we are renaming a functional index. In that case,
+  the function will add a "change column" operation to the create list that
+  renames any affected hidden generated column(s). The reason is that the hidden
+  generated column name is generated by MD5(key name + key part number), so a
+  change in the index name will change the name of the column.
+
+  @param thd thread handler
+  @param alter_info the changes to be carried out.
+  @param table_list a reference to the current table
+
+  @retval true OOM
+  @retval false succes
+*/
+static bool handle_rename_functional_index(THD *thd, Alter_info *alter_info,
+                                           TABLE_LIST *table_list) {
+  DBUG_ASSERT(alter_info->flags & Alter_info::ALTER_RENAME_INDEX);
+
+  for (const Alter_rename_key *alter_rename_key :
+       alter_info->alter_rename_key_list) {
+    // Find the matching existing index
+    for (uint j = 0; j < table_list->table->s->keys; ++j) {
+      const KEY &key = table_list->table->s->key_info[j];
+      if (my_strcasecmp(system_charset_info, key.name,
+                        alter_rename_key->old_name) == 0) {
+        for (uint k = 0; k < key.actual_key_parts; ++k) {
+          const KEY_PART_INFO &key_part = key.key_part[k];
+          if (key_part.field->is_field_for_functional_index()) {
+            // Rename the field. But use the field that exists in the table
+            // object. In particular, the field object in KEY_PART_INFO does
+            // not have the generated column expression.
+            for (uint l = 0; l < table_list->table->s->fields; ++l) {
+              Field *field = table_list->table->field[l];
+              if (field->field_index == key_part.field->field_index) {
+                Create_field *new_create_field =
+                    new (thd->mem_root) Create_field(field, nullptr);
+                if (new_create_field == nullptr) {
+                  return true; /* purecov: deadcode */
+                }
+
+                new_create_field->change = field->field_name;
+                new_create_field->after = nullptr;
+                new_create_field->field_name =
+                    make_functional_index_column_name(
+                        alter_rename_key->new_name, static_cast<int>(k),
+                        thd->mem_root);
+
+                alter_info->create_list.push_back(new_create_field);
+                alter_info->flags |= Alter_info::ALTER_CHANGE_COLUMN;
+              }
+            }
+          }
+        }
+
+        break;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
   Alter table
 
   @param thd              Thread handle
@@ -13134,6 +13795,20 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   DEBUG_SYNC(thd, "alter_opened_table");
 
   if (error) DBUG_RETURN(true);
+
+  // If we are removing a functional index, add any related hidden generated
+  // columns to the drop list as well.
+  if (handle_drop_functional_index(thd, alter_info, table_list)) {
+    DBUG_RETURN(true);
+  }
+
+  // If we are renaming a functional index, rename any related hidden generated
+  // columns as well.
+  if (alter_info->flags & Alter_info::ALTER_RENAME_INDEX) {
+    if (handle_rename_functional_index(thd, alter_info, table_list)) {
+      DBUG_RETURN(true); /* purecov: deadcode */
+    }
+  }
 
   // Check tablespace name validity for the relevant engine.
   {
@@ -15167,10 +15842,9 @@ err:
 
   SYNOPSIS
     mysql_recreate_table()
-    thd			Thread handler
-    tables		Tables to recreate
-    table_copy          Recreate the table by using
-                        ALTER TABLE COPY algorithm
+    thd        Thread handler
+    tables     Tables to recreate
+    table_copy Recreate the table by using ALTER TABLE COPY algorithm
 
  RETURN
     Like mysql_alter_table().

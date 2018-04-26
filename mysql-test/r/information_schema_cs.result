@@ -165,11 +165,11 @@ TABLE_NAME
 t1
 t4
 select * from information_schema.STATISTICS where TABLE_SCHEMA = "mysqltest" order by table_name, index_name;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE
-def	mysqltest	t1	1	mysqltest	string_data	1	b	A	0	NULL	NULL	YES	BTREE			YES
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE	EXPRESSION
+def	mysqltest	t1	1	mysqltest	string_data	1	b	A	0	NULL	NULL	YES	BTREE			YES	NULL
 show keys from t3 where Key_name = "a_data";
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t3	1	a_data	1	a	A	0	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t3	1	a_data	1	a	A	0	NULL	NULL	YES	BTREE			YES	NULL
 show tables like 't%';
 Tables_in_test (t%)
 t2
@@ -396,7 +396,7 @@ latin1_german2_ci
 latin1_spanish_ci
 latin1_swedish_ci
 show keys from v4;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 select * from information_schema.views where TABLE_SCHEMA != 'sys' and
 TABLE_NAME rlike "v[0-4]{1}$" order by table_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
@@ -595,7 +595,7 @@ user
 drop view v1;
 create view vo as select 'a' union select 'a';
 show index from vo;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 select * from information_schema.TABLE_CONSTRAINTS where
 TABLE_NAME= "vo";
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
@@ -767,6 +767,7 @@ information_schema	PARAMETERS	DATA_TYPE
 information_schema	ROUTINES	DATA_TYPE
 information_schema	ROUTINES	DTD_IDENTIFIER
 information_schema	ROUTINES	ROUTINE_DEFINITION
+information_schema	STATISTICS	EXPRESSION
 information_schema	ST_GEOMETRY_COLUMNS	GEOMETRY_TYPE_NAME
 information_schema	TRIGGERS	ACTION_STATEMENT
 information_schema	VIEWS	VIEW_DEFINITION
@@ -1110,8 +1111,8 @@ describe t1;
 Field	Type	Null	Key	Default	Extra
 f1	int(11)	YES	MUL	NULL	NULL
 show indexes from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	f1	1	f1	A	0	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	f1	1	f1	A	0	NULL	NULL	YES	BTREE			YES	NULL
 drop table t1;
 create table t1(f1 binary(32), f2 varbinary(64));
 select character_maximum_length, character_octet_length
@@ -1497,9 +1498,9 @@ CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	U
 select * from information_schema.schemata where schema_name = NULL;
 CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
 select * from `information_schema`.`STATISTICS` where `TABLE_SCHEMA` = NULL;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE	EXPRESSION
 select * from `information_schema`.`STATISTICS` where `TABLE_NAME` = NULL;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE	EXPRESSION
 select * from information_schema.tables where table_schema = NULL;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
 select * from information_schema.tables where table_catalog = NULL;

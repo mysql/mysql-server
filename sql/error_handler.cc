@@ -31,6 +31,8 @@
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysys_err.h"  // EE_*
+#include "sql/derror.h"
+#include "sql/field.h"
 #include "sql/mdl.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_lex.h"
@@ -191,9 +193,11 @@ bool Strict_error_handler::handle_condition(
     case ER_TRUNCATED_WRONG_VALUE:
     case ER_WRONG_VALUE_FOR_TYPE:
     case ER_WARN_DATA_OUT_OF_RANGE:
+    case ER_WARN_DATA_OUT_OF_RANGE_FUNCTIONAL_INDEX:
     case ER_DIVISION_BY_ZERO:
     case ER_TRUNCATED_WRONG_VALUE_FOR_FIELD:
     case WARN_DATA_TRUNCATED:
+    case WARN_DATA_TRUNCATED_FUNCTIONAL_INDEX:
     case ER_DATA_TOO_LONG:
     case ER_BAD_NULL_ERROR:
     case ER_NO_DEFAULT_FOR_FIELD:
@@ -218,6 +222,141 @@ bool Strict_error_handler::handle_condition(
     default:
       break;
   }
+  return false;
+}
+
+Functional_index_error_handler::Functional_index_error_handler(Field *field,
+                                                               THD *thd)
+    : m_thd(thd), m_pop_error_handler(false), m_force_error_code(-1) {
+  DBUG_ASSERT(field != nullptr);
+
+  if (field->is_field_for_functional_index()) {
+    m_thd->push_internal_handler(this);
+    m_pop_error_handler = true;
+
+    // Get the name of the functional index
+    // This field is only used by one functional index, so it's OK to just fetch
+    // the first key that matches.
+    for (uint i = 0; i < field->table->s->keys; ++i) {
+      if (field->part_of_key.is_set(i)) {
+        m_functional_index_name.assign(field->table->s->key_info[i].name);
+        break;
+      }
+    }
+  }
+}
+
+Functional_index_error_handler::Functional_index_error_handler(
+    Create_field *field, const std::string &key_name, THD *thd)
+    : m_functional_index_name(key_name),
+      m_thd(thd),
+      m_pop_error_handler(false),
+      m_force_error_code(-1) {
+  DBUG_ASSERT(field != nullptr);
+
+  if (field->hidden == dd::Column::enum_hidden_type::HT_HIDDEN_SQL) {
+    m_thd->push_internal_handler(this);
+    m_pop_error_handler = true;
+  }
+}
+
+Functional_index_error_handler::Functional_index_error_handler(
+    const std::string &functional_index_name, THD *thd)
+    : m_functional_index_name(functional_index_name),
+      m_thd(thd),
+      m_pop_error_handler(true),
+      m_force_error_code(-1) {
+  m_thd->push_internal_handler(this);
+}
+
+Functional_index_error_handler::~Functional_index_error_handler() {
+  if (m_pop_error_handler) {
+    m_thd->pop_internal_handler();
+  }
+}
+
+template <typename... Args>
+static bool report_error(THD *thd, int error_code,
+                         Sql_condition::enum_severity_level level,
+                         Args... args) {
+  switch (level) {
+    case Sql_condition::SL_ERROR: {
+      my_error(error_code, MYF(0), args...);
+      return true;
+    }
+    case Sql_condition::SL_WARNING: {
+      push_warning_printf(thd, level, error_code, ER_THD(thd, error_code),
+                          args...);
+      return true;
+    }
+    default: {
+      // Do nothing
+      return false; /* purecov: deadcode */
+    }
+  }
+  return false;
+}
+
+static bool report_error(THD *thd, int error_code,
+                         Sql_condition::enum_severity_level level) {
+  switch (level) {
+    case Sql_condition::SL_ERROR: {
+      my_error(error_code, MYF(0));
+      return true;
+    }
+    case Sql_condition::SL_WARNING: {
+      push_warning(thd, level, error_code, ER_THD(thd, error_code));
+      return true;
+    }
+    default: {
+      // Do nothing
+      return false; /* purecov: deadcode */
+    }
+  }
+}
+
+bool Functional_index_error_handler::handle_condition(
+    THD *, uint sql_errno, const char *,
+    Sql_condition::enum_severity_level *level, const char *) {
+  DBUG_ASSERT(!m_functional_index_name.empty());
+
+  switch (sql_errno) {
+    case ER_JSON_USED_AS_KEY: {
+      my_error(ER_FUNCTIONAL_INDEX_ON_JSON_OR_GEOMETRY_FUNCTION, MYF(0));
+      return true;
+    }
+    case WARN_DATA_TRUNCATED: {
+      return report_error(m_thd, WARN_DATA_TRUNCATED_FUNCTIONAL_INDEX, *level,
+                          m_functional_index_name.c_str(),
+                          m_thd->get_stmt_da()->current_row_for_condition());
+    }
+    case ER_WARN_DATA_OUT_OF_RANGE: {
+      return report_error(m_thd, ER_WARN_DATA_OUT_OF_RANGE_FUNCTIONAL_INDEX,
+                          *level, m_functional_index_name.c_str(),
+                          m_thd->get_stmt_da()->current_row_for_condition());
+    }
+    case ER_GENERATED_COLUMN_REF_AUTO_INC: {
+      my_error(ER_FUNCTIONAL_INDEX_REF_AUTO_INCREMENT, MYF(0),
+               m_functional_index_name.c_str());
+      return true;
+    }
+    case ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED: {
+      my_error(ER_FUNCTIONAL_INDEX_FUNCTION_IS_NOT_ALLOWED, MYF(0),
+               m_functional_index_name.c_str());
+      return true;
+    }
+    case ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN: {
+      if (m_force_error_code != -1) {
+        return report_error(m_thd, m_force_error_code, *level);
+      }
+      return false;
+    }
+    default: {
+      // Do nothing
+      return false;
+    }
+  }
+
   return false;
 }
 
@@ -265,8 +404,9 @@ class Repair_mrg_table_error_handler : public Internal_error_handler {
 };
 
 /**
-  Following are implementation of error handler to convert ER_LOCK_DEADLOCK
-  error when executing I_S.TABLES and I_S.FILES system view.
+  Following are implementation of error handler to convert
+  ER_LOCK_DEADLOCK error when executing I_S.TABLES and I_S.FILES system
+  view.
 */
 
 Info_schema_error_handler::Info_schema_error_handler(THD *thd,

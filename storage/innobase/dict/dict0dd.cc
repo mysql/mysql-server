@@ -4541,7 +4541,8 @@ bool dd_process_dd_columns_rec(mem_heap_t *heap, const rec_t *rec,
       rec, offsets,
       dd_object_table.field_number("FIELD_HIDDEN") + DD_FIELD_OFFSET, &len);
   hidden = static_cast<dd::Column::enum_hidden_type>(mach_read_from_1(field));
-  if (hidden == dd::Column::enum_hidden_type::HT_HIDDEN_SE) {
+  if (hidden == dd::Column::enum_hidden_type::HT_HIDDEN_SE ||
+      hidden == dd::Column::enum_hidden_type::HT_HIDDEN_SQL) {
     mtr_commit(mtr);
     return (false);
   }

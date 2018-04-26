@@ -34,6 +34,7 @@
 #include "sql/dd/info_schema/show.h"      // build_show_...
 #include "sql/dd/types/abstract_table.h"  // dd::enum_table_type::BASE_TABLE
 #include "sql/derror.h"                   // ER_THD
+#include "sql/error_handler.h"
 #include "sql/gis/srid.h"
 #include "sql/item_timefunc.h"
 #include "sql/key_spec.h"
@@ -483,6 +484,21 @@ bool PT_option_value_no_option_type_password::contextualize(Parse_context *pc) {
   if (sp_create_assignment_instr(pc->thd, expr_pos.raw.end)) return true;
 
   return false;
+}
+
+PT_key_part_specification::PT_key_part_specification(Item *expression,
+                                                     enum_order order)
+    : m_expression(expression), m_order(order) {}
+
+PT_key_part_specification::PT_key_part_specification(
+    const LEX_CSTRING &column_name, enum_order order, int prefix_length)
+    : m_expression(nullptr),
+      m_order(order),
+      m_column_name(column_name),
+      m_prefix_length(prefix_length) {}
+
+bool PT_key_part_specification::contextualize(Parse_context *pc) {
+  return super::contextualize(pc) || itemize_safe(pc, &m_expression);
 }
 
 bool PT_select_sp_var::contextualize(Parse_context *pc) {
@@ -1085,20 +1101,21 @@ bool PT_union::contextualize(Parse_context *pc) {
 
 static bool setup_index(keytype key_type, const LEX_STRING name,
                         PT_base_index_option *type,
-                        List<Key_part_spec> *columns, Index_options options,
-                        Table_ddl_parse_context *pc) {
+                        List<PT_key_part_specification> *columns,
+                        Index_options options, Table_ddl_parse_context *pc) {
   *pc->key_create_info = default_key_create_info;
 
   if (type != NULL && type->contextualize(pc)) return true;
 
   if (contextualize_nodes(options, pc)) return true;
 
+  List_iterator<PT_key_part_specification> li(*columns);
+  PT_key_part_specification *kp;
+
   if ((key_type == KEYTYPE_FULLTEXT || key_type == KEYTYPE_SPATIAL ||
        pc->key_create_info->algorithm == HA_KEY_ALG_HASH)) {
-    List_iterator<Key_part_spec> li(*columns);
-    Key_part_spec *kp;
     while ((kp = li++)) {
-      if (kp->is_explicit) {
+      if (kp->is_explicit()) {
         my_error(ER_WRONG_USAGE, MYF(0), "spatial/fulltext/hash index",
                  "explicit index order");
         return true;
@@ -1106,9 +1123,26 @@ static bool setup_index(keytype key_type, const LEX_STRING name,
     }
   }
 
+  List<Key_part_spec> cols;
+  for (PT_key_part_specification &kp : *columns) {
+    if (kp.contextualize(pc)) return true;
+
+    Key_part_spec *spec;
+    if (kp.has_expression()) {
+      spec =
+          new (pc->mem_root) Key_part_spec(kp.get_expression(), kp.get_order());
+    } else {
+      spec = new (pc->mem_root) Key_part_spec(
+          kp.get_column_name(), kp.get_prefix_length(), kp.get_order());
+    }
+    if (spec == nullptr || cols.push_back(spec)) {
+      return true; /* purecov: deadcode */
+    }
+  }
+
   Key_spec *key =
-      new (*THR_MALLOC) Key_spec(pc->mem_root, key_type, to_lex_cstring(name),
-                                 pc->key_create_info, false, true, *columns);
+      new (pc->mem_root) Key_spec(pc->mem_root, key_type, to_lex_cstring(name),
+                                  pc->key_create_info, false, true, cols);
   if (key == NULL || pc->alter_info->key_list.push_back(key)) return true;
 
   return false;
@@ -1227,18 +1261,29 @@ bool PT_foreign_key_definition::contextualize(Table_ddl_parse_context *pc) {
     return true;
   }
 
-  Key_spec *foreign_key = new (*THR_MALLOC)
-      Foreign_key_spec(thd->mem_root, used_name, *m_columns, db, orig_db,
-                       table_name, m_referenced_table->table, m_ref_list,
-                       m_fk_delete_opt, m_fk_update_opt, m_fk_match_option);
+  List<Key_part_spec> cols;
+  for (PT_key_part_specification &kp : *m_columns) {
+    if (kp.contextualize(pc)) return true;
+
+    Key_part_spec *spec = new (pc->mem_root) Key_part_spec(
+        kp.get_column_name(), kp.get_prefix_length(), kp.get_order());
+    if (spec == nullptr || cols.push_back(spec)) {
+      return true; /* purecov: deadcode */
+    }
+  }
+
+  Key_spec *foreign_key = new (pc->mem_root)
+      Foreign_key_spec(pc->mem_root, used_name, cols, db, orig_db, table_name,
+                       m_referenced_table->table, m_ref_list, m_fk_delete_opt,
+                       m_fk_update_opt, m_fk_match_option);
   if (foreign_key == NULL || pc->alter_info->key_list.push_back(foreign_key))
     return true;
   /* Only used for ALTER TABLE. Ignored otherwise. */
   pc->alter_info->flags |= Alter_info::ADD_FOREIGN_KEY;
 
-  Key_spec *key = new (*THR_MALLOC)
-      Key_spec(thd->mem_root, KEYTYPE_MULTIPLE, used_name,
-               &default_key_create_info, true, true, *m_columns);
+  Key_spec *key =
+      new (pc->mem_root) Key_spec(thd->mem_root, KEYTYPE_MULTIPLE, used_name,
+                                  &default_key_create_info, true, true, cols);
   if (key == NULL || pc->alter_info->key_list.push_back(key)) return true;
 
   return false;
@@ -1495,7 +1540,8 @@ bool PT_column_def::contextualize(Table_ddl_parse_context *pc) {
       field_def->on_update_value, &field_def->comment, NULL,
       field_def->interval_list, field_def->charset,
       field_def->has_explicit_collation, field_def->uint_geom_type,
-      field_def->gcol_info, opt_place, field_def->m_srid);
+      field_def->gcol_info, opt_place, field_def->m_srid,
+      dd::Column::enum_hidden_type::HT_VISIBLE);
 }
 
 Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd) {
@@ -1750,7 +1796,8 @@ bool PT_alter_table_change_column::contextualize(Table_ddl_parse_context *pc) {
       m_field_def->on_update_value, &m_field_def->comment, m_old_name.str,
       m_field_def->interval_list, m_field_def->charset,
       m_field_def->has_explicit_collation, m_field_def->uint_geom_type,
-      m_field_def->gcol_info, m_opt_place, m_field_def->m_srid);
+      m_field_def->gcol_info, m_opt_place, m_field_def->m_srid,
+      dd::Column::enum_hidden_type::HT_VISIBLE);
 }
 
 bool PT_alter_table_rename::contextualize(Table_ddl_parse_context *pc) {
@@ -2260,7 +2307,8 @@ bool PT_json_table_column_with_path::contextualize(Parse_context *pc) {
                 false,                         // No "COLLATE" clause
                 m_type->get_uint_geom_type(),  // Geom type
                 NULL,                          // Gcol_info
-                {});                           // SRID
+                {},                            // SRID
+                dd::Column::enum_hidden_type::HT_VISIBLE);  // Hidden
   return false;
 }
 

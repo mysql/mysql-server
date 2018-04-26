@@ -91,14 +91,14 @@ use mysqltest_db1;
 ** Connect as restricted user mysqltest_u1.
 ** SELECT FROM INFORMATION_SCHEMA.STATISTICS will succeed because any privileges will do (authentication is enough).
 SELECT * FROM INFORMATION_SCHEMA.STATISTICS WHERE table_name='t5';
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE	EXPRESSION
 ** SHOW INDEX FROM t5 will fail because we don't have any privileges on any column combination.
 SHOW INDEX FROM t5;
 ERROR 42000: SELECT command denied to user 'mysqltest_u1'@'localhost' for table 't5'
 ** SHOW INDEX FROM t6 will succeed because there exist a privilege on a column combination on t6.
 SHOW INDEX FROM t6;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t6	1	i	1	s1	A	0	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t6	1	i	1	s1	A	0	NULL	NULL	YES	BTREE			YES	NULL
 ** CHECK TABLE requires any privilege on any column combination and should succeed for t6:
 CHECK TABLE t6;
 Table	Op	Msg_type	Msg_text

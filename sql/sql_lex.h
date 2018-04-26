@@ -110,6 +110,7 @@ class PT_create_table_option;
 class PT_ddl_table_option;
 class PT_item_list;
 class PT_json_table_column;
+class PT_key_part_specification;
 class PT_part_definition;
 class PT_part_value_item;
 class PT_part_value_item_list_paren;
@@ -2035,7 +2036,6 @@ union YYSTYPE {
   List<Item> *item_list;
   List<String> *string_list;
   String *string;
-  Key_part_spec *key_part;
   Mem_root_array<Table_ident *> *table_list;
   udf_func *udf;
   LEX_USER *lex_user;
@@ -2142,6 +2142,7 @@ union YYSTYPE {
   class PT_query_expression_body *query_expression_body;
   class PT_query_primary *query_primary;
   class PT_subquery *subquery;
+  class PT_key_part_specification *key_part;
 
   XID *xid;
   enum xa_option_words xa_option_type;
@@ -2174,7 +2175,7 @@ union YYSTYPE {
   enum alter_instance_action_enum alter_instance_action;
   class PT_create_index_stmt *create_index_stmt;
   class PT_table_constraint_def *table_constraint_def;
-  List<Key_part_spec> *index_column_list;
+  List<PT_key_part_specification> *index_column_list;
   struct {
     LEX_STRING name;
     class PT_base_index_option *type;

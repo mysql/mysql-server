@@ -23,12 +23,16 @@
 #ifndef ERROR_HANDLER_INCLUDED
 #define ERROR_HANDLER_INCLUDED
 
+#include <string>
+
 #include <stddef.h>
 #include <sys/types.h>
 
 #include "mysqld_error.h"   // ER_*
 #include "sql/sql_error.h"  // Sql_condition
 
+class Create_field;
+class Field;
 class String;
 class THD;
 struct TABLE_LIST;
@@ -42,6 +46,10 @@ class handler;
 class Internal_error_handler {
  protected:
   Internal_error_handler() : m_prev_internal_handler(NULL) {}
+
+  Internal_error_handler *prev_internal_handler() const {
+    return m_prev_internal_handler;
+  }
 
   virtual ~Internal_error_handler() {}
 
@@ -281,6 +289,44 @@ class Strict_error_handler : public Internal_error_handler {
     error. We use this flag to choose when to give error and when warning.
   */
   enum_set_select_behavior m_set_select_behavior;
+};
+
+/**
+  The purpose of this error handler is to print out more user friendly error
+  messages when an error regarding a functional index happens. Since functional
+  indexes are implemented as hidden generated columns with an auto-generated
+  name, we would end up printing errors like "Out of range value for column
+  '912ec803b2ce49e4a541068d495ab570' at row 0". With this error handler, we
+  end up printing something like "Out of range value for functional index
+  'functional_index_2' at row 0" instead.
+
+  The handler keeps track of the previous error handler that was in use, and
+  calls that error handler to get the correct severity among other things.
+*/
+class Functional_index_error_handler : public Internal_error_handler {
+ public:
+  Functional_index_error_handler(Field *field, THD *thd);
+
+  Functional_index_error_handler(Create_field *field,
+                                 const std::string &functional_index_name,
+                                 THD *thd);
+
+  Functional_index_error_handler(const std::string &functional_index_name,
+                                 THD *thd);
+
+  bool handle_condition(THD *thd, uint sql_errno, const char *,
+                        Sql_condition::enum_severity_level *level,
+                        const char *message) override;
+
+  ~Functional_index_error_handler();
+
+  void force_error_code(int error_code) { m_force_error_code = error_code; }
+
+ private:
+  std::string m_functional_index_name;
+  THD *m_thd;
+  bool m_pop_error_handler;
+  int m_force_error_code;
 };
 
 //////////////////////////////////////////////////////////////////////////

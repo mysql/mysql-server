@@ -43,6 +43,7 @@
 #include "map_helpers.h"
 #include "my_alloc.h"
 #include "my_base.h"
+#include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
@@ -3662,6 +3663,7 @@ class handler {
     DBUG_PRINT("info", ("handler created F_UNLCK %d F_RDLCK %d F_WRLCK %d",
                         F_UNLCK, F_RDLCK, F_WRLCK));
   }
+
   virtual ~handler(void) {
     DBUG_ASSERT(m_psi == NULL);
     DBUG_ASSERT(m_psi_batch_mode == PSI_BATCH_MODE_NONE);
@@ -3669,6 +3671,7 @@ class handler {
     DBUG_ASSERT(m_lock_type == F_UNLCK);
     DBUG_ASSERT(inited == NONE);
   }
+
   /*
     @todo reorganize functions, make proper public/protected/private qualifiers
   */

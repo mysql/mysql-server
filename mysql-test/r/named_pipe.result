@@ -2172,10 +2172,10 @@ analyze table t2;
 Table	Op	Msg_type	Msg_text
 test.t2	analyze	status	OK
 show keys from t2;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t2	0	PRIMARY	1	auto	A	#	NULL	NULL		BTREE			YES
-t2	0	fld1	1	fld1	A	#	NULL	NULL		BTREE			YES
-t2	1	fld3	1	fld3	A	#	NULL	NULL		BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t2	0	PRIMARY	1	auto	A	#	NULL	NULL		BTREE			YES	NULL
+t2	0	fld1	1	fld1	A	#	NULL	NULL		BTREE			YES	NULL
+t2	1	fld3	1	fld3	A	#	NULL	NULL		BTREE			YES	NULL
 drop table t4, t3, t2, t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (

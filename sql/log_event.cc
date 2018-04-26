@@ -7356,18 +7356,27 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg,
     if (likely(cols != NULL)) {
       memcpy(m_cols.bitmap, cols->bitmap, no_bytes_in_map(cols));
       create_last_word_mask(&m_cols);
+
+      // Hidden generated columns should not be included in the binlog.
+      bitmap_subtract(&m_cols, &tbl_arg->fields_for_functional_indexes);
     }
   } else {
     // Needed because bitmap_init() does not set it to null on failure
     m_cols.bitmap = 0;
   }
+
+  if (bitmap_init(&write_set_backup, nullptr, tbl_arg->s->fields, false)) {
+    write_set_backup.bitmap = 0; /* purecov: deadcode */
+  }
+
   /*
    -Check that malloc() succeeded in allocating memory for the rows
     buffer and the COLS vector.
    -Checking that an Update_rows_log_event
     is valid is done while setting the Update_rows_log_event::is_valid
   */
-  common_header->set_is_valid(m_rows_buf && m_cols.bitmap);
+  common_header->set_is_valid(m_rows_buf && m_cols.bitmap &&
+                              write_set_backup.bitmap);
 
   DBUG_VOID_RETURN;
 }
@@ -7477,11 +7486,18 @@ Rows_log_event::Rows_log_event(
     m_rows_end = m_rows_buf + row.size() - 1;
     m_rows_cur = m_rows_end;
   }
+
+  if (bitmap_init(&write_set_backup, nullptr, m_cols.n_bits, false)) {
+    write_set_backup.bitmap = 0; /* purecov: deadcode */
+  }
+
   /*
     -Check that malloc() succeeded in allocating memory for the row
      buffer and the COLS vector.
   */
-  common_header->set_is_valid(m_rows_buf && m_cols.bitmap);
+  common_header->set_is_valid(m_rows_buf && m_cols.bitmap &&
+                              write_set_backup.bitmap);
+
   DBUG_VOID_RETURN;
 }
 
@@ -7490,6 +7506,10 @@ Rows_log_event::~Rows_log_event() {
     if (m_cols.bitmap == m_bitbuf)  // no my_malloc happened
       m_cols.bitmap = 0;            // so no my_free in bitmap_free
     bitmap_free(&m_cols);           // To pair with bitmap_init().
+  }
+
+  if (write_set_backup.bitmap) {
+    bitmap_free(&write_set_backup);
   }
 }
 
@@ -7520,6 +7540,36 @@ int Rows_log_event::unpack_current_row(const Relay_log_info *const rli,
     DBUG_ASSERT(error);
     return error;
   }
+
+  // After the row is unpacked, we need to update all hidden generated columns
+  // for functional indexes since those values are not included in the binlog
+  // in any mode of binlog_row_image.
+  if (!bitmap_is_clear_all(&m_table->fields_for_functional_indexes)) {
+    // If there are a different number of columns on the master and slave, we
+    // need to adjust the backup bitmap since the bitmap was initialized with
+    // the number of columns on the master.
+    if (write_set_backup.n_bits != m_table->s->fields) {
+      bitmap_free(&write_set_backup);
+      if (bitmap_init(&write_set_backup, nullptr, m_table->s->fields, false)) {
+        return HA_ERR_OUT_OF_MEM; /* purecov: deadcode */
+      }
+    }
+
+    // Make a copy of the write set, and mark all hidden generated columns.
+    bitmap_copy(&write_set_backup, m_table->write_set);
+    bitmap_union(m_table->write_set, &m_table->fields_for_functional_indexes);
+
+    // Calculate the values for all hidden generated columns.
+    bool res = update_generated_write_fields(
+        &m_table->fields_for_functional_indexes, m_table);
+
+    // Restore the write set.
+    bitmap_copy(m_table->write_set, &write_set_backup);
+    if (res) {
+      return thd->get_stmt_da()->mysql_errno(); /* purecov: deadcode */
+    }
+  }
+
   return 0;
 }
 #endif  // ifdef MYSQL_SERVER
@@ -7780,10 +7830,14 @@ static uint search_key_in_table(TABLE *table, MY_BITMAP *bi_cols,
         - Unique keys cannot be disabled, thence we skip the check.
         - Skip unique keys with nullable parts
         - Skip primary keys
+        - Skip functional indexes if the slave_rows_search_algorithms=INDEX_SCAN
       */
       if (!((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME) ||
-          (key == table->s->primary_key))
+          (key == table->s->primary_key) ||
+          ((slave_rows_search_algorithms_options & SLAVE_ROWS_INDEX_SCAN) &&
+           keyinfo->is_functional_index())) {
         continue;
+      }
       res = are_all_columns_signaled_for_key(keyinfo, bi_cols) ? key : MAX_KEY;
 
       if (res < MAX_KEY) DBUG_RETURN(res);
@@ -7801,12 +7855,16 @@ static uint search_key_in_table(TABLE *table, MY_BITMAP *bi_cols,
         - UNIQUE NOT NULL indexes.
         - Indexes that do not support ha_index_next() e.g. full-text.
         - Primary key indexes.
+        - Functional indexes if the slave_rows_search_algorithms=INDEX_SCAN
       */
       if (!(table->s->usable_indexes(current_thd).is_set(key)) ||
           ((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME) ||
           !(table->file->index_flags(key, 0, true) & HA_READ_NEXT) ||
-          (key == table->s->primary_key))
+          (key == table->s->primary_key) ||
+          ((slave_rows_search_algorithms_options & SLAVE_ROWS_INDEX_SCAN) &&
+           keyinfo->is_functional_index())) {
         continue;
+      }
 
       res = are_all_columns_signaled_for_key(keyinfo, bi_cols) ? key : MAX_KEY;
 
@@ -11593,12 +11651,13 @@ Update_rows_log_event::Update_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
   DBUG_ENTER("Update_rows_log_event::Update_rows_log_event");
   DBUG_PRINT("info", ("update_rows event_type: %s", get_type_str()));
   common_header->type_code = m_type;
-  init(tbl_arg->write_set);
+  init(tbl_arg->write_set, tbl_arg->fields_for_functional_indexes);
   common_header->set_is_valid(Rows_log_event::is_valid() && m_cols_ai.bitmap);
   DBUG_VOID_RETURN;
 }
 
-void Update_rows_log_event::init(MY_BITMAP const *cols) {
+void Update_rows_log_event::init(MY_BITMAP const *cols,
+                                 const MY_BITMAP &cols_to_subtract) {
   /* if bitmap_init fails, caught in is_valid() */
   if (likely(!bitmap_init(
           &m_cols_ai, m_width <= sizeof(m_bitbuf_ai) * 8 ? m_bitbuf_ai : NULL,
@@ -11607,6 +11666,7 @@ void Update_rows_log_event::init(MY_BITMAP const *cols) {
     if (likely(cols != NULL)) {
       memcpy(m_cols_ai.bitmap, cols->bitmap, no_bytes_in_map(cols));
       create_last_word_mask(&m_cols_ai);
+      bitmap_subtract(&m_cols_ai, &cols_to_subtract);
     }
   }
 }

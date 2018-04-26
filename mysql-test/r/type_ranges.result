@@ -72,21 +72,21 @@ analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	auto	A	0	NULL	NULL		BTREE			YES
-t1	1	utiny	1	utiny	A	0	NULL	NULL		BTREE			YES
-t1	1	tiny	1	tiny	A	0	NULL	NULL		BTREE			YES
-t1	1	short	1	short	A	0	NULL	NULL		BTREE			YES
-t1	1	any_name	1	medium	A	0	NULL	NULL		BTREE			YES
-t1	1	longlong	1	longlong	A	0	NULL	NULL		BTREE			YES
-t1	1	real_float	1	real_float	A	0	NULL	NULL		BTREE			YES
-t1	1	ushort	1	ushort	A	0	NULL	NULL		BTREE			YES
-t1	1	umedium	1	umedium	A	0	NULL	NULL		BTREE			YES
-t1	1	ulong	1	ulong	A	0	NULL	NULL		BTREE			YES
-t1	1	ulonglong	1	ulonglong	A	0	NULL	NULL		BTREE			YES
-t1	1	ulonglong	2	ulong	A	0	NULL	NULL		BTREE			YES
-t1	1	options	1	options	A	0	NULL	NULL		BTREE			YES
-t1	1	options	2	flags	A	0	NULL	NULL		BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	auto	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	utiny	1	utiny	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	tiny	1	tiny	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	short	1	short	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	any_name	1	medium	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	longlong	1	longlong	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	real_float	1	real_float	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	ushort	1	ushort	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	umedium	1	umedium	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	ulong	1	ulong	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	ulonglong	1	ulonglong	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	ulonglong	2	ulong	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	options	1	options	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	options	2	flags	A	0	NULL	NULL		BTREE			YES	NULL
 CREATE UNIQUE INDEX test on t1 ( auto ) ;
 CREATE INDEX test2 on t1 ( ulonglong,ulong) ;
 Warnings:

@@ -552,6 +552,11 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
 
     col_obj->set_srs_id(field->m_srid);
 
+    // Check that the hidden type isn't the type that is used internally by
+    // storage engines.
+    DBUG_ASSERT(field->hidden != dd::Column::enum_hidden_type::HT_HIDDEN_SE);
+    col_obj->set_hidden(field->hidden);
+
     /*
       AUTO_INCREMENT, DEFAULT/ON UPDATE CURRENT_TIMESTAMP properties are
       stored in Create_field::auto_flags.

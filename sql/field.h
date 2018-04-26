@@ -30,6 +30,8 @@
 #include <sys/types.h>
 #include <algorithm>
 
+#include <string>
+
 #include "binary_log_funcs.h"  // my_time_binary_length
 #include "binary_log_types.h"
 #include "decimal.h"  // E_DEC_OOM
@@ -50,6 +52,7 @@
 #include "mysql_time.h"
 #include "mysqld_error.h"  // ER_*
 #include "nullable.h"
+#include "sql/dd/types/column.h"
 #include "sql/gis/srid.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_const.h"
@@ -676,6 +679,8 @@ class Field : public Proto_field {
   uchar *ptr;  // Position to field in record
 
  private:
+  dd::Column::enum_hidden_type m_hidden;
+
   /**
      Byte where the @c NULL bit is stored inside a record. If this Field is a
      @c NOT @c NULL field, this member is @c NULL.
@@ -813,6 +818,36 @@ class Field : public Proto_field {
   bool stored_in_db;
   bool is_gcol() const { return gcol_info; }
   bool is_virtual_gcol() const { return gcol_info && !stored_in_db; }
+
+  /**
+    Sets the hidden type for this field.
+
+    @param hidden the new hidden type to set.
+  */
+  void set_hidden(dd::Column::enum_hidden_type hidden) { m_hidden = hidden; }
+
+  /// @returns the hidden type for this field.
+  dd::Column::enum_hidden_type hidden() const { return m_hidden; }
+
+  /**
+    @retval true if this field should be hidden away from users.
+    @retval false is this field is visible to the user.
+  */
+  bool is_hidden_from_user() const {
+    return hidden() != dd::Column::enum_hidden_type::HT_VISIBLE &&
+           DBUG_EVALUATE_IF("show_hidden_columns", false, true);
+  }
+
+  /**
+    @returns true if this is a hidden field that is used for implementing
+             functional indexes. Note that if we need different types of hidden
+             fields in the future (like invisible columns), this function needs
+             to be changed so it can distinguish between the different "types"
+             of hidden.
+  */
+  bool is_field_for_functional_index() const {
+    return hidden() == dd::Column::enum_hidden_type::HT_HIDDEN_SQL;
+  }
 
   Field(uchar *ptr_arg, uint32 length_arg, uchar *null_ptr_arg,
         uchar null_bit_arg, uchar auto_flags_arg, const char *field_name_arg);
@@ -1676,6 +1711,83 @@ class Field : public Proto_field {
 
   const uchar *unpack_int64(uchar *to, const uchar *from,
                             bool low_byte_first_from);
+};
+
+/**
+  This class is a substitute for the Field classes during CREATE TABLE
+
+  When adding a functional index at table creation, we need to resolve the
+  expression we are indexing. All functions that references one or more
+  columns expects a Field to be available. But during CREATE TABLE, we only
+  have access to Create_field. So this class acts as a subsitute for the
+  Field classes so that expressions can be properly resolved. Thus, trying
+  to call store or val_* on this class will cause an assertion.
+*/
+class Create_field_wrapper : public Field {
+  const Create_field *m_field;
+
+ public:
+  Create_field_wrapper(const Create_field *fld);
+  Item_result result_type() const override;
+  Item_result numeric_context_result_type() const override;
+  enum_field_types type() const override;
+  virtual uint32 max_display_length() override;
+
+  virtual const CHARSET_INFO *charset() const override;
+
+  virtual uint32 pack_length() const override;
+
+  // Since it's not a real field, functions below shouldn't be used.
+  /* purecov: begin deadcode */
+  virtual type_conversion_status store(const char *, size_t,
+                                       const CHARSET_INFO *) override {
+    DBUG_ASSERT(false);
+    return TYPE_ERR_BAD_VALUE;
+  }
+  virtual type_conversion_status store(double) override {
+    DBUG_ASSERT(false);
+    return TYPE_ERR_BAD_VALUE;
+  }
+  virtual type_conversion_status store(longlong, bool) override {
+    DBUG_ASSERT(false);
+    return TYPE_ERR_BAD_VALUE;
+  }
+  virtual type_conversion_status store_decimal(const my_decimal *) override {
+    DBUG_ASSERT(false);
+    return TYPE_ERR_BAD_VALUE;
+  }
+  virtual double val_real(void) override {
+    DBUG_ASSERT(false);
+    return 0.0;
+  }
+  virtual longlong val_int(void) override {
+    DBUG_ASSERT(false);
+    return 0;
+  }
+  virtual my_decimal *val_decimal(my_decimal *) override {
+    DBUG_ASSERT(false);
+    return nullptr;
+  }
+  virtual String *val_str(String *, String *) override {
+    DBUG_ASSERT(false);
+    return nullptr;
+  }
+  virtual int cmp(const uchar *, const uchar *) override {
+    DBUG_ASSERT(false);
+    return -1;
+  }
+  virtual void sql_type(String &) const override { DBUG_ASSERT(false); }
+  virtual size_t make_sort_key(uchar *, size_t) override {
+    DBUG_ASSERT(false);
+    return 0;
+  }
+  virtual Field *clone() const override {
+    return new (*THR_MALLOC) Create_field_wrapper(*this);
+  }
+  virtual Field *clone(MEM_ROOT *mem_root) const override {
+    return new (mem_root) Create_field_wrapper(*this);
+  }
+  /* purecov: end */
 };
 
 class Field_num : public Field {
@@ -4187,6 +4299,8 @@ class Field_bit_as_char : public Field_bit {
 
 class Create_field {
  public:
+  dd::Column::enum_hidden_type hidden;
+
   const char *field_name;
   /**
     Name of column modified by ALTER TABLE's CHANGE/MODIFY COLUMN clauses,
@@ -4320,7 +4434,7 @@ class Create_field {
             const char *change, List<String> *interval_list,
             const CHARSET_INFO *cs, bool has_explicit_collation,
             uint uint_geom_type, Generated_column *gcol_info,
-            Nullable<gis::srid_t> srid);
+            Nullable<gis::srid_t> srid, dd::Column::enum_hidden_type hidden);
 
   ha_storage_media field_storage_type() const {
     return (ha_storage_media)((flags >> FIELD_FLAGS_STORAGE_MEDIA) & 3);
@@ -4496,9 +4610,32 @@ type_conversion_status store_internal_with_error_check(Field_new_decimal *field,
                                                        int conversion_err,
                                                        my_decimal *value);
 
+/**
+  Generate a Create_field, based on an Item.
+
+  This function will generate a Create_field based on an existing Item. This
+  is used for multiple purposes, including CREATE TABLE AS SELECT and creating
+  hidden generated columns for functional indexes.
+
+  @param thd Thread handler
+  @param item The Item to generate a Create_field from
+  @param tmp_table A temporary TABLE object that is used for holding Field
+                   objects that are created
+
+  @returns A Create_field allocated on the THDs MEM_ROOT.
+*/
+Create_field *generate_create_field(THD *thd, Item *item, TABLE *tmp_table);
+
 inline bool is_blob(enum_field_types sql_type) {
   return (sql_type == MYSQL_TYPE_BLOB || sql_type == MYSQL_TYPE_MEDIUM_BLOB ||
           sql_type == MYSQL_TYPE_TINY_BLOB || sql_type == MYSQL_TYPE_LONG_BLOB);
 }
+
+/**
+  @returns the expression if the input field is a hidden generated column that
+  represents a functional key part. If not, return the field name. In case of
+  a functional index; the expression is allocated on the THD's MEM_ROOT.
+*/
+const char *get_field_name_or_expression(THD *thd, const Field *field);
 
 #endif /* FIELD_INCLUDED */

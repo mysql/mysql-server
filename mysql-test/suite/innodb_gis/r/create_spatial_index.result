@@ -14,10 +14,10 @@ ANALYZE TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	analyze	status	OK
 SHOW INDEXES FROM tab;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-tab	0	PRIMARY	1	c1	A	0	NULL	NULL		BTREE			YES
-tab	1	idx1	1	c2	A	0	32	NULL		SPATIAL			YES
-tab	1	idx3	1	c4	A	0	32	NULL		SPATIAL			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tab	0	PRIMARY	1	c1	A	0	NULL	NULL		BTREE			YES	NULL
+tab	1	idx1	1	c2	A	0	32	NULL		SPATIAL			YES	NULL
+tab	1	idx3	1	c4	A	0	32	NULL		SPATIAL			YES	NULL
 INSERT INTO tab(c1,c2,c3,c4,c5) 
 VALUES(1,ST_GeomFromText('POINT(10 10)'),ST_GeomFromText('LINESTRING(5 5,20 20,30 30)'),
 ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'),
@@ -569,11 +569,11 @@ ANALYZE TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	analyze	status	OK
 SHOW INDEXES FROM tab;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-tab	1	idx1	1	c2	A	0	32	NULL		SPATIAL			YES
-tab	1	idx2	1	c3	A	0	32	NULL		SPATIAL		wl6968	YES
-tab	1	idx3	1	c4	A	0	32	NULL		SPATIAL			YES
-tab	1	idx4	1	c5	A	0	32	NULL		SPATIAL		Spatial index on Geometry type column	YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tab	1	idx1	1	c2	A	0	32	NULL		SPATIAL			YES	NULL
+tab	1	idx2	1	c3	A	0	32	NULL		SPATIAL		wl6968	YES	NULL
+tab	1	idx3	1	c4	A	0	32	NULL		SPATIAL			YES	NULL
+tab	1	idx4	1	c5	A	0	32	NULL		SPATIAL		Spatial index on Geometry type column	YES	NULL
 INSERT INTO tab(c1,c2,c3,c4,c5) 
 VALUES(1,ST_GeomFromText('POINT(10 10)'),ST_GeomFromText('LINESTRING(5 5,20 20,30 30)'),
 ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'),
@@ -1113,12 +1113,12 @@ ANALYZE TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	analyze	status	OK
 SHOW INDEXES FROM tab;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-tab	0	PRIMARY	1	c1	A	0	NULL	NULL		BTREE			YES
-tab	1	idx1	1	c2	A	0	32	NULL		SPATIAL			YES
-tab	1	idx2	1	c3	A	0	32	NULL		SPATIAL		wl6968	YES
-tab	1	idx3	1	c4	A	0	32	NULL		SPATIAL			YES
-tab	1	idx4	1	c5	A	0	32	NULL		SPATIAL		Spatial index on Geometry type column	YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tab	0	PRIMARY	1	c1	A	0	NULL	NULL		BTREE			YES	NULL
+tab	1	idx1	1	c2	A	0	32	NULL		SPATIAL			YES	NULL
+tab	1	idx2	1	c3	A	0	32	NULL		SPATIAL		wl6968	YES	NULL
+tab	1	idx3	1	c4	A	0	32	NULL		SPATIAL			YES	NULL
+tab	1	idx4	1	c5	A	0	32	NULL		SPATIAL		Spatial index on Geometry type column	YES	NULL
 INSERT INTO tab(c2,c3,c4,c5) 
 VALUES(ST_GeomFromText('POINT(10 10)'),ST_GeomFromText('LINESTRING(5 5,20 20,30 30)'),
 ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'),
@@ -1637,8 +1637,8 @@ ANALYZE TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	analyze	status	OK
 SHOW INDEX FROM tab;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-tab	1	idx1	1	c1	A	0	32	NULL		SPATIAL			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tab	1	idx1	1	c1	A	0	32	NULL		SPATIAL			YES	NULL
 set @g1 = ST_GeomFromText('POINT(-1 -2)');
 SELECT ST_AsText(c1) FROM tab;
 ST_AsText(c1)

@@ -76,22 +76,22 @@ f	char(30)	utf8mb4_0900_ai_ci	YES	MUL	NULL	NULL	select,insert,update,references
 g	int(11)	NULL	YES	MUL	NULL	NULL	select,insert,update,references	
 h	timestamp	NULL	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP	select,insert,update,references	
 SHOW KEYS FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	b	A	0	NULL	NULL		BTREE			YES
-t1	1	g	1	g	A	NULL	NULL	NULL	YES	BTREE			YES
-t1	1	e	1	e	A	NULL	32	NULL		SPATIAL			YES
-t1	1	b_index	1	b	A	NULL	NULL	NULL		BTREE			YES
-t1	1	h_index	1	c	A	NULL	NULL	NULL	YES	BTREE			YES
-t1	1	g_index	1	f	A	NULL	4	NULL	YES	BTREE		ABC	YES
-t1	1	r_index	1	a	A	NULL	NULL	NULL		BTREE			YES
-t1	1	f	1	f	NULL	NULL	NULL	NULL	YES	FULLTEXT			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	b	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	g	1	g	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	e	1	e	A	NULL	32	NULL		SPATIAL			YES	NULL
+t1	1	b_index	1	b	A	NULL	NULL	NULL		BTREE			YES	NULL
+t1	1	h_index	1	c	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	g_index	1	f	A	NULL	4	NULL	YES	BTREE		ABC	YES	NULL
+t1	1	r_index	1	a	A	NULL	NULL	NULL		BTREE			YES	NULL
+t1	1	f	1	f	NULL	NULL	NULL	NULL	YES	FULLTEXT			YES	NULL
 SHOW FULL COLUMNS FROM t1 WHERE FIELD = 'a' OR FIELD = 'b';
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 a	int(11)	NULL	NO	MUL	1	NULL	select,insert,update,references	
 b	int(11)	NULL	NO	PRI	NULL	auto_increment	select,insert,update,references	
 SHOW KEYS FROM t1 WHERE KEY_NAME = 'r_index' OR KEY_NAME = 'h_index';
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	h_index	1	c	A	NULL	NULL	NULL	YES	BTREE			YES
-t1	1	r_index	1	a	A	NULL	NULL	NULL		BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	h_index	1	c	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	r_index	1	a	A	NULL	NULL	NULL		BTREE			YES	NULL
 DROP TEMPORARY TABLE t1;
 DROP DATABASE test1;

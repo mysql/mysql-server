@@ -3919,7 +3919,7 @@ c1	c2
 2	2
 CREATE VIEW v1 AS SELECT c1, c2 FROM t1;
 SHOW INDEX FROM v1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 SELECT * FROM v1 USE INDEX (PRIMARY) WHERE c1=2;
 ERROR 42000: Key 'PRIMARY' doesn't exist in table 'v1'
 SELECT * FROM v1 FORCE INDEX (PRIMARY) WHERE c1=2;

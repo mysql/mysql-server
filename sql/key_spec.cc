@@ -24,6 +24,8 @@
 
 #include <stddef.h>
 #include <algorithm>
+#include <cstring>
+#include <string>
 
 #include "m_ctype.h"
 #include "my_dbug.h"
@@ -35,6 +37,8 @@
 #include "sql/dd/dictionary.h"  // dd::Dictionary::check_dd...
 #include "sql/derror.h"         // ER_THD
 #include "sql/field.h"          // Create_field
+#include "sql/item.h"           // Item_field
+#include "sql/item_func.h"      // Item_field
 #include "sql/sql_class.h"      // THD
 #include "sql/sql_parse.h"      // check_string_char_length
 #include "sql/table.h"
@@ -42,9 +46,10 @@
 KEY_CREATE_INFO default_key_create_info;
 
 bool Key_part_spec::operator==(const Key_part_spec &other) const {
-  return length == other.length && is_ascending == other.is_ascending &&
-         !my_strcasecmp(system_charset_info, field_name.str,
-                        other.field_name.str);
+  return get_prefix_length() == other.get_prefix_length() &&
+         is_ascending() == other.is_ascending() &&
+         !my_strcasecmp(system_charset_info, get_field_name(),
+                        other.get_field_name());
 }
 
 bool foreign_key_prefix(const Key_spec *a, const Key_spec *b) {
@@ -81,6 +86,22 @@ bool foreign_key_prefix(const Key_spec *a, const Key_spec *b) {
 #endif
 }
 
+bool Key_part_spec::resolve_expression(THD *thd) {
+  DBUG_ASSERT(has_expression());
+
+  if (get_expression()->fixed) {
+    return false;
+  }
+
+  return get_expression()->fix_fields(thd, &m_expression);
+}
+
+void Key_part_spec::set_name_and_prefix_length(const char *name,
+                                               uint prefix_length) {
+  m_prefix_length = prefix_length;
+  m_field_name = name;
+}
+
 bool Foreign_key_spec::validate(THD *thd, const char *table_name,
                                 List<Create_field> &table_fields) const {
   DBUG_ENTER("Foreign_key_spec::validate");
@@ -107,18 +128,18 @@ bool Foreign_key_spec::validate(THD *thd, const char *table_name,
   }
   for (const Key_part_spec *column : columns) {
     // Index prefixes on foreign keys columns are not supported.
-    if (column->length > 0) {
+    if (column->get_prefix_length() > 0) {
       my_error(ER_CANNOT_ADD_FOREIGN, MYF(0), table_name);
       DBUG_RETURN(true);
     }
 
     it.rewind();
     while ((sql_field = it++) &&
-           my_strcasecmp(system_charset_info, column->field_name.str,
+           my_strcasecmp(system_charset_info, column->get_field_name(),
                          sql_field->field_name)) {
     }
     if (!sql_field) {
-      my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0), column->field_name.str);
+      my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0), column->get_field_name());
       DBUG_RETURN(true);
     }
     if (sql_field->gcol_info) {
@@ -141,8 +162,8 @@ bool Foreign_key_spec::validate(THD *thd, const char *table_name,
   }
 
   for (const Key_part_spec *fk_col : ref_columns) {
-    if (check_column_name(fk_col->field_name.str)) {
-      my_error(ER_WRONG_COLUMN_NAME, MYF(0), fk_col->field_name.str);
+    if (check_column_name(fk_col->get_field_name())) {
+      my_error(ER_WRONG_COLUMN_NAME, MYF(0), fk_col->get_field_name());
       DBUG_RETURN(true);
     }
   }

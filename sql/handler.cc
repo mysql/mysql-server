@@ -42,6 +42,7 @@
 #include <list>
 #include <random>  // std::uniform_real_distribution
 #include <string>
+#include <vector>
 
 #include "binary_log_types.h"
 #include "binlog_event.h"
@@ -2681,6 +2682,7 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
       dup_ref = ref + ALIGN_SIZE(ref_length);
     cached_table_flags = table_flags();
   }
+
   DBUG_RETURN(error);
 }
 
@@ -7542,6 +7544,7 @@ int binlog_log_row(TABLE *table, const uchar *before_record,
       error = (*log_func)(thd, table, has_trans, before_record, after_record);
     }
   }
+
   return error ? HA_ERR_RBR_LOGGING_FAILED : 0;
 }
 

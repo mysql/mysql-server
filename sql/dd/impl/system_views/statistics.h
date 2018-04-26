@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,7 +56,8 @@ class Statistics_base
     FIELD_INDEX_COMMENT,
     FIELD_IS_VISIBLE,
     FIELD_INDEX_ORDINAL_POSITION,
-    FIELD_COLUMN_ORDINAL_POSITION
+    FIELD_COLUMN_ORDINAL_POSITION,
+    FIELD_EXPRESSION
   };
 
   Statistics_base();

@@ -51,6 +51,7 @@
 #include "myisampack.h"
 #include "sql/current_thd.h"
 #include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/types/table.h"
 #include "sql/derror.h"             // ER_THD
 #include "sql/filesort.h"           // change_double_for_sort
 #include "sql/gis/rtree_support.h"  // get_mbr_from_store
@@ -75,7 +76,8 @@
 #include "sql/sql_class.h"        // THD
 #include "sql/sql_join_buffer.h"  // CACHE_FIELD
 #include "sql/sql_lex.h"
-#include "sql/sql_time.h"  // str_to_datetime_with_warn
+#include "sql/sql_time.h"       // str_to_datetime_with_warn
+#include "sql/sql_tmp_table.h"  // create_tmp_field
 #include "sql/srs_fetcher.h"
 #include "sql/strfunc.h"  // find_type2
 #include "sql/system_variables.h"
@@ -1474,6 +1476,7 @@ Field::Field(uchar *ptr_arg, uint32 length_arg, uchar *null_ptr_arg,
              uchar null_bit_arg, uchar auto_flags_arg,
              const char *field_name_arg)
     : ptr(ptr_arg),
+      m_hidden(dd::Column::enum_hidden_type::HT_VISIBLE),
       m_null_ptr(null_ptr_arg),
       m_is_tmp_nullable(false),
       m_is_tmp_null(false),
@@ -9178,22 +9181,22 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
   @param fld_gcol_info         Generated column data
   @param srid                  The SRID specification. This might be null
                                (has_value() may return false).
+  @param hidden                Whether this column should be hidden or not.
+
   @retval
     false on success.
   @retval
     true  on error.
 */
 
-bool Create_field::init(THD *thd, const char *fld_name,
-                        enum_field_types fld_type, const char *fld_length,
-                        const char *fld_decimals, uint fld_type_modifier,
-                        Item *fld_default_value, Item *fld_on_update_value,
-                        LEX_STRING *fld_comment, const char *fld_change,
-                        List<String> *fld_interval_list,
-                        const CHARSET_INFO *fld_charset,
-                        bool has_explicit_collation, uint fld_geom_type,
-                        Generated_column *fld_gcol_info,
-                        Nullable<gis::srid_t> srid) {
+bool Create_field::init(
+    THD *thd, const char *fld_name, enum_field_types fld_type,
+    const char *fld_length, const char *fld_decimals, uint fld_type_modifier,
+    Item *fld_default_value, Item *fld_on_update_value, LEX_STRING *fld_comment,
+    const char *fld_change, List<String> *fld_interval_list,
+    const CHARSET_INFO *fld_charset, bool has_explicit_collation,
+    uint fld_geom_type, Generated_column *fld_gcol_info,
+    Nullable<gis::srid_t> srid, dd::Column::enum_hidden_type hidden) {
   uint sign_len, allowed_type_modifier = 0;
   ulong max_field_charlength = MAX_FIELD_CHARLENGTH;
 
@@ -9213,6 +9216,7 @@ bool Create_field::init(THD *thd, const char *fld_name,
 
   auto_flags = Field::NONE;
   maybe_null = !(fld_type_modifier & NOT_NULL_FLAG);
+  this->hidden = hidden;
 
   if (fld_default_value != NULL &&
       fld_default_value->type() == Item::FUNC_ITEM) {
@@ -9693,7 +9697,8 @@ size_t calc_pack_length(enum_field_types type, size_t length) {
 */
 
 Create_field::Create_field(Field *old_field, Field *orig_field)
-    : field_name(old_field->field_name),
+    : hidden(old_field->hidden()),
+      field_name(old_field->field_name),
       change(NULL),
       comment(old_field->comment),
       sql_type(old_field->real_type()),
@@ -10238,6 +10243,14 @@ bool Field::is_part_of_actual_key(THD *thd, uint cur_index,
 }
 
 Key_map Field::get_covering_prefix_keys() {
+  if (table == nullptr) {
+    // This function might be called when creating functional indexes. In those
+    // cases, we do not have a table object available. Assert that the function
+    // is indeed called in a functional index context, and then return an empty
+    // key map.
+    DBUG_ASSERT(down_cast<const Create_field_wrapper *>(this) != nullptr);
+    return Key_map();
+  }
   Key_map covering_prefix_keys = part_of_prefixkey;
   covering_prefix_keys.intersect(table->covering_keys);
   return covering_prefix_keys;
@@ -10504,4 +10517,136 @@ uint32 Field_blob::get_length(uint row_offset) {
 
 uint32 Field_blob::get_length(const uchar *ptr_arg) {
   return get_length(ptr_arg, this->packlength, table->s->db_low_byte_first);
+}
+
+Create_field_wrapper::Create_field_wrapper(const Create_field *fld)
+    : Field(nullptr, fld->length, nullptr, 0, fld->auto_flags, fld->field_name),
+      m_field(fld) {}
+
+Item_result Create_field_wrapper::result_type() const {
+  return field_types_result_type[field_type2index(m_field->sql_type)];
+}
+
+Item_result Create_field_wrapper::numeric_context_result_type() const {
+  return ::numeric_context_result_type(type(), result_type(),
+                                       m_field->decimals);
+}
+
+enum_field_types Create_field_wrapper::type() const {
+  return m_field->sql_type;
+}
+
+const CHARSET_INFO *Create_field_wrapper::charset() const {
+  return m_field->charset;
+}
+
+uint32 Create_field_wrapper::pack_length() const {
+  if (m_field->sql_type == MYSQL_TYPE_NEWDECIMAL) {
+    // calc_pack_length() does not handle NEWDECIMAL, so take care of it here.
+    return m_field->length;
+  }
+  return calc_pack_length(m_field->sql_type, m_field->length);
+}
+
+uint32 Create_field_wrapper::max_display_length() { return m_field->length; }
+
+/**
+  Generate a Create_field from an Item.
+
+  This function generates a Create_field from an Item by first creating a
+  temporary table Field from the Item, and then creating the Create_field from
+  this Field (there is currently no way to go directly from Item to
+  Create_field). It is used several places:
+  - In CREATE TABLE AS SELECT for creating the target table definition.
+  - In functional indexes for creating the hidden generated column from the
+    indexed expression.
+
+  @param thd       Thread handler
+  @param item      The item to generate a Create_field from
+  @param tmp_table A table object which is used to generate a temporary table
+                   field, as described above. This doesn't need to be an
+                   existing table.
+  @return          A Create_field generated from the input item, or nullptr
+                   in case of errors.
+*/
+Create_field *generate_create_field(THD *thd, Item *item, TABLE *tmp_table) {
+  Field *tmp_table_field;
+  if (item->type() == Item::FUNC_ITEM) {
+    if (item->result_type() != STRING_RESULT)
+      tmp_table_field = item->tmp_table_field(tmp_table);
+    else
+      tmp_table_field = item->tmp_table_field_from_field_type(tmp_table, false);
+  } else {
+    Field *from_field, *default_field;
+    tmp_table_field = create_tmp_field(thd, tmp_table, item, item->type(),
+                                       nullptr, &from_field, &default_field,
+                                       false, false, false, false);
+  }
+
+  if (!tmp_table_field) {
+    return nullptr; /* purecov: inspected */
+  }
+
+  Field *table_field;
+
+  switch (item->type()) {
+    /*
+      We have to take into account both the real table's fields and
+      pseudo-fields used in trigger's body. These fields are used
+      to copy defaults values later inside constructor of
+      the class Create_field.
+    */
+    case Item::FIELD_ITEM:
+    case Item::TRIGGER_FIELD_ITEM:
+      table_field = ((Item_field *)item)->field;
+      break;
+    default:
+      table_field = nullptr;
+  }
+
+  DBUG_ASSERT(tmp_table_field->gcol_info == nullptr &&
+              tmp_table_field->stored_in_db);
+  Create_field *cr_field =
+      new (thd->mem_root) Create_field(tmp_table_field, table_field);
+
+  if (!cr_field) {
+    return nullptr; /* purecov: inspected */
+  }
+
+  // Mark if collation was specified explicitly by user for the column.
+  if (item->type() == Item::FIELD_ITEM) {
+    TABLE *table = table_field->orig_table;
+    DBUG_ASSERT(table);
+    const dd::Table *table_obj =
+        table->s->tmp_table ? table->s->tmp_table_def : nullptr;
+
+    if (!table_obj && table->s->table_category != TABLE_UNKNOWN_CATEGORY) {
+      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
+      if (thd->dd_client()->acquire(table->s->db.str, table->s->table_name.str,
+                                    &table_obj)) {
+        return nullptr; /* purecov: inspected */
+      }
+    }
+
+    cr_field->is_explicit_collation = false;
+    if (table_obj) {
+      const dd::Column *c = table_obj->get_column(table_field->field_name);
+      if (c) cr_field->is_explicit_collation = c->is_explicit_collation();
+    }
+  }
+
+  if (item->maybe_null) cr_field->flags &= ~NOT_NULL_FLAG;
+
+  return cr_field;
+}
+
+const char *get_field_name_or_expression(THD *thd, const Field *field) {
+  if (field->is_field_for_functional_index()) {
+    String expression_buffer;
+    field->gcol_info->print_expr(thd, &expression_buffer);
+    return thd->strmake(expression_buffer.ptr(), expression_buffer.length());
+  }
+
+  return field->field_name;
 }

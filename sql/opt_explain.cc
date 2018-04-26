@@ -842,7 +842,8 @@ bool Explain_table_base::explain_possible_keys() {
 bool Explain_table_base::explain_key_parts(int key, uint key_parts) {
   KEY_PART_INFO *kp = table->key_info[key].key_part;
   for (uint i = 0; i < key_parts; i++, kp++)
-    if (fmt->entry()->col_key_parts.push_back(kp->field->field_name))
+    if (fmt->entry()->col_key_parts.push_back(
+            get_field_name_or_expression(table->in_use, kp->field)))
       return true;
   return false;
 }
@@ -1599,9 +1600,12 @@ bool Explain_join::explain_extra() {
       if (!bitmap_is_set(table->read_set, (*fld)->field_index) &&
           !bitmap_is_set(table->write_set, (*fld)->field_index))
         continue;
-      fmt->entry()->col_used_columns.push_back((*fld)->field_name);
+
+      const char *field_description =
+          get_field_name_or_expression(table->in_use, *fld);
+      fmt->entry()->col_used_columns.push_back(field_description);
       if (table->is_binary_diff_enabled(*fld))
-        fmt->entry()->col_partial_update_columns.push_back((*fld)->field_name);
+        fmt->entry()->col_partial_update_columns.push_back(field_description);
     }
   }
   return false;

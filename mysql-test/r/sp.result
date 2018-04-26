@@ -2369,7 +2369,7 @@ Level	Code	Message
 Field	Type	Null	Key	Default	Extra
 id	char(16)	NO			
 data	int(11)	NO		NULL	
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 Database	Table	In_use	Name_locked
 Variable_name	Value
 Tables_in_test (foo)
@@ -2390,7 +2390,7 @@ Level	Code	Message
 Field	Type	Null	Key	Default	Extra
 id	char(16)	NO			
 data	int(11)	NO		NULL	
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 Database	Table	In_use	Name_locked
 Variable_name	Value
 Tables_in_test (foo)

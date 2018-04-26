@@ -754,6 +754,26 @@ Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type) {
     return NULL;
 
   /*
+    In order to match expressions against a functional index's expression,
+    it's needed to skip CAST(.. AS .. ) and potentially COLLATE from the latter.
+    This can't be joined with striping json_unquote below, since we might need
+    to skip it too in expression like:
+      CAST(JSON_UNQUOTE(<expr>) AS CHAR(X))
+  */
+
+  if (expr->functype() == Item_func::COLLATE_FUNC &&
+      (*func)->functype() != Item_func::COLLATE_FUNC) {
+    if (!expr->arguments()[0]->can_be_substituted_for_gc()) return nullptr;
+    expr = down_cast<Item_func *>(expr->arguments()[0]);
+  }
+
+  if (expr->functype() == Item_func::TYPECAST_FUNC &&
+      (*func)->functype() != Item_func::TYPECAST_FUNC) {
+    if (!expr->arguments()[0]->can_be_substituted_for_gc()) return nullptr;
+    expr = down_cast<Item_func *>(expr->arguments()[0]);
+  }
+
+  /*
     Skip unquoting function. This is needed to address JSON string
     comparison issue. All JSON_* functions return quoted strings. In
     order to create usable index, GC column expression has to include
@@ -801,8 +821,19 @@ static bool substitute_gc_expression(Item_func **expr, List<Field> *gc_fields,
     Key_map tkm = field->part_of_key;
     tkm.merge(field->part_of_prefixkey);  // Include prefix keys.
     tkm.intersect(field->table->keys_in_use_for_query);
+    // If the field is a hidden field used by a functional index, we require
+    // that the collation of the field must match the collation of the
+    // expression. If not, we might end up with the wrong result when using
+    // the index (see bug#27337092). Ideally, this should be done for normal
+    // generated columns as well, but that is delayed to a later fix since the
+    // impact might be quite large.
+    const bool incompatible_collations =
+        field->is_field_for_functional_index() &&
+        field->result_type() == STRING_RESULT &&
+        (*expr)->result_type() == STRING_RESULT &&
+        (*expr)->collation.collation != field->charset();
 
-    if (!tkm.is_clear_all()) {
+    if (!tkm.is_clear_all() && !incompatible_collations) {
       item_field = get_gc_for_expr(expr, field, type);
       if (item_field != nullptr) break;
     }

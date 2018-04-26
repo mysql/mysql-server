@@ -28,9 +28,9 @@ _id	varbinary(32)	NO	PRI	null	STORED GENERATED
 $ix_ft_r_366242F9B1A1445156C6129A699299650D68D08A	text	NO	MUL	null	STORED GENERATED
 0 rows affected
 ### Indexes of fulltext1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-fulltext1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
-fulltext1	1	one	1	$ix_ft_r_366242F9B1A1445156C6129A699299650D68D08A	null	0	null	null		FULLTEXT			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+fulltext1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
+fulltext1	1	one	1	$ix_ft_r_366242F9B1A1445156C6129A699299650D68D08A	null	0	null	null		FULLTEXT			YES	null
 0 rows affected
 ############################
 
@@ -41,8 +41,8 @@ doc	json	YES		null
 _id	varbinary(32)	NO	PRI	null	STORED GENERATED
 0 rows affected
 ### Indexes of fulltext1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-fulltext1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+fulltext1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
 ############################
 Variable_name	Value
@@ -66,9 +66,9 @@ _id	varbinary(32)	NO	PRI	null	STORED GENERATED
 $ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	text	NO	MUL	null	STORED GENERATED
 0 rows affected
 ### Indexes of fulltext1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-fulltext1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
-fulltext1	1	one	1	$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	null	0	null	null		FULLTEXT			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+fulltext1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
+fulltext1	1	one	1	$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	null	0	null	null		FULLTEXT			YES	null
 0 rows affected
 ############################
 
@@ -79,8 +79,8 @@ doc	json	YES		null
 _id	varbinary(32)	NO	PRI	null	STORED GENERATED
 0 rows affected
 ### Indexes of fulltext1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-fulltext1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+fulltext1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
 ############################
 
@@ -97,10 +97,10 @@ _id	varbinary(32)	NO	PRI	null	STORED GENERATED
 $ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	text	NO	MUL	null	STORED GENERATED
 0 rows affected
 ### Indexes of fulltext1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-fulltext1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
-fulltext1	1	one	1	$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	null	0	null	null		FULLTEXT			YES
-fulltext1	1	two	1	$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	null	0	null	null		FULLTEXT			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+fulltext1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
+fulltext1	1	one	1	$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	null	0	null	null		FULLTEXT			YES	null
+fulltext1	1	two	1	$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	null	0	null	null		FULLTEXT			YES	null
 0 rows affected
 ############################
 
@@ -115,9 +115,9 @@ _id	varbinary(32)	NO	PRI	null	STORED GENERATED
 $ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	text	NO	MUL	null	STORED GENERATED
 0 rows affected
 ### Indexes of fulltext1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-fulltext1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
-fulltext1	1	two	1	$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	null	0	null	null		FULLTEXT			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+fulltext1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
+fulltext1	1	two	1	$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	null	0	null	null		FULLTEXT			YES	null
 0 rows affected
 ############################
 
@@ -133,11 +133,11 @@ $ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	text	NO	MUL	null	STORED GENERA
 $ix_ft_r_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	text	NO		null	STORED GENERATED
 0 rows affected
 ### Indexes of fulltext1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-fulltext1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
-fulltext1	1	two	1	$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	null	0	null	null		FULLTEXT			YES
-fulltext1	1	three	1	$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	null	0	null	null		FULLTEXT			YES
-fulltext1	1	three	2	$ix_ft_r_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	null	0	null	null		FULLTEXT			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+fulltext1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
+fulltext1	1	two	1	$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	null	0	null	null		FULLTEXT			YES	null
+fulltext1	1	three	1	$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	null	0	null	null		FULLTEXT			YES	null
+fulltext1	1	three	2	$ix_ft_r_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	null	0	null	null		FULLTEXT			YES	null
 0 rows affected
 ############################
 
@@ -154,12 +154,12 @@ $ix_ft_r_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	text	NO		null	STORED GENERATED
 $ix_ft_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	text	YES	MUL	null	STORED GENERATED
 0 rows affected
 ### Indexes of fulltext1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-fulltext1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
-fulltext1	1	two	1	$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	null	0	null	null		FULLTEXT			YES
-fulltext1	1	three	1	$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	null	0	null	null		FULLTEXT			YES
-fulltext1	1	three	2	$ix_ft_r_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	null	0	null	null		FULLTEXT			YES
-fulltext1	1	four	1	$ix_ft_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	null	0	null	null	YES	FULLTEXT			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+fulltext1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
+fulltext1	1	two	1	$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	null	0	null	null		FULLTEXT			YES	null
+fulltext1	1	three	1	$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	null	0	null	null		FULLTEXT			YES	null
+fulltext1	1	three	2	$ix_ft_r_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	null	0	null	null		FULLTEXT			YES	null
+fulltext1	1	four	1	$ix_ft_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	null	0	null	null	YES	FULLTEXT			YES	null
 0 rows affected
 ############################
 
@@ -177,13 +177,13 @@ $ix_ft_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	text	YES	MUL	null	STORED GENERAT
 $ix_ft_B5750A6F79D3B1F39FA4EF6A3C52CB94B2050EE8	text	YES	MUL	null	STORED GENERATED
 0 rows affected
 ### Indexes of fulltext1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-fulltext1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
-fulltext1	1	two	1	$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	null	0	null	null		FULLTEXT			YES
-fulltext1	1	three	1	$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	null	0	null	null		FULLTEXT			YES
-fulltext1	1	three	2	$ix_ft_r_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	null	0	null	null		FULLTEXT			YES
-fulltext1	1	four	1	$ix_ft_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	null	0	null	null	YES	FULLTEXT			YES
-fulltext1	1	five	1	$ix_ft_B5750A6F79D3B1F39FA4EF6A3C52CB94B2050EE8	null	0	null	null	YES	FULLTEXT			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+fulltext1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
+fulltext1	1	two	1	$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	null	0	null	null		FULLTEXT			YES	null
+fulltext1	1	three	1	$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	null	0	null	null		FULLTEXT			YES	null
+fulltext1	1	three	2	$ix_ft_r_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	null	0	null	null		FULLTEXT			YES	null
+fulltext1	1	four	1	$ix_ft_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	null	0	null	null	YES	FULLTEXT			YES	null
+fulltext1	1	five	1	$ix_ft_B5750A6F79D3B1F39FA4EF6A3C52CB94B2050EE8	null	0	null	null	YES	FULLTEXT			YES	null
 0 rows affected
 ############################
 
@@ -217,9 +217,9 @@ _id	varbinary(32)	NO	PRI	null	STORED GENERATED
 $ix_ft_r_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	text	NO	MUL	null	STORED GENERATED
 0 rows affected
 ### Indexes of fulltext1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-fulltext1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
-fulltext1	1	four	1	$ix_ft_r_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	null	0	null	null		FULLTEXT			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+fulltext1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
+fulltext1	1	four	1	$ix_ft_r_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	null	0	null	null		FULLTEXT			YES	null
 0 rows affected
 ############################
 

@@ -835,6 +835,9 @@ SELECT_LEX *build_show_keys_query(const POS &pos, THD *thd,
   static const LEX_STRING alias_column_pos = {
       C_STRING_WITH_LEN("COLUMN_ORDINAL_POSITION")};
 
+  static const LEX_STRING field_expression = {C_STRING_WITH_LEN("EXPRESSION")};
+  static const LEX_STRING alias_expression = {C_STRING_WITH_LEN("Expression")};
+
   // Get the current logged in schema name
   LEX_STRING cur_db;
   if (table_ident->db.str) {
@@ -867,6 +870,7 @@ SELECT_LEX *build_show_keys_query(const POS &pos, THD *thd,
       sub_query.add_select_item(field_comment, alias_comment) ||
       sub_query.add_select_item(field_index_comment, alias_index_comment) ||
       sub_query.add_select_item(field_is_visible, alias_visible) ||
+      sub_query.add_select_item(field_expression, alias_expression) ||
       sub_query.add_select_item(alias_index_pos, alias_index_pos) ||
       sub_query.add_select_item(alias_column_pos, alias_column_pos))
     return nullptr;
@@ -896,6 +900,7 @@ SELECT_LEX *build_show_keys_query(const POS &pos, THD *thd,
       top_query.add_select_item(alias_comment, alias_comment) ||
       top_query.add_select_item(alias_index_comment, alias_index_comment) ||
       top_query.add_select_item(alias_visible, alias_visible) ||
+      top_query.add_select_item(alias_expression, alias_expression) ||
       top_query.add_from_item(
           sub_query.prepare_derived_table(system_view_name)))
     return nullptr;

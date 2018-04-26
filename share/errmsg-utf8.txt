@@ -8583,6 +8583,41 @@ ER_XA_CANT_CREATE_MDL_BACKUP
 ER_TABLE_WITHOUT_PK
   eng "Unable to create a table without PK, when system variable 'sql_require_primary_key' is set. Add a PK to the table or unset this variable to avoid this message. Note that tables without PK can cause performance problems in row-based replication, so please consult your DBA before changing this setting."
 
+WARN_DATA_TRUNCATED_FUNCTIONAL_INDEX 01000
+  eng "Data truncated for functional index '%s' at row %ld"
+
+ER_WARN_DATA_OUT_OF_RANGE_FUNCTIONAL_INDEX 22003
+  eng "Value is out of range for functional index '%s' at row %ld"
+
+ER_FUNCTIONAL_INDEX_ON_JSON_OR_GEOMETRY_FUNCTION 42000
+  eng "Cannot create a functional index on a function that returns a JSON or GEOMETRY value."
+
+ER_FUNCTIONAL_INDEX_REF_AUTO_INCREMENT
+  eng "Functional index '%.64s' cannot refer to an auto-increment column."
+
+ER_CANNOT_DROP_COLUMN_FUNCTIONAL_INDEX
+  eng "Cannot drop column '%-.64s' because it is used by a functional index. In order to drop the column, you must remove the functional index."
+
+ER_FUNCTIONAL_INDEX_PRIMARY_KEY
+  eng "The primary key cannot be a functional index"
+
+ER_FUNCTIONAL_INDEX_ON_LOB
+  eng "Cannot create a functional index on an expression that returns a BLOB or TEXT. Please consider using CAST."
+
+ER_FUNCTIONAL_INDEX_FUNCTION_IS_NOT_ALLOWED
+  eng "Expression of functional index '%s' contains a disallowed function."
+
+ER_FULLTEXT_FUNCTIONAL_INDEX
+  eng "Fulltext functional index is not supported."
+
+ER_SPATIAL_FUNCTIONAL_INDEX
+  eng "Spatial functional index is not supported."
+
+ER_WRONG_KEY_COLUMN_FUNCTIONAL_INDEX
+  eng "The used storage engine cannot index the expression '%s'."
+
+ER_FUNCTIONAL_INDEX_ON_FIELD
+  eng "Functional index on a column is not supported. Consider using a regular index instead."
 
 #
 #  End of 8.0 error messages.

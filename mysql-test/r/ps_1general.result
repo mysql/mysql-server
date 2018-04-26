@@ -287,9 +287,9 @@ Table	Op	Msg_type	Msg_text
 test.t2	analyze	status	OK
 prepare stmt4 from ' show index from t2 from test ';
 execute stmt4;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t2	0	PRIMARY	1	a	A	0	NULL	NULL		BTREE			YES
-t2	1	t2_idx	1	b	A	0	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t2	0	PRIMARY	1	a	A	0	NULL	NULL		BTREE			YES	NULL
+t2	1	t2_idx	1	b	A	0	NULL	NULL	YES	BTREE			YES	NULL
 prepare stmt4 from ' show table status from test like ''t2%'' ';
 execute stmt4;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment

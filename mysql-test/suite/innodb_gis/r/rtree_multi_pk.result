@@ -41,10 +41,10 @@ analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show indexes from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	i	A	#	NULL	NULL		BTREE			YES
-t1	0	PRIMARY	2	i2	A	#	NULL	NULL		BTREE			YES
-t1	1	g	1	g	A	#	32	NULL		SPATIAL			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	i	A	#	NULL	NULL		BTREE			YES	NULL
+t1	0	PRIMARY	2	i2	A	#	NULL	NULL		BTREE			YES	NULL
+t1	1	g	1	g	A	#	32	NULL		SPATIAL			YES	NULL
 drop table t1;
 create table t1 (name VARCHAR(100), square GEOMETRY not null SRID 0, spatial index (square))engine=innodb;
 INSERT INTO t1 VALUES("small",  ST_GeomFromText('POLYGON (( 0 0, 0 1, 1 1, 1 0, 0 0))'));

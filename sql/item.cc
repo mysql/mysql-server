@@ -5232,6 +5232,12 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
       return false;
     }
 
+    if (from_field->is_hidden_from_user()) {
+      // This field is hidden from users, so report it as "not found".
+      my_error(ER_BAD_FIELD_ERROR, MYF(0), from_field->field_name, thd->where);
+      return true;
+    }
+
     // Not view reference, not outer reference; need to set properties:
     set_field(from_field);
   } else if (thd->mark_used_columns != MARK_COLUMNS_NONE) {
@@ -5837,6 +5843,13 @@ type_conversion_status Item_null::save_in_field_inner(Field *field,
 
 type_conversion_status Item::save_in_field(Field *field, bool no_conversions) {
   DBUG_ENTER("Item::save_in_field");
+  // In case this is a hidden column used for a functional index, insert
+  // an error handler that catches any errors that tries to print out the
+  // name of the hidden column. It will instead print out the functional
+  // index name.
+  Functional_index_error_handler functional_index_error_handler(
+      field, (field->table ? field->table->in_use : current_thd));
+
   const type_conversion_status ret = save_in_field_inner(field, no_conversions);
 
   /*
@@ -6937,7 +6950,12 @@ Item *Item_field::update_value_transformer(uchar *select_arg) {
 }
 
 void Item_field::print(String *str, enum_query_type query_type) {
-  if (field && field->table->const_table &&
+  if (field && field->is_field_for_functional_index()) {
+    field->gcol_info->expr_item->print(str, query_type);
+    return;
+  }
+
+  if (field && field->table && field->table->const_table &&
       !(query_type & QT_NO_DATA_EXPANSION)) {
     char buff[MAX_FIELD_WIDTH];
     String tmp(buff, sizeof(buff), str->charset());

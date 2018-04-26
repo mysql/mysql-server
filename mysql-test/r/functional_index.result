@@ -1,0 +1,683 @@
+CREATE TABLE t1 (int_col INTEGER, string_col VARCHAR(255));
+INSERT INTO t1 (int_col, string_col) VALUES (-1, "foo"), (1, "bar");
+CREATE INDEX int_func_index ON t1 ((ABS(int_col)));
+CREATE INDEX string_func_index ON t1 ((SUBSTRING(string_col, 1, 2)));
+# We should see the functional index syntax in SHOW CREATE TABLE
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `int_col` int(11) DEFAULT NULL,
+  `string_col` varchar(255) DEFAULT NULL,
+  KEY `int_func_index` ((abs(`int_col`))),
+  KEY `string_func_index` ((substr(`string_col`,1,2)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# INFORMATION_SCHEMA.STATISTICS should show the expression and no column
+# name
+SELECT * FROM INFORMATION_SCHEMA.STATISTICS
+WHERE INDEX_NAME IN ('int_func_index', 'string_func_index');
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE	EXPRESSION
+def	test	t1	1	test	int_func_index	1	NULL	A	1	NULL	NULL	YES	BTREE			YES	abs(`int_col`)
+def	test	t1	1	test	string_func_index	1	NULL	A	2	NULL	NULL	YES	BTREE			YES	substr(`string_col`,1,2)
+# INFORMATION_SCHEMA.COLUMNS should not show the hidden generated
+# columns.
+SELECT COUNT(*) AS should_be_2 FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME = "t1";
+should_be_2
+2
+# INFORMATION_SCHEMA.INNODB_COLUMNS should not show the hidden generated
+# columns.
+SELECT COUNT(*) AS should_be_2 FROM INFORMATION_SCHEMA.INNODB_COLUMNS c
+JOIN INFORMATION_SCHEMA.INNODB_TABLES t ON (c.TABLE_ID = t.TABLE_ID)
+WHERE t.NAME = "test/t1";
+should_be_2
+2
+# The optimizer should be able to make use of the functional index.
+# Also, the query printed as a warning from EXPLAIN should display the
+# expression and not the name of the hidden generated column.
+EXPLAIN SELECT * FROM t1 WHERE SUBSTRING(string_col, 1, 2) = "fo";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	string_func_index	string_func_index	11	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`int_col` AS `int_col`,`test`.`t1`.`string_col` AS `string_col` from `test`.`t1` where (substr(`test`.`t1`.`string_col`,1,2) = 'fo')
+EXPLAIN SELECT * FROM t1 WHERE ABS(int_col) = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	int_func_index	int_func_index	5	const	2	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`int_col` AS `int_col`,`test`.`t1`.`string_col` AS `string_col` from `test`.`t1` where (abs(`test`.`t1`.`int_col`) = 1)
+# Creating multiple nameless functional indexes should automatically
+# generate new names that doesn't collide.
+CREATE TABLE t2 (
+col1 INT,
+INDEX ((col1 * 2)),
+INDEX ((col1 * 4)),
+INDEX ((col1 * 6)));
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `col1` int(11) DEFAULT NULL,
+  KEY `functional_index` (((`col1` * 2))),
+  KEY `functional_index_2` (((`col1` * 4))),
+  KEY `functional_index_3` (((`col1` * 6)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+# Adding a multi-column index with both a functional part and a
+# non-functional part should work just fine.
+CREATE INDEX combined_index ON t1 ((int_col + int_col), string_col);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `int_col` int(11) DEFAULT NULL,
+  `string_col` varchar(255) DEFAULT NULL,
+  KEY `int_func_index` ((abs(`int_col`))),
+  KEY `string_func_index` ((substr(`string_col`,1,2))),
+  KEY `combined_index` (((`int_col` + `int_col`)),`string_col`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# ...and, the optimizer should be able to use this multi-column index
+EXPLAIN SELECT * FROM t1 WHERE int_col + int_col = 2 AND string_col = "bar";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	combined_index	combined_index	1032	const,const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`int_col` AS `int_col`,`test`.`t1`.`string_col` AS `string_col` from `test`.`t1` where ((`test`.`t1`.`string_col` = 'bar') and ((`test`.`t1`.`int_col` + `test`.`t1`.`int_col`) = 2))
+# Test that if we have a string column with the same name as a function,
+# we will pick the function. To pick the column, skip the enclosing
+# parentheses around the expression.
+ALTER TABLE t1 ADD COLUMN rand VARCHAR(255);
+CREATE INDEX name_collision ON t1 ((rand(2)));
+ERROR HY000: Expression of functional index 'name_collision' contains a disallowed function.
+CREATE INDEX name_collision ON t1 ((`rand`(2)));
+ERROR HY000: Expression of functional index 'name_collision' contains a disallowed function.
+DROP TABLE t1;
+# Check that in case of errors when saving data to the generated column,
+# the functional index name is printed and not the auto generated name
+# of the generated column.
+CREATE TABLE t1 (f1 JSON, f2 VARCHAR(255));
+CREATE INDEX my_functional_index ON t1 ((CAST(f1 AS DECIMAL(2, 1))));
+CREATE INDEX my_functional_index_2 ON t1 ((CAST(f2 AS CHAR(1))));
+CREATE INDEX idx1 ON t1 ((CAST(f2 AS JSON)));
+ERROR 42000: Cannot create a functional index on a function that returns a JSON or GEOMETRY value.
+INSERT INTO t1 (f1) VALUES (CAST(1000 AS JSON));
+ERROR 22003: Value is out of range for functional index 'my_functional_index' at row 1
+INSERT INTO t1 (f2) VALUES ("lorem ipsum");
+ERROR 22007: Truncated incorrect CHAR(1) value: 'lorem ipsum'
+# In non-strict mode, a warning should be printed.
+SET @@sql_mode='';
+INSERT INTO t1 (f1) VALUES (CAST(1000 AS JSON));
+Warnings:
+Warning	3752	Value is out of range for functional index 'my_functional_index' at row 1
+INSERT INTO t1 (f2) VALUES ("lorem ipsum");
+Warnings:
+Warning	1292	Truncated incorrect CHAR(1) value: 'lorem ipsum'
+DROP TABLE t1;
+SET @@sql_mode=DEFAULT;
+CREATE TABLE t1 (t1_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+CREATE INDEX idx1 ON t1 ((t1_id + t1_id));
+ERROR HY000: Functional index 'idx1' cannot refer to an auto-increment column.
+DROP TABLE t1;
+# Check that "SHOW KEYS" prints out the expression for generated columns
+# (Column_name should be NULL, and Expression should contain the
+# expression).
+CREATE TABLE t1 (col1 INT, col2 INT);
+CREATE INDEX idx1 ON t1 (col1, (col1 + col2));
+SHOW KEYS FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	idx1	1	col1	A	0	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	idx1	2	NULL	A	0	NULL	NULL	YES	BTREE			YES	(`col1` + `col2`)
+# Create a funtional index with many functional key parts
+# Check that if we try to add a column with the same name as a hidden
+# column, we get an internal error. The column name of the generated
+# column is calculated as MD5(index_name + key_part_number).
+SELECT MD5(CONCAT("idx1", "1"));
+MD5(CONCAT("idx1", "1"))
+56fb28970273a50c6f31dec0fe3b175b
+ALTER TABLE t1 ADD COLUMN `56fb28970273a50c6f31dec0fe3b175b` INT NOT NULL;
+ERROR HY000: Internal error: The column name '56fb28970273a50c6f31dec0fe3b175b' is already in use by a hidden column
+DROP TABLE t1;
+# Creating a functional index on already existing columns using
+# ALTER TABLE should work just fine.
+CREATE TABLE t1 (col1 INT, col2 INT);
+ALTER TABLE t1 ADD INDEX ((ABS(col1))), ADD INDEX ((ABS(col2)));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int(11) DEFAULT NULL,
+  `col2` int(11) DEFAULT NULL,
+  KEY `functional_index` ((abs(`col1`))),
+  KEY `functional_index_2` ((abs(`col2`)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Adding a functional index to a column that is created in the same
+# ALTER TABLE statement should work.
+ALTER TABLE t1 ADD COLUMN col3 INT, ADD INDEX ((col1 - col3));
+DROP TABLE t1;
+# Adding a functional index using CREATE TABLE should work
+CREATE TABLE t1 (col1 INT, INDEX ((ABS(col1))));
+DROP TABLE t1;
+# Print out functional indexes on a temporary table. Note that
+# "Column_name" should be empty (NULL), and Expression should contain the
+# expression for the functional index.
+CREATE TEMPORARY TABLE t1(a INT);
+CREATE INDEX idx ON t1 ((ABS(a)));
+SHOW KEYS FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	idx	1		A	0	NULL	NULL	YES	BTREE			YES	abs(`a`)
+DROP TABLE t1;
+CREATE TABLE t1 (col1 INT, INDEX ((CONCAT(''))));
+ERROR HY000: The used storage engine cannot index the expression 'concat(_utf8mb4'')'.
+# Check that a functional index cannot be a part of the primary key
+CREATE TABLE t1 (col1 INT, PRIMARY KEY ((ABS(col1))));
+ERROR HY000: The primary key cannot be a functional index
+CREATE TABLE t1 (col1 INT, PRIMARY KEY (col1, (ABS(col1))));
+ERROR HY000: The primary key cannot be a functional index
+CREATE TABLE t1 (col1 INT, col2 INT, PRIMARY KEY (col1, (ABS(col1)), col2));
+ERROR HY000: The primary key cannot be a functional index
+CREATE TABLE t1 (col1 INT, col2 INT);
+ALTER TABLE t1 ADD PRIMARY KEY ((ABS(col1)));
+ERROR HY000: The primary key cannot be a functional index
+ALTER TABLE t1 ADD PRIMARY KEY (col2, (ABS(col1)));
+ERROR HY000: The primary key cannot be a functional index
+ALTER TABLE t1 ADD PRIMARY KEY (col1, col2, (ABS(col1)));
+ERROR HY000: The primary key cannot be a functional index
+DROP TABLE t1;
+# Check that descending functional index works
+CREATE TABLE t1 (col1 INT, INDEX ((ABS(col1)) DESC));
+EXPLAIN SELECT col1 FROM t1 WHERE ABS(col1) < 1 ORDER BY ABS(col1) DESC;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	functional_index	functional_index	5	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (abs(`test`.`t1`.`col1`) < 1) order by abs(`test`.`t1`.`col1`) desc
+DROP TABLE t1;
+# Test integer index over a JSON key
+CREATE TABLE t1(f1 JSON, INDEX idx1 ((CAST(f1->"$.id" AS UNSIGNED))));
+INSERT INTO t1 VALUES(CAST('{"id":1}' AS JSON)), (CAST('{"id":2}' AS JSON)),
+(CAST('{"id":3}' AS JSON)), (CAST('{"id":4}' AS JSON)),
+(CAST('{"id":5}' AS JSON)), (CAST('{"id":6}' AS JSON)),
+(CAST('{"id":7}' AS JSON)), (CAST('{"id":8}' AS JSON)),
+(CAST('{"id":9}' AS JSON)), (CAST('{"id":10}' AS JSON));
+SELECT * FROM t1 WHERE f1->"$.id"= 5;
+f1
+{"id": 5}
+EXPLAIN SELECT * FROM t1 WHERE f1->"$.id"= 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx1	idx1	9	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$.id') as unsigned) = 5)
+SELECT * FROM t1 WHERE f1->"$.id" IN (1,2,3);
+f1
+{"id": 1}
+{"id": 2}
+{"id": 3}
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the IN operator'
+EXPLAIN SELECT * FROM t1 WHERE f1->"$.id" IN (1,2,3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx1	idx1	9	NULL	3	100.00	Using where
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the IN operator'
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$.id') as unsigned) in (1,2,3))
+DROP TABLE t1;
+Test string index over a JSON key
+CREATE TABLE t1(f1 JSON, INDEX idx1 ((CAST(f1->>"$.id" AS CHAR(10)))));
+INSERT INTO t1 VALUES
+(CAST('{"id":"a"}' AS JSON)), (CAST('{"id":"b"}' AS JSON)),
+(CAST('{"id":"v"}' AS JSON)), (CAST('{"id":"c"}' AS JSON)),
+(CAST('{"id":"x"}' AS JSON)), (CAST('{"id":"\'z"}' AS JSON)),
+  (JSON_OBJECT("id",JSON_QUOTE("n"))), (CAST('{"id":"w"}' AS JSON)),
+  (CAST('{"id":"m"}' AS JSON)), (CAST('{"id":"q"}' AS JSON));
+SELECT * FROM t1 WHERE CAST(f1->>"$.id" AS CHAR(10)) = "\"n\"";
+f1
+{"id": "\"n\""}
+EXPLAIN SELECT * FROM t1 WHERE CAST(f1->>"$.id" AS CHAR(10)) = "\"n\"";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx1	idx1	43	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (cast(json_unquote(json_extract(`test`.`t1`.`f1`,_utf8mb4'$.id')) as char(10) charset utf8mb4) = '"n"')
+SELECT * FROM t1 WHERE CAST(f1->>"$.id" AS CHAR(10)) IN ("'z", "\"n\"","a");
+f1
+{"id": "'z"}
+{"id": "\"n\""}
+{"id": "a"}
+EXPLAIN SELECT * FROM t1 WHERE CAST(f1->>"$.id" AS CHAR(10)) IN ("'z", "\"n\"","a");
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx1	idx1	43	NULL	3	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (cast(json_unquote(json_extract(`test`.`t1`.`f1`,_utf8mb4'$.id')) as char(10) charset utf8mb4) in ('\'z','"n"','a'))
+DROP TABLE t1;
+CREATE TABLE t1(f1 JSON, INDEX idx1 ((CAST(f1->>"$.name" AS CHAR(30)) COLLATE utf8mb4_bin)));
+INSERT INTO t1 VALUES
+('{"name": "james"}'),
+('{"name": "JAMES"}'),
+('{"name": "Peter"}'),
+('{"name": "parker"}');
+# Should not return any rows, and should use the index
+SELECT * FROM t1 WHERE f1->>"$.name" = "James";
+f1
+EXPLAIN SELECT * FROM t1 WHERE f1->>"$.name" = "James";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx1	idx1	123	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where ((cast(json_unquote(json_extract(`test`.`t1`.`f1`,_utf8mb4'$.name')) as char(30) charset utf8mb4) collate utf8mb4_bin) = 'James')
+# Should return one row, and should use the index
+SELECT * FROM t1 WHERE f1->>"$.name" = "james";
+f1
+{"name": "james"}
+EXPLAIN SELECT * FROM t1 WHERE f1->>"$.name" = "james";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx1	idx1	123	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where ((cast(json_unquote(json_extract(`test`.`t1`.`f1`,_utf8mb4'$.name')) as char(30) charset utf8mb4) collate utf8mb4_bin) = 'james')
+# Should return one row, and should use the index
+SELECT * FROM t1 WHERE CAST(f1->>"$.name" AS CHAR(30)) COLLATE utf8mb4_bin = "james";
+f1
+{"name": "james"}
+EXPLAIN SELECT * FROM t1 WHERE CAST(f1->>"$.name" AS CHAR(30)) COLLATE utf8mb4_bin = "james";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx1	idx1	123	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where ((cast(json_unquote(json_extract(`test`.`t1`.`f1`,_utf8mb4'$.name')) as char(30) charset utf8mb4) collate utf8mb4_bin) = 'james')
+DROP TABLE t1;
+# See that optimizer trace doesn't reveal the name of the hidden
+# generated column.
+CREATE TABLE t1 (col1 INT, INDEX ((col1 + col1)));
+SET optimizer_trace="enabled=on";
+SELECT col1 FROM t1 WHERE col1 + col1 = 10;
+col1
+SELECT TRACE FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+TRACE
+{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select `t1`.`col1` AS `col1` from `t1` where ((`t1`.`col1` + `t1`.`col1`) = 10)"
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "((`t1`.`col1` + `t1`.`col1`) = 10)",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "((`t1`.`col1` + `t1`.`col1`) = 10)"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "((`t1`.`col1` + `t1`.`col1`) = 10)"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "((`t1`.`col1` + `t1`.`col1`) = 10)"
+                }
+              ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
+              "resulting_condition": "((`t1`.`col1` + `t1`.`col1`) = 10)"
+            }
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t1`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "ref_optimizer_key_uses": [
+              {
+                "table": "`t1`",
+                "field": "(`col1` + `col1`)",
+                "equals": "10",
+                "null_rejecting": false
+              }
+            ]
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t1`",
+                "range_analysis": {
+                  "table_scan": {
+                    "rows": 1,
+                    "cost": 2.45
+                  },
+                  "potential_range_indexes": [
+                    {
+                      "index": "functional_index",
+                      "usable": true,
+                      "key_parts": [
+                        "(`col1` + `col1`)"
+                      ]
+                    }
+                  ],
+                  "setup_range_conditions": [
+                  ],
+                  "group_index_range": {
+                    "chosen": false,
+                    "cause": "not_group_by_or_distinct"
+                  },
+                  "skip_scan_range": {
+                    "potential_skip_scan_indexes": [
+                      {
+                        "index": "functional_index",
+                        "usable": false,
+                        "cause": "query_references_nonkey_column"
+                      }
+                    ]
+                  },
+                  "analyzing_range_alternatives": {
+                    "range_scan_alternatives": [
+                      {
+                        "index": "functional_index",
+                        "ranges": [
+                          "10 <= (`col1` + `col1`) <= 10"
+                        ],
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
+                        "index_only": false,
+                        "rows": 1,
+                        "cost": 0.61,
+                        "chosen": true
+                      }
+                    ],
+                    "analyzing_roworder_intersect": {
+                      "usable": false,
+                      "cause": "too_few_roworder_scans"
+                    }
+                  },
+                  "chosen_range_access_summary": {
+                    "range_access_plan": {
+                      "type": "range_scan",
+                      "index": "functional_index",
+                      "rows": 1,
+                      "ranges": [
+                        "10 <= (`col1` + `col1`) <= 10"
+                      ]
+                    },
+                    "rows_for_plan": 1,
+                    "cost_for_plan": 0.61,
+                    "chosen": true
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "access_type": "ref",
+                      "index": "functional_index",
+                      "rows": 1,
+                      "cost": 0.35,
+                      "chosen": true
+                    },
+                    {
+                      "access_type": "range",
+                      "range_details": {
+                        "used_index": "functional_index"
+                      },
+                      "chosen": false,
+                      "cause": "heuristic_index_cheaper"
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 1,
+                "cost_for_plan": 0.35,
+                "chosen": true
+              }
+            ]
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": "((`t1`.`col1` + `t1`.`col1`) = 10)",
+              "attached_conditions_computation": [
+              ],
+              "attached_conditions_summary": [
+                {
+                  "table": "`t1`",
+                  "attached": null
+                }
+              ]
+            }
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t1`"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
+        ]
+      }
+    }
+  ]
+}
+DROP TABLE t1;
+# Test that doing an UPDATE on a hidden generated column returns "column
+# not found".
+CREATE TABLE t1 (col1 INT, INDEX idx1 ((col1 + col1)));
+# Get the expected name of the hidden generated column.
+SELECT MD5(CONCAT("idx1", "0"));
+MD5(CONCAT("idx1", "0"))
+45197ac678c1210c4a64bf22351853e7
+UPDATE t1 SET 45197ac678c1210c4a64bf22351853e7 = 123;
+ERROR 42S22: Unknown column '45197ac678c1210c4a64bf22351853e7' in 'field list'
+DROP TABLE t1;
+#
+# Bug#28037245 VIRTUAL COLUMN IS ALLOWED IN THE WHERE CLAUSE FOR SQL
+#              QUERY
+#
+CREATE TABLE t3 (c1 INT);
+CREATE INDEX int_func_index ON t3 ((ABS(c1)));
+# Get the expected column name of the functional index
+SELECT MD5(CONCAT('int_func_index', '0'));
+MD5(CONCAT('int_func_index', '0'))
+7cf759b4f03e729c90aa40cc68dd8780
+SELECT * FROM t3 WHERE 7cf759b4f03e729c90aa40cc68dd8780=1;
+ERROR 42S22: Unknown column '7cf759b4f03e729c90aa40cc68dd8780' in 'where clause'
+DROP TABLE t3;
+#
+# Bug#28037375 ALTER TABLE DROP OF A NORMAL COLUMN RAISES ERROR
+#
+CREATE TABLE t6 (c1 INT, c2 INT);
+CREATE INDEX int_func_index ON t6 ((ABS(c1)));
+ALTER TABLE t6 DROP COLUMN c2;
+DROP TABLE t6;
+# Check that a functional index on a function that returns geometry data
+# isn't allowed.
+CREATE TABLE t1(x VARCHAR(100), KEY ((ST_GeomFromText(x))));
+ERROR HY000: Spatial functional index is not supported.
+# See that we don't print out the names of the hidden generated columns,
+# but rather the expression that they represent.
+CREATE TABLE t1(x VARCHAR(30), INDEX idx ((CAST(x->>'$.name' AS CHAR(30)))));
+INSERT INTO t1 VALUES ('{"name":"knut"}');
+EXPLAIN FORMAT=JSON SELECT * FROM t1 WHERE CAST(x->>'$.name' AS CHAR(30)) = 'knut';
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.35"
+    },
+    "table": {
+      "table_name": "t1",
+      "access_type": "ref",
+      "possible_keys": [
+        "idx"
+      ],
+      "key": "idx",
+      "used_key_parts": [
+        "cast(json_unquote(json_extract(`x`,_utf8mb4'$.name')) as char(30) charset utf8mb4)"
+      ],
+      "key_length": "123",
+      "ref": [
+        "const"
+      ],
+      "rows_examined_per_scan": 1,
+      "rows_produced_per_join": 1,
+      "filtered": "100.00",
+      "cost_info": {
+        "read_cost": "0.25",
+        "eval_cost": "0.10",
+        "prefix_cost": "0.35",
+        "data_read_per_join": "248"
+      },
+      "used_columns": [
+        "x",
+        "cast(json_unquote(json_extract(`x`,_utf8mb4'$.name')) as char(30) charset utf8mb4)"
+      ]
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x` from `test`.`t1` where (cast(json_unquote(json_extract(`test`.`t1`.`x`,_utf8mb4'$.name')) as char(30) charset utf8mb4) = 'knut')
+DROP TABLE t1;
+# Check that we cannot drop the last visible column when we have hidden
+# generated columns.
+CREATE TABLE t(x INT, KEY((1+1)));
+ALTER TABLE t DROP COLUMN x;
+ERROR 42000: A table must have at least 1 column
+DROP TABLE t;
+# See that we print out the correct error message in case of duplicate
+# index names.
+CREATE TABLE t (x INT);
+CREATE INDEX idx ON t ((x+1));
+CREATE INDEX idx ON t ((x+2));
+ERROR 42000: Duplicate key name 'idx'
+DROP TABLE t;
+#
+# Bug#28206859 SERVER CRASHED WHEN NORMAL INDEX WAS CREATED USING NEW
+#              FUNCTIONAL INDEX SYNTAX
+#
+CREATE TABLE t2(a INT, b INT, INDEX id2 ((a)));
+ERROR HY000: Functional index on a column is not supported. Consider using a regular index instead.
+#
+# Bug#28206912 ASSERTION `TABLE_LIST->TABLE' FAILED.
+#
+CREATE TABLE t2(a INT, b INT, INDEX id2 ((a+b+c)));
+ERROR 42S22: Unknown column 'c' in 'functional index'
+#
+# Bug#28216475 SIG 11 IN ITEM_FIELD::REPLACE_FIELD_PROCESSOR DURING
+#              CREATE TABLE
+#
+CREATE TABLE IF NOT EXISTS table470 ( pk INTEGER AUTO_INCREMENT, a1
+VARCHAR(3) NOT NULL, b1 DATETIME NOT NULL, c1 TEXT NOT NULL, d1 TEXT NULL,
+PRIMARY KEY (a1), KEY ((VALUES(d1))));
+ERROR HY000: Expression of functional index 'functional_index' contains a disallowed function.
+CREATE TABLE  table44 ( pk INTEGER AUTO_INCREMENT, a1 TEXT NOT NULL, b1
+DATETIME NOT NULL, c1 TIME NOT NULL, d1 BLOB NOT NULL, PRIMARY KEY (a1), KEY
+((VALUES(d1))));
+ERROR HY000: Expression of functional index 'functional_index' contains a disallowed function.
+#
+# Bug #28222789 SIG 11 IN BITMAP<64U>::INTERSECT DURING CREATE INDEX
+#
+CREATE TABLE t1 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_int_nokey int(11) DEFAULT NULL,
+col_int_key int(11) DEFAULT NULL,
+col_date_key date DEFAULT NULL,
+col_date_nokey date DEFAULT NULL,
+col_time_key time DEFAULT NULL,
+col_time_nokey time DEFAULT NULL,
+col_datetime_key datetime DEFAULT NULL,
+col_datetime_nokey datetime DEFAULT NULL,
+col_varchar_key varchar(1) DEFAULT NULL,
+col_varchar_nokey varchar(1) DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_date_key (col_date_key),
+KEY col_time_key (col_time_key),
+KEY col_datetime_key (col_datetime_key),
+KEY col_varchar_key (col_varchar_key,col_int_key),
+KEY ind25 ((dayofmonth(col_time_nokey))),
+KEY ind211 ((cast(col_date_nokey as date))),
+KEY ind602 ((is_uuid(col_time_nokey)))
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4
+COLLATE=utf8mb4_0900_ai_ci;
+CREATE INDEX ind320 ON t1 ((pk >= col_time_nokey LIKE
+ST_GeomFromGeoJSON(col_varchar_key) ));
+ERROR HY000: Functional index 'ind320' cannot refer to an auto-increment column.
+DROP TABLE t1;
+#
+# Bug#28218591 WRONG ERROR MESSAGE WHILE CREATING FUNCTIONAL INDEX
+#
+CREATE TABLE t(a INT, b INT, INDEX c((null)));
+ERROR HY000: The used storage engine cannot index the expression 'NULL'.
+# Blank functional index name should give a "Incorrect index name" error
+CREATE TABLE t1(x INT, KEY `` ((x + 1)));
+ERROR 42000: Incorrect index name ''
+# Check that we don't use the functional index in case of a collation
+# mismatch
+CREATE TABLE t(x VARCHAR(10), KEY k ((CAST(CONCAT(x,x) AS BINARY))));
+INSERT INTO t VALUES ('x');
+EXPLAIN SELECT * FROM t WHERE CONCAT(x,x) = 'XX';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`x` AS `x` from `test`.`t` where (concat(`test`.`t`.`x`,`test`.`t`.`x`) = 'XX')
+DROP TABLE t;
+#
+# Bug#28244585 ERROR WHILE CREATING TABLE WITH FUNCTIONAL INDEXES INSIDE
+#              PROCEDURES.
+CREATE PROCEDURE p1() BEGIN
+CREATE TABLE t(a INT,b INT,UNIQUE INDEX i((a+b)));
+END//
+CALL p1();
+CALL p1();
+ERROR 42S01: Table 't' already exists
+DROP TABLE t;
+CALL p1();
+DROP TABLE t;
+DROP PROCEDURE p1;
+# Code coverage tests
+CREATE TABLE t1 (
+col1 FLOAT
+, col2 TIMESTAMP
+, col3 YEAR
+, INDEX ((ABS(col1)))
+, INDEX ((ADDDATE(col2, INTERVAL 2 DAY)))
+, INDEX ((ABS(col3)))
+);
+DROP TABLE t1;
+CREATE TABLE t1 (
+col4 TEXT NOT NULL
+, INDEX ((ST_AsBinary(col4)))
+);
+ERROR HY000: Cannot create a functional index on an expression that returns a BLOB or TEXT. Please consider using CAST.
+# See that we get a reasonable error message when trying to remove a
+# column that is a part of a functional index.
+CREATE TABLE t1 (col1 INT, col2 INT, col3 INT, INDEX idx ((col1 + col2 + col3)));
+ALTER TABLE t1 DROP COLUMN col2;
+ERROR HY000: Cannot drop column 'col2' because it is used by a functional index. In order to drop the column, you must remove the functional index.
+ALTER TABLE t1 DROP COLUMN col3;
+ERROR HY000: Cannot drop column 'col3' because it is used by a functional index. In order to drop the column, you must remove the functional index.
+ALTER TABLE t1 DROP INDEX idx;
+ALTER TABLE t1 DROP COLUMN col3;
+DROP TABLE t1;

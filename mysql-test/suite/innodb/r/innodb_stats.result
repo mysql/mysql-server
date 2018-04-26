@@ -53,6 +53,7 @@ INDEX_TYPE	BTREE
 COMMENT	
 INDEX_COMMENT	
 IS_VISIBLE	YES
+EXPRESSION	NULL
 TRUNCATE TABLE test_innodb_stats;
 INSERT INTO test_innodb_stats (a) VALUES (1);
 ANALYZE TABLE test_innodb_stats;
@@ -106,6 +107,7 @@ INDEX_TYPE	BTREE
 COMMENT	
 INDEX_COMMENT	
 IS_VISIBLE	YES
+EXPRESSION	NULL
 TRUNCATE TABLE test_innodb_stats;
 INSERT INTO test_innodb_stats (a) VALUES (1), (1);
 ANALYZE TABLE test_innodb_stats;
@@ -159,6 +161,7 @@ INDEX_TYPE	BTREE
 COMMENT	
 INDEX_COMMENT	
 IS_VISIBLE	YES
+EXPRESSION	NULL
 TRUNCATE TABLE test_innodb_stats;
 INSERT INTO test_innodb_stats (a) VALUES (1), (1), (1);
 ANALYZE TABLE test_innodb_stats;
@@ -212,6 +215,7 @@ INDEX_TYPE	BTREE
 COMMENT	
 INDEX_COMMENT	
 IS_VISIBLE	YES
+EXPRESSION	NULL
 TRUNCATE TABLE test_innodb_stats;
 INSERT INTO test_innodb_stats (a) VALUES (1), (1), (1), (1), (1), (1), (1), (1), (1), (1);
 ANALYZE TABLE test_innodb_stats;
@@ -265,6 +269,7 @@ INDEX_TYPE	BTREE
 COMMENT	
 INDEX_COMMENT	
 IS_VISIBLE	YES
+EXPRESSION	NULL
 TRUNCATE TABLE test_innodb_stats;
 INSERT INTO test_innodb_stats (a) VALUES (1), (2);
 ANALYZE TABLE test_innodb_stats;
@@ -318,6 +323,7 @@ INDEX_TYPE	BTREE
 COMMENT	
 INDEX_COMMENT	
 IS_VISIBLE	YES
+EXPRESSION	NULL
 TRUNCATE TABLE test_innodb_stats;
 INSERT INTO test_innodb_stats (a) VALUES (1), (1), (2);
 ANALYZE TABLE test_innodb_stats;
@@ -371,6 +377,7 @@ INDEX_TYPE	BTREE
 COMMENT	
 INDEX_COMMENT	
 IS_VISIBLE	YES
+EXPRESSION	NULL
 TRUNCATE TABLE test_innodb_stats;
 INSERT INTO test_innodb_stats (a) VALUES (1), (2), (3);
 ANALYZE TABLE test_innodb_stats;
@@ -424,6 +431,7 @@ INDEX_TYPE	BTREE
 COMMENT	
 INDEX_COMMENT	
 IS_VISIBLE	YES
+EXPRESSION	NULL
 TRUNCATE TABLE test_innodb_stats;
 INSERT INTO test_innodb_stats (a) VALUES (1), (1), (2), (3), (3);
 ANALYZE TABLE test_innodb_stats;
@@ -477,6 +485,7 @@ INDEX_TYPE	BTREE
 COMMENT	
 INDEX_COMMENT	
 IS_VISIBLE	YES
+EXPRESSION	NULL
 TRUNCATE TABLE test_innodb_stats;
 INSERT INTO test_innodb_stats (a) VALUES (1), (2), (3), (4), (5), (1), (2), (3), (4), (5);
 ANALYZE TABLE test_innodb_stats;
@@ -530,3 +539,4 @@ INDEX_TYPE	BTREE
 COMMENT	
 INDEX_COMMENT	
 IS_VISIBLE	YES
+EXPRESSION	NULL

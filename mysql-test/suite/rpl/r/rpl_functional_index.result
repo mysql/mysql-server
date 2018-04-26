@@ -1,0 +1,185 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+# Create a table with functional index
+CREATE TABLE t1 (col1 INT, INDEX ((ABS(col1))));
+INSERT INTO t1 VALUES (-12);
+# Show the hidden columns so we can see the computed value.
+SET SESSION debug="+d,show_hidden_columns";
+SELECT * FROM t1;
+col1	3bb8c14d415110ac3b3c55ce9108ae2d
+-12	12
+SET SESSION debug="-d,show_hidden_columns";
+# Sync slave with master, and verify that the table exists on the slave.
+include/sync_slave_sql_with_master.inc
+# Show the hidden columns so we can see that the computed value is
+# reflected on the slave.
+SET SESSION debug="+d,show_hidden_columns";
+SELECT * FROM t1;
+col1	3bb8c14d415110ac3b3c55ce9108ae2d
+-12	12
+SET SESSION debug="-d,show_hidden_columns";
+EXPLAIN SELECT col1 FROM t1 WHERE ABS(col1) = 12;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	functional_index	functional_index	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (abs(`test`.`t1`.`col1`) = 12)
+SET SESSION debug="+d,show_hidden_columns";
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int(11) DEFAULT NULL,
+  `3bb8c14d415110ac3b3c55ce9108ae2d` int(11) GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
+  KEY `functional_index` ((abs(`col1`)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET SESSION debug="-d,show_hidden_columns";
+DROP TABLE t1;
+SET @start_row_image_value= @@session.binlog_row_image;
+# Try with various row_image values
+SET @@session.binlog_row_image= MINIMAL;
+CREATE TABLE t1 (col1 INT, INDEX ((ABS(col1))));
+INSERT INTO t1 VALUES (-12);
+include/sync_slave_sql_with_master.inc
+# Show the hidden columns so we can see that the computed value is
+# reflected on the slave.
+SET SESSION debug="+d,show_hidden_columns";
+SELECT * FROM t1;
+col1	3bb8c14d415110ac3b3c55ce9108ae2d
+-12	12
+EXPLAIN SELECT col1 FROM t1 WHERE ABS(col1) = 12;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	functional_index	functional_index	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (abs(`test`.`t1`.`col1`) = 12)
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int(11) DEFAULT NULL,
+  `3bb8c14d415110ac3b3c55ce9108ae2d` int(11) GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
+  KEY `functional_index` ((abs(`col1`)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET SESSION debug="-d,show_hidden_columns";
+DROP TABLE t1;
+SET @@session.binlog_row_image= noblob;
+CREATE TABLE t1 (col1 INT, INDEX ((ABS(col1))));
+INSERT INTO t1 VALUES (-12);
+include/sync_slave_sql_with_master.inc
+# Show the hidden columns so we can see that the computed value is
+# reflected on the slave.
+SET SESSION debug="+d,show_hidden_columns";
+SELECT * FROM t1;
+col1	3bb8c14d415110ac3b3c55ce9108ae2d
+-12	12
+EXPLAIN SELECT col1 FROM t1 WHERE ABS(col1) = 12;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	functional_index	functional_index	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (abs(`test`.`t1`.`col1`) = 12)
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int(11) DEFAULT NULL,
+  `3bb8c14d415110ac3b3c55ce9108ae2d` int(11) GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
+  KEY `functional_index` ((abs(`col1`)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET SESSION debug="-d,show_hidden_columns";
+DROP TABLE t1;
+SET @@session.binlog_row_image= @start_row_image_value;
+#
+# Bug#28207118 UNIQUE FUNCTIONAL INDEX IS NOT CORRECTLY BEING CONSIDERED
+#              ON SLAVE.
+#
+CREATE TABLE t1 (col1 INT, UNIQUE INDEX idx ((col1 + col1)));
+include/sync_slave_sql_with_master.inc
+INSERT INTO t1 (col1) VALUES (1);
+call mtr.add_suppression("Slave SQL for channel '': Could not execute Write_rows event on table test.t1");
+call mtr.add_suppression("Slave SQL for channel '': Error 'Duplicate entry '2' for key 'idx'' on query");
+INSERT INTO t1 (col1) VALUES (1), (2);
+include/wait_for_slave_sql_error.inc [errno=1062]
+DELETE FROM t1;
+START SLAVE;
+INSERT INTO t1 (col1) VALUES (3), (4);
+SELECT col1 FROM t1;
+col1
+1
+2
+3
+4
+include/sync_slave_sql_with_master.inc
+SELECT col1 FROM t1;
+col1
+1
+2
+3
+4
+DROP TABLE t1;
+#
+# Bug#28218073 SLAVE CRASHES WHEN AN UPDATE ON SLAVE REFERS TO COLUMN
+#              USED IN FUNCTIONAL INDEX.
+#
+CREATE TABLE t(a INT, b INT, UNIQUE INDEX c ((a + b)));
+INSERT INTO t VALUES (1, 2);
+INSERT INTO t VALUES (2, 3);
+INSERT INTO t VALUES (3, 4);
+include/sync_slave_sql_with_master.inc
+SELECT a, b FROM t;
+a	b
+1	2
+2	3
+3	4
+UPDATE t SET b = 5 WHERE b - a = 1;
+ERROR 23000: Duplicate entry '7' for key 'c'
+SELECT a, b FROM t;
+a	b
+1	2
+2	3
+3	4
+DROP TABLE t;
+#
+# Bug#28218481 UPDATE TABLE ON SLAVE DOESN'T UPDATE WHEN FUNCTIONAL INDEX
+#              MATCH EXPR IN WHERE.
+#
+CREATE TABLE t (a INT, b INT, INDEX c ((a + b)));
+INSERT INTO t VALUES (3, 5);
+INSERT INTO t VALUES (1, 2);
+INSERT INTO t VALUES (2, 7);
+SELECT a, b FROM t;
+a	b
+3	5
+1	2
+2	7
+UPDATE t SET a = 4 WHERE a + b = 3;
+SELECT a, b FROM t;
+a	b
+3	5
+4	2
+2	7
+include/sync_slave_sql_with_master.inc
+SELECT a, b FROM t;
+a	b
+3	5
+4	2
+2	7
+UPDATE t SET a = 9 WHERE a + b = 8;
+SELECT a, b FROM t;
+a	b
+9	5
+4	2
+2	7
+DROP TABLE t;
+#
+# Bug#28243453 ASSERTION`MAP->BITMAP&&MAP2->BITMAP&&MAP->N_BITS==MAP2->
+#              N_BITS' FAILED ON SLAVE
+#
+CREATE TABLE t(a INT, b INT);
+include/sync_slave_sql_with_master.inc
+ALTER TABLE t ADD UNIQUE INDEX i ((a + b));
+INSERT INTO t VALUES (1, 2);
+include/sync_slave_sql_with_master.inc
+SELECT a, b FROM t;
+a	b
+1	2
+DROP TABLE t;
+include/rpl_end.inc

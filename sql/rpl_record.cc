@@ -269,10 +269,22 @@ size_t pack_row(TABLE *table, MY_BITMAP const *columns_in_image,
                 enum_row_image_type row_image_type, ulonglong value_options) {
   DBUG_ENTER("pack_row");
 
+  // Since we don't want any hidden generated columns to be included in the
+  // binlog, we must clear any bits for these columns in the bitmap. We will
+  // use TABLE::pack_row_tmp_set for this purpose, so first we ensure that it
+  // isn't in use somewhere else.
+  DBUG_ASSERT(bitmap_is_clear_all(&table->pack_row_tmp_set));
+
+  // Copy all the bits from the "columns_in_image", and clear all the bits for
+  // hidden generated columns.
+  bitmap_copy(&table->pack_row_tmp_set, columns_in_image);
+  bitmap_subtract(&table->pack_row_tmp_set,
+                  &table->fields_for_functional_indexes);
+
   // Number of columns in image (counting only those that will be written)
-  uint image_column_count = bitmap_bits_set(columns_in_image);
+  uint image_column_count = bitmap_bits_set(&table->pack_row_tmp_set);
   // Number of columns in table (counting even those that will not be written)
-  uint table_column_count = columns_in_image->n_bits;
+  uint table_column_count = table->pack_row_tmp_set.n_bits;
 
   my_ptrdiff_t const rec_offset = record - table->record[0];
 
@@ -300,7 +312,8 @@ size_t pack_row(TABLE *table, MY_BITMAP const *columns_in_image,
         // Check if has_any_json_diff needs to be set.  This is only
         // needed for columns in the after-image, and of course only
         // when has_any_json_diff has not yet been set.
-        if (!has_any_json_diff && bitmap_is_set(columns_in_image, field_i)) {
+        if (!has_any_json_diff &&
+            bitmap_is_set(&table->pack_row_tmp_set, field_i)) {
           const Field_json *field_json = down_cast<const Field_json *>(field);
           const Json_diff_vector *diff_vector;
           field_json->get_diff_vector_and_length(value_options, &diff_vector);
@@ -321,11 +334,12 @@ size_t pack_row(TABLE *table, MY_BITMAP const *columns_in_image,
                       "json_column_count=%d "
                       "row_image_type=%d value_options=%llx",
                       (int)table->s->table_name.length,
-                      table->s->table_name.str, columns_in_image->n_bits,
+                      table->s->table_name.str, table->pack_row_tmp_set.n_bits,
                       image_column_count, (int)has_any_json_diff,
                       json_column_count, (int)row_image_type, value_options));
-  DBUG_DUMP("rbr", (uchar *)columns_in_image->bitmap,
-            columns_in_image->last_word_ptr - columns_in_image->bitmap + 1);
+  DBUG_DUMP("rbr", (uchar *)table->pack_row_tmp_set.bitmap,
+            table->pack_row_tmp_set.last_word_ptr -
+                table->pack_row_tmp_set.bitmap + 1);
 
   // Null bits.
   Bit_writer null_bits(pack_ptr);
@@ -334,7 +348,7 @@ size_t pack_row(TABLE *table, MY_BITMAP const *columns_in_image,
   for (Field **p_field = table->field; *p_field != NULL; p_field++) {
     Field *field = *p_field;
     bool is_partial_json = false;
-    if (bitmap_is_set(columns_in_image, p_field - table->field)) {
+    if (bitmap_is_set(&table->pack_row_tmp_set, p_field - table->field)) {
       if (field->is_null(rec_offset)) {
         null_bits.set(true);
         DBUG_PRINT("info", ("field %s: NULL", field->field_name));
@@ -380,6 +394,8 @@ size_t pack_row(TABLE *table, MY_BITMAP const *columns_in_image,
   DBUG_DUMP("rbr", row_data, pack_ptr - row_data);
 #endif
 
+  // Reset the pack_row_tmp_set so it can be used elsewhere.
+  bitmap_clear_all(&table->pack_row_tmp_set);
   DBUG_RETURN(static_cast<size_t>(pack_ptr - row_data));
 }
 

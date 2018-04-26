@@ -129,6 +129,15 @@ static inline uint32 char_to_byte_length_safe(uint32 char_length_arg,
   return (tmp > UINT_MAX32) ? (uint32)UINT_MAX32 : (uint32)tmp;
 }
 
+inline Item_result numeric_context_result_type(enum_field_types data_type,
+                                               Item_result result_type,
+                                               uint8 decimals) {
+  if (is_temporal_type(real_type_to_type(data_type)))
+    return decimals ? DECIMAL_RESULT : INT_RESULT;
+  if (result_type == STRING_RESULT) return REAL_RESULT;
+  return result_type;
+}
+
   /*
      "Declared Type Collation"
      A combination of collation and its derivation.
@@ -934,9 +943,7 @@ class Item : public Parse_tree_node {
     See Field::numeric_context_result_type() for more comments.
   */
   virtual enum Item_result numeric_context_result_type() const {
-    if (is_temporal()) return decimals ? DECIMAL_RESULT : INT_RESULT;
-    if (result_type() == STRING_RESULT) return REAL_RESULT;
-    return result_type();
+    return ::numeric_context_result_type(data_type(), result_type(), decimals);
   }
   /**
     Similar to result_type() but makes DATE, DATETIME, TIMESTAMP
@@ -991,6 +998,14 @@ class Item : public Parse_tree_node {
   /// Set the data type of the Item to be double precision floating point.
   inline void set_data_type_double() {
     set_data_type(MYSQL_TYPE_DOUBLE);
+    decimals = NOT_FIXED_DEC;
+    max_length = float_length(decimals);
+    collation.set_numeric();
+  }
+
+  /// Set the data type of the Item to be single precision floating point.
+  inline void set_data_type_float() {
+    set_data_type(MYSQL_TYPE_FLOAT);
     decimals = NOT_FIXED_DEC;
     max_length = float_length(decimals);
     collation.set_numeric();
@@ -1143,6 +1158,24 @@ class Item : public Parse_tree_node {
   void set_data_type_json() {
     set_data_type(MYSQL_TYPE_JSON);
     collation.set(&my_charset_utf8mb4_bin, DERIVATION_IMPLICIT);
+    decimals = NOT_FIXED_DEC;
+    max_length = MAX_BLOB_WIDTH;
+  }
+
+  /**
+    Set the data type of the Item to be YEAR.
+  */
+  void set_data_type_year() {
+    set_data_type(MYSQL_TYPE_YEAR);
+    collation.set_numeric();
+    max_length = 4;
+  }
+
+  /**
+    Set the Item to be of GEOMETRY type.
+  */
+  inline void set_data_type_geometry() {
+    set_data_type(MYSQL_TYPE_GEOMETRY);
     decimals = NOT_FIXED_DEC;
     max_length = MAX_BLOB_WIDTH;
   }
@@ -2458,6 +2491,14 @@ class Item : public Parse_tree_node {
     Transformer function for GC substitution. @see substitute_gc()
   */
   virtual Item *gc_subst_transformer(uchar *) { return this; }
+
+  /**
+    A processor that replaces any Fields with a Create_field_wrapper. This
+    will allow us to resolve functions during CREATE TABLE, where we only have
+    Create_field available and not Field. Used for functional index
+    implementation.
+  */
+  virtual bool replace_field_processor(uchar *) { return false; }
   /**
     Check if this item is of a type that is eligible for GC
     substitution. All items that belong to subclasses of Item_func are
@@ -3349,6 +3390,8 @@ class Item_field : public Item_ident {
     if (orig_field_arg) orig_field = orig_field_arg;
   }
   void set_can_use_prefix_key() override { can_use_prefix_key = true; }
+
+  bool replace_field_processor(uchar *arg) override;
 };
 
 class Item_null : public Item_basic_constant {

@@ -155,6 +155,13 @@ class KEY {
   */
   ulong *rec_per_key;
 
+  /**
+    @retval true if this is a functional index (at least one of the key parts
+                 is a functional key part).
+    @retval false if this isn't a functional index.
+  */
+  bool is_functional_index() const;
+
  private:
   /**
     Estimate for how much of the index data that is currently

@@ -1607,7 +1607,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool innobase_get_foreign_key_info(
       /* Get all the foreign key column info for the
       current table */
       while (i < fk_key->columns.size()) {
-        column_names[i] = fk_key->columns[i]->field_name.str;
+        column_names[i] = fk_key->columns[i]->get_field_name();
         ut_ad(i < MAX_NUM_FK_COLUMNS);
         i++;
       }
@@ -1690,7 +1690,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool innobase_get_foreign_key_info(
       size_t i = 0;
 
       while (i < fk_key->ref_columns.size()) {
-        referenced_column_names[i] = fk_key->ref_columns[i]->field_name.str;
+        referenced_column_names[i] = fk_key->ref_columns[i]->get_field_name();
         ut_ad(i < MAX_NUM_FK_COLUMNS);
         i++;
       }

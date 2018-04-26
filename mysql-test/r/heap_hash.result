@@ -6,8 +6,8 @@ analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	note	The storage engine for the table doesn't support analyze
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	a	NULL	3	NULL	NULL		HASH			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	a	NULL	3	NULL	NULL		HASH			YES	NULL
 select * from t1;
 a	b
 2	2
@@ -401,15 +401,15 @@ analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	note	The storage engine for the table doesn't support analyze
 show index from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	id	NULL	84	NULL	NULL		HASH			YES
-t1	1	heap_idx	1	name	NULL	11	NULL	NULL		HASH			YES
-t1	1	btree_idx	1	name	A	NULL	NULL	NULL		BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	id	NULL	84	NULL	NULL		HASH			YES	NULL
+t1	1	heap_idx	1	name	NULL	11	NULL	NULL		HASH			YES	NULL
+t1	1	btree_idx	1	name	A	NULL	NULL	NULL		BTREE			YES	NULL
 show index from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	id	NULL	84	NULL	NULL		HASH			YES
-t1	1	heap_idx	1	name	NULL	11	NULL	NULL		HASH			YES
-t1	1	btree_idx	1	name	A	NULL	NULL	NULL		BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	id	NULL	84	NULL	NULL		HASH			YES	NULL
+t1	1	heap_idx	1	name	NULL	11	NULL	NULL		HASH			YES	NULL
+t1	1	btree_idx	1	name	A	NULL	NULL	NULL		BTREE			YES	NULL
 create table t3
 (
 a varchar(20) not null,
@@ -418,13 +418,13 @@ key (a,b)
 ) charset latin1 engine=heap;
 insert into t3 select name, name from t1;
 show index from t3;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t3	1	a	1	a	NULL	NULL	NULL	NULL		HASH			YES
-t3	1	a	2	b	NULL	11	NULL	NULL		HASH			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t3	1	a	1	a	NULL	NULL	NULL	NULL		HASH			YES	NULL
+t3	1	a	2	b	NULL	11	NULL	NULL		HASH			YES	NULL
 show index from t3;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t3	1	a	1	a	NULL	NULL	NULL	NULL		HASH			YES
-t3	1	a	2	b	NULL	11	NULL	NULL		HASH			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t3	1	a	1	a	NULL	NULL	NULL	NULL		HASH			YES	NULL
+t3	1	a	2	b	NULL	11	NULL	NULL		HASH			YES	NULL
 explain select * from t1 ignore key(btree_idx), t3 where t1.name='matt' and t3.a = concat('',t1.name) and t3.b=t1.name;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	heap_idx	heap_idx	22	const	7	100.00	NULL

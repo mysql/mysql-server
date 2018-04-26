@@ -160,9 +160,9 @@ ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	c1	A	80	NULL	NULL		BTREE			YES
-t1	1	c2d	1	c2	A	5	NULL	NULL	YES	BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	c1	A	80	NULL	NULL		BTREE			YES	NULL
+t1	1	c2d	1	c2	A	5	NULL	NULL	YES	BTREE			YES	NULL
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE c2 > 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	c2d	c2d	5	NULL	32	100.00	Using where; Using index

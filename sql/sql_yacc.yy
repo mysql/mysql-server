@@ -1398,7 +1398,7 @@ void warn_about_deprecated_national(THD *thd)
         all_or_alt_part_name_list
 
 %type <key_part>
-        key_part
+        key_part key_part_with_expression
 
 %type <date_time_type> date_time_type;
 %type <interval> interval
@@ -1689,7 +1689,7 @@ void warn_about_deprecated_national(THD *thd)
 
 %type <alter_instance_action> alter_instance_action
 
-%type <index_column_list> key_list
+%type <index_column_list> key_list key_list_with_expression
 
 %type <index_options> opt_index_options index_options  opt_fulltext_index_options
           fulltext_index_options opt_spatial_index_options spatial_index_options
@@ -2868,7 +2868,7 @@ default_role_clause:
 
 create_index_stmt:
           CREATE opt_unique INDEX_SYM ident opt_index_type_clause
-          ON_SYM table_ident '(' key_list ')' opt_index_options
+          ON_SYM table_ident '(' key_list_with_expression ')' opt_index_options
           opt_index_lock_and_algorithm
           {
             $$= NEW_PTN PT_create_index_stmt(YYMEM_ROOT, $2, $4, $5,
@@ -2877,7 +2877,7 @@ create_index_stmt:
                                              $12.lock.get_or_default());
           }
         | CREATE FULLTEXT_SYM INDEX_SYM ident ON_SYM table_ident
-          '(' key_list ')' opt_fulltext_index_options opt_index_lock_and_algorithm
+          '(' key_list_with_expression ')' opt_fulltext_index_options opt_index_lock_and_algorithm
           {
             $$= NEW_PTN PT_create_index_stmt(YYMEM_ROOT, KEYTYPE_FULLTEXT, $4,
                                              NULL, $6, $8, $10,
@@ -2885,7 +2885,7 @@ create_index_stmt:
                                              $11.lock.get_or_default());
           }
         | CREATE SPATIAL_SYM INDEX_SYM ident ON_SYM table_ident
-          '(' key_list ')' opt_spatial_index_options opt_index_lock_and_algorithm
+          '(' key_list_with_expression ')' opt_spatial_index_options opt_index_lock_and_algorithm
           {
             $$= NEW_PTN PT_create_index_stmt(YYMEM_ROOT, KEYTYPE_SPATIAL, $4,
                                              NULL, $6, $8, $10,
@@ -3271,7 +3271,8 @@ sp_fdparam:
                                       $2->get_interval_list(),
                                       cs ? cs : thd->variables.collation_database,
                                       $3 != nullptr,
-                                      $2->get_uint_geom_type(), nullptr, {}))
+                                      $2->get_uint_geom_type(), nullptr, {},
+                                      dd::Column::enum_hidden_type::HT_VISIBLE))
             {
               MYSQL_YYABORT;
             }
@@ -3331,7 +3332,8 @@ sp_pdparam:
                                       $3->get_interval_list(),
                                       cs ? cs : thd->variables.collation_database,
                                       $4 != nullptr,
-                                      $3->get_uint_geom_type(), nullptr, {}))
+                                      $3->get_uint_geom_type(), nullptr, {},
+                                      dd::Column::enum_hidden_type::HT_VISIBLE))
             {
               MYSQL_YYABORT;
             }
@@ -3460,7 +3462,8 @@ sp_decl:
                                         $3->get_interval_list(),
                                         cs ? cs : thd->variables.collation_database,
                                         $4 != nullptr,
-                                        $3->get_uint_geom_type(), nullptr, {}))
+                                        $3->get_uint_geom_type(), nullptr, {},
+                                        dd::Column::enum_hidden_type::HT_VISIBLE))
               {
                 MYSQL_YYABORT;
               }
@@ -6092,25 +6095,25 @@ opt_check_or_references:
         ;
 
 table_constraint_def:
-          key_or_index opt_index_name_and_type '(' key_list ')'
+          key_or_index opt_index_name_and_type '(' key_list_with_expression ')'
           opt_index_options
           {
             $$= NEW_PTN PT_inline_index_definition(KEYTYPE_MULTIPLE,
                                                    $2.name, $2.type, $4, $6);
           }
-        | FULLTEXT_SYM opt_key_or_index opt_ident '(' key_list ')'
+        | FULLTEXT_SYM opt_key_or_index opt_ident '(' key_list_with_expression ')'
           opt_fulltext_index_options
           {
             $$= NEW_PTN PT_inline_index_definition(KEYTYPE_FULLTEXT, $3, NULL,
                                                    $5, $7);
           }
-        | SPATIAL_SYM opt_key_or_index opt_ident '(' key_list ')'
+        | SPATIAL_SYM opt_key_or_index opt_ident '(' key_list_with_expression ')'
           opt_spatial_index_options
           {
             $$= NEW_PTN PT_inline_index_definition(KEYTYPE_SPATIAL, $3, NULL, $5, $7);
           }
         | opt_constraint constraint_key_type opt_index_name_and_type
-          '(' key_list ')' opt_index_options
+          '(' key_list_with_expression ')' opt_index_options
           {
             /*
               Constraint-implementing indexes are named by the constraint type
@@ -7039,7 +7042,7 @@ key_list:
         | key_part
           {
             // The order is ignored.
-            $$= new (*THR_MALLOC) List<Key_part_spec>;
+            $$= NEW_PTN List<PT_key_part_specification>;
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -7048,20 +7051,45 @@ key_list:
 key_part:
           ident opt_ordering_direction
           {
-            $$= new (*THR_MALLOC) Key_part_spec(to_lex_cstring($1), 0, (enum_order) $2);
+            $$= NEW_PTN PT_key_part_specification(to_lex_cstring($1), $2, 0);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
         | ident '(' NUM ')' opt_ordering_direction
           {
-            int key_part_len= atoi($3.str);
-            if (!key_part_len)
+            int key_part_length= atoi($3.str);
+            if (!key_part_length)
             {
               my_error(ER_KEY_PART_0, MYF(0), $1.str);
             }
-            $$= new (*THR_MALLOC) Key_part_spec(to_lex_cstring($1),
-                                                (uint) key_part_len,
-                                                (enum_order) $5);
+            $$= NEW_PTN PT_key_part_specification(to_lex_cstring($1), $5,
+                                                  key_part_length);
+            if ($$ == NULL)
+              MYSQL_YYABORT; /* purecov: deadcode */
+          }
+        ;
+
+key_list_with_expression:
+          key_list_with_expression ',' key_part_with_expression
+          {
+            if ($1->push_back($3))
+              MYSQL_YYABORT; /* purecov: deadcode */
+            $$= $1;
+          }
+        | key_part_with_expression
+          {
+            // The order is ignored.
+            $$= NEW_PTN List<PT_key_part_specification>;
+            if ($$ == NULL || $$->push_back($1))
+              MYSQL_YYABORT; /* purecov: deadcode */
+          }
+        ;
+
+key_part_with_expression:
+          key_part
+        | '(' expr ')' opt_ordering_direction
+          {
+            $$= NEW_PTN PT_key_part_specification($2, $4);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -15722,7 +15750,7 @@ sf_tail:
                                             cs ? cs : YYTHD->variables.collation_database,
                                             $10 != nullptr,
                                             $9->get_uint_geom_type(), nullptr,
-                                            {}))
+                                            {}, dd::Column::enum_hidden_type::HT_VISIBLE))
             {
               MYSQL_YYABORT;
             }

@@ -90,7 +90,6 @@
 #include "sql/sql_resolver.h"   // validate_gc_assignment
 #include "sql/sql_show.h"       // store_create_info
 #include "sql/sql_table.h"      // quick_rm_table
-#include "sql/sql_tmp_table.h"  // create_tmp_field
 #include "sql/sql_update.h"     // records_are_comparable
 #include "sql/sql_view.h"       // check_key_in_view
 #include "sql/system_variables.h"
@@ -1043,9 +1042,17 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
 
   TABLE *const insert_table = lex->insert_table_leaf->table;
 
-  const uint field_count = insert_field_list.elements
-                               ? insert_field_list.elements
-                               : insert_table->s->fields;
+  uint field_count = insert_field_list.elements ? insert_field_list.elements
+                                                : insert_table->s->fields;
+
+  // If the SQL command was an INSERT without column list (like
+  //  "INSERT INTO foo VALUES (1, 2);", we ignore any columns that is hidden
+  // from the user.
+  if (insert_field_list.elements == 0) {
+    for (uint i = 0; i < insert_table->s->fields; ++i) {
+      if (insert_table->s->field[i]->is_hidden_from_user()) field_count--;
+    }
+  }
 
   table_map map = lex->insert_table_leaf->map();
 
@@ -2314,69 +2321,10 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     promote_first_timestamp_column(&alter_info->create_list);
 
   while ((item = it++)) {
-    Field *tmp_table_field;
-    if (item->type() == Item::FUNC_ITEM) {
-      if (item->result_type() != STRING_RESULT)
-        tmp_table_field = item->tmp_table_field(&tmp_table);
-      else
-        tmp_table_field =
-            item->tmp_table_field_from_field_type(&tmp_table, false);
-    } else {
-      Field *from_field, *default_field;
-      tmp_table_field = create_tmp_field(thd, &tmp_table, item, item->type(),
-                                         NULL, &from_field, &default_field,
-                                         false, false, false, false);
+    Create_field *cr_field = generate_create_field(thd, item, &tmp_table);
+    if (cr_field == nullptr) {
+      DBUG_RETURN(nullptr); /* purecov: deadcode */
     }
-
-    if (!tmp_table_field) DBUG_RETURN(NULL);
-
-    Field *table_field;
-
-    switch (item->type()) {
-      /*
-        We have to take into account both the real table's fields and
-        pseudo-fields used in trigger's body. These fields are used
-        to copy defaults values later inside constructor of
-        the class Create_field.
-      */
-      case Item::FIELD_ITEM:
-      case Item::TRIGGER_FIELD_ITEM:
-        table_field = ((Item_field *)item)->field;
-        break;
-      default:
-        table_field = NULL;
-    }
-
-    DBUG_ASSERT(tmp_table_field->gcol_info == NULL &&
-                tmp_table_field->stored_in_db);
-    Create_field *cr_field =
-        new (*THR_MALLOC) Create_field(tmp_table_field, table_field);
-
-    if (!cr_field) DBUG_RETURN(NULL);
-
-    // Mark if collation was specified explicitly by user for the column.
-    if (item->type() == Item::FIELD_ITEM) {
-      TABLE *table = table_field->orig_table;
-      DBUG_ASSERT(table);
-      const dd::Table *table_obj =
-          table->s->tmp_table ? table->s->tmp_table_def : nullptr;
-
-      if (!table_obj && table->s->table_category != TABLE_UNKNOWN_CATEGORY) {
-        dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-
-        if (thd->dd_client()->acquire(table->s->db.str,
-                                      table->s->table_name.str, &table_obj))
-          DBUG_RETURN(NULL);
-      }
-
-      cr_field->is_explicit_collation = false;
-      if (table_obj) {
-        const dd::Column *c = table_obj->get_column(table_field->field_name);
-        if (c) cr_field->is_explicit_collation = c->is_explicit_collation();
-      }
-    }
-
-    if (item->maybe_null) cr_field->flags &= ~NOT_NULL_FLAG;
 
     alter_info->create_list.push_back(cr_field);
   }

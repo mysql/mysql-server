@@ -1292,6 +1292,12 @@ struct TABLE {
   friend class Table_cache_element;
 
  public:
+  /**
+    A bitmap marking the hidden generated columns that exists for functional
+    indexes.
+  */
+  MY_BITMAP fields_for_functional_indexes;
+
   THD *in_use{nullptr};   /* Which thread uses this */
   Field **field{nullptr}; /* Pointer to fields */
   /// Count of hidden fields, if internal temporary table; 0 otherwise.
@@ -1358,7 +1364,9 @@ struct TABLE {
   uchar *null_flags{nullptr};  ///< Pointer to the null flags of record[0]
   uchar *null_flags_saved{
       nullptr};  ///< Saved null_flags while null_row is true
-  MY_BITMAP def_read_set, def_write_set, tmp_set; /* containers */
+
+  /* containers */
+  MY_BITMAP def_read_set, def_write_set, tmp_set, pack_row_tmp_set;
   /*
     Bitmap of fields that one or more query condition refers to. Only
     used if optimizer_condition_fanout_filter is turned 'on'.
