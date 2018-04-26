@@ -156,9 +156,9 @@ bool Table_impl::load_foreign_key_parents(Open_dictionary_tables_ctx *otx) {
   if (schema_rec == nullptr) return true;
 
   // 2. Build a key for searching the FK table.
-  const int index_no = 3;  // Key on tables::Foreign_keys.
   Table_reference_range_key parent_ref_key(
-      index_no, tables::Foreign_keys::FIELD_REFERENCED_TABLE_CATALOG,
+      tables::Foreign_keys::INDEX_K_REF_CATALOG_REF_SCHEMA_REF_TABLE,
+      tables::Foreign_keys::FIELD_REFERENCED_TABLE_CATALOG,
       String_type(Dictionary_impl::default_catalog_name()),
       tables::Foreign_keys::FIELD_REFERENCED_TABLE_SCHEMA,
       schema_rec->read_str(tables::Schemata::FIELD_NAME),

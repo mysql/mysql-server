@@ -51,6 +51,7 @@ enum class Stage {
 
 // Individual version labels that we can refer to.
 static constexpr uint DD_VERSION_80011 = 80011;
+static constexpr uint DD_VERSION_80012 = 80012;
 
 /*
   Set of supported DD version labels. A supported DD version is a version
@@ -60,7 +61,8 @@ static constexpr uint DD_VERSION_80011 = 80011;
   downgrade, we instead have to check the MINOR_DOWNGRADE_THRESHOLD, which is
   stored in the 'dd_properties' table by the server from which we downgrade.
 */
-static std::set<uint> supported_dd_versions = {DD_VERSION_80011};
+static std::set<uint> supported_dd_versions = {DD_VERSION_80011,
+                                               DD_VERSION_80012};
 
 class DD_bootstrap_ctx {
  private:

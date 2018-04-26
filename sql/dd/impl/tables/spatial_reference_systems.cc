@@ -55,6 +55,10 @@ Spatial_reference_systems::Spatial_reference_systems() {
   m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
                          "name CHARACTER VARYING(80)\n"
                          "NOT NULL COLLATE utf8_general_ci");
+
+  // Note that DEFAULT and ON UPDATE clauses are used since
+  // this table is populated by means of DML statements unlike
+  // the other DD tables.
   m_target_def.add_field(FIELD_LAST_ALTERED, "FIELD_LAST_ALTERED",
                          "last_altered TIMESTAMP NOT NULL\n"
                          "DEFAULT CURRENT_TIMESTAMP\n"

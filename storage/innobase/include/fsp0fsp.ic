@@ -295,7 +295,7 @@ inline bool fsp_is_inode_page(page_no_t page) {
 
   /* Number of all hard-coded DD table indexes. Please sync it with
   innodb_dd_table array. */
-  static const uint indexes = 92;
+  static const uint indexes = 95;
 
   /* Max page number for index root pages of hard-coded DD tables. */
   static const uint max_page_no =

@@ -24,7 +24,8 @@
 
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysqld_error.h"  // ER_*
+#include "mysqld_error.h"               // ER_*
+#include "sql/dd/impl/bootstrap_ctx.h"  // DD_bootstrap_ctx
 #include "sql/dd/impl/raw/object_keys.h"
 #include "sql/dd/impl/raw/raw_record.h"     // Raw_record
 #include "sql/dd/impl/tables/collations.h"  // Collations
@@ -57,7 +58,21 @@ bool Collation_impl::restore_attributes(const Raw_record &r) {
   m_is_compiled = r.read_bool(Collations::FIELD_IS_COMPILED);
   m_sort_length = r.read_uint(Collations::FIELD_SORT_LENGTH);
   m_charset_id = r.read_ref_id(Collations::FIELD_CHARACTER_SET_ID);
-  m_pad_attribute = r.read_str(Collations::FIELD_PAD_ATTRIBUTE);
+
+  /*
+    If we read this from a DD from before 80012, when the type was changed,
+    we need to read it as a string.
+  */
+  if (bootstrap::DD_bootstrap_ctx::instance().is_upgrade_from_before(
+          bootstrap::DD_VERSION_80012)) {
+    if (r.read_str(Collations::FIELD_PAD_ATTRIBUTE) == String_type("PAD SPACE"))
+      m_pad_attribute = PA_PAD_SPACE;
+    else
+      m_pad_attribute = PA_NO_PAD;
+  } else {
+    m_pad_attribute = static_cast<enum_pad_attribute>(
+        r.read_int(Collations::FIELD_PAD_ATTRIBUTE));
+  }
 
   return false;
 }
@@ -65,12 +80,26 @@ bool Collation_impl::restore_attributes(const Raw_record &r) {
 ///////////////////////////////////////////////////////////////////////////
 
 bool Collation_impl::store_attributes(Raw_record *r) {
-  return store_id(r, Collations::FIELD_ID) ||
-         store_name(r, Collations::FIELD_NAME) ||
-         r->store_ref_id(Collations::FIELD_CHARACTER_SET_ID, m_charset_id) ||
-         r->store(Collations::FIELD_IS_COMPILED, m_is_compiled) ||
-         r->store(Collations::FIELD_SORT_LENGTH, m_sort_length) ||
-         r->store(Collations::FIELD_PAD_ATTRIBUTE, m_pad_attribute);
+  bool err =
+      store_id(r, Collations::FIELD_ID) ||
+      store_name(r, Collations::FIELD_NAME) ||
+      r->store_ref_id(Collations::FIELD_CHARACTER_SET_ID, m_charset_id) ||
+      r->store(Collations::FIELD_IS_COMPILED, m_is_compiled) ||
+      r->store(Collations::FIELD_SORT_LENGTH, m_sort_length);
+
+  /*
+    If we store this into a DD from before 80012, when the type was changed,
+    we need to store it as a string.
+  */
+  if (bootstrap::DD_bootstrap_ctx::instance().is_upgrade_from_before(
+          bootstrap::DD_VERSION_80012)) {
+    String_type pad_str[] = {"", "PAD SPACE", "NO PAD"};
+    err |= r->store(Collations::FIELD_PAD_ATTRIBUTE, pad_str[m_pad_attribute]);
+  } else {
+    err |= r->store(Collations::FIELD_PAD_ATTRIBUTE,
+                    static_cast<int>(m_pad_attribute));
+  }
+  return err;
 }
 
 ///////////////////////////////////////////////////////////////////////////
