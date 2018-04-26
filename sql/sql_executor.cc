@@ -216,9 +216,9 @@ void JOIN::exec() {
 
   if (m_windows.elements > 0 && !m_windowing_steps) {
     // Initialize state of window functions as end_write_wf() will be shortcut
-    List_iterator<Window> li(m_windows);
-    Window *w;
-    while ((w = li++)) w->reset_all_wf_state();
+    for (Window &w : m_windows) {
+      w.reset_all_wf_state();
+    }
   }
 
   Query_result *const query_result = select_lex->query_result();
@@ -500,10 +500,8 @@ bool JOIN::rollup_write_data(uint idx, QEP_TAB *qep_tab) {
     current_ref_item_slice = -1;  // as we switched to a not-numbered slice
     if (having_is_true(qep_tab->having)) {
       int write_error;
-      Item *item;
-      List_iterator_fast<Item> it(rollup.all_fields[i]);
-      while ((item = it++)) {
-        if (has_rollup_result(item)) item->save_in_result_field(1);
+      for (Item &item : rollup.all_fields[i]) {
+        if (has_rollup_result(&item)) item.save_in_result_field(1);
       }
       copy_sum_funcs(sum_funcs_end[i + 1], sum_funcs_end[i]);
       TABLE *table_arg = qep_tab->table();
@@ -721,10 +719,8 @@ static enum_nested_loop_state end_sj_materialize(JOIN *join, QEP_TAB *qep_tab,
   if (!end_of_records) {
     TABLE *table = sjm->table;
 
-    List_iterator<Item> it(sjm->sj_nest->nested_join->sj_inner_exprs);
-    Item *item;
-    while ((item = it++)) {
-      if (item->is_null()) DBUG_RETURN(NESTED_LOOP_OK);
+    for (Item &item : sjm->sj_nest->nested_join->sj_inner_exprs) {
+      if (item.is_null()) DBUG_RETURN(NESTED_LOOP_OK);
     }
     fill_record(thd, table, table->visible_field_ptr(),
                 sjm->sj_nest->nested_join->sj_inner_exprs, NULL, NULL);
@@ -765,11 +761,8 @@ static bool update_const_equal_items(THD *thd, Item *cond, JOIN_TAB *tab) {
   if (!(cond->used_tables() & tab->table_ref->map())) return false;
 
   if (cond->type() == Item::COND_ITEM) {
-    List<Item> *cond_list = ((Item_cond *)cond)->argument_list();
-    List_iterator_fast<Item> li(*cond_list);
-    Item *item;
-    while ((item = li++)) {
-      if (update_const_equal_items(thd, item, tab)) return true;
+    for (Item &item : *(down_cast<Item_cond *>(cond))->argument_list()) {
+      if (update_const_equal_items(thd, &item, tab)) return true;
     }
   } else if (cond->type() == Item::FUNC_ITEM &&
              down_cast<Item_func *>(cond)->functype() ==
@@ -852,9 +845,9 @@ static void return_zero_rows(JOIN *join, List<Item> &fields) {
         that will be returned) because join->having may refer to
         fields that are not part of the result columns.
        */
-      List_iterator_fast<Item> it(join->all_fields);
-      Item *item;
-      while ((item = it++)) item->no_rows_in_result();
+      for (Item &item : join->all_fields) {
+        item.no_rows_in_result();
+      }
 
       if (having_is_true(join->having_cond))
         send_error = select->query_result()->send_data(fields);
@@ -1139,9 +1132,9 @@ static int do_select(JOIN *join) {
       table_map save_nullinfo = 0;
 
       // Calculate aggregate functions for no rows
-      List_iterator_fast<Item> it(*join->fields);
-      Item *item;
-      while ((item = it++)) item->no_rows_in_result();
+      for (Item &item : *join->fields) {
+        item.no_rows_in_result();
+      }
 
       /*
         Mark tables as containing only NULL values for processing
@@ -3155,10 +3148,9 @@ enum_nested_loop_state end_send_group(JOIN *join, QEP_TAB *qep_tab,
           table_map save_nullinfo = 0;
           if (!join->seen_first_record) {
             // Calculate aggregate functions for no rows
-            List_iterator_fast<Item> it(*fields);
-            Item *item;
-
-            while ((item = it++)) item->no_rows_in_result();
+            for (Item &item : *fields) {
+              item.no_rows_in_result();
+            }
 
             /*
               Mark tables as containing only NULL values for processing
@@ -5284,9 +5276,9 @@ enum_nested_loop_state end_write_group(JOIN *join, QEP_TAB *const qep_tab,
         table_map save_nullinfo = 0;
         if (!join->seen_first_record) {
           // Calculate aggregate functions for no rows
-          List_iterator_fast<Item> it(*join->get_current_fields());
-          Item *item;
-          while ((item = it++)) item->no_rows_in_result();
+          for (Item &item : *join->get_current_fields()) {
+            item.no_rows_in_result();
+          }
 
           /*
             Mark tables as containing only NULL values for ha_write_row().

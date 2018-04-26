@@ -25,6 +25,7 @@
 #include <stddef.h>
 #include <sys/types.h>
 #include <algorithm>
+#include <iterator>
 #include <type_traits>
 
 #include "my_alloc.h"
@@ -427,6 +428,9 @@ class base_list_iterator {
 };
 
 template <class T>
+class List_STL_Iterator;
+
+template <class T>
 class List : public base_list {
  public:
   List() : base_list() {}
@@ -536,6 +540,17 @@ class List : public base_list {
       }
     }
   }
+
+  // For C++11 range-based for loops.
+  using iterator = List_STL_Iterator<T>;
+  iterator begin() { return iterator(first); }
+  iterator end() { return iterator(*last); }
+
+  using const_iterator = List_STL_Iterator<const T>;
+  const_iterator begin() const { return const_iterator(first); }
+  const_iterator end() const { return const_iterator(*last); }
+  const_iterator cbegin() const { return const_iterator(first); }
+  const_iterator cend() const { return const_iterator(*last); }
 };
 
 template <class T>
@@ -574,6 +589,57 @@ class List_iterator_fast : public base_list_iterator {
   void sublist(List<T> &list_arg, uint el_arg) {
     base_list_iterator::sublist(list_arg, el_arg);
   }
+};
+
+/*
+  Like List_iterator<T>, but with an STL-compatible interface
+  (ForwardIterator), so that you can use it in range-based for loops.
+  Prefer this to List_iterator<T> wherever possible, but also prefer
+  std::vector<T> or std::list<T> to List<T> wherever possible.
+ */
+template <class T>
+class List_STL_Iterator {
+ public:
+  explicit List_STL_Iterator(list_node *node) : m_current(node) {}
+
+  // Iterator (required for InputIterator).
+  T &operator*() const { return *static_cast<T *>(m_current->info); }
+
+  List_STL_Iterator &operator++() {
+    m_current = m_current->next;
+    return *this;
+  }
+
+  using difference_type = ptrdiff_t;
+  using value_type = T;  // NOTE: std::remove_cv_t<T> from C++20.
+  using pointer = T *;
+  using reference = T &;
+  using iterator_category = std::forward_iterator_tag;
+
+  // EqualityComparable (required for InputIterator).
+  bool operator==(const List_STL_Iterator &other) const {
+    return m_current == other.m_current;
+  }
+
+  // InputIterator (required for ForwardIterator).
+  bool operator!=(const List_STL_Iterator &other) const {
+    return !(*this == other);
+  }
+
+  T *operator->() const { static_cast<T *>(m_current->info); }
+
+  // DefaultConstructible (required for ForwardIterator).
+  List_STL_Iterator() {}
+
+  // ForwardIterator.
+  List_STL_Iterator operator++(int) {
+    List_STL_Iterator copy = *this;
+    m_current = m_current->next;
+    return copy;
+  }
+
+ private:
+  list_node *m_current;
 };
 
 template <typename T>
