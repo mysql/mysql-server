@@ -10,6 +10,11 @@
 source include/master-slave.inc;
 source include/have_binlog_format_row.inc;
 
+SET SESSION sql_log_bin= 0;
+# Suppression of valgrind warning:
+CALL mtr.add_suppression("==[0-9]*== Warning: set address range perms: large range");
+SET SESSION sql_log_bin= 1;
+
 --let $binlog_filename= query_get_value(SHOW MASTER STATUS, File, 1)
 --let $MYSQLD_DATADIR= `select @@datadir`
 
@@ -84,6 +89,8 @@ connection slave;
 call mtr.add_suppression("Slave I/O: Got fatal error 1236 from master when reading data from binary log: .*");
 call mtr.add_suppression("Found invalid event in binary log");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+# Suppression of valgrind warning:
+CALL mtr.add_suppression("==[0-9]*== Warning: set address range perms: large range");
 
 --echo ==== clean up ====
 

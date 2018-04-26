@@ -3,6 +3,9 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
+SET SESSION sql_log_bin= 0;
+CALL mtr.add_suppression("==[0-9]*== Warning: set address range perms: large range");
+SET SESSION sql_log_bin= 1;
 CREATE TABLE t1 (a int not null auto_increment, data1 LONGBLOB,
 data2 LONGBLOB, PRIMARY KEY(a));
 INSERT INTO t1 (data1, data2) VALUES (repeat('a',1000000), repeat('a', 1000000));
@@ -63,6 +66,7 @@ include/sync_slave_sql_with_master.inc
 call mtr.add_suppression("Slave I/O: Got fatal error 1236 from master when reading data from binary log: .*");
 call mtr.add_suppression("Found invalid event in binary log");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+CALL mtr.add_suppression("==[0-9]*== Warning: set address range perms: large range");
 ==== clean up ====
 include/stop_slave.inc
 RESET SLAVE;
