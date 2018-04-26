@@ -332,9 +332,11 @@ Dbtup::dealloc_tuple(Signal* signal,
                      Ptr<GlobalPage> pagePtr)
 {
   Uint32 lcpScan_ptr_i= regFragPtr->m_lcp_scan_op;
+  Uint32 average_row_size = regFragPtr->m_average_row_size;
 
   Uint32 bits = ptr->m_header_bits;
   Uint32 extra_bits = Tuple_header::FREE;
+  c_lqh->add_delete_size(average_row_size);
   if (bits & Tuple_header::DISK_PART)
   {
     jam();
@@ -1032,9 +1034,11 @@ Dbtup::commit_operation(Signal* signal,
     regFragPtr->m_lcp_changed_rows++;
   }
   setChecksum(tuple_ptr, regTabPtr);
+  Uint32 average_row_size = regFragPtr->m_average_row_size;
   if (!regOperPtr->op_struct.bit_field.m_tuple_existed_at_start)
   {
     regFragPtr->m_row_count++;
+    c_lqh->add_insert_size(average_row_size);
 #ifdef DEBUG_ROW_COUNT_INS
     Local_key rowid = regOperPtr->m_tuple_location;
     rowid.m_page_no = pagePtr.p->frag_page_id;
@@ -1048,6 +1052,10 @@ Dbtup::commit_operation(Signal* signal,
                         tuple_ptr->m_header_bits,
                         regFragPtr->m_row_count);
 #endif
+  }
+  else
+  {
+    c_lqh->add_update_size(average_row_size);
   }
 }
 

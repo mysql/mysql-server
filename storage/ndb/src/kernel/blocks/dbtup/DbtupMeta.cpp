@@ -804,6 +804,17 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   regFragPtr.p->m_lcp_start_gci = 0;
   regFragPtr.p->m_varElemCount = 0;
   regFragPtr.p->m_committed_changes = 0;
+  /**
+   * Average row size will be calculated and set at each start of
+   * an LCP. This value is used to calculate the proposed speed of
+   * checkpoints. We initialise it to 200 to ensure that it has
+   * a somewhat sensible value before we can calculate it.
+   *
+   * We can survive some miscalculated numbers before first LCP
+   * is executed.
+   */
+  regFragPtr.p->m_average_row_size = 200;
+
   for (Uint32 i = 0; i<MAX_FREE_LIST+1; i++)
     ndbrequire(regFragPtr.p->free_var_page_array[i].isEmpty());
 
@@ -3401,6 +3412,14 @@ Dbtup::get_lcp_frag_stats(Uint32 fragPtrI,
    * allocatable for rows. This means ignoring the header plus one word at the
    * end of the page which is used for list processing.
    */
+  if (row_count != 0)
+  {
+    Uint64 average_row_size = memory_used_in_bytes /
+                              row_count;
+    /* A simple safeguard */
+    average_row_size = MAX(average_row_size, 32);
+    fragptr.p->m_average_row_size = average_row_size;
+  }
 }
 
 void

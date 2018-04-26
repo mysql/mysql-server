@@ -3178,6 +3178,21 @@ public:
   };
   void get_nr_op_info(Nr_op_info*, Uint32 page_id = RNIL);
   void nr_delete_complete(Signal*, Nr_op_info*);
+  Uint64 m_update_size;
+  Uint64 m_insert_size;
+  Uint64 m_delete_size;
+  void add_update_size(Uint64 average_row_size)
+  {
+    m_update_size += average_row_size;
+  }
+  void add_insert_size(Uint64 average_row_size)
+  {
+    m_insert_size += average_row_size;
+  }
+  void add_delete_size(Uint64 average_row_size)
+  {
+    m_delete_size += average_row_size;
+  }
   
 public:
   void acckeyconf_load_diskpage_callback(Signal*, Uint32, Uint32);

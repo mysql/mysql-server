@@ -35,6 +35,11 @@ void Dblqh::initData()
 
   c_num_fragments_created_since_restart = 0;
   c_fragments_in_lcp = 0;
+
+  m_update_size = 0;
+  m_insert_size = 0;
+  m_delete_size = 0;
+
   c_gcp_stop_timer = 0;
   c_is_io_lag_reported = false;
   c_wait_lcp_surfacing = false;

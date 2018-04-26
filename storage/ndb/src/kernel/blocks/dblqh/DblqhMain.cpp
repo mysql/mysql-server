@@ -21697,6 +21697,24 @@ void Dblqh::execRESTORE_LCP_CONF(Signal* signal)
   Uint32 afterRestore = conf->afterRestore;
   c_fragment_pool.getPtr(fragptr);
 
+  {
+    /**
+     * Calculate average row size after restore.
+     */
+    Uint32 max_page_cnt;
+    Uint64 row_count;
+    Uint64 prev_row_count;
+    Uint64 row_change_count;
+    Uint64 memory_used_in_bytes;
+    c_tup->get_lcp_frag_stats(fragptr.p->tupFragptr,
+                              0, /* Ignored when reset flag is false */
+                              max_page_cnt,
+                              row_count,
+                              prev_row_count,
+                              row_change_count,
+                              memory_used_in_bytes,
+                              false);
+  }
   c_lcp_restoring_fragments.remove(fragptr);
   c_lcp_complete_fragments.addLast(fragptr);
 
