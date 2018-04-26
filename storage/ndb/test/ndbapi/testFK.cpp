@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -97,12 +97,9 @@ runLoadTable(NDBT_Context* ctx, NDBT_Step* step)
   const int batchSize = ctx->getProperty("BatchSize", DEFAULT_BATCH_SIZE);
   HugoTransactions hugoTrans(*ctx->getTab());
 
-  bool concurrent = false;
-  if (hugoTrans.loadTable(pNdb, rows, batchSize, concurrent) != 0)
-  {
-    g_err << "Load table failed" << endl;
-    return NDBT_FAILED;
-  }
+  const bool concurrent = false;
+  CHK2(hugoTrans.loadTable(pNdb, rows, batchSize, concurrent) == 0,
+       "rows:" << rows << ", batchSize:" << batchSize);
 
   return NDBT_OK;
 }
@@ -114,13 +111,10 @@ runClearTable(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb* pNdb = GETNDB(step);
   const int parallel = 10 * (rand() % 5);
-  UtilTransactions utilTrans(*ctx->getTab());
 
-  if (utilTrans.clearTable(pNdb, 0, parallel) != 0)
-  {
-    g_err << "Clear table failed" << endl;
-    return NDBT_FAILED;
-  }
+  UtilTransactions utilTrans(*ctx->getTab());
+  CHK2(utilTrans.clearTable(pNdb, 0, parallel) == 0,
+       "Table :" << ctx->getTab()->getName());
 
   return NDBT_OK;
 }
@@ -145,40 +139,29 @@ runTransactions(NDBT_Context* ctx, NDBT_Step* step)
 
   for (int i = 0; ((i < loops) || until_stopped) && !ctx->isTestStopped(); i++)
   {
-    if (hugoTrans.loadTable(pNdb, rows, batchSize, concurrent) != 0)
-    {
-      g_err << "Load table failed" << endl;
-      return NDBT_FAILED;
-    }
+    CHK2((hugoTrans.loadTable(pNdb, rows, batchSize, concurrent) == 0),
+          "rows:" << rows << ", batchSize:" << batchSize << ", concurrent:" << concurrent);
 
     if (ctx->isTestStopped())
       break;
 
     if (concurrent == false)
     {
-      if (hugoTrans.pkUpdateRecords(pNdb, rows, batchSize) != 0){
-        g_err << "Updated table failed" << endl;
-        return NDBT_FAILED;
-      }
+      CHK2((hugoTrans.pkUpdateRecords(pNdb, rows, batchSize) == 0),
+            "rows:" << rows << ", batchSize:" << batchSize);
     }
 
     if (ctx->isTestStopped())
       break;
 
-    if (hugoTrans.scanUpdateRecords(pNdb, expectrows, 5, parallel) != 0)
-    {
-      g_err << "Scan updated table failed" << endl;
-      return NDBT_FAILED;
-    }
+    CHK2((hugoTrans.scanUpdateRecords(pNdb, expectrows, 5, parallel) == 0),
+          "expectrows:" << expectrows << ", parallel:" << parallel);
 
     if (ctx->isTestStopped())
       break;
 
-    if (utilTrans.clearTable(pNdb, expectrows, parallel) != 0)
-    {
-      g_err << "Clear table failed" << endl;
-      return NDBT_FAILED;
-    }
+    CHK2((utilTrans.clearTable(pNdb, expectrows, parallel) == 0),
+          "expectrows:" << expectrows << ", parallel:" << parallel);
   }
   return NDBT_OK;
 }
@@ -927,25 +910,18 @@ static
 int
 runCreateDropRandom(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int ret = NDBT_OK;
   const int loops = ctx->getNumLoops();
 
   for (int i = 0; i < loops; i++)
   {
-    if ((ret = runCreateRandom(ctx, step)) != NDBT_OK)
-      return ret;
+    CHK2(runCreateRandom(ctx, step) == NDBT_OK, "");
 
     if (ctx->getProperty("CreateAndLoad", Uint32(0)) != 0)
     {
-      if ((ret = runLoadTable(ctx, step)) != NDBT_OK)
-        return ret;
-
-      if ((ret = runClearTable(ctx, step)) != NDBT_OK)
-        return ret;
+      CHK2(runLoadTable(ctx, step) == NDBT_OK, "");
+      CHK2(runClearTable(ctx, step) == NDBT_OK, "");
     }
-
-    if ((ret = runCleanupTable(ctx, step)) != NDBT_OK)
-      return ret;
+    CHK2(runCleanupTable(ctx, step) == NDBT_OK, "");
   }
 
   ctx->stopTest();
@@ -980,7 +956,7 @@ int
 runRSSsnapshotCheck(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter restarter;
-  g_info << "save all resource usage" << endl;
+  g_info << "check all resource usage" << endl;
   int dump1[] = { DumpStateOrd::SchemaResourceCheckLeak };
   restarter.dumpStateAllNodes(dump1, 1);
   return NDBT_OK;
@@ -1138,21 +1114,15 @@ runCreateCascadeChild(NDBT_Context* ctx, NDBT_Step* step)
   }
 
   DBG("CREATE table " << child.getName());
-  int res = dict->createTable(child);
-  if (res != 0)
-  {
-    ndbout << __LINE__ << ": " << dict->getNdbError() << endl;
-    return NDBT_FAILED;
-  }
+  CHK2(dict->createTable(child) == 0,
+       child.getName() << ": " << dict->getNdbError());
 
   const NdbDictionary::Table * pChild = dict->getTable(childname.c_str());
   {
     NdbDictionary::Dictionary::List list;
-    if (dict->listIndexes(list, *pTab) != 0)
-    {
-      ndbout << __LINE__ << ": " << dict->getNdbError() << endl;
-      return NDBT_FAILED;
-    }
+    CHK2(dict->listIndexes(list, *pTab) == 0,
+         child.getName() << ": " << dict->getNdbError());
+
     for (unsigned i = 0; i<list.count; i++)
     {
       const NdbDictionary::Index* idx = dict->getIndex(list.elements[i].name,
@@ -1169,11 +1139,8 @@ runCreateCascadeChild(NDBT_Context* ctx, NDBT_Step* step)
           copy.addColumn(idx->getColumn(j)->getName());
         }
         DBG("CREATE index " << copy.getName());
-        if (dict->createIndex(copy) != 0)
-        {
-          ndbout << __LINE__ << ": " << dict->getNdbError() << endl;
-          return NDBT_FAILED;
-        }
+        CHK2(dict->createIndex(copy) == 0,
+             copy.getName() << ": " << dict->getNdbError());
       }
     }
   }
@@ -1181,6 +1148,7 @@ runCreateCascadeChild(NDBT_Context* ctx, NDBT_Step* step)
   /**
    * Now create FK
    */
+  int res;
   res = createFK(dict,
                  pTab, T_UK_IDX,
                  pChild, T_RAND,
