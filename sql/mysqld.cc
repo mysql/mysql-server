@@ -587,6 +587,9 @@
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
+#ifdef HAVE_SYS_PRCTL_H
+#include <sys/prctl.h>
+#endif
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
 #endif
@@ -2217,13 +2220,6 @@ err:
   LogErr(ERROR_LEVEL, ER_USER_WHAT_USER, user);
   unireg_abort(MYSQLD_ABORT_EXIT);
 
-#ifdef PR_SET_DUMPABLE
-  if (test_flags & TEST_CORE_ON_SIGNAL) {
-    /* inform kernel that process is dumpable */
-    (void)prctl(PR_SET_DUMPABLE, 1);
-  }
-#endif
-
   return NULL;
 }
 
@@ -2249,6 +2245,14 @@ static void set_user(const char *user, struct passwd *user_info_arg) {
     LogErr(ERROR_LEVEL, ER_FAIL_SETUID, strerror(errno));
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
+
+#ifdef HAVE_SYS_PRCTL_H
+  if (test_flags & TEST_CORE_ON_SIGNAL) {
+    /* inform kernel that process is dumpable */
+    (void)prctl(PR_SET_DUMPABLE, 1);
+  }
+#endif
+
   /* purecov: end */
 }
 
