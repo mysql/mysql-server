@@ -640,21 +640,6 @@ testRanges(Uint32 bitmask_size)
 	BitmaskImpl::clear(sz32, check.getBase(), j);
     }
 
-    BitmaskImpl::clear_range(sz32, map.getBase(), start, stop);
-    if (!BitmaskImpl::equal(sz32, map.getBase(), check.getBase()))
-    {
-      ndbout_c(" FAIL 2 sz: %d [ %d %d ]", sz, start, stop);
-      printf("check: ");
-      for(Uint32 j = 0; j<sz32; j++)
-	printf("%.8x ", check[j]);
-      printf("\n");
-
-      printf("map  : ");
-      for(Uint32 j = 0; j<sz32; j++)
-	printf("%.8x ", map[j]);
-      printf("\n");
-      return -1;
-    }
   }
 #endif
 
