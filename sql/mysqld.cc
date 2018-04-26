@@ -3825,7 +3825,7 @@ int init_common_variables() {
   if (opt_initialize || opt_initialize_insecure) {
     LogErr(SYSTEM_LEVEL, ER_STARTING_INIT, my_progname, server_version,
            (ulong)getpid());
-  } else {
+  } else if (!opt_help) {
     LogErr(SYSTEM_LEVEL, ER_STARTING_AS, my_progname, server_version,
            (ulong)getpid());
   }
@@ -8277,6 +8277,9 @@ static void usage(void) {
     exit(MYSQLD_ABORT_EXIT);
   if (!default_collation_name)
     default_collation_name = (char *)default_charset_info->name;
+  if (opt_help || opt_verbose) {
+    my_progname = my_progname + dirname_length(my_progname);
+  }
   print_server_version();
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   puts("Starts the MySQL database server.\n");
