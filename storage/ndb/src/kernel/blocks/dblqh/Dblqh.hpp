@@ -2691,7 +2691,8 @@ private:
   void send_next_NEXT_SCANREQ(Signal* signal,
                               SimulatedBlock* block,
                               ExecFunction f,
-                              ScanRecord * const scanPtr);
+                              ScanRecord * const scanPtr,
+                              Uint32 clientPtrI);
 
   void initCopyrec(Signal* signal);
   void initCopyTc(Signal* signal, Operation_t, TcConnectionrec*);
@@ -2952,7 +2953,7 @@ private:
   void moreconnectionsLab(Signal* signal, TcConnectionrecPtr);
   void scanReleaseLocksLab(Signal* signal, TcConnectionrec*);
   void closeScanLab(Signal* signal, TcConnectionrec*);
-  void scanNextLoopLab(Signal* signal);
+  void scanNextLoopLab(Signal* signal, Uint32 clientPtrI);
   void commitReqLab(Signal* signal,
                     Uint32 gci_hi,
                     Uint32 gci_lo,
