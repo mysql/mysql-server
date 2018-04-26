@@ -3402,6 +3402,8 @@ private:
 #endif
   Uint32 prepare_page_no;
   Uint32 prepare_frag_page_id;
+  Uint32 prepare_page_idx;
+  Uint64 c_debug_count;
   
   Uint32 cdata[32];
   Uint32 cdataPages[16];
