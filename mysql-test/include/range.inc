@@ -1388,8 +1388,11 @@ EXPLAIN
 SELECT * FROM t1 WHERE i4 BETWEEN 10 AND '20';
 SELECT * FROM t1 WHERE i4 BETWEEN 10 AND '20';
 
-#Should detect the EQ_REF 't2.pk=t1.i4'
+# Should detect the EQ_REF 't2.pk=t1.i4'.
+# Also tests printing of index condition pushdown on EQRefIterator.
 EXPLAIN
+SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
+EXPLAIN FORMAT=tree
 SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
 SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
 
@@ -1622,10 +1625,12 @@ let $query=SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
 
 eval EXPLAIN $query;
+eval EXPLAIN FORMAT=tree $query;
 eval $query;
 --echo # need FLUSH so that InnoDB statistics change and thus plan changes
 FLUSH TABLES;
 eval EXPLAIN $query;
+eval EXPLAIN FORMAT=tree $query;  # Tests printing of DynamicRangeIterator.
 eval $query;
 
 DROP TABLE t1,t2;

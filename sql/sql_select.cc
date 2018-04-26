@@ -2700,7 +2700,6 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
 
   for (uint i = join->const_tables; i < join->tables; i++) {
     QEP_TAB *const qep_tab = &join->qep_tab[i];
-
     if (!qep_tab->position()) continue;
 
     JOIN_TAB *const tab = join->best_ref[i];

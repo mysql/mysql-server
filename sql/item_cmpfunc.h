@@ -667,8 +667,10 @@ class Item_func_trig_cond final : public Item_bool_func {
   }
   enum enum_trig_type get_trig_type() const { return trig_type; }
   bool *get_trig_var() { return trig_var; }
+  enum_trig_type get_trig_type() { return trig_type; }
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
+  plan_idx idx() const { return m_idx; }
 };
 
 class Item_func_not_all : public Item_func_not {

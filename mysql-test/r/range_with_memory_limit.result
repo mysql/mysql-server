@@ -2285,6 +2285,13 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.i4	1	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i4` AS `i4`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`i4` AS `i4` from `test`.`t1` join `test`.`t1` `t2` where (`test`.`t2`.`pk` between `test`.`t1`.`i4` and `test`.`t1`.`i4`)
+EXPLAIN FORMAT=tree
+SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
+EXPLAIN
+-> Nested loop inner join
+    -> Table scan on t1
+    -> Single-row index lookup on t2 using PRIMARY (pk=t1.i4), with index condition: (t2.pk between t1.i4 and t1.i4)
+
 SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
 pk	i4	pk	i4
 EXPLAIN
@@ -2613,6 +2620,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ref	PRIMARY,col_int_key	col_int_key	5	test.t1.col_int	1	33.33	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`pk` AS `pk`,`test`.`t2`.`col_int_key` AS `col_int_key`,`test`.`t2`.`col_varchar` AS `col_varchar`,`test`.`t2`.`pk` AS `pk` from `test`.`t1` straight_join `test`.`t2` where ((`test`.`t2`.`col_int_key` = `test`.`t1`.`col_int`) and (`test`.`t2`.`pk` < `test`.`t1`.`pk`))
+EXPLAIN FORMAT=tree SELECT t1.*,t2.* FROM t1 straight_join t2
+ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
+EXPLAIN
+-> Nested loop inner join
+    -> Filter: (t1.col_int is not null)
+        -> Table scan on t1
+    -> Index lookup on t2 using col_int_key (col_int_key=t1.col_int), with index condition: (t2.pk < t1.pk)
+
 SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
 col_int	pk	col_int_key	col_varchar	pk
@@ -2627,6 +2642,13 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`pk` AS `pk`,`test`.`t2`.`col_int_key` AS `col_int_key`,`test`.`t2`.`col_varchar` AS `col_varchar`,`test`.`t2`.`pk` AS `pk` from `test`.`t1` straight_join `test`.`t2` where ((`test`.`t2`.`col_int_key` = `test`.`t1`.`col_int`) and (`test`.`t2`.`pk` < `test`.`t1`.`pk`))
+EXPLAIN FORMAT=tree SELECT t1.*,t2.* FROM t1 straight_join t2
+ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
+EXPLAIN
+<not executable by iterator executor>
+
+Warnings:
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
 col_int	pk	col_int_key	col_varchar	pk

@@ -510,7 +510,7 @@ class QEP_TAB : public QEP_shared_owner {
   /// @return the index used for a table in a QEP
   uint effective_index() const;
 
-  bool pfs_batch_update(JOIN *join);
+  bool pfs_batch_update(JOIN *join) const;
 
  public:
   /// Pointer to table reference

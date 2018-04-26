@@ -45,8 +45,6 @@ struct TABLE;
   specifics to TABLE, such as which columns to read (the read_set). This means
   it would probably be hard as-is to e.g. sort a join of two tables.
 
-  TODO: Convert the joins themselves into RowIterator.
-
   Use by:
 @code
   unique_ptr<RowIterator> iterator(new ...);
@@ -86,6 +84,20 @@ class RowIterator {
    */
   virtual int Read() = 0;
 
+  /**
+    Mark the current row buffer as containing a NULL row or not, so that if you
+    read from it and the flag is true, you'll get only NULLs no matter what is
+    actually in the buffer (typically some old leftover row). This is used
+    for outer joins, when an iterator hasn't produced any rows and we need to
+    produce a NULL-complemented row. Init() or Read() won't necessarily
+    reset this flag, so if you ever set is to true, make sure to also set it
+    to false when needed.
+
+    TODO: We shouldn't need this. See the comments on AggregateIterator for
+    a bit more discussion on abstracting out a row interface.
+   */
+  virtual void SetNullRowFlag(bool is_null_row) = 0;
+
   // In certain queries, such as SELECT FOR UPDATE, UPDATE or DELETE queries,
   // reading rows will automatically take locks on them. (This means that the
   // set of locks taken will depend on whether e.g. the optimizer chose a table
@@ -110,6 +122,30 @@ class RowIterator {
 
   virtual std::string DebugString() const = 0;
 
+  /**
+    Start performance schema batch mode, if supported (otherwise ignored).
+
+    PFS batch mode is a hack to reduce the overhead of performance schema,
+    typically applied at the innermost table of the entire join. If you start
+    it before scanning the table and then end it afterwards, the entire set
+    of handler calls will be timed only once, as a group, and the costs will
+    be distributed evenly out. This reduces timer overhead.
+
+    If you start PFS batch mode, you must also take care to end it at the
+    end of the scan, one way or the other. Do note that this is true even
+    if the query ends abruptly (LIMIT is reached, or an error happens).
+    The easiest workaround for this is to simply go through all the open
+    handlers and call end_psi_batch_mode_if_started(). See the PFSBatchMode
+    class for a useful helper.
+   */
+  virtual void StartPSIBatchMode() {}
+
+  /**
+    Ends performance schema batch mode, if started. It's always safe to
+    call this.
+   */
+  virtual void EndPSIBatchModeIfStarted() {}
+
  protected:
   THD *thd() const { return m_thd; }
 
@@ -122,6 +158,9 @@ class TableRowIterator : public RowIterator {
   TableRowIterator(THD *thd, TABLE *table) : RowIterator(thd), m_table(table) {}
 
   void UnlockRow() override;
+  void SetNullRowFlag(bool is_null_row) override;
+  void StartPSIBatchMode() override;
+  void EndPSIBatchModeIfStarted() override;
 
  protected:
   int HandleError(int error);

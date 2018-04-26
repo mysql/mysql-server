@@ -256,6 +256,10 @@ class AlternativeIterator final : public RowIterator {
 
   int Read() override { return m_iterator->Read(); }
 
+  void SetNullRowFlag(bool is_null_row) override {
+    m_iterator->SetNullRowFlag(is_null_row);
+  }
+
   void UnlockRow() override { m_iterator->UnlockRow(); }
 
   std::vector<RowIterator *> children() const override {

@@ -5,6 +5,8 @@
 # cases that demonstrate odd or unexpected behavior.
 #
 
+set optimizer_switch='batched_key_access=off,block_nested_loop=off,mrr_cost_based=off';
+
 # Basic table scan.
 CREATE TABLE t1 ( f1 INT );
 INSERT INTO t1 VALUES ( 1 );
@@ -56,6 +58,27 @@ EXPLAIN FORMAT=tree SELECT SUM(f1) FROM t1;
 EXPLAIN FORMAT=tree SELECT f1 FROM t1 GROUP BY f1;
 EXPLAIN FORMAT=tree SELECT f1,COUNT(*) FROM t1 GROUP BY f1;
 DROP TABLE t1;
+
+# A join (against a const table).
+CREATE TABLE t1 ( f1 INT PRIMARY KEY );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t1 VALUES ( 2 );
+INSERT INTO t1 VALUES ( 3 );
+CREATE TABLE t2 ( f1 INT PRIMARY KEY );
+INSERT INTO t2 SELECT * FROM t1;
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON t1.f1 = t2.f1 + 2 AND t2.f1 = 3;
+DROP TABLE t1, t2;
+
+# Demonstrate that filters are put on the correct point with nested outer joins.
+# In particular, the isnull(t3.c) should be placed between the two left join iterators.
+CREATE TABLE t1 ( a INT );
+CREATE TABLE t2 ( a INT );
+CREATE TABLE t3 ( a INT, b INT );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t2 VALUES ( 3 );
+INSERT INTO t3 VALUES ( 2, 0 );
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN ( t2 LEFT JOIN t3 USING (a) ) ON t3.b IS NULL;
+DROP TABLE t1, t2, t3;
 
 # Sort.
 CREATE TABLE t1 ( f1 INT );

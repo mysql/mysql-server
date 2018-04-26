@@ -279,6 +279,14 @@ bool init_read_record(READ_RECORD *info, THD *thd, TABLE *table,
 */
 void TableRowIterator::UnlockRow() { m_table->file->unlock_row(); }
 
+void TableRowIterator::SetNullRowFlag(bool is_null_row) {
+  if (is_null_row) {
+    m_table->set_null_row();
+  } else {
+    m_table->reset_null_row();
+  }
+}
+
 int TableRowIterator::HandleError(int error) {
   if (thd()->killed) {
     thd()->send_kill_message();
@@ -296,6 +304,14 @@ int TableRowIterator::HandleError(int error) {
 
 void TableRowIterator::PrintError(int error) {
   m_table->file->print_error(error, MYF(0));
+}
+
+void TableRowIterator::StartPSIBatchMode() {
+  m_table->file->start_psi_batch_mode();
+}
+
+void TableRowIterator::EndPSIBatchModeIfStarted() {
+  m_table->file->end_psi_batch_mode_if_started();
 }
 
 IndexRangeScanIterator::IndexRangeScanIterator(THD *thd, TABLE *table,

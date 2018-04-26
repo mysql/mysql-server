@@ -28,9 +28,9 @@
 
 #include "sql/item.h"
 #include "sql/item_sum.h"
+#include "sql/sql_base.h"
 #include "sql/sql_class.h"
 #include "sql/sql_executor.h"
-#include "sql/sql_lex.h"
 #include "sql/sql_opt_exec_shared.h"
 #include "sql/sql_optimizer.h"
 
@@ -290,4 +290,84 @@ string PrecomputedAggregateIterator::DebugString() const {
     ret += ItemToString(*item);
   }
   return ret;
+}
+
+bool NestedLoopIterator::Init() {
+  if (m_source_outer->Init()) {
+    return true;
+  }
+  m_state = NEEDS_OUTER_ROW;
+  m_source_inner->EndPSIBatchModeIfStarted();
+  return false;
+}
+
+int NestedLoopIterator::Read() {
+  if (m_state == END_OF_ROWS) {
+    return -1;
+  }
+
+  for (;;) {  // Termination condition within loop.
+    if (m_state == NEEDS_OUTER_ROW) {
+      int err = m_source_outer->Read();
+      if (err == 1) {
+        return 1;  // Error.
+      }
+      if (err == -1) {
+        m_state = END_OF_ROWS;
+        return -1;
+      }
+      if (m_pfs_batch_mode) {
+        m_source_inner->StartPSIBatchMode();
+      }
+      if (m_source_inner->Init()) {
+        return 1;
+      }
+      m_source_inner->SetNullRowFlag(false);
+      m_state = READING_FIRST_INNER_ROW;
+    }
+    DBUG_ASSERT(m_state == READING_INNER_ROWS ||
+                m_state == READING_FIRST_INNER_ROW);
+
+    int err = m_source_inner->Read();
+    if (err != 0) {
+      m_source_inner->EndPSIBatchModeIfStarted();
+    }
+    if (err == 1) {
+      return 1;  // Error.
+    }
+    if (thd()->killed) {  // Aborted by user.
+      thd()->send_kill_message();
+      return 1;
+    }
+    if (err == -1) {
+      // Out of inner rows for this outer row. If we are an outer join
+      // and never found any inner rows, return a null-complemented row.
+      // If not, skip that and go straight to reading a new outer row.
+      if (m_join_type == JoinType::OUTER &&
+          m_state == READING_FIRST_INNER_ROW) {
+        m_source_inner->SetNullRowFlag(true);
+        m_state = NEEDS_OUTER_ROW;
+        return 0;
+      } else {
+        m_state = NEEDS_OUTER_ROW;
+        continue;
+      }
+    }
+
+    // We have a new row.
+    m_state = READING_INNER_ROWS;
+    return 0;
+  }
+}
+
+string NestedLoopIterator::DebugString() const {
+  switch (m_join_type) {
+    case JoinType::INNER:
+      return "Nested loop inner join";
+    case JoinType::OUTER:
+      return "Nested loop left join";
+    default:
+      DBUG_ASSERT(false);
+      return "Nested loop <error>";
+  }
 }

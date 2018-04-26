@@ -1117,6 +1117,281 @@ bool set_record_buffer(const QEP_TAB *tab) {
   return false;
 }
 
+/**
+  Split AND conditions into their constituent parts, recursively.
+  Conditions that are not AND conditions are appended unchanged onto
+  condition_parts. E.g. if you have ((a AND b) AND c), condition_parts
+  will contain [a, b, c], plus whatever it contained before the call.
+ */
+static void ExtractConditions(Item *condition,
+                              vector<Item *> *condition_parts) {
+  if (condition == nullptr) {
+    return;
+  }
+  if (condition->type() != Item::COND_ITEM ||
+      down_cast<Item_cond *>(condition)->functype() !=
+          Item_bool_func2::COND_AND_FUNC) {
+    condition_parts->push_back(condition);
+    return;
+  }
+
+  Item_cond_and *and_condition = down_cast<Item_cond_and *>(condition);
+  for (Item &item : *and_condition->argument_list()) {
+    ExtractConditions(&item, condition_parts);
+  }
+}
+
+/**
+  Return a new iterator that wraps "iterator" and that tests all of the given
+  conditions (if any), ANDed together. If there are no conditions, just return
+  the given iterator back.
+ */
+static unique_ptr_destroy_only<RowIterator> PossiblyAttachFilterIterator(
+    unique_ptr_destroy_only<RowIterator> iterator,
+    const vector<Item *> &conditions, THD *thd) {
+  if (conditions.empty()) {
+    return iterator;
+  }
+
+  Item *condition = nullptr;
+  if (conditions.size() == 1) {
+    condition = conditions[0];
+  } else {
+    List<Item> items;
+    for (Item *condition : conditions) {
+      items.push_back(condition);
+    }
+    condition = new Item_cond_and(items);
+    condition->quick_fix_field();
+    condition->update_used_tables();
+    condition->top_level_item();
+  }
+  return unique_ptr_destroy_only<RowIterator>(
+      new (thd->mem_root) FilterIterator(thd, move(iterator), condition));
+}
+
+/*
+  If a condition cannot be applied right away, for instance because it is a
+  WHERE condition and we're on the right side of an outer join, we have to
+  return it up so that it can be applied on a higher recursion level.
+  This structure represents such a condition.
+ */
+struct PendingCondition {
+  Item *cond;
+  int table_index_to_attach_to;  // -1 means “on the last possible outer join”.
+};
+
+static unique_ptr_destroy_only<RowIterator> PossiblyAttachFilterIterator(
+    unique_ptr_destroy_only<RowIterator> iterator,
+    const vector<PendingCondition> &conditions, THD *thd) {
+  vector<Item *> stripped_conditions;
+  for (const PendingCondition &cond : conditions) {
+    stripped_conditions.push_back(cond.cond);
+  }
+  return PossiblyAttachFilterIterator(move(iterator), stripped_conditions, thd);
+}
+
+static Item_func_trig_cond *GetTriggerCondOrNull(Item *item) {
+  if (item->type() == Item::FUNC_ITEM &&
+      down_cast<Item_func *>(item)->functype() ==
+          Item_bool_func2::TRIG_COND_FUNC) {
+    return down_cast<Item_func_trig_cond *>(item);
+  } else {
+    return nullptr;
+  }
+}
+
+/**
+  For a given slice of the table list, build up the iterator tree corresponding
+  to the tables in that slice. Currently only handles inner and outer joins,
+  not semijoins (“first match”).
+
+  The join tree in MySQL is generally a left-deep tree of inner joins,
+  so we can start at the left, make an inner join against the next table,
+  join the result of that against the next table, etc.. However, a given
+  sub-slice of the table list can be designated as an outer join, by setting
+  first_inner() and last_inner() on the first table of said slice. (It is also
+  set in some, but not all, of the other tables in the slice.) If so, we call
+  ourselves recursively with that slice, put it as the right (inner) arm of
+  an outer join, and then continue with our inner join.
+
+  Conditions are a bit tricky. Conceptually, SQL evaluates conditions only
+  after all tables have been joined; however, for efficiency reasons, we want
+  to evaluate them as early as possible. As long as we are only dealing with
+  inner joins, this is as soon as we've read all tables participating in the
+  condition, but for outer joins, we need to wait until the join has happened.
+  See pending_conditions below.
+
+  @param first_idx index of the first table in the slice we are creating a
+    tree for (inclusive)
+  @param last_idx index of the last table in the slice we are creating a
+    tree for (exclusive)
+  @param qep_tabs the full list of tables we are joining
+  @param thd the THD to allocate the iterators on
+  @param pending_conditions if nullptr, we are not at the right (inner) side of
+    any outer join and can evaluate conditions immediately. If not, we need to
+    push any WHERE predicates to that vector and evaluate them only after joins.
+ */
+static unique_ptr_destroy_only<RowIterator> ConnectJoins(
+    plan_idx first_idx, plan_idx last_idx, QEP_TAB *qep_tabs, THD *thd,
+    vector<PendingCondition> *pending_conditions) {
+  DBUG_ASSERT(last_idx > first_idx);
+  unique_ptr_destroy_only<RowIterator> iterator = nullptr;
+
+  // NOTE: i is advanced in in one of two ways:
+  //
+  //  - If we have an inner join, it will be incremented near the bottom of the
+  //  loop,
+  //    as we can process inner join tables one by one.
+  //  - If not (ie., we have an outer join), we will process the sub-join
+  //  recursively,
+  //    and thus move it past the end of said sub-join.
+  for (plan_idx i = first_idx; i < last_idx;) {
+    QEP_TAB *qep_tab = &qep_tabs[i];
+
+    if (iterator != nullptr && qep_tab->last_inner() != NO_PLAN_IDX) {
+      // Outer join, consisting of a subtree (possibly of only one table),
+      // so we send the entire subtree down to a recursive invocation
+      // and then join the returned root into our existing tree.
+      unique_ptr_destroy_only<RowIterator> subtree_iterator;
+      vector<PendingCondition> subtree_pending_conditions;
+      if (pending_conditions != nullptr) {
+        // We are already on the right (inner) side of an outer join,
+        // so we need to keep deferring WHERE predicates.
+        subtree_iterator = ConnectJoins(i, qep_tab->last_inner() + 1, qep_tabs,
+                                        thd, pending_conditions);
+
+        // Pick out any conditions that should be directly above this join
+        // (ie., the ON conditions for this specific join).
+        for (auto it = pending_conditions->begin();
+             it != pending_conditions->end();) {
+          if (it->table_index_to_attach_to == int(i)) {
+            subtree_pending_conditions.push_back(*it);
+            it = pending_conditions->erase(it);
+          } else {
+            ++it;
+          }
+        }
+      } else {
+        // We can check the WHERE predicates on this table right away
+        // after the join.
+        subtree_iterator = ConnectJoins(i, qep_tab->last_inner() + 1, qep_tabs,
+                                        thd, &subtree_pending_conditions);
+      }
+
+      const bool pfs_batch_mode = qep_tab->pfs_batch_update(qep_tab->join());
+      iterator.reset(new (thd->mem_root) NestedLoopIterator(
+          thd, move(iterator), move(subtree_iterator), JoinType::OUTER,
+          pfs_batch_mode));
+
+      iterator = PossiblyAttachFilterIterator(move(iterator),
+                                              subtree_pending_conditions, thd);
+
+      i = qep_tab->last_inner() + 1;
+      continue;
+    }
+
+    unique_ptr_destroy_only<RowIterator> table_iterator =
+        move(qep_tab->read_record.iterator);
+
+    /*
+      There are three kinds of conditions stored into a table's QEP_TAB object:
+
+      1. Join conditions (where not optimized into EQ_REF accesses or similar).
+         These are attached as a condition on the rightmost table of the join;
+         if it's an outer join, they are wrapped in a “not_null_compl”
+         condition, to mark that they should not be applied to the NULL values
+         synthesized when no row is found. These can be kept on the table, and
+         we don't really need the not_null_compl wrapper as long as we don't
+         move the condition up above the join (which we don't).
+
+      2. WHERE predicates referring to the table, and possibly also one or more
+         earlier tables in the join. These should normally be kept on the table,
+         so we can discard rows as early as possible (but see next point).
+         We should test these after the join conditions, though, as they may
+         have side effects.
+
+      3. Predicates like in #2 that are on the inner (right) side of a
+         left join. These conditions must be moved _above_ the join, as they
+         should also be tested for NULL-complemented rows the join may generate.
+         E.g., for t1 LEFT JOIN t2 WHERE t1.x + t2.x > 3, the condition will be
+         attached to t2's QEP_TAB, but needs to be attached above the join, or
+         it would erroneously keep rows wherever t2 did not produce a
+         (real) row. Such conditions are marked with a “found” trigger (in the
+         old execution engine, which tested qep_tab->condition() both before and
+         after the join, it would need to be exempt from the first test).
+
+      4. Predicates that are #1 _and_ #3. These can happen with more complicated
+         outer joins; e.g., with t1 LEFT JOIN ( t2 LEFT JOIN t3 ON <x> ) ON <y>,
+         the <x> join condition (posted on t3) should be above one join but
+         below the other.
+
+      TODO: The optimizer should distinguish between before-join and
+      after-join conditions to begin with, instead of us having to untangle
+      it here.
+     */
+    vector<Item *> condition_parts, predicates_below_join;
+    vector<PendingCondition> predicates_above_join;
+    ExtractConditions(qep_tab->condition(), &condition_parts);
+    for (Item *item : condition_parts) {
+      Item_func_trig_cond *trig_cond = GetTriggerCondOrNull(item);
+      if (trig_cond != nullptr) {
+        Item *inner_cond = trig_cond->arguments()[0];
+        if (trig_cond->get_trig_type() == Item_func_trig_cond::FOUND_MATCH) {
+          // A WHERE predicate on the table that needs to be pushed up above the
+          // join (case #3 above). Push it up to above the last outer join.
+          predicates_above_join.push_back(PendingCondition{inner_cond, -1});
+        } else if (trig_cond->get_trig_type() ==
+                   Item_func_trig_cond::IS_NOT_NULL_COMPL) {
+          // It's a join condition, so it should nominally go directly onto the
+          // table. If it _also_ has a FOUND_MATCH predicate, we are dealing
+          // with case #4 above, and need to push it up to exactly the right
+          // spot.
+          Item_func_trig_cond *inner_trig_cond =
+              GetTriggerCondOrNull(inner_cond);
+          if (inner_trig_cond != nullptr) {
+            Item *inner_inner_cond = inner_trig_cond->arguments()[0];
+            predicates_above_join.push_back(
+                PendingCondition{inner_inner_cond, inner_trig_cond->idx()});
+          } else {
+            predicates_below_join.push_back(inner_cond);
+          }
+        } else {
+          predicates_below_join.push_back(item);
+        }
+      } else {
+        predicates_below_join.push_back(item);
+      }
+    }
+
+    table_iterator = PossiblyAttachFilterIterator(move(table_iterator),
+                                                  predicates_below_join, thd);
+
+    if (iterator == nullptr) {
+      // We are the first table in this join.
+      iterator = move(table_iterator);
+    } else {
+      // Inner join this table to the existing tree.
+      // Inner joins are always left-deep, so we can just attach the tables as
+      // we find them.
+      DBUG_ASSERT(qep_tab->last_inner() == NO_PLAN_IDX);
+      const bool pfs_batch_mode = qep_tab->pfs_batch_update(qep_tab->join());
+      iterator.reset(new (thd->mem_root) NestedLoopIterator(
+          thd, move(iterator), move(table_iterator), JoinType::INNER,
+          pfs_batch_mode));
+    }
+    ++i;
+
+    // If we have any predicates that should be above an outer join,
+    // send them upwards.
+    for (PendingCondition &cond : predicates_above_join) {
+      DBUG_ASSERT(pending_conditions != nullptr);
+      pending_conditions->push_back(cond);
+    }
+  }
+  return iterator;
+}
+
 void JOIN::create_iterators() {
   DBUG_ASSERT(m_root_iterator == nullptr);
 
@@ -1128,7 +1403,7 @@ void JOIN::create_iterators() {
 
     // Skip unset tables (should not exist, but do, probably due to a bug)
     // and temporary tables.
-    if (qep_tab == nullptr || qep_tab->position() == nullptr) {
+    if (qep_tab->position() == nullptr) {
       continue;
     }
     if (qep_tab->materialize_table ||
@@ -1142,21 +1417,32 @@ void JOIN::create_iterators() {
       return;
     }
   }
-  // Similarly, no joins, rollup, SELECT DISTINCT or window functions.
-  if (primary_tables != 1 || const_tables != 0 || tmp_tables != 0 ||
+  // Similarly, no rollup, SELECT DISTINCT or window functions.
+  if (const_tables != 0 || tmp_tables != 0 ||
       rollup.state != ROLLUP::STATE_NONE || select_distinct ||
       m_windows.elements != 0) {
     return;
   }
 
-  unique_ptr_destroy_only<RowIterator> iterator =
-      move(qep_tab[const_tables].read_record.iterator);
+  // OK, so we're good. Go through the tables and make the join iterators.
+  for (unsigned table_idx = const_tables; table_idx < tables; ++table_idx) {
+    QEP_TAB *qep_tab = &this->qep_tab[table_idx];
+    if (qep_tab->position() == nullptr) {
+      continue;
+    }
 
-  Item *condition = qep_tab[const_tables].condition();
-  if (condition) {
-    iterator.reset(new (thd->mem_root)
-                       FilterIterator(thd, move(iterator), condition));
+    // We don't use these in the iterator executor (except for figuring out
+    // which conditions are join conditions and which are from WHERE),
+    // so we remove them whenever we can. However, we don't prune them
+    // entirely from the query tree, so they may be left within e.g.
+    // e.g. sub-conditions of ORs. Open up the conditions so that we don't
+    // have conditions that are disabled during execution.
+    qep_tab->not_null_compl = true;
+    qep_tab->found = true;
   }
+
+  unique_ptr_destroy_only<RowIterator> iterator =
+      ConnectJoins(const_tables, primary_tables, qep_tab, thd, nullptr);
 
   // See if we need to aggregate data in the final step. Note that we can
   // _not_ rely on streaming_aggregation, as it can be changed from false
@@ -1217,7 +1503,7 @@ static int ExecuteIteratorQuery(JOIN *join) {
     return 1;
   }
 
-  PFSBatchMode pfs_batch_mode(&join->qep_tab[join->const_tables]);
+  PFSBatchMode pfs_batch_mode(&join->qep_tab[join->const_tables], join);
   for (;;) {
     int error = join->root_iterator()->Read();
 
@@ -2579,6 +2865,7 @@ int EQRefIterator::Read() {
     table()->save_null_flags();
   } else if (table()->has_row()) {
     DBUG_ASSERT(!table()->has_null_row());
+    table()->restore_null_flags();
     m_ref->use_count++;
   }
 
@@ -6824,7 +7111,7 @@ enum_nested_loop_state QEP_tmp_table::end_send() {
   Code for pfs_batch_update
 ******************************************************************************/
 
-bool QEP_TAB::pfs_batch_update(JOIN *join) {
+bool QEP_TAB::pfs_batch_update(JOIN *join) const {
   /*
     Use PFS batch mode unless
      1. tab is not an inner-most table, or

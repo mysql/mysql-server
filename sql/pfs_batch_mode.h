@@ -28,10 +28,22 @@
 // A RAII class to handle (optionally) turning on batch mode in front of
 // scanning a row iterator, and then turn it back off afterwards (on
 // destruction).
+//
+// Normally, pfs_batch_update() would be handled by the NestedLoopIterator.
+// However, if we only have one table (and it is not outer-joined to any
+// const tables), PFS batch mode should be activated for it,
+// and there's no NestedLoopIterator to do so.
 class PFSBatchMode {
  public:
-  // qep_tab should be the table we're scanning.
-  PFSBatchMode(QEP_TAB *qep_tab) : m_qep_tab(qep_tab) {
+  // If we're scanning a JOIN (ie., a whole iterator subtree): qep_tab should be
+  // the first primary table in the join, and join should point to that join.
+  //
+  // If we're scanning a single table: qep_tab should be that table, and join
+  // should be nullptr. If so, we will assume we're scanning a single table (no
+  // NestedLoopIterator involved), and don't need to do the final check to turn
+  // off batch mode on the rightmost table.
+  PFSBatchMode(QEP_TAB *qep_tab, JOIN *join)
+      : m_qep_tab(qep_tab), m_join(join) {
     if (qep_tab->join() == nullptr) {
       // The QEP_TAB isn't even part of a join (typically used when sorting
       // data for UPDATE or DELETE), so we can safely enable batch mode.
@@ -52,11 +64,19 @@ class PFSBatchMode {
     if (m_enable) {
       m_qep_tab->table()->file->end_psi_batch_mode();
     }
+
+    // If we have e.g. a LIMIT of a join, the rightmost table could
+    // be stuck in PFS batch mode (since the NestedLoopIterator never
+    // saw end-of-file), so take it out if needed.
+    if (m_join != nullptr) {
+      QEP_TAB *last_qep_tab = &m_join->qep_tab[m_join->primary_tables - 1];
+      last_qep_tab->table()->file->end_psi_batch_mode_if_started();
+    }
   }
 
  private:
   bool m_enable;
   QEP_TAB *m_qep_tab;
+  JOIN *m_join;
 };
-
 #endif /* PFS_BATCH_MODE_INCLUDED */

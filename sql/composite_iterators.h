@@ -46,6 +46,7 @@
 
 #include "my_alloc.h"
 #include "my_base.h"
+#include "my_dbug.h"
 #include "my_table_map.h"
 #include "sql/item.h"
 #include "sql/row_iterator.h"
@@ -68,11 +69,16 @@ class FilterIterator final : public RowIterator {
 
   int Read() override;
 
+  void SetNullRowFlag(bool is_null_row) override {
+    m_source->SetNullRowFlag(is_null_row);
+  }
+
   void UnlockRow() override { m_source->UnlockRow(); }
 
   std::vector<RowIterator *> children() const override {
     return std::vector<RowIterator *>{m_source.get()};
   }
+
   std::string DebugString() const override {
     return "Filter: " + ItemToString(m_condition);
   }
@@ -108,6 +114,10 @@ class LimitOffsetIterator final : public RowIterator {
   bool Init() override;
 
   int Read() override;
+
+  void SetNullRowFlag(bool is_null_row) override {
+    m_source->SetNullRowFlag(is_null_row);
+  }
 
   void UnlockRow() override { m_source->UnlockRow(); }
 
@@ -173,6 +183,9 @@ class AggregateIterator final : public RowIterator {
 
   bool Init() override;
   int Read() override;
+  void SetNullRowFlag(bool is_null_row) override {
+    m_source->SetNullRowFlag(is_null_row);
+  }
   void UnlockRow() override;
 
   std::vector<RowIterator *> children() const override {
@@ -222,6 +235,9 @@ class PrecomputedAggregateIterator final : public RowIterator {
 
   bool Init() override;
   int Read() override;
+  void SetNullRowFlag(bool is_null_row) override {
+    m_source->SetNullRowFlag(is_null_row);
+  }
   void UnlockRow() override;
 
   std::vector<RowIterator *> children() const override {
@@ -240,6 +256,79 @@ class PrecomputedAggregateIterator final : public RowIterator {
     and so on.
    */
   JOIN *m_join = nullptr;
+};
+
+enum class JoinType { INNER, OUTER };
+
+/**
+  A simple nested loop join, taking in two iterators (left/outer and
+  right/inner) and joining them together. This may, of course, scan the inner
+  iterator many times. It is currently the only form of join we have.
+
+  The iterator works as a state machine, where the state records whether we need
+  to read a new outer row or not, and whether we've seen any rows from the inner
+  iterator at all (if not, an outer join need to synthesize a new NULL row).
+
+  The iterator takes care of activating performance schema batch mode on the
+  right iterator if needed; this is typically only used if it is the innermost
+  table in the entire join (where the gains from turning on batch mode is the
+  largest, and the accuracy loss from turning it off are the least critical).
+ */
+class NestedLoopIterator final : public RowIterator {
+ public:
+  NestedLoopIterator(THD *thd,
+                     unique_ptr_destroy_only<RowIterator> source_outer,
+                     unique_ptr_destroy_only<RowIterator> source_inner,
+                     JoinType join_type, bool pfs_batch_mode)
+      : RowIterator(thd),
+        m_source_outer(move(source_outer)),
+        m_source_inner(move(source_inner)),
+        m_join_type(join_type),
+        m_pfs_batch_mode(pfs_batch_mode) {
+    DBUG_ASSERT(m_source_outer != nullptr);
+    DBUG_ASSERT(m_source_inner != nullptr);
+  }
+
+  bool Init() override;
+
+  int Read() override;
+
+  void SetNullRowFlag(bool is_null_row) override {
+    // TODO: write something here about why we can't do this lazily.
+    m_source_outer->SetNullRowFlag(is_null_row);
+    m_source_inner->SetNullRowFlag(is_null_row);
+  }
+
+  void UnlockRow() override {
+    // Since we don't know which condition that caused the row to be rejected,
+    // we can't know whether we could also unlock the outer row
+    // (it may still be used as parts of other joined rows).
+    if (m_state == READING_FIRST_INNER_ROW || m_state == READING_INNER_ROWS) {
+      m_source_inner->UnlockRow();
+    }
+  }
+
+  std::string DebugString() const override;
+
+  std::vector<RowIterator *> children() const override {
+    return std::vector<RowIterator *>{m_source_outer.get(),
+                                      m_source_inner.get()};
+  }
+
+ private:
+  enum {
+    NEEDS_OUTER_ROW,
+    READING_FIRST_INNER_ROW,
+    READING_INNER_ROWS,
+    END_OF_ROWS
+  } m_state;
+
+  unique_ptr_destroy_only<RowIterator> const m_source_outer;
+  unique_ptr_destroy_only<RowIterator> const m_source_inner;
+  const JoinType m_join_type;
+
+  /** Whether to use batch mode when scanning the inner iterator. */
+  const bool m_pfs_batch_mode;
 };
 
 #endif  // SQL_COMPOSITE_ITERATORS_INCLUDED
