@@ -1368,6 +1368,9 @@ public:
       LES_EXEC_LOG_INVALIDATE = 10
     };
 
+    Uint64 m_total_written_words;
+    Uint64 m_last_total_written_words;
+
     /**
      *       Is a CONTINUEB(ZLOG_LQHKEYREQ) signal sent and
      *       outstanding. We do not want several instances of this
@@ -2828,7 +2831,9 @@ private:
   void startTimeSupervision(Signal* signal);
   void stepAhead(Signal* signal, Uint32 stepAheadWords);
   void systemError(Signal* signal, int line);
-  void writeAbortLog(Signal* signal, const TcConnectionrec*);
+  void writeAbortLog(Signal* signal,
+                     const TcConnectionrec*,
+                     LogPartRecord*);
   void writeCommitLog(Signal* signal,
                       LogPartRecordPtr regLogPartPtr,
                       const TcConnectionrec*);
@@ -2837,7 +2842,9 @@ private:
                               Uint32 pageNo, Uint32 wordWritten);
   void writeDirty(Signal* signal, Uint32 place);
   void writeKey(Signal* signal, const TcConnectionrec*);
-  void writeLogHeader(Signal* signal, const TcConnectionrec*);
+  void writeLogHeader(Signal* signal,
+                      const TcConnectionrec*,
+                      LogPartRecord*);
   void writeLogWord(Signal* signal, Uint32 data);
   void writeLogWords(Signal* signal, const Uint32* data, Uint32 len);
   void writeNextLog(Signal* signal);
@@ -3060,8 +3067,12 @@ public:
                           Uint64 & memory_used_in_bytes,
                           Uint32 & max_page_cnt);
   Uint32 get_current_local_lcp_id(void);
-  void get_redo_size(Uint64 &size_in_bytes);
-  void get_redo_usage(Uint64 &used_in_bytes);
+  void get_redo_stats(Uint64 &used_in_mbytes,
+                      Uint64 &size_in_mbytes,
+                      Uint64 &written_since_last_in_mbytes,
+                      Uint64 &updates,
+                      Uint64 &inserts,
+                      Uint64 &deletes);
 
 private:
   bool validate_filter(Signal*);

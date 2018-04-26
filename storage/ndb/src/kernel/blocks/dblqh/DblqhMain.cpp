@@ -468,7 +468,7 @@ void Dblqh::execCONTINUEB(Signal* signal)
       break;
     case TcConnectionrec::LOG_ABORT_QUEUED:
       jam();
-      writeAbortLog(signal, tcConnectptr.p);
+      writeAbortLog(signal, tcConnectptr.p, logPartPtr.p);
       removeLogTcrec(signal, tcConnectptr);
       continueAfterLogAbortWriteLab(signal, tcConnectptr);
       break;
@@ -7809,7 +7809,7 @@ queueop:
 /* -------------------------------------------------- */
 /*       WRITE THE LOG HEADER OF THIS OPERATION.      */
 /* -------------------------------------------------- */
-  writeLogHeader(signal, tcConnectptr.p);
+  writeLogHeader(signal, tcConnectptr.p, regLogPartPtr);
 /* -------------------------------------------------- */
 /*       WRITE THE TUPLE KEY OF THIS OPERATION.       */
 /* -------------------------------------------------- */
@@ -8392,15 +8392,17 @@ void Dblqh::checkNewMbyte(Signal* signal, const TcConnectionrec* regTcPtr)
  *       SUBROUTINE SHORT NAME: WLH
  * ------------------------------------------------------------------------- */
 void Dblqh::writeLogHeader(Signal* signal,
-                           const TcConnectionrec* regTcPtr)
+                           const TcConnectionrec* regTcPtr,
+                           LogPartRecord* regLogPartPtr)
 {
-  Uint32 logPos = logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX];
-  Uint32 hashValue = regTcPtr->hashValue;
-  Uint32 operation = regTcPtr->operation;
   Uint32 keyLen = regTcPtr->primKeyLen;
   Uint32 aiLen = regTcPtr->currTupAiLen;
   Local_key rowid = regTcPtr->m_row_id;
   Uint32 totLogLen = ZLOG_HEAD_SIZE + aiLen + keyLen;
+  Uint32 logPos = logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX];
+  Uint32 hashValue = regTcPtr->hashValue;
+  Uint32 operation = regTcPtr->operation;
+  regLogPartPtr->m_total_written_words += totLogLen;
   
   if ((logPos + ZLOG_HEAD_SIZE) < ZPAGE_SIZE) {
     Uint32* dataPtr = &logPagePtr.p->logPageWord[logPos];
@@ -10478,7 +10480,7 @@ void Dblqh::continueAbortLab(Signal* signal,
       regTcPtr->transactionState = TcConnectionrec::LOG_ABORT_QUEUED;
       return;
     }//if
-    writeAbortLog(signal, tcConnectptr.p);
+    writeAbortLog(signal, tcConnectptr.p, logPartPtr.p);
     removeLogTcrec(signal, tcConnectptr);
   } else if (regTcPtr->logWriteState == TcConnectionrec::NOT_STARTED) {
     jam();
@@ -26224,6 +26226,8 @@ void Dblqh::initGciInLogFileRec(Signal* signal, Uint32 noFdDescriptors)
  * ========================================================================= */
 void Dblqh::initLogpart(Signal* signal) 
 {
+  logPartPtr.p->m_total_written_words = Uint64(0);
+  logPartPtr.p->m_last_total_written_words = Uint64(0);
   logPartPtr.p->execSrLogPage = RNIL;
   logPartPtr.p->execSrLogPageIndex = ZNIL;
   logPartPtr.p->execSrExecuteIndex = 0;
@@ -27267,13 +27271,16 @@ void Dblqh::stepAhead(Signal* signal, Uint32 stepAheadWords)
  *
  *       SUBROUTINE SHORT NAME: WAL
  * ------------------------------------------------------------------------- */
-void Dblqh::writeAbortLog(Signal* signal, const TcConnectionrec* regTcPtr)
+void Dblqh::writeAbortLog(Signal* signal,
+                          const TcConnectionrec* regTcPtr,
+                          LogPartRecord *regLogPartPtr)
 {
   if ((ZABORT_LOG_SIZE + ZNEXT_LOG_SIZE) > 
       logFilePtr.p->remainingWordsInMbyte) {
     jam();
     changeMbyte(signal);
   }//if
+  regLogPartPtr->m_total_written_words += ZABORT_LOG_SIZE;
   logFilePtr.p->remainingWordsInMbyte = 
     logFilePtr.p->remainingWordsInMbyte - ZABORT_LOG_SIZE;
   writeLogWord(signal, ZABORT_TYPE);
@@ -27315,6 +27322,7 @@ void Dblqh::writeCommitLog(Signal* signal,
   Uint32 pageIndex = regTcPtr->logStartPageIndex;
   Uint32 stopPageNo = regTcPtr->logStopPageNo;
   Uint32 gci = regTcPtr->gci_hi;
+  regLogPartPtr.p->m_total_written_words += ZCOMMIT_LOG_SIZE;
   logFilePtr.p->remainingWordsInMbyte = twclTmp - ZCOMMIT_LOG_SIZE;
 
   if ((twclLogPos + ZCOMMIT_LOG_SIZE) >= ZPAGE_SIZE) {
@@ -27397,6 +27405,7 @@ void Dblqh::writeCompletedGciLog(Signal* signal)
 
   writeLogWord(signal, ZCOMPLETED_GCI_TYPE);
   writeLogWord(signal, cnewestCompletedGci);
+  logPartPtr.p->m_total_written_words += ZCOMPLETED_GCI_LOG_SIZE;
   logPartPtr.p->logPartNewestCompletedGCI = cnewestCompletedGci;
 }//Dblqh::writeCompletedGciLog()
 
@@ -29018,9 +29027,25 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
   }
 }//Dblqh::execDUMP_STATE_ORD()
 
-void Dblqh::get_redo_size(Uint64 & size_in_bytes)
+void Dblqh::get_redo_stats(Uint64 &usage_in_mbytes,
+                           Uint64 &size_in_mbytes,
+                           Uint64 &written_since_last_in_bytes,
+                           Uint64& update_size,
+                           Uint64& insert_size,
+                           Uint64& delete_size)
 {
-  size_in_bytes = 0;
+  /**
+   * This method assumes that all log parts have the same size.
+   * It reports the total written number of bytes in all parts.
+   * It reports the size of one part and it reports the usage
+   * level on the part with most Mbytes used.
+   */
+  size_in_mbytes = 0;
+  usage_in_mbytes = 0;
+  written_since_last_in_bytes = 0;
+  update_size = m_update_size;
+  insert_size = m_insert_size;
+  delete_size = m_delete_size;
   for (Uint32 logpart = 0;
        logpart < clogPartFileSize;
        logpart++)
@@ -29030,22 +29055,9 @@ void Dblqh::get_redo_size(Uint64 & size_in_bytes)
     ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
 
     Uint64 total_mbyte = Uint64(logPartPtr.p->noLogFiles) *
-                         Uint64(clogFileSize);
+                           Uint64(clogFileSize);
     jamLine(total_mbyte);
-    size_in_bytes += total_mbyte * Uint64(1024) * Uint64(1024);
-  }
-}
-
-void Dblqh::get_redo_usage(Uint64 & used_in_bytes)
-{
-  used_in_bytes = 0;
-  for (Uint32 logpart = 0;
-       logpart < clogPartFileSize;
-       logpart++)
-  {
-    jam();
-    logPartPtr.i = logpart;
-    ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
+    size_in_mbytes = total_mbyte;
 
     LogFileRecordPtr logFilePtr;
     logFilePtr.i = logPartPtr.p->currentLogfile;
@@ -29054,15 +29066,22 @@ void Dblqh::get_redo_usage(Uint64 & used_in_bytes)
     LogPosition head = { logFilePtr.p->fileNo, logFilePtr.p->currentMbyte };
     LogPosition tail = { logPartPtr.p->logTailFileNo,
                        logPartPtr.p->logTailMbyte };
-    Uint64 total_mbyte = Uint64(logPartPtr.p->noLogFiles) *
-                         Uint64(clogFileSize);
     Uint64 mbyte_free = free_log(head,
                                  tail,
                                  logPartPtr.p->noLogFiles,
                                  clogFileSize);
     ndbrequire(total_mbyte >= mbyte_free);
     Uint64 mbyte_used = total_mbyte - mbyte_free;
-    used_in_bytes = mbyte_used * Uint64(1024) * Uint64(1024);
+    Uint64 last_written = logPartPtr.p->m_last_total_written_words;
+    Uint64 current_written = logPartPtr.p->m_total_written_words;
+    logPartPtr.p->m_last_total_written_words = current_written;
+    Uint64 written_in_bytes = 4 * (current_written - last_written);
+    written_since_last_in_bytes += written_in_bytes;
+    if (mbyte_used > usage_in_mbytes)
+    {
+      jam();
+      usage_in_mbytes = mbyte_used;
+    }
   }
 }
 
