@@ -1972,18 +1972,6 @@ let $message= . Here comes a very very long message that
 --source include/show_msg80.inc
 
 #
-# Test --enable_parsing / disable_parsing
-#
---disable_query_log
---disable_parsing
-# The following will not enable query logging
---enable_query_log
-select "this will not be executed";
---enable_parsing
-select "this will be executed";
---enable_query_log
-
-#
 # Test zero length result file. Should not pass
 #
 --exec echo '' > $MYSQLTEST_VARDIR/tmp/zero_length_file.result
@@ -4121,3 +4109,98 @@ EOF
 # Print the value of environment variable storing number of CPUs
 --replace_result $NUMBER_OF_CPUS NUMBER_OF_CPUS
 --eval SELECT $NUMBER_OF_CPUS
+
+--echo #
+--echo # WL#11811: Rename and enhance [disable|enable]_parser test commands
+--echo #
+
+--disable_query_log
+--disable_testcase BUG#0000
+# Since the test case is already disabled, the following will not
+# enable query logging
+--enable_query_log
+SELECT "this will not be executed" AS not_executed;
+--enable_testcase
+SELECT "this will be executed" AS executed;
+--enable_query_log
+
+# Bug number argument should follow BUG#XXXX format, where "BUG" keyword
+# is case-insensitive and  "XXXX" should contain only digits.
+--disable_testcase Bug#0000
+--enable_query_log
+SELECT "this will not be executed" AS not_executed;
+--enable_testcase
+SELECT "this will be executed" AS executed;
+
+--disable_testcase bug#0000
+--enable_query_log
+SELECT "this will not be executed" AS not_executed;
+--enable_testcase
+SELECT "this will be executed" AS executed;
+
+# Invalid scenarios
+# Invalid bug number format 'BUGG#0000'
+--write_file $MYSQLTEST_VARDIR/tmp/wl11811.test
+--disable_testcase BUGG#0000
+SELECT 1 AS res;
+--enable_testcase
+EOF
+
+--error 1
+--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/wl11811.test 2>&1
+--remove_file $MYSQLTEST_VARDIR/tmp/wl11811.test
+
+# Invalid bug number format 'BUG#A00A'
+--write_file $MYSQLTEST_VARDIR/tmp/wl11811.test
+--disable_testcase BUG#A00A
+SELECT 1 AS res;
+--enable_testcase
+EOF
+
+--error 1
+--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/wl11811.test 2>&1
+--remove_file $MYSQLTEST_VARDIR/tmp/wl11811.test
+
+# Invalid bug number format 'BUG#AAAA'
+--write_file $MYSQLTEST_VARDIR/tmp/wl11811.test
+--disable_testcase BUG#AAAA
+SELECT 1 AS res;
+--enable_testcase
+EOF
+
+--error 1
+--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/wl11811.test 2>&1
+--remove_file $MYSQLTEST_VARDIR/tmp/wl11811.test
+
+# Test case is already disabled
+--write_file $MYSQLTEST_VARDIR/tmp/wl11811.test
+--disable_testcase BUG#0000
+SELECT 1 AS res;
+--disable_testcase BUG#0000
+EOF
+
+--error 1
+--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/wl11811.test 2>&1
+--remove_file $MYSQLTEST_VARDIR/tmp/wl11811.test
+
+# Test case is already enabled
+--write_file $MYSQLTEST_VARDIR/tmp/wl11811.test
+--disable_testcase BUG#0000
+SELECT 1 AS res;
+--enable_testcase
+--enable_testcase
+EOF
+
+--error 1
+--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/wl11811.test 2>&1
+--remove_file $MYSQLTEST_VARDIR/tmp/wl11811.test
+
+# Test ends with test case execution disabled
+--write_file $MYSQLTEST_VARDIR/tmp/wl11811.test
+--disable_testcase BUG#0000
+SELECT 1 AS res;
+EOF
+
+--error 1
+--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/wl11811.test 2>&1
+--remove_file $MYSQLTEST_VARDIR/tmp/wl11811.test

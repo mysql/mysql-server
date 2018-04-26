@@ -20,7 +20,7 @@
 --echo CAST() function"
 --echo
 
---disable_parsing
+--disable_testcase BUG#30581
 
 --echo
 --echo #========================================================================
@@ -166,4 +166,4 @@ eval SELECT COUNT(*) = 1 FROM t1 WHERE f_char2 IS NULL;
 DROP TABLE t1;
 #
 
---enable_parsing
+--enable_testcase

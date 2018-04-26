@@ -646,8 +646,6 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 --------------------------------------------------------------------------------
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-this will be executed
-this will be executed
 mysqltest: The test didn't produce any output
 Failing multi statement query
 mysqltest: At line 3: Query 'create table t1 (a int primary key);
@@ -1606,40 +1604,57 @@ mysqltest: At line 1: Invalid value '5abc' for retry argument given to copy_file
 mysqltest: At line 1: Invalid value '-5' for retry argument given to copy_file command.
 mysqltest: At line 1: Invalid value '?' for retry argument given to copy_file command.
 mysqltest: At line 1: Invalid value 'abcd' for retry argument given to copy_file command.
-Retry value is out of range. mysqltest: At line 1: Invalid value '2147483648' for retry argument given to copy_file command.
+Interger value '2147483648' is out of range. mysqltest: At line 1: Invalid value '2147483648' for retry argument given to copy_file command.
 # Test the retry argument for copy_files_wildcard
 mysqltest: At line 1: Invalid value '1oo1' for retry argument given to copy_files_wildcard command.
 mysqltest: At line 1: Invalid value 'abcd' for retry argument given to copy_files_wildcard command.
 mysqltest: At line 1: Invalid value ':' for retry argument given to copy_files_wildcard command.
 mysqltest: At line 1: Invalid value '-12' for retry argument given to copy_files_wildcard command.
-Retry value is out of range. mysqltest: At line 1: Invalid value '2147483648000' for retry argument given to copy_files_wildcard command.
+Interger value '2147483648000' is out of range. mysqltest: At line 1: Invalid value '2147483648000' for retry argument given to copy_files_wildcard command.
 # Test the retry argument for move_file command
 mysqltest: At line 1: Invalid value '11a' for retry argument given to move_file command.
 mysqltest: At line 1: Invalid value 'aabb' for retry argument given to move_file command.
 mysqltest: At line 1: Invalid value '-1' for retry argument given to move_file command.
 mysqltest: At line 1: Invalid value '??' for retry argument given to move_file command.
-Retry value is out of range. mysqltest: At line 1: Invalid value '21474836489' for retry argument given to move_file command.
+Interger value '21474836489' is out of range. mysqltest: At line 1: Invalid value '21474836489' for retry argument given to move_file command.
 # Test the retry argument for file_exists command
 mysqltest: At line 1: Invalid value 'a10a' for retry argument given to file_exists command.
 mysqltest: At line 1: Invalid value 'ghghg' for retry argument given to file_exists command.
 mysqltest: At line 1: Invalid value '-5' for retry argument given to file_exists command.
 mysqltest: At line 1: Invalid value '!' for retry argument given to file_exists command.
-Retry value is out of range. mysqltest: At line 1: Invalid value '21474836487' for retry argument given to file_exists command.
+Interger value '21474836487' is out of range. mysqltest: At line 1: Invalid value '21474836487' for retry argument given to file_exists command.
 # Test the retry argument for remove_files_wildcard command
 mysqltest: At line 1: Invalid value 'blah' for retry argument given to remove_files_wildcard command.
 mysqltest: At line 1: Invalid value '-8' for retry argument given to remove_files_wildcard command.
 mysqltest: At line 1: Invalid value 'oo7' for retry argument given to remove_files_wildcard command.
 mysqltest: At line 1: Invalid value '?1' for retry argument given to remove_files_wildcard command.
-Retry value is out of range. mysqltest: At line 1: Invalid value '21474836480' for retry argument given to remove_files_wildcard command.
+Interger value '21474836480' is out of range. mysqltest: At line 1: Invalid value '21474836480' for retry argument given to remove_files_wildcard command.
 # Test invalid values of retry for remove_file command
 mysqltest: At line 1: Invalid value 'xyz' for retry argument given to remove_file command.
 mysqltest: At line 1: Invalid value '-10' for retry argument given to remove_file command.
 mysqltest: At line 1: Invalid value 'll11' for retry argument given to remove_file command.
 mysqltest: At line 1: Invalid value '?1?' for retry argument given to remove_file command.
-Retry value is out of range. mysqltest: At line 1: Invalid value '2147483648' for retry argument given to remove_file command.
+Interger value '2147483648' is out of range. mysqltest: At line 1: Invalid value '2147483648' for retry argument given to remove_file command.
 #
 # BUG#27136445: MTR: EXPORT AND USE # OF AVAILABLE CPUS IN TESTS
 #
 SELECT NUMBER_OF_CPUS;
 NUMBER_OF_CPUS
 NUMBER_OF_CPUS
+#
+# WL#11811: Rename and enhance [disable|enable]_parser test commands
+#
+executed
+this will be executed
+SELECT "this will be executed" AS executed;
+executed
+this will be executed
+SELECT "this will be executed" AS executed;
+executed
+this will be executed
+mysqltest: At line 1: Bug number mentioned in 'disable_testcase BUGG#0000' command is not in a correct format. It should be 'BUG#XXXX', where keyword 'BUG' is case-insensitive and 'XXXX' should contain only digits.
+mysqltest: At line 1: Bug number mentioned in 'disable_testcase BUG#A00A' command is not in a correct format. It should be 'BUG#XXXX', where keyword 'BUG' is case-insensitive and 'XXXX' should contain only digits.
+mysqltest: At line 1: Bug number mentioned in 'disable_testcase BUG#AAAA' command is not in a correct format. It should be 'BUG#XXXX', where keyword 'BUG' is case-insensitive and 'XXXX' should contain only digits.
+mysqltest: At line 3: Test case is already disabled.
+mysqltest: At line 4: Test case is already enabled.
+mysqltest: Test ended with test case execution disabled.

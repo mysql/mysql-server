@@ -38,7 +38,7 @@ let $con1_thread_id= `SELECT @my_thread_id`;
 SET SESSION AUTOCOMMIT= 0;
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ WRITE;
 
---disable_parsing
+--disable_testcase BUG#0000
 --echo
 --echo # Connection 2
 --echo
@@ -49,7 +49,7 @@ let $con2_thread_id= `SELECT @my_thread_id`;
 --enable_query_log
 SET SESSION AUTOCOMMIT= 0;
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ WRITE;
---enable_parsing
+--enable_testcase
 
 --connection default
 --disable_query_log
@@ -693,7 +693,7 @@ UPDATE t1, performance_schema.setup_instruments pfs
 CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'ROLLED BACK', 0, '', '', '', '', '', '', 'YES', 0, 0, 0, 1);
 CALL clear_history();
 
---disable_parsing
+--disable_testcase BUG#0000
 # TODO: Add wait timer 
 --echo
 --echo #
@@ -720,7 +720,7 @@ CALL transaction_verifier(0, @con2_thread_id, '', '', 0, '', '', '', '', '', '',
 CALL transaction_verifier(1, @con2_thread_id, '', '', 0, '', '', '', '', '', '', '', 0, 0, 0, 0);
 CALL clear_transaction_tables();
 
---enable_parsing
+--enable_testcase
 
 --echo
 --echo ========================================================================

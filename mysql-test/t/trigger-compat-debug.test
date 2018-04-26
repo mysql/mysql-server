@@ -1,9 +1,9 @@
 # Need debug server do enable updating mysql.triggers. The stuff before that
-# section in the test below is in a --disable_parsing/--enable_parsing block,
+# section in the test below is in a --disable_testcase/--enable_testcase block,
 # so we can require debug for the entire test without splitting it.
 --source include/have_debug.inc
 
---disable_parsing
+--disable_testcase BUG#0000
 # Since in the new DD the column mysql.trigger.definer is defined as NOT NULL
 # it is impossible to create a trigger with undefined definer value.
 # Therefore, the following test doesn't make sense for new DD and it is disabled.
@@ -116,7 +116,7 @@ DROP DATABASE mysqltest_db1;
 USE test;
 
 ## Here we re-enable parsing the rest of the file
---enable_parsing
+--enable_testcase
 
 --echo #
 --echo # Bug#45235: 5.1 does not support 5.0-only syntax triggers in any way
@@ -140,7 +140,7 @@ INSERT INTO t3 VALUES (1), (2), (3);
 # stored in the new DD. This task is out of scope for the WL#7896.
 # Therefore the following test is commented out.
 
---disable_parsing
+--disable_testcase BUG#0000
 
 --echo # We simulate importing a trigger from 5.0 by writing a .TRN file for
 --echo # each trigger plus a .TRG file the way MySQL 5.0 would have done it, 
@@ -194,7 +194,7 @@ EOF
 FLUSH TABLE t1;
 FLUSH TABLE t2;
 
---enable_parsing
+--enable_testcase
 
 # What we have to test is a fact that triggers with body that has syntax allowed
 # in 5.0 only can be handled in the same way as it was in 5.7, that is it produces

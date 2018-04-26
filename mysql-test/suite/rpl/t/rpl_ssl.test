@@ -63,7 +63,7 @@ disable_result_log;
 # 2007-11-27 mats Bug #32756  	Starting and stopping the slave in a loop can lose rows
 # After discussions with Engineering, I'm disabling this part of the test to avoid it causing
 # red trees.
-disable_parsing;
+disable_testcase BUG#32756;
 let $i= 100;
 while ($i)
 {
@@ -76,7 +76,7 @@ while ($i)
   stop slave;
   dec $i;
 }
-enable_parsing;
+enable_testcase;
 START SLAVE;
 enable_query_log;
 enable_result_log;

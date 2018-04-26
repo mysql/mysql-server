@@ -84,14 +84,11 @@ create table t1(a int, b varchar(255), c int);
 --exec $MYSQL test -e "desc t1\g"
 drop table t1;
 
---disable_parsing
 #
 # Bug#21042  	mysql client segfaults on importing a mysqldump export
 #
 --error 1
 --exec $MYSQL test -e "connect verylongdatabasenamethatshouldblowthe256byteslongbufferincom_connectfunctionxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxendcccccccdxxxxxxxxxxxxxxxxxkskskskskkskskskskskskskskskskkskskskskkskskskskskskskskskend" 2>&1
---enable_parsing
-
 
 #
 # Bug #20432: mysql client interprets commands in comments

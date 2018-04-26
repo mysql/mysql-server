@@ -192,7 +192,7 @@ static bool opt_trace_protocol = 0, opt_trace_protocol_enabled = 0;
 static bool explain_protocol = 0, explain_protocol_enabled = 0;
 static bool json_explain_protocol = 0, json_explain_protocol_enabled = 0;
 static bool cursor_protocol = 0, cursor_protocol_enabled = 0;
-static bool parsing_disabled = 0;
+static bool testcase_disabled = 0;
 static bool display_result_vertically = false, display_result_lower = false,
             display_metadata = false, display_result_sorted = false,
             display_session_track_info = false;
@@ -456,8 +456,8 @@ enum enum_commands {
   Q_DISABLE_RECONNECT,
   Q_ENABLE_RECONNECT,
   Q_IF,
-  Q_DISABLE_PARSING,
-  Q_ENABLE_PARSING,
+  Q_DISABLE_TESTCASE,
+  Q_ENABLE_TESTCASE,
   Q_REPLACE_REGEX,
   Q_REPLACE_NUMERIC_ROUND,
   Q_REMOVE_FILE,
@@ -515,7 +515,7 @@ const char *command_names[] = {
     "query_vertical", "query_horizontal", "sorted_result", "lowercase_result",
     "start_timer", "end_timer", "character_set", "disable_ps_protocol",
     "enable_ps_protocol", "disable_reconnect", "enable_reconnect", "if",
-    "disable_parsing", "enable_parsing", "replace_regex",
+    "disable_testcase", "enable_testcase", "replace_regex",
     "replace_numeric_round", "remove_file", "file_exists", "write_file",
     "copy_file", "perl", "die",
 
@@ -1135,7 +1135,7 @@ void handle_error(struct st_command *command, unsigned int err_errno,
     die("Query '%s' failed.\nERROR %d (%s): %s", command->query, err_errno,
         err_sqlstate, err_error);
 
-  DBUG_PRINT("info", ("Expected errors count: %d", expected_errors->count()));
+  DBUG_PRINT("info", ("Expected errors count: %zu", expected_errors->count()));
 
   int i = match_expected_error(command, err_errno, err_sqlstate);
 
@@ -1161,7 +1161,7 @@ void handle_error(struct st_command *command, unsigned int err_errno,
   }
 
   DBUG_PRINT("info",
-             ("i: %d Expected errors count: %d", i, expected_errors->count()));
+             ("i: %d Expected errors count: %zu", i, expected_errors->count()));
 
   if (!disable_result_log) {
     dynstr_append_mem(ds, "ERROR ", 6);
@@ -3021,27 +3021,29 @@ static void do_exec(struct st_command *command, bool run_in_background) {
 
 enum enum_operator { DO_DEC, DO_INC };
 
-/// Uses strtol function to get the integer value from a string.
+/// Use stoi function to get the integer value from a string.
 ///
-/// @param ds_retry Dynamic string which may contain an integer
-///                 or an alphanumeric string.
+/// @param str String which may contain an integer or an alphanumeric
+///            string.
 ///
 /// @retval Integer value corresponding to the contents of the string,
 ///         if conversion is successful, or -1 if integer is out of
 ///         range, or if the conversion fails.
-static int get_int_val(DYNAMIC_STRING *ds_retry) {
-  int retry;
+static int get_int_val(const char *str) {
+  int value;
   size_t size;
+
   try {
-    retry = std::stoi(ds_retry->str, &size, 10);
-    if (size != ds_retry->length) retry = -1;
+    value = std::stoi(str, &size, 10);
+    if (size != std::strlen(str)) value = -1;
   } catch (const std::out_of_range &) {
-    fprintf(stderr, "Retry value is out of range. ");
-    retry = -1;
+    fprintf(stderr, "Interger value '%s' is out of range. ", str);
+    value = -1;
   } catch (const std::invalid_argument &) {
-    retry = -1;
+    value = -1;
   }
-  return retry;
+
+  return value;
 }
 
 /// Template function that frees memory of the dynamic string
@@ -3131,7 +3133,7 @@ static void do_remove_file(struct st_command *command) {
   // Check if the retry value is passed, and if it is an integer
   int retry = 0;
   if (ds_retry.length) {
-    retry = get_int_val(&ds_retry);
+    retry = get_int_val(ds_retry.str);
     if (retry < 0) {
       // In case of invalid retry, copy the value passed to print later
       char buf[32];
@@ -3191,7 +3193,7 @@ static void do_remove_files_wildcard(struct st_command *command) {
   // Check if the retry value is passed, and if it is an interger
   int retry = 0;
   if (ds_retry.length) {
-    retry = get_int_val(&ds_retry);
+    retry = get_int_val(ds_retry.str);
     if (retry < 0) {
       // In case of invalid retry, copy the value passed to print later
       char buf[32];
@@ -3278,7 +3280,7 @@ static void do_copy_file(struct st_command *command) {
   // Check if the retry value is passed, and if it is an interger
   int retry = 0;
   if (ds_retry.length) {
-    retry = get_int_val(&ds_retry);
+    retry = get_int_val(ds_retry.str);
     if (retry < 0) {
       // In case of invalid retry, copy the value passed to print later
       char buf[32];
@@ -3529,7 +3531,7 @@ static void do_copy_files_wildcard(struct st_command *command) {
   // Check if the retry value is passed, and if it is an integer
   int retry = 0;
   if (ds_retry.length) {
-    retry = get_int_val(&ds_retry);
+    retry = get_int_val(ds_retry.str);
     if (retry < 0) {
       // In case of invalid retry, copy the value passed to print later
       char buf[32];
@@ -3680,7 +3682,7 @@ static void do_move_file(struct st_command *command) {
   // Check if the retry value is passed, and if it is an interger
   int retry = 0;
   if (ds_retry.length) {
-    retry = get_int_val(&ds_retry);
+    retry = get_int_val(ds_retry.str);
     if (retry < 0) {
       // In case of invalid retry, copy the value passed to print later
       char buf[32];
@@ -3782,7 +3784,7 @@ static void do_file_exist(struct st_command *command) {
   // Check if the retry value is passed, and if it is an interger
   int retry = 0;
   if (ds_retry.length) {
-    retry = get_int_val(&ds_retry);
+    retry = get_int_val(ds_retry.str);
     if (retry < 0) {
       // In case of invalid retry, copy the value passed to print later
       char buf[32];
@@ -5133,6 +5135,75 @@ static void do_set_charset(struct st_command *command) {
     abort_not_supported_test("Test requires charset '%s'", charset_name);
 }
 
+/// Check if the bug number argument to disable_testcase is in a proper
+/// format.
+///
+/// Bug number argument should follow 'BUG#XXXX' format
+///
+///   - Keyword 'BUG" is case-insensitive
+///   - XXXX should contain only digits
+///
+/// @param bug_number String representing a bug number
+///
+/// @retval True if the bug number argument is in correct format, false
+///         otherwise.
+static bool validate_bug_number_argument(std::string bug_number) {
+  // Convert the string to lowercase characters
+  std::transform(bug_number.begin(), bug_number.end(), bug_number.begin(),
+                 ::tolower);
+
+  // Check if string representing a bug number starts 'BUG' keyword.
+  // Note: This keyword is case-inseinsitive.
+  if (bug_number.substr(0, 3).compare("bug") != 0) return false;
+
+  // Check if the string contains '#' after 'BUG' keyword
+  if (bug_number.at(3) != '#') return false;
+
+  // Check if the bug number string contains only digits after '#'
+  if (get_int_val(bug_number.substr(4).c_str()) == -1) return false;
+
+  return true;
+}
+
+/// Disable or don't execute the statements or commands appear after
+/// this command until the execution is enabled by 'enable_testcase'
+/// command. If test cases are already disabled, then throw an error
+/// and abort the test execution.
+///
+/// This command also takes a mandatory parameter specifying the bug
+/// number.
+///
+/// @code
+/// --disable_testcase BUG#XXXX
+/// statements or commands
+/// --enable_testcase
+/// @endcode
+///
+/// @param command Pointer to the st_command structure which holds the
+///                arguments and information for the command.
+static void do_disable_testcase(struct st_command *command) {
+  DYNAMIC_STRING ds_bug_number;
+  const struct command_arg disable_testcase_args[] = {
+      {"Bug number", ARG_STRING, true, &ds_bug_number, "Bug number"}};
+
+  check_command_args(command, command->first_argument, disable_testcase_args,
+                     sizeof(disable_testcase_args) / sizeof(struct command_arg),
+                     ' ');
+
+  /// Check if the bug number argument to disable_testcase is in a
+  /// proper format.
+  if (validate_bug_number_argument(ds_bug_number.str) == 0) {
+    free_dynamic_strings(&ds_bug_number);
+    die("Bug number mentioned in '%s' command is not in a correct format. "
+        "It should be 'BUG#XXXX', where keyword 'BUG' is case-insensitive "
+        "and 'XXXX' should contain only digits.",
+        command->query);
+  }
+
+  testcase_disabled = 1;
+  free_dynamic_strings(&ds_bug_number);
+}
+
 /*
   Run query and return one field in the result set from the
   first row and <column>
@@ -5517,7 +5588,7 @@ static void do_get_errcodes(struct st_command *command) {
   } while (*p);
 
   command->last_argument = p;
-  DBUG_PRINT("info", ("Expected errors: %d", expected_errors->count()));
+  DBUG_PRINT("info", ("Expected errors: %zu", expected_errors->count()));
   DBUG_VOID_RETURN;
 }
 
@@ -8899,9 +8970,9 @@ int main(int argc, char **argv) {
       // Delete all the error codes from previous 'error' command.
       expected_errors->clear_error_list();
 
-    if (parsing_disabled && command->type != Q_ENABLE_PARSING &&
-        command->type != Q_DISABLE_PARSING) {
-      /* Parsing is disabled, silently convert this line to a comment */
+    if (testcase_disabled && command->type != Q_ENABLE_TESTCASE &&
+        command->type != Q_DISABLE_TESTCASE) {
+      // Test case is disabled, silently convert this line to a comment
       command->type = Q_COMMENT;
     }
 
@@ -9296,21 +9367,19 @@ int main(int argc, char **argv) {
           /* Close any open statements - no reconnect, need new prepare */
           close_statements();
           break;
-        case Q_DISABLE_PARSING:
-          if (parsing_disabled == 0)
-            parsing_disabled = 1;
+        case Q_DISABLE_TESTCASE:
+          if (testcase_disabled == 0)
+            do_disable_testcase(command);
           else
-            die("Parsing is already disabled");
+            die("Test case is already disabled.");
           break;
-        case Q_ENABLE_PARSING:
-          /*
-            Ensure we don't get parsing_disabled < 0 as this would accidentally
-            disable code we don't want to have disabled
-          */
-          if (parsing_disabled == 1)
-            parsing_disabled = 0;
+        case Q_ENABLE_TESTCASE:
+          // Ensure we don't get testcase_disabled < 0 as this would
+          // accidentally disable code we don't want to have disabled.
+          if (testcase_disabled == 1)
+            testcase_disabled = 0;
           else
-            die("Parsing is already enabled");
+            die("Test case is already enabled.");
           break;
         case Q_DIE:
           /* Abort test with error code and error message */
@@ -9426,7 +9495,7 @@ int main(int argc, char **argv) {
   start_lineno = 0;
   verbose_msg("... Done processing test commands.");
 
-  if (parsing_disabled) die("Test ended with parsing disabled");
+  if (testcase_disabled) die("Test ended with test case execution disabled.");
 
   bool empty_result = false;
 

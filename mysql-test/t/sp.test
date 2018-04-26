@@ -2693,7 +2693,8 @@ drop table t3|
 # BUG#4318
 #
 
---disable_parsing # Don't know if HANDLER commands can work with SPs, or at all..
+# Don't know if HANDLER commands can work with SPs, or at all.
+--disable_testcase BUG#0000
 create table t3 (s1 int)|
 insert into t3 values (3), (4)|
 
@@ -2710,7 +2711,7 @@ handler t3 close|
 
 drop procedure bug4318|
 drop table t3|
---enable_parsing
+--enable_testcase
 
 #
 # BUG#4902: Stored procedure with SHOW WARNINGS leads to packet error
@@ -2746,14 +2747,14 @@ begin
   show variables like 'foo';
   show warnings;
 end|
---disable_parsing
+--disable_testcase BUG#0000
 --replace_regex /table_id: [0-9]+/table_id: #/
 show binlog events|
 show storage engines|
 show master status|
 show slave hosts|
 show slave status|
---enable_parsing
+--enable_testcase
 
 call bug4902()|
 call bug4902()|
@@ -2994,7 +2995,8 @@ drop table t3|
 # BUG#6022: Stored procedure shutdown problem with self-calling function.
 #
 
---disable_parsing # until we implement support for recursive stored functions.
+# Until we implement support for recursive stored functions.
+--disable_testcase BUG#0000
 --disable_warnings ONCE
 drop function if exists bug6022|
 
@@ -3011,7 +3013,7 @@ end|
 
 select bug6022(5)|
 drop function bug6022|
---enable_parsing
+--enable_testcase
 
 #
 # BUG#6029: Stored procedure specific handlers should have priority
@@ -9172,13 +9174,13 @@ create procedure bug4902()
 begin
   show grants for 'root'@'localhost';
 end|
---disable_parsing
+--disable_testcase BUG#0000
 show binlog events|
 show storage engines|
 show master status|
 show slave hosts|
 show slave status|
---enable_parsing
+--enable_testcase
 
 call bug4902()|
 call bug4902()|

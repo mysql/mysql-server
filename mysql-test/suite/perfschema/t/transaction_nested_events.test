@@ -337,7 +337,7 @@ DROP TRIGGER trigger_before_update;
 --source ../include/transaction_nested_events_verifier.inc
 
 --echo # TODO: Detect statement events from scheduled event
---disable_parsing
+--disable_testcase BUG#0000
 --echo #========================================================================
 --echo # STEP 6 - SCHEDULED EVENTS
 --echo #========================================================================
@@ -387,7 +387,7 @@ eval SET @all_threads= 1;
 --source ../include/transaction_nested_events_verifier.inc
 eval SET @all_threads= 0;
 
---enable_parsing
+--enable_testcase
 
 --echo #=======================================================================
 --echo # Cleanup

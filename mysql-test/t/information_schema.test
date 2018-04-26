@@ -295,7 +295,8 @@ flush privileges;
 # QQ a LOCK TABLES is in effect when selecting from
 # QQ information_schema.tables.
 
---disable_parsing # until bug is fixed
+# Until bug is fixed
+--disable_testcase BUG#0000
 delimiter //;
 create procedure px5 ()
 begin
@@ -313,7 +314,7 @@ call px5()//
 delimiter ;//
 select sql_mode from information_schema.ROUTINES where ROUTINE_SCHEMA != 'sys';
 drop procedure px5;
---enable_parsing
+--enable_testcase
 
 create table t1 (a int not null auto_increment,b int, primary key (a));
 insert into t1 values (1,1),(NULL,3),(NULL,4);

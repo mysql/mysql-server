@@ -109,7 +109,7 @@ SELECT DISTINCT latin1_f COLLATE koi8r             FROM t1;
 
 # Aggregates
 
---disable_parsing
+--disable_testcase BUG#0000
 SELECT MAX(k COLLATE latin1_german2_ci)
 FROM t1
 WHERE
@@ -120,7 +120,7 @@ HAVING
 SELECT *
 FROM t1 
 HAVING (_latin1'Mu"ller' COLLATE latin1_german2_ci) = k;
---enable_parsing
+--enable_testcase
 
 #
 # Check that SHOW displays COLLATE clause

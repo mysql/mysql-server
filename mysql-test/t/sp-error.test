@@ -1160,7 +1160,7 @@ create trigger bug12712
 #
 # BUG#9367: Stored procedures: client hang after "show warnings"
 #
---disable_parsing
+--disable_testcase BUG#0000
 --disable_warnings ONCE
 drop procedure if exists bug9367;
 create table t1 (s1 int);
@@ -1179,7 +1179,7 @@ delimiter ;|
 call bug9367();
 drop procedure bug9367;
 drop table t1;
---enable_parsing
+--enable_testcase
 
 #
 # BUG#13510: Setting password local variable changes current password

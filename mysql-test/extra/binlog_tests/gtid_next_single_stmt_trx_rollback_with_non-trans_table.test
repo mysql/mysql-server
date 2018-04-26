@@ -163,7 +163,7 @@ DROP DATABASE db2;
 # without breaking backward compatibility with 5.7 for partially
 # executed statements.
 # See also bug #21697422.
---disable_parsing
+--disable_testcase BUG#0000
 # Check-13: Roll back a failed CREATE USER
 --replace_result $master_uuid MASTER_UUID
 --eval SET SESSION GTID_NEXT='$master_uuid:13'
@@ -209,7 +209,7 @@ REVOKE ALL PRIVILEGES ON *.* FROM user2;
 --eval SET SESSION GTID_NEXT='$master_uuid:17'
 --error ER_CANNOT_USER
 DROP USER user2;
---enable_parsing
+--enable_testcase
 
 --let $assert_text= rollback gtid MASTER_UUID:17
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""

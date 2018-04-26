@@ -476,7 +476,7 @@ DELETE FROM t1 WHERE a= 3;
 --echo #
 
 --echo # TODO: Enable this test once WL#5526 is pushed
---disable_parsing
+--disable_testcase BUG#0000
 
 --echo # Connection default
 --connection default
@@ -533,7 +533,7 @@ SET DEBUG_SYNC= 'RESET';
 DELETE FROM t1 WHERE a= 3 OR a= 4;
 
 --echo # TODO: Enable this test once WL#5526 is pushed
---enable_parsing
+--enable_testcase
 
 --echo #
 --echo # 4: In-place + reads and writes blocked.

@@ -837,7 +837,7 @@ drop tables t1, t2;
 # recalculate prelocking set.
 # Unfortunately these tests rely on the order in which tables are locked
 # by statement so they are non determenistic and are disabled.
---disable_parsing
+--disable_testcase BUG#0000
 create table t1 (id int);
 create table t2 (id int);
 create table t3 (id int);
@@ -935,7 +935,7 @@ select * from t3;
 drop function f1;
 drop view v1;
 drop table t1, t2, t3;
---enable_parsing
+--enable_testcase
 
 #
 # Test for bug #13399 "Crash when executing PS/SP which should activate

@@ -318,9 +318,9 @@ connection con1;
 # The below test for SHOW CREATE TABLE is disabled until bug 52593
 # "SHOW CREATE TABLE is blocked if table is locked for write by another
 # connection" is fixed.
---disable_parsing
+--disable_testcase BUG#0000
 show create table t1;
---enable_parsing
+--enable_testcase
 --disable_result_log
 show keys from t1;
 --enable_result_log
@@ -344,7 +344,7 @@ let $restore_table= t2;
 --source include/check_concurrent_insert.inc
 
 # Disabled test due to WL6378_DEBUG_SYNC - see sql/dd/mtr_readme.txt
---disable_parsing
+--disable_testcase BUG#0000
 --echo #
 --echo # 2.2 CREATE TABLE with a subquery.
 --echo #
@@ -359,7 +359,7 @@ let $statement= create table t0 select j from t2 where j in (select i from t1);
 let $restore_table= ;
 --source include/check_no_concurrent_insert.inc
 drop table t0;
---enable_parsing
+--enable_testcase
 
 --echo #
 --echo # 2.3 DELETE with a subquery.
@@ -1126,7 +1126,7 @@ DROP TABLES t1, t2;
 
 
 # Disabled test due to WL6378_DEBUG_SYNC - see sql/dd/mtr_readme.txt
---disable_parsing
+--disable_testcase BUG#0000
 --echo #
 --echo #Bug#18110156: RECREATE+ANALYZE OPTIMIZE TABLE T AND ONLINE 
 --echo #              ALTER TABLE T MAY DEADLOCK
@@ -1176,7 +1176,7 @@ DROP TABLE t1;
 SET DEBUG_SYNC= 'RESET';
 --disconnect con2
 --disconnect con1
---enable_parsing
+--enable_testcase
 
 
 # Check that all connections opened by test cases in this file are really

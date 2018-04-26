@@ -1404,7 +1404,7 @@ DROP TABLE federated.bug_17377_table;
 #
 
 # The following can be enabled when bug #19773 has been fixed
---disable_parsing
+--disable_testcase BUG#19773
 connection slave;
 create table federated.t1 (i1 int, i2 int, i3 int);
 create table federated.t2 (id int, c1 varchar(20), c2 varchar(20));
@@ -1448,7 +1448,7 @@ drop table federated.t1, federated.t2;
 connection slave;
 drop table federated.t1, federated.t2;
 connection master;
---enable_parsing
+--enable_testcase
 
 #
 # BUG #18764: Delete conditions causing inconsistencies in Federated tables

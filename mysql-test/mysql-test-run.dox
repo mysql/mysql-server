@@ -6248,21 +6248,6 @@
     </li>
 
     <li>
-      <tt>disable_parsing</tt>, <tt>enable_parsing</tt>
-
-      Disable or enable query parsing. This setting is enabled by
-      default. When disabled, @ref PAGE_MYSQLTEST "mysqltest" ignores
-      everything until <b>enable_parsing</b>. These commands are
-      useful for "commenting out" a section from a test case without
-      having to add a comment marker to every single line.
-
-      @verbatim
-  --disable_parsing
-  --enable_parsing
-      @endverbatim
-    </li>
-
-    <li>
       <tt>disable_ps_protocol</tt>, <tt>enable_ps_protocol</tt>
 
       Disable or enable prepared-statement protocol. This setting is
@@ -6341,6 +6326,27 @@
       @verbatim
   --disable_session_track_info
   --enable_session_track_info
+      @endverbatim
+    </li>
+
+    <li>
+      <tt>disable_testcase bug_number</tt>, <tt>enable_testcase</tt>
+
+      Disable or enable a section from a test case. This setting is
+      enabled by default. When disabled, @ref PAGE_MYSQLTEST
+      "mysqltest" ignores everything until <b>enable_testcase</b>.
+      These commands are useful for disabling a section inside a
+      <b>.test</b> file that fails due to a known bug, without having
+      to disable the entire test case.
+
+      Bug number is a mandatory argument to <b>disable_testcase</b>
+      command and it should be in <b>BUG\#XXXX</b> format where keyword
+      <b>BUG</b> is case-insensitive and <b>XXXX</b> should contain
+      only digits.
+
+      @verbatim
+  --disable_testcase BUG#XXXX
+  --enable_testcase
       @endverbatim
     </li>
 

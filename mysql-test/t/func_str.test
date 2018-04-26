@@ -307,10 +307,10 @@ select POSITION(_latin1'B' IN _latin2'abcd');
 select FIND_IN_SET(_latin1'B',_latin1'a,b,c,d');
 
 # fix this:
---disable_parsing
+--disable_testcase BUG#0000
 select FIND_IN_SET(_latin1'B',_latin1'a,b,c,d' COLLATE latin1_bin);
 select FIND_IN_SET(_latin1'B' COLLATE latin1_bin,_latin1'a,b,c,d');
---enable_parsing
+--enable_testcase
 
 --error 1267
 select FIND_IN_SET(_latin1'B' COLLATE latin1_general_ci,_latin1'a,b,c,d' COLLATE latin1_bin);
@@ -320,10 +320,10 @@ select FIND_IN_SET(_latin1'B',_latin2'a,b,c,d');
 select SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin1'd',2);
 
 # fix this:
---disable_parsing
+--disable_testcase BUG#0000
 select SUBSTRING_INDEX(_latin1'abcdabcdabcd' COLLATE latin1_bin,_latin1'd',2);
 select SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin1'd' COLLATE latin1_bin,2);
---enable_parsing
+--enable_testcase
 
 --error 1267
 select SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin2'd',2);

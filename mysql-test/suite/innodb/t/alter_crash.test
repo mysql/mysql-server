@@ -16,13 +16,13 @@ call mtr.add_suppression(' Index `c[23]` .*is corrupted');
 --echo #
 
 CREATE TABLE t1(c1 INT PRIMARY KEY, c2 CHAR(1), c3 INT UNSIGNED) ENGINE=InnoDB;
---disable_parsing
+--disable_testcase BUG#0000
 SET DEBUG='+d,ib_create_table_fail_too_many_trx';
 --error ER_TOO_MANY_CONCURRENT_TRXS
 ALTER TABLE t1 ADD INDEX (c2), ADD INDEX (c3);
 
 SET DEBUG='-d,ib_create_table_fail_too_many_trx';
---enable_parsing
+--enable_testcase
 ALTER TABLE t1 ADD INDEX (c2), ADD INDEX (c3);
 # Flag the secondary indexes corrupted.
 SET DEBUG='+d,dict_set_index_corrupted';

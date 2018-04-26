@@ -656,7 +656,7 @@ DROP TABLE t1;
 # Before the fix it should show extra file like #sql-2405_2.par
 --list_files $MYSQLD_DATADIR/test/ *
 
---disable_parsing
+--disable_testcase BUG#0000
 --echo #
 --echo # Bug#47343: InnoDB fails to clean-up after lock wait timeout on
 --echo #            REORGANIZE PARTITION
@@ -711,7 +711,7 @@ SELECT * FROM t1 WHERE i1 = ( SELECT i1 FROM t1 WHERE f1=0 LIMIT 1 );
 
 DROP TABLE t1;
 
---enable_parsing
+--enable_testcase
 
 --echo #
 --echo # Bug#54783: optimize table crashes with invalid timestamp default value and NO_ZERO_DATE

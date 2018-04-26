@@ -86,7 +86,7 @@ class Expected_errors {
   iterator end() { return m_errors.end(); }
 
   /// Returns length of the list containing errors.
-  std::uint8_t count() { return m_errors.size(); }
+  std::size_t count() { return m_errors.size(); }
 
   /// Returns error code of the first error in the list.
   std::uint32_t error_code() { return m_errors[0]->error_code(); }
