@@ -152,8 +152,6 @@ static Uint32 g_TypeOfStart = NodeState::ST_ILLEGAL_TYPE;
 #define NUMBER_OF_SIGNALS_PER_SCAN_BATCH 3
 #define MAX_RAISE_PRIO_MEMORY 16
 
-extern Uint32 compute_acc_32kpages(const ndb_mgm_configuration_iterator *p);
-
 void
 Backup::execSTTOR(Signal* signal) 
 {
@@ -204,16 +202,6 @@ Backup::execSTTOR(Signal* signal)
   if (startphase == 3)
   {
     jam();
-
-    c_lqh->get_redo_size(m_redo_size_in_bytes);
-    /**
-     * Get IndexMemory size to be able to calculate use of DataMemory.
-     */
-    const ndb_mgm_configuration_iterator *p =
-      m_ctx.m_config.getOwnConfigIterator();
-    ndbrequire(p != 0);
-    Uint32 acc_pages = compute_acc_32kpages(p);
-    m_acc_memory_in_bytes = Uint64(acc_pages) * Uint64(sizeof(GlobalPage));
 
     g_TypeOfStart = typeOfStart;
     if (g_TypeOfStart == NodeState::ST_INITIAL_START ||

@@ -920,8 +920,6 @@ public:
   Uint32 m_reset_delay_used;
   NDB_TICKS m_reset_disk_speed_time;
 
-  Uint64 m_acc_memory_in_bytes;
-  Uint64 m_redo_size_in_bytes;
   Uint32 m_curr_lcp_id;
 
   /**
