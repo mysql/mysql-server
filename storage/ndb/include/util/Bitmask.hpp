@@ -79,11 +79,6 @@ public:
    */
   static void clear(unsigned size, Uint32 data[]);
 
-  /**
-   * clear bit from <em>start</em> to <em>last</em>
-   */
-  static void clear_range(unsigned size, Uint32 data[], unsigned start, unsigned last);
-
   static Uint32 getWord(unsigned size, const Uint32 data[], unsigned word_pos);
   static void setWord(unsigned size, Uint32 data[],
                       unsigned word_pos, Uint32 new_word);
@@ -343,34 +338,6 @@ BitmaskImpl::clear(unsigned size, Uint32 data[])
   for (unsigned i = 0; i < size; i++) {
     data[i] = 0;
   }
-}
-
-inline void
-BitmaskImpl::clear_range(unsigned size, Uint32 data[], 
-			 unsigned start, unsigned last)
-{
-  Uint32 *ptr = data + (start >> 5);
-  Uint32 *end =  data + (last >> 5);
-  assert(start <= last);
-  assert(last < (size << 5));
-  
-  Uint32 tmp_word = ~(Uint32)0 << (start & 31);
-
-  if (ptr < end)
-  {
-    * ptr ++ &= ~tmp_word;
-    
-    for(; ptr < end; )
-    {
-      * ptr ++ = 0;
-    }
-    
-    tmp_word = ~(Uint32)0;
-  }
-
-  tmp_word &= ~(~(Uint32)0 << (last & 31));
-
-  * ptr &= ~tmp_word;
 }
 
 inline
