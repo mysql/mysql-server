@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -292,6 +292,11 @@ inline void
 BitmaskImpl::setRange(unsigned size, Uint32 data[],
                       unsigned start, unsigned len)
 {
+  if (len == 0)
+  {
+    return;
+  }
+
   Uint32 last = start + len - 1;
   Uint32 *ptr = data + (start >> 5);
   Uint32 *end =  data + (last >> 5);
@@ -312,7 +317,7 @@ BitmaskImpl::setRange(unsigned size, Uint32 data[],
     tmp_word = ~(Uint32)0;
   }
 
-  tmp_word &= ~(~(Uint32)0 << (last & 31));
+  tmp_word &= ~(~(Uint32)1 << (last & 31));
   
   * ptr |= tmp_word;
 }
