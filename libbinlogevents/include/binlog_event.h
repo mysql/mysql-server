@@ -418,33 +418,6 @@ inline uint32_t checksum_crc32(uint32_t crc, const unsigned char *pos,
 }
 
 /*
-  Reads string from buf.
-
-  Reads str from buf in the following format:
-   1. Read length stored on buf first index, as it only has 1 byte values
-      bigger than 255 where lost.
-   2. Set str pointer to buf second index.
-  Despite str contains the complete stored string, when it is read until
-  len its value will be truncated if original length was bigger than 255.
-
-  @param buf source pointer
-  @param buf_end
-  @param str destination pointer
-  @param len length to which the buffer should be read
-
-  @retval 1 error
-  @retval 0 success
-*/
-inline int read_str_at_most_255_bytes(const char **buf, const char *buf_end,
-                                      const char **str, uint8_t *len) {
-  if (*buf + *buf[0] >= buf_end) return 1;
-  *len = *buf[0];
-  *str = (*buf) + 1;
-  (*buf) += *len + 1;
-  return 0;
-}
-
-/*
   Forward declaration of Format_description_event class to be used in class
   Log_event_header
 */
@@ -843,17 +816,6 @@ class Binary_log_event {
   */
   explicit Binary_log_event(Log_event_type type_code)
       : m_reader(nullptr, 0), m_header(type_code) {}
-
-  /**
-    Note to reviewers: this is the old implementation of Binary_log_event
-    contructor. It will be removed in WL#11567 step 7.
-
-    TODO: Remove this constructor in step 7.
-
-    @param buf              Contains the serialized event
-    @param binlog_version   The binary log format version
-  */
-  Binary_log_event(const char **buf, uint16_t binlog_version);
 
   /**
     This constructor will create a new object of Log_event_header and initialize

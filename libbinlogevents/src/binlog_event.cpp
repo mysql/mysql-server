@@ -243,33 +243,15 @@ Log_event_header::Log_event_header(Event_reader &reader)
   BAPI_VOID_RETURN;
 }
 
-/**
-  This ctor will create a new object of Log_event_header, and initialize
-  the variable m_header, which in turn will be used to initialize Log_event's
-  member common_header.
-  It will also advance the buffer after decoding the header(it is done through
-  the constructor of Log_event_header) and
-  will be pointing to the start of event data
-*/
-Binary_log_event::Binary_log_event(
-    const char **buf, uint16_t binlog_version MY_ATTRIBUTE((unused)))
-    : m_reader(*buf, LOG_EVENT_MINIMAL_HEADER_LEN), m_header(m_reader) {
-  BAPI_ENTER("Binary_log_event::Binary_log_event(const char **, uint16_t)");
-  m_footer = Log_event_footer();
-  // buf is advanced in Binary_log_event constructor to point to beginning of
-  // post-header
-  (*buf) += LOG_EVENT_HEADER_LEN;
-  BAPI_VOID_RETURN;
-}
-
 Binary_log_event::Binary_log_event(const char **buf,
                                    const Format_description_event *fde)
     : m_reader(*buf, LOG_EVENT_MINIMAL_HEADER_LEN), m_header(m_reader) {
   BAPI_ENTER("Binary_log_event::Binary_log_event(const char **, ...)");
+  /*
+    m_reader cursor is advanced in Log_event_reader constructor to after the
+    event common header.
+  */
   m_footer = Log_event_footer(m_reader, m_header.type_code, fde);
-  // buf is advanced in Binary_log_event constructor to point to beginning of
-  // post-header
-  (*buf) += LOG_EVENT_HEADER_LEN;
   BAPI_VOID_RETURN;
 }
 
