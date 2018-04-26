@@ -11466,7 +11466,7 @@ void Dblqh::continueScanNextReqLab(Signal* signal,
   regTcPtr->tcTimer = cLqhTimeOutCount;
   init_acc_ptr_list(scanPtr);
   scanPtr->scanFlag = NextScanReq::ZSCAN_NEXT;
-  scanNextLoopLab(signal);
+  scanNextLoopLab(signal, regTcPtr->clientConnectrec);
 }//Dblqh::continueScanNextReqLab()
 
 void Dblqh::scanLockReleasedLab(Signal* signal,
@@ -12781,7 +12781,11 @@ void Dblqh::storedProcConfScanLab(Signal* signal,
     signal->theData[0] = sig0;
     scanPtr->scanState = ScanRecord::WAIT_NEXT_SCAN;
     scanPtr->scan_lastSeen = __LINE__;
-    send_next_NEXT_SCANREQ(signal, block, f, scanPtr);
+    send_next_NEXT_SCANREQ(signal,
+                           block,
+                           f,
+                           scanPtr,
+                           tcConnectptr.p->clientConnectrec);
     return;
   }
   else
@@ -12951,7 +12955,7 @@ void Dblqh::nextScanConfScanLab(Signal* signal,
       if (!scanPtr->check_scan_batch_completed())
       {
         jam();
-        scanNextLoopLab(signal);
+        scanNextLoopLab(signal, regTcPtr->clientConnectrec);
       }
       else
       {
@@ -13360,10 +13364,10 @@ void Dblqh::scanTupkeyConfLab(Signal* signal,
       scanPtr->scanFlag = NextScanReq::ZSCAN_NEXT_COMMIT;
     }
   }
-  scanNextLoopLab(signal);
+  scanNextLoopLab(signal, regTcPtr->clientConnectrec);
 }//Dblqh::scanTupkeyConfLab()
 
-void Dblqh::scanNextLoopLab(Signal* signal) 
+void Dblqh::scanNextLoopLab(Signal* signal, Uint32 clientPtrI) 
 {
   Uint32 accOpPtr;
   ScanRecord * const scanPtr = scanptr.p;
@@ -13395,7 +13399,7 @@ void Dblqh::scanNextLoopLab(Signal* signal)
   ndbrequire(is_scan_ok(scanPtr, fragstatus));
   scanPtr->scanState = ScanRecord::WAIT_NEXT_SCAN;
   scanPtr->scan_lastSeen = __LINE__;
-  send_next_NEXT_SCANREQ(signal, block, f, scanPtr);
+  send_next_NEXT_SCANREQ(signal, block, f, scanPtr, clientPtrI);
 }//Dblqh::scanNextLoopLab()
 
 /* -------------------------------------------------------------------------
@@ -13497,7 +13501,7 @@ void Dblqh::scanTupkeyRefLab(Signal* signal,
   }
 
   scanPtr->scanFlag = NextScanReq::ZSCAN_NEXT_ABORT;
-  scanNextLoopLab(signal);
+  scanNextLoopLab(signal, tcConnectptr.p->clientConnectrec);
 }//Dblqh::scanTupkeyRefLab()
 
 /* -------------------------------------------------------------------------
@@ -14294,8 +14298,10 @@ Uint32 Dblqh::sendKeyinfo20(Signal* signal,
 void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
                                    SimulatedBlock* block,
                                    ExecFunction f,
-                                   ScanRecord * const scanPtr)
+                                   ScanRecord * const scanPtr,
+                                   Uint32 clientPtrI)
 {
+  (void)clientPtrI;
   /**
    * We have a number of different cases here. There are normal
    * scan operations, these always execute at B-level such that
@@ -15001,7 +15007,11 @@ void Dblqh::accScanConfCopyLab(Signal* signal)
     signal->theData[0] = sig0;
     scanPtr->scanState = ScanRecord::WAIT_NEXT_SCAN_COPY;
     scanPtr->scan_lastSeen = __LINE__;
-    send_next_NEXT_SCANREQ(signal, block, f, scanPtr);
+    send_next_NEXT_SCANREQ(signal,
+                           block,
+                           f,
+                           scanPtr,
+                           regTcPtr->clientConnectrec);
   }
 }//Dblqh::accScanConfCopyLab()
 
@@ -15506,7 +15516,11 @@ void Dblqh::nextRecordCopy(Signal* signal,
    */
   scanPtr->scanState = ScanRecord::WAIT_NEXT_SCAN_COPY;
   scanPtr->scan_lastSeen = __LINE__;
-  send_next_NEXT_SCANREQ(signal, block, f, scanPtr);
+  send_next_NEXT_SCANREQ(signal,
+                         block,
+                         f,
+                         scanPtr,
+                         regTcPtr->clientConnectrec);
 }//Dblqh::nextRecordCopy()
 
 void Dblqh::copyLqhKeyRefLab(Signal* signal,
