@@ -719,6 +719,8 @@ struct Fragrecord {
     UC_SET_LCP = 3,
     UC_DROP = 4
   };
+  /* Calculated average row size of the rows in the fragment */
+  Uint32 m_average_row_size;
   Uint32 m_restore_lcp_id;
   Uint32 m_restore_local_lcp_id;
   Uint32 m_undo_complete;
