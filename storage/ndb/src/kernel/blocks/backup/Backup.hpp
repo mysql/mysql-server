@@ -36,6 +36,7 @@
 #include <Array.hpp>
 #include <Mutex.hpp>
 
+#include <signaldata/RedoStateRep.hpp>
 #include "../dblqh/Dblqh.hpp"
 
 #define JAM_FILE_ID 474
@@ -69,6 +70,7 @@ public:
 protected:
 
   void execSTTOR(Signal* signal);
+  void execREDO_STATE_REP(Signal*);
   void execREAD_CONFIG_REQ(Signal* signal);
   void execDUMP_STATE_ORD(Signal* signal);
   void execREAD_NODESCONF(Signal* signal);
@@ -919,6 +921,91 @@ public:
   Uint64 m_backup_overflow_disk_write;
   Uint32 m_reset_delay_used;
   NDB_TICKS m_reset_disk_speed_time;
+
+//#ifdef VM_TRACE
+  Uint64 m_debug_redo_log_count;
+//#endif
+
+  RedoStateRep::RedoAlertState m_redo_alert_state;
+  RedoStateRep::RedoAlertState m_local_redo_alert_state;
+  RedoStateRep::RedoAlertState m_global_redo_alert_state;
+  Uint32 m_redo_alert_factor;
+  BackupRecordPtr m_lcp_ptr;
+
+  NDB_TICKS m_last_redo_check_time;
+  NDB_TICKS m_lcp_start_time;
+  NDB_TICKS m_prev_lcp_start_time;
+  NDB_TICKS m_lcp_current_cut_point;
+  Uint64 m_last_redo_used_in_bytes;
+  Uint64 m_last_lcp_exec_time_in_ms;
+  Uint64 m_max_redo_speed_per_sec;
+  Uint64 m_update_size_lcp[2];
+  Uint64 m_update_size_lcp_last;
+  Uint64 m_insert_size_lcp[2];
+  Uint64 m_insert_size_lcp_last;
+  Uint64 m_delete_size_lcp[2];
+  Uint64 m_delete_size_lcp_last;
+  Uint64 m_proposed_disk_write_speed;
+  Uint64 m_lcp_change_rate;
+  Uint64 m_lcp_timing_factor;
+  Int64 m_lcp_lag[2];
+  Uint32 m_lcp_timing_counter;
+  bool m_first_lcp_started;
+
+  void init_lcp_timers(Uint64);
+  void scale_write_sizes(Uint64& update_size,
+                         Uint64& insert_size,
+                         Uint64& delete_size,
+                         Uint64& seconds_since_lcp_cut,
+                         Uint64& lcp_time_in_secs);
+  void calculate_seconds_since_lcp_cut(Uint64& seconds_since_lcp_cut);
+  Uint64 init_change_size(Uint64 update_size,
+                          Uint64 insert_size,
+                          Uint64 delete_size,
+                          Uint64 total_memory);
+  Uint64 modify_change_size(Uint64 update_size,
+                            Uint64 insert_size,
+                            Uint64 delete_size,
+                            Uint64 total_size,
+                            Uint64 change_size);
+  Uint32 calculate_parts(Uint64 total_size,
+                         Uint64 total_memory);
+  Uint64 calculate_change_rate(Uint64 change_size,
+                               Uint64& seconds_since_lcp_cut);
+  Uint64 calculate_checkpoint_rate(Uint64 update_size,
+                                   Uint64 insert_size,
+                                   Uint64 delete_size,
+                                   Uint64 total_memory,
+                                   Uint64& seconds_since_lcp_cut,
+                                   Uint64& lcp_time_in_secs);
+  void calculate_redo_parameters(Uint64 redo_usage,
+                                 Uint64 redo_size,
+                                 Uint64 redo_written_since_last_call,
+                                 Uint64 millis_since_last_call,
+                                 Uint64& redo_percentage,
+                                 Uint64& max_redo_used_before_cut,
+                                 Uint64& mean_redo_used_before_cut,
+                                 Uint64& mean_redo_speed_per_sec,
+                                 Uint64& current_redo_speed_per_sec,
+                                 Uint64& redo_available);
+  void change_alert_state_redo_percent(Uint64 redo_percentage);
+  void change_alert_state_redo_usage(Uint64 max_redo_used_before_cut,
+                                     Uint64 mean_redo_used_before_cut,
+                                     Uint64 redo_available);
+  void handle_global_alert_state(Signal *signal,
+    RedoStateRep::RedoAlertState save_redo_alert_state);
+  void set_redo_alert_factor(Uint64 redo_percentage);
+  void set_lcp_timing_factors(Uint64 seconds_since_lcp_cut,
+                              Uint64 lcp_time_in_secs);
+  void reset_lcp_timing_factors();
+  void set_proposed_disk_write_speed(Uint64 current_redo_speed_per_sec,
+                                     Uint64 mean_redo_speed_per_sec,
+                                     Uint64 seconds_since_lcp_cut);
+  void measure_change_speed(Signal*);
+  void debug_report_redo_control(Uint32);
+  void lcp_start_point();
+  void lcp_end_point();
+  Uint64 calculate_proposed_disk_write_speed();
 
   Uint32 m_curr_lcp_id;
 
