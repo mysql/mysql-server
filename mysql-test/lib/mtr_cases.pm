@@ -35,7 +35,7 @@ our @EXPORT= qw(collect_option collect_test_cases init_pattern
 
 use File::Basename;
 use File::Spec::Functions qw / splitdir /;
-use IO::File();
+use IO::File;
 use My::File::Path qw / get_bld_path /;
 
 use My::Config;
@@ -124,8 +124,8 @@ sub check_test_name_format($$$) {
   my $disabled_def_file = shift;
   my $line_number       = shift;
 
-  my ($sname, $tname, $extension) = split_testname($test_name);
-  if (not defined $sname || not defined $tname || defined $extension) {
+  my ($suite_name, $tname, $extension) = split_testname($test_name);
+  if (not defined $suite_name || not defined $tname || defined $extension) {
     mtr_error("Invalid test name format '$test_name' at " .
               "'$disabled_def_file:$line_number', it should be " .
               "'suite_name.test_name'.");
@@ -134,9 +134,10 @@ sub check_test_name_format($$$) {
   # disabled.def should contain only non-ndb suite tests, and disabled_ndb.def
   # should contain only any of the ndb suite tests.
   my $fname = basename($disabled_def_file);
-  if (($fname eq 'disabled.def' and $sname =~ /ndb/) or
-      ($fname eq 'disabled_ndb.def' and $sname !~ /ndb/)) {
-    mtr_error("'$disabled_def_file' shouldn't contain '$sname' suite test(s).");
+  if (($fname eq 'disabled.def' and $suite_name =~ /ndb/) or
+      ($fname eq 'disabled_ndb.def' and $suite_name !~ /ndb/)) {
+    mtr_error("'$disabled_def_file' shouldn't contain '$suite_name' " .
+              "suite test(s).");
   }
 }
 
@@ -181,37 +182,51 @@ sub create_disabled_test_list($$) {
   }
 
   for my $disabled_def_file (@disabled_collection) {
-    if (open(DISABLED, $disabled_def_file)) {
+    my $file_handle = IO::File->new($disabled_def_file, '<') or
+      die "Can't open $disabled_def_file: $!";
+    if (defined $file_handle) {
       # $^O on Windows considered not generic enough
       my $plat = (IS_WINDOWS) ? 'windows' : $^O;
 
-      while (<DISABLED>) {
+      while (<$file_handle>) {
         chomp;
 
         # Skip a line if it starts with '#'
         next if /^#/;
 
-        # Disable the test case if platform matches
+        my $line_number;
+
+        # After the test name, a platform name can be mentioned on which the
+        # test should be disabled or enabled. Mentioning '@platform_name' will
+        # disable the test on 'platform_name' and '@!platform_name' will
+        # disable the test on all platforms except 'platform_name'.
         if (/\@/) {
           if (/\@$plat/) {
+            # Platform name is mentioned on which the test should be disabled
+            # i.e "suite_name.test_name @platform : XXXX"
             /^\s*(\S+)\s*\@$plat.*:\s*(.*?)\s*$/;
-            check_test_name_format($1, $disabled_def_file, $.);
+            $line_number = $.;
+            check_test_name_format($1, $disabled_def_file, $line_number);
             $disabled->{$1} = $2 if not exists $disabled->{$1};
           } elsif (/\@!(\S*)/) {
+            # Platform name is mentioned on which the test shouldn't be
+            # disabled i.e "suite_name.test_name @!platform : XXXX"
             if ($1 ne $plat) {
+              # Disable the test on all other platforms except '$plat'
               /^\s*(\S+)\s*\@!.*:\s*(.*?)\s*$/;
-              check_test_name_format($1, $disabled_def_file, $.);
+              $line_number = $.;
+              check_test_name_format($1, $disabled_def_file, $line_number);
               $disabled->{$1} = $2 if not exists $disabled->{$1};
             }
           }
         } elsif (/^\s*(\S+)\s*:\s*(.*?)\s*$/) {
-          if (/^\s*(\S+)\s*:\s*(.*?)\s*$/) {
-            check_test_name_format($1, $disabled_def_file, $.);
-            $disabled->{$1} = $2 if not exists $disabled->{$1};
-          }
+          # Disable the test on all platforms i.e "suite_name.test_name : XXXX"
+          $line_number = $.;
+          check_test_name_format($1, $disabled_def_file, $line_number);
+          $disabled->{$1} = $2 if not exists $disabled->{$1};
         }
       }
-      close DISABLED;
+      $file_handle->close();
     }
   }
 }
@@ -975,20 +990,9 @@ sub collect_one_test_case {
   $tinfo->{'grp_rpl_test'} = 1 if ($suitename =~ 'group_replication');
 
   # Check for disabled tests
-  my $marked_as_disabled = 0;
   if ($disabled->{"$suitename.$tname"}) {
-    # Test was marked as disabled in suites disabled.def file
-    $marked_as_disabled = 1;
+    # Test was marked as disabled in disabled.def file
     $tinfo->{'comment'} = $disabled->{"$suitename.$tname"};
-  }
-
-  my $disabled_file = "$testdir/$tname.disabled";
-  if (-f $disabled_file) {
-    $marked_as_disabled = 1;
-    $tinfo->{'comment'} = mtr_fromfile($disabled_file);
-  }
-
-  if ($marked_as_disabled) {
     if ($enable_disabled or @::opt_cases) {
       # User has selected to run all disabled tests
       mtr_report(" - Running test $tinfo->{name} even though it's been",

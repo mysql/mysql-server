@@ -167,7 +167,7 @@ my $build_thread       = 0;
 my $daemonize_mysqld   = 0;
 my $debug_d            = "d";
 my $exe_ndbmtd_counter = 0;
-my $ports_per_thread                 = 20;
+my $ports_per_thread   = 20;
 my $source_dist        = 0;
 my $valgrind_reports   = 0;
 

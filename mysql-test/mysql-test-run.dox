@@ -437,11 +437,11 @@
         "mysql-test-run.pl" will not actually care what is written
         here. However, it is a recommended standard.
 
-        An additional element: after the test name and before the
-        colon you may add one or more <b>\@<em>platform</em></b> to
-        have the test disabled only on specific platform(s). Basic OS
-        names as reported by <b>$^O</b> in Perl, or <b>'windows'</b>
-        are supported. Alternatively, <b>@!<em>platform</i></b> will
+        An additional element after the test name and before the
+        colon you may add a <b>\@<em>platform</em></b> to have the
+        test disabled only on a specific platform. Basic OS names as
+        reported by <b>$^O</b> in Perl, or <b>'windows'</b> are
+        supported. Alternatively, <b>@!<em>platform</i></b> will
         disable the test on all except the named platform.
 
         A comment line can be written in the file by beginning the
