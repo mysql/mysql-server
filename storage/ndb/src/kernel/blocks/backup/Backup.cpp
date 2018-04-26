@@ -89,6 +89,13 @@ static NDB_TICKS startTime;
 //#define DEBUG_EXTRA_LCP 1
 #define DEBUG_LCP_STAT 1
 #define DEBUG_EXTENDED_LCP_STAT 1
+//#define DEBUG_REDO_CONTROL 1
+#endif
+
+#ifdef DEBUG_REDO_CONTROL
+#define DEB_REDO_CONTROL(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_REDO_CONTROL(arglist) do { } while (0)
 #endif
 
 #ifdef DEBUG_LCP
@@ -190,12 +197,16 @@ Backup::execSTTOR(Signal* signal)
     m_node_restart_check_sent = false;
     m_our_node_started = false;
     m_lcp_ptr_i = RNIL;
+    m_first_lcp_started = false;
     m_newestRestorableGci = 0;
     m_delete_lcp_files_ongoing = false;
     m_reset_disk_speed_time = NdbTick_getCurrentTicks();
     m_reset_delay_used = Backup::DISK_SPEED_CHECK_DELAY;
-    signal->theData[0] = BackupContinueB::RESET_DISK_SPEED_COUNTER;
     c_initial_start_lcp_not_done_yet = false;
+    m_last_redo_check_time = getHighResTimer();
+    m_redo_alert_factor = 1;
+    m_redo_alert_state = RedoStateRep::NO_REDO_ALERT;
+    signal->theData[0] = BackupContinueB::RESET_DISK_SPEED_COUNTER;
     sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
                         Backup::DISK_SPEED_CHECK_DELAY, 1);
   }
@@ -501,10 +512,1025 @@ Backup::monitor_disk_write_speed(const NDB_TICKS curr_time,
   report_disk_write_speed_report(4 * m_monitor_words_written,
                                  4 * m_backup_monitor_words_written,
                                  millisPassed);
+  /**
+   * The LCP write rate is removed from the calculated LCP change rate to
+   * derive the lag (a lag is a positive number, if we are ahead of the
+   * calculated rate we report it as a negative number).
+   * We keep track of the lag since the start of the LCP and since the
+   * start of the previous LCP.
+   */
+  Int64 lag = m_lcp_change_rate - 
+              ((4 * m_monitor_words_written) -
+               (4 * m_backup_monitor_words_written));
+  m_lcp_lag[1] += lag;
+
   m_monitor_words_written = 0;
   m_backup_monitor_words_written = 0;
   m_periods_passed_in_monitor_period = 0;
   m_monitor_snapshot_start = curr_time;
+}
+
+void
+Backup::debug_report_redo_control(Uint32 cpu_usage)
+{
+#ifdef DEBUG_REDO_CONTROL
+  {
+    Uint64 millis_passed;
+    Uint64 backup_lcp_bytes_written;
+    Uint64 backup_bytes_written;
+    Uint64 redo_bytes_written;
+    calculate_disk_write_speed_seconds_back(1,
+                                            millis_passed,
+                                            backup_lcp_bytes_written,
+                                            backup_bytes_written,
+                                            redo_bytes_written,
+                                            true);
+    backup_bytes_written *= Uint64(1000);
+    backup_bytes_written /= (millis_passed * Uint64(1024));
+    backup_lcp_bytes_written *= Uint64(1000);
+    backup_lcp_bytes_written /= (millis_passed * Uint64(1024));
+    redo_bytes_written *= Uint64(1000);
+    redo_bytes_written /= (millis_passed * Uint64(1024));
+
+   /* Report new disk write speed and last seconds achievement on disk */
+   DEB_REDO_CONTROL(("(%u)Current disk write speed is %llu kB/sec"
+                     " and current backup disk write speed is %llu kB/sec"
+                     ", last sec REDO write speed %llu kB/sec, "
+                     "LCP+Backup write speed %llu kB/sec"
+                     ", Backup write speed %llu kB/sec"
+                     ", cpu_usage: %u",
+                      instance(),
+                      ((m_curr_disk_write_speed *
+                        CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS) /
+                       Uint64(1024)),
+                      ((m_curr_backup_disk_write_speed *
+                        CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS) /
+                       Uint64(1024)),
+                     redo_bytes_written,
+                     backup_lcp_bytes_written,
+                     backup_bytes_written,
+                     cpu_usage));
+ }
+#else
+ (void)cpu_usage;
+#endif
+}
+
+void
+Backup::execREDO_STATE_REP(Signal* signal)
+{
+  RedoStateRep *rep = (RedoStateRep*)signal->getDataPtr();
+  ndbrequire(rep->receiverInfo == RedoStateRep::ToBackup);
+  m_global_redo_alert_state = (RedoStateRep::RedoAlertState)rep->redoState;
+}
+
+/**
+ * Initialise LCP timers at the time we hear of the first writes to the
+ * REDO log. Could also be initialised by the start of the first LCP.
+ */
+void
+Backup::init_lcp_timers(Uint64 redo_written_since_last_call)
+{
+  if (redo_written_since_last_call > 0)
+  {
+    if (!NdbTick_IsValid(m_lcp_start_time))
+    {
+      m_lcp_start_time = getHighResTimer();
+      m_prev_lcp_start_time = m_lcp_start_time;
+    }
+  }
+}
+
+void
+Backup::lcp_start_point()
+{
+  /**
+   * A new LCP is starting up, we need to keep track of this to handle
+   * REDO control.
+   * The start and end points of LCPs currently only come with an
+   * accuracy of about 1 second, so if the LCP time is shorter than
+   * this we can definitely ignore any REDO alerts.
+   */
+  if (!NdbTick_IsValid(m_prev_lcp_start_time))
+  {
+    jam();
+    m_prev_lcp_start_time = getHighResTimer();
+  }
+  else
+  {
+    m_prev_lcp_start_time = m_lcp_start_time;
+  }
+  m_first_lcp_started = true;
+  m_lcp_start_time = getHighResTimer();
+  ndbrequire(NdbTick_IsValid(m_lcp_start_time));
+  m_lcp_current_cut_point = m_prev_lcp_start_time;
+  m_update_size_lcp[0] = m_update_size_lcp[1];
+  m_update_size_lcp[1] = m_update_size_lcp_last;
+  m_insert_size_lcp[0] = m_insert_size_lcp[1];
+  m_insert_size_lcp[1] = m_insert_size_lcp_last;
+  m_delete_size_lcp[0] = m_delete_size_lcp[1];
+  m_delete_size_lcp[1] = m_delete_size_lcp_last;
+  DEB_REDO_CONTROL(("(%u)m_insert_size_lcp[0]: %llu, "
+                    "m_insert_size_lcp[1]: %llu, "
+                    "m_insert_size_lcp_last: %llu",
+                    instance(),
+                    m_insert_size_lcp[0],
+                    m_insert_size_lcp[1],
+                    m_insert_size_lcp_last));
+}
+
+void
+Backup::lcp_end_point()
+{
+  NDB_TICKS current_time = getHighResTimer();
+  ndbrequire(NdbTick_IsValid(m_lcp_start_time));
+  m_last_lcp_exec_time_in_ms =
+    NdbTick_Elapsed(m_lcp_start_time, current_time).milliSec();
+  m_lcp_current_cut_point = m_lcp_start_time;
+  m_update_size_lcp[0] = m_update_size_lcp[1];
+  m_insert_size_lcp[0] = m_insert_size_lcp[1];
+  m_delete_size_lcp[0] = m_delete_size_lcp[1];
+
+  m_lcp_lag[0] = m_lcp_lag[1];
+  m_lcp_lag[1] = Int64(0);
+
+  reset_lcp_timing_factors();
+  DEB_REDO_CONTROL(("(%u)LCP End: m_insert_size_lcp[0]: %llu",
+                    instance(),
+                    m_insert_size_lcp[0]));
+}
+
+Uint64
+Backup::init_change_size(Uint64 update_size,
+                         Uint64 insert_size,
+                         Uint64 delete_size,
+                         Uint64 total_memory)
+{
+  /**
+   * The initial value for change_size is based on that the new
+   * rows or deleted rows are always changes, but updates can
+   * at times be updates of the same row. We use an exponential
+   * probability distribution that a row has been updated or not.
+   */
+  Uint64 change_size = insert_size + delete_size;
+  long double f_total_memory = (long double)total_memory;
+  long double f_change_size = update_size;
+  long double f_change_percentage = f_change_size / f_total_memory;
+  long double f_real_change_percentage = ((long double)1) -
+                                       exp(-f_change_percentage);
+  long double f_real_change_size = f_real_change_percentage *
+                                   f_total_memory;
+  change_size += (Uint64)f_real_change_size;
+  return change_size;
+}
+
+Uint64
+Backup::modify_change_size(Uint64 update_size,
+                           Uint64 insert_size,
+                           Uint64 delete_size,
+                           Uint64 total_size,
+                           Uint64 change_size)
+{
+  /**
+   * Now we have calculated an estimate that is comparable
+   * to the row_change_count that we get per fragment before
+   * calculating the number of parts to checkpoint.
+   * 
+   * The next step is now to modify this estimate based on
+   * the amount of inserts and deletes compared to the updates.
+   */
+  Uint64 updates_percent = (update_size * Uint64(1005)) /
+                          (Uint64(10) * total_size);
+  Uint64 inserts_percent = (insert_size * Uint64(1005)) /
+                          (Uint64(10) * total_size);
+  Uint64 insert_recovery_work = (Uint64)get_insert_recovery_work();
+  inserts_percent *= insert_recovery_work;
+  inserts_percent /= Uint64(100);
+  Uint64 deletes_percent = (delete_size * Uint64(1005)) /
+                          (Uint64(10) * total_size);
+  deletes_percent *= Uint64(DELETE_RECOVERY_WORK);
+  deletes_percent /= Uint64(100);
+  Uint64 change_factor = updates_percent +
+                         inserts_percent +
+                         deletes_percent;
+  change_size *= change_factor;
+  change_size /= Uint64(100);
+  return change_size;
+}
+
+Uint32
+Backup::calculate_parts(Uint64 change_size,
+                        Uint64 total_memory)
+{
+  Uint64 part_total_memory = total_memory / Uint64(10);
+  Uint32 min_parts = calculate_min_parts(total_memory,
+                                         change_size,
+                                         part_total_memory,
+                                         total_memory);
+  return min_parts;
+}
+
+void
+Backup::calculate_seconds_since_lcp_cut(Uint64& seconds_since_lcp_cut)
+{
+  NDB_TICKS now = getHighResTimer();
+  if (!NdbTick_IsValid(m_lcp_current_cut_point))
+  {
+    jam();
+    seconds_since_lcp_cut = 0;
+    return; 
+  }
+  seconds_since_lcp_cut =
+    NdbTick_Elapsed(m_lcp_current_cut_point, now).seconds();
+}
+
+Uint64
+Backup::calculate_change_rate(Uint64 change_size,
+                              Uint64& seconds_since_lcp_cut)
+{
+  if (seconds_since_lcp_cut < 3)
+  {
+    jam();
+    /**
+     * We ignore very short LCPs, in this case it is hard to see
+     * how we could run out of REDO log and need more disk write
+     * speed.
+     */
+    return 0;
+  }
+  Uint64 change_size_per_sec = change_size / seconds_since_lcp_cut;
+  return change_size_per_sec;
+}
+
+void
+Backup::scale_write_sizes(Uint64& update_size,
+                          Uint64& insert_size,
+                          Uint64& delete_size,
+                          Uint64& seconds_since_lcp_cut,
+                          Uint64& lcp_time_in_secs)
+{
+  lcp_time_in_secs =
+    m_last_lcp_exec_time_in_ms / Uint64(1000);
+  calculate_seconds_since_lcp_cut(seconds_since_lcp_cut);
+  if (seconds_since_lcp_cut == 0)
+  {
+    jam();
+    update_size = 0;
+    insert_size = 0;
+    delete_size = 0;
+    return;
+  }
+  update_size *= lcp_time_in_secs;
+  insert_size *= lcp_time_in_secs;
+  delete_size *= lcp_time_in_secs;
+  update_size /= seconds_since_lcp_cut;
+  insert_size /= seconds_since_lcp_cut;
+  delete_size /= seconds_since_lcp_cut;
+}
+
+Uint64
+Backup::calculate_checkpoint_rate(Uint64 update_size,
+                                  Uint64 insert_size,
+                                  Uint64 delete_size,
+                                  Uint64 total_memory,
+                                  Uint64& seconds_since_lcp_cut,
+                                  Uint64& lcp_time_in_secs)
+{
+  Uint64 checkpoint_size = 0;
+  Uint32 all_parts = 0;
+  Uint64 all_size = 0;
+  Uint64 change_size = 0;
+  Uint64 mod_change_size = 0;
+  Uint64 total_size = update_size + insert_size + delete_size;
+  if (total_size != 0)
+  {
+    if (delete_size > insert_size)
+    {
+      update_size += insert_size;
+      delete_size -= insert_size;
+      insert_size = 0;
+    }
+    else
+    {
+      update_size += delete_size;
+      insert_size -= delete_size;
+      delete_size = 0;
+    }
+    scale_write_sizes(update_size,
+                      insert_size,
+                      delete_size,
+                      seconds_since_lcp_cut,
+                      lcp_time_in_secs);
+    change_size = init_change_size(update_size,
+                                   insert_size,
+                                   delete_size,
+                                   total_memory);
+    mod_change_size = modify_change_size(update_size,
+                                         insert_size,
+                                         delete_size,
+                                         total_size,
+                                         change_size);
+    all_parts = calculate_parts(mod_change_size, total_memory);
+    all_size = total_memory * Uint64(all_parts);
+    all_size /= Uint64(BackupFormat::NDB_MAX_LCP_PARTS);
+    change_size = (BackupFormat::NDB_MAX_LCP_PARTS - all_parts) *
+                  change_size;
+    change_size /= BackupFormat::NDB_MAX_LCP_PARTS;
+    checkpoint_size = all_size + change_size;
+  }
+  Uint64 change_rate = calculate_change_rate(checkpoint_size,
+                                             lcp_time_in_secs);
+  DEB_REDO_CONTROL(("(%u)update_size: %llu MB, insert_size: %llu MB,"
+                    " delete_size: %llu MB, checkpoint_size: %llu MB"
+                    ", all_parts: %u, total_memory: %llu MB, "
+                    "all_size: %llu MB, change_size: %llu MB, "
+                    "mod_change_size: %llu MB, "
+                    "seconds_since_lcp_cut: %llu"
+                    ", lcp_time_in_secs: %llu",
+                    instance(),
+                    update_size / (Uint64(1024) * Uint64(1024)),
+                    insert_size / (Uint64(1024) * Uint64(1024)),
+                    delete_size / (Uint64(1024) * Uint64(1024)),
+                    checkpoint_size / (Uint64(1024) * Uint64(1024)),
+                    all_parts,
+                    total_memory / (Uint64(1024 * Uint64(1024))),
+                    all_size / (Uint64(1024) * Uint64(1024)),
+                    change_size / (Uint64(1024) * Uint64(1024)),
+                    mod_change_size / (Uint64(1024) * Uint64(1024)),
+                    seconds_since_lcp_cut,
+                    lcp_time_in_secs));
+  return change_rate;
+}
+
+void
+Backup::calculate_redo_parameters(Uint64 redo_usage,
+                                  Uint64 redo_size,
+                                  Uint64 redo_written_since_last_call,
+                                  Uint64 millis_since_last_call,
+                                  Uint64& redo_percentage,
+                                  Uint64& max_redo_used_before_cut,
+                                  Uint64& mean_redo_used_before_cut,
+                                  Uint64& mean_redo_speed_per_sec,
+                                  Uint64& current_redo_speed_per_sec,
+                                  Uint64& redo_available)
+{
+  /* redo_size and redo_usage is in MBytes, convert to bytes */
+  redo_size *= (Uint64(1024) * Uint64(1024));
+  redo_usage *= (Uint64(1024) * Uint64(1024));
+  redo_available = redo_size - redo_usage;
+  redo_percentage = redo_usage * Uint64(100);
+  redo_percentage /= redo_size;
+  current_redo_speed_per_sec = redo_written_since_last_call * Uint64(1000);
+  current_redo_speed_per_sec /= millis_since_last_call;
+  if (current_redo_speed_per_sec > m_max_redo_speed_per_sec)
+  {
+    jam();
+    m_max_redo_speed_per_sec = current_redo_speed_per_sec;
+  }
+  mean_redo_speed_per_sec = 0;
+  Uint64 seconds_since_lcp_cut = 0;
+  if (NdbTick_IsValid(m_lcp_current_cut_point))
+  {
+    jam();
+    NDB_TICKS current_time = getHighResTimer();
+    seconds_since_lcp_cut =
+      NdbTick_Elapsed(m_lcp_current_cut_point, current_time).seconds();
+  }
+  if (seconds_since_lcp_cut != 0)
+  {
+    jam();
+    mean_redo_speed_per_sec = redo_usage / seconds_since_lcp_cut;
+  }
+  /**
+   * We assume that LCP execution time is Poisson-distributed.
+   * This means that our mean estimated time is the same even
+   * if the LCP has been ongoing for a while (Poisson distribution
+   * has no memory). It doesn't matter so much if this estimate
+   * isn't 100% correct, it will at least not be overoptimistic.
+   *
+   * Thus we estimate the time to complete the next LCP to be
+   * the time of the last LCP.
+   */
+  max_redo_used_before_cut = m_max_redo_speed_per_sec *
+                             m_last_lcp_exec_time_in_ms;
+  max_redo_used_before_cut /= Uint64(1000);
+
+  mean_redo_used_before_cut = mean_redo_speed_per_sec *
+                              m_last_lcp_exec_time_in_ms;
+  mean_redo_used_before_cut /= Uint64(1000);
+}
+
+void
+Backup::change_alert_state_redo_percent(Uint64 redo_percentage)
+{
+  /**
+   * If the fill level of the REDO log reaches beyond 60% we set
+   * it in critical state independent of calculations on REDO
+   * speed. Similarly when going beyond 40% we set it in high
+   * alert state. Using more than 40% of the REDO log is
+   * not a desired state to run in. This is both too close to
+   * the end to be comfortable and it also extends the time
+   * to recover at a restart substantially.
+   */
+  m_redo_alert_state = RedoStateRep::NO_REDO_ALERT;
+  if (redo_percentage > Uint64(60))
+  {
+    jam();
+    m_redo_alert_state = RedoStateRep::REDO_ALERT_CRITICAL;
+  }
+  else if (redo_percentage > Uint64(40))
+  {
+    jam();
+    m_redo_alert_state = RedoStateRep::REDO_ALERT_HIGH;
+  }
+  else if (redo_percentage > Uint64(25))
+  {
+    jam();
+    m_redo_alert_state = RedoStateRep::REDO_ALERT_LOW;
+  }
+}
+
+void
+Backup::change_alert_state_redo_usage(Uint64 max_redo_used_before_cut,
+                                      Uint64 mean_redo_used_before_cut,
+                                      Uint64 redo_available)
+{
+  if (m_redo_alert_state != RedoStateRep::REDO_ALERT_CRITICAL)
+  {
+    jam();
+    /**
+     * We have estimated the REDO usage until the next LCP will cut it again.
+     * The first estimate is based on the maximum speed we have seen so far.
+     * The second estimate is based on the mean speed we have seen since
+     * the first current REDO log record was generated.
+     *
+     * If we write at max speed and we estimate this to run out of REDO space
+     * we are at a high alert state. If we can use only 40% of this to run out
+     * of REDO log we are at a critical state.
+     *
+     * If we run at mean speed and we can run out of REDO space we are obviously
+     * in a critical state, even with only an estimate to fill half of this we
+     * are in a critical state and if we estimate to fill a third of this we are
+     * in a high alert state.
+     *
+     * We don't even attempt those checks if we haven't got good measures of
+     * times until the next REDO cut.
+     */
+    Uint64 max_critical_limit = (Uint64(2) * max_redo_used_before_cut) / Uint64(5);
+    Uint64 max_high_limit = max_redo_used_before_cut;
+    Uint64 mean_critical_limit = mean_redo_used_before_cut / Uint64(2);
+    Uint64 mean_high_limit = mean_redo_used_before_cut / Uint64(3);
+
+    if (redo_available < max_critical_limit)
+    {
+      jam();
+      m_redo_alert_state = RedoStateRep::REDO_ALERT_CRITICAL;
+    }
+    else if (redo_available < mean_critical_limit)
+    {
+      jam();
+      m_redo_alert_state = RedoStateRep::REDO_ALERT_CRITICAL;
+    }
+    else if (redo_available < max_high_limit)
+    {
+      jam();
+      m_redo_alert_state = RedoStateRep::REDO_ALERT_HIGH;
+    }
+    else if (redo_available < mean_high_limit)
+    {
+      jam();
+      m_redo_alert_state = RedoStateRep::REDO_ALERT_HIGH;
+    }
+  }
+}
+
+void
+Backup::handle_global_alert_state(
+  Signal *signal,
+  RedoStateRep::RedoAlertState save_redo_alert_state)
+{
+  m_local_redo_alert_state = m_redo_alert_state;
+  if (save_redo_alert_state != m_redo_alert_state)
+  {
+    jam();
+    RedoStateRep *rep = (RedoStateRep*)signal->getDataPtrSend();
+    rep->receiverInfo = RedoStateRep::ToNdbcntr;
+    rep->redoState = m_redo_alert_state;
+    //sendSignal(NDBCNTR_REF, GSN_REDO_STATE_REP, signal, 2, JBB);
+  }
+  if (m_global_redo_alert_state > m_redo_alert_state)
+  {
+    jam();
+    m_redo_alert_state = m_global_redo_alert_state;
+  }
+}
+
+void
+Backup::set_redo_alert_factor(Uint64 redo_percentage)
+{
+  m_redo_alert_factor = 1;
+  if (m_redo_alert_state == RedoStateRep::REDO_ALERT_CRITICAL)
+  {
+    jam();
+    m_redo_alert_factor = 24;
+  }
+  else if (m_redo_alert_state == RedoStateRep::REDO_ALERT_HIGH)
+  {
+    jam();
+    m_redo_alert_factor = 8;
+  }
+  else if (m_redo_alert_state == RedoStateRep::REDO_ALERT_LOW)
+  {
+    jam();
+    m_redo_alert_factor = 4;
+  }
+}
+
+void
+Backup::set_lcp_timing_factors(Uint64 seconds_since_lcp_cut,
+                               Uint64 lcp_time_in_secs)
+{
+  if (lcp_time_in_secs == 0)
+  {
+    return;
+  }
+  /**
+   * seconds_since_lcp_cut normally goes to a bit more than
+   * two times the LCP time. If the LCP time increases by more
+   * than 6 seconds we try to increase the disk write speed to
+   * handle this. If the seconds since last cut is increasing
+   * even to double the LCP time we increase the factor even
+   * more.
+   *
+   * There is no need to set those factors in a dramatic manner.
+   * These factors are used to keep LCP times low to ensure that
+   * recovery times are low. They assist in protecting the REDO
+   * log from head meeting tail, but it isn't the main purpose.
+   * There are many other mechanisms that take care of this
+   * purpose.
+   */
+  Uint64 low_threshold = Uint64(2) * lcp_time_in_secs;
+  low_threshold += Uint64(6);
+  Uint64 high_threshold = Uint64(3) * lcp_time_in_secs;
+  high_threshold += Uint64(6);
+  if (seconds_since_lcp_cut > low_threshold)
+  {
+    jam();
+    m_lcp_timing_counter = 2;
+    Uint64 new_timing_factor = Uint64(110);
+    if (seconds_since_lcp_cut > high_threshold)
+    {
+      jam();
+      new_timing_factor = Uint64(120);
+    }
+    if (new_timing_factor > m_lcp_timing_factor)
+    {
+      jam();
+      m_lcp_timing_factor = new_timing_factor;
+    }
+  }
+  /**
+   * Ensure that the effects of REDO Alert Level stick to some
+   * level all through the next LCP as well. This will help
+   * bringing us permanently down in REDO Alert levels.
+   */
+  if (m_redo_alert_state == RedoStateRep::REDO_ALERT_LOW)
+  {
+    jam();
+    m_lcp_timing_counter = 2;
+    Uint64 new_timing_factor = Uint64(115);
+    if (new_timing_factor > m_lcp_timing_factor)
+    {
+      jam();
+      m_lcp_timing_factor = new_timing_factor;
+    }
+  }
+  else if (m_redo_alert_state == RedoStateRep::REDO_ALERT_HIGH)
+  {
+    jam();
+    m_lcp_timing_counter = 2;
+    Uint64 new_timing_factor = Uint64(125);
+    if (new_timing_factor > m_lcp_timing_factor)
+    {
+      jam();
+      m_lcp_timing_factor = new_timing_factor;
+    }
+  }
+  else if (m_redo_alert_state == RedoStateRep::REDO_ALERT_CRITICAL)
+  {
+    jam();
+    m_lcp_timing_counter = 2;
+    Uint64 new_timing_factor = Uint64(135);
+    if (new_timing_factor > m_lcp_timing_factor)
+    {
+      jam();
+      m_lcp_timing_factor = new_timing_factor;
+    }
+  }
+}
+
+void
+Backup::reset_lcp_timing_factors()
+{
+  if (m_lcp_timing_counter > 0)
+  {
+    jam();
+    m_lcp_timing_counter--;
+    if (m_lcp_timing_counter == 0)
+    {
+      jam();
+      m_lcp_timing_factor = Uint64(100);
+    }
+  }
+}
+
+void
+Backup::set_proposed_disk_write_speed(Uint64 current_redo_speed_per_sec,
+                                      Uint64 mean_redo_speed_per_sec,
+                                      Uint64 seconds_since_lcp_cut)
+{
+  /**
+   * When LCPs are increasing the time it takes to execute an LCP we try to
+   * get it back by increasing the disk write speed until the end of the
+   * next LCP. This is controlled by the m_lcp_timing_factor variable. This
+   * variable is set to 100 when no such issues are at hand.
+   */
+  m_proposed_disk_write_speed *= m_lcp_timing_factor;
+  m_proposed_disk_write_speed /= Uint64(100);
+
+  /**
+   * We save the proposed disk write speed with multiplication of LCP timing
+   * factor as the m_lcp_change_rate, this is the calculated change rate with
+   * some long-term factors derived from m_lcp_timing_factor.
+   *
+   * The short-term proposed disk write speed in addition will contain
+   * additional components to ensure that we actually deliver the calculated
+   * LCP change rate.
+   */
+  m_lcp_change_rate = m_proposed_disk_write_speed;
+
+  /**
+   * The proposed disk write speed is not always achieved and we have some
+   * level of slowness in responding to this setting, so we increase the
+   * proposed disk write speed by 25% cater for this.
+   *
+   * There are many reasons why we won't achieve this speed. A few are:
+   * 1) Variable completion of LCP execution in the LDMs in the cluster.
+   * 2) High CPU usage when REDO log alert factor is still not activated
+   * 3) Disk not keeping up temporarily
+   * 4) Setting proposed disk write speed increases the maximum disk write
+   *    speed, thus it can take a while before it affects the actual
+   *    disk write speed since this is changed by an adaptive change
+   *    algorithm.
+   */
+  m_proposed_disk_write_speed *= Uint64(125);
+  m_proposed_disk_write_speed /= Uint64(100);
+
+  Int64 lag = m_lcp_lag[0] + m_lcp_lag[1];
+  Int64 lag_per_sec = 0;
+  if (seconds_since_lcp_cut > 0)
+  {
+    lag_per_sec = lag / (Int64)seconds_since_lcp_cut;
+  }
+  if (current_redo_speed_per_sec > mean_redo_speed_per_sec)
+  {
+    jam();
+    Uint64 factor = current_redo_speed_per_sec * Uint64(100);
+    factor /= (mean_redo_speed_per_sec + 1);
+    if (factor > Uint64(120))
+    {
+      jam();
+      factor = Uint64(120);
+    }
+    /**
+     * Increase the proposed disk write speed by up to 20% if we currently
+     * generate more REDO logging compared to the mean. This is aiming to
+     * cater for sudden increases in write activity to ensure that we start
+     * acting quickly on those changes. At the same we put a dent on this
+     * change to 20% increase. This avoids too high fluctuations in the
+     * disk write speed.
+     */
+    m_proposed_disk_write_speed *= factor;
+    m_proposed_disk_write_speed /= Uint64(100);
+  }
+  if (m_redo_alert_state == RedoStateRep::REDO_ALERT_LOW)
+  {
+    jam();
+    /**
+     * Add another 10% to proposed speed if we are at low
+     * alert level.
+     */
+    m_proposed_disk_write_speed *= Uint64(110);
+    m_proposed_disk_write_speed /= Uint64(100);
+  }
+  else if (m_redo_alert_state == RedoStateRep::REDO_ALERT_HIGH)
+  {
+    jam();
+    /**
+     * Add another 20% to proposed speed if we are at high
+     * alert level.
+     */
+    m_proposed_disk_write_speed *= Uint64(120);
+    m_proposed_disk_write_speed /= Uint64(100);
+  }
+  else if (m_redo_alert_state == RedoStateRep::REDO_ALERT_CRITICAL)
+  {
+    jam();
+    /**
+     * Add another 40% to proposed speed if we are at critical
+     * alert level.
+     */
+    m_proposed_disk_write_speed *= Uint64(140);
+    m_proposed_disk_write_speed /= Uint64(100);
+  }
+  else if (lag < Int64(0))
+  {
+    /**
+     * There is no REDO Alert level and we are running faster than
+     * necessary, we will slow down based on the calculated lag per
+     * second (which when negative means that we are ahead). We will
+     * never slow down more than 30%.
+     */
+    lag_per_sec = Int64(-1) * lag_per_sec; /* Make number positive */
+    Uint64 percentage_decrease = Uint64(lag_per_sec) * Uint64(100);
+    percentage_decrease /= (m_proposed_disk_write_speed + 1);
+    if (percentage_decrease > Uint64(30))
+    {
+      jam();
+      m_proposed_disk_write_speed *= Uint64(70);
+      m_proposed_disk_write_speed /= Uint64(100);
+    }
+    else
+    {
+      jam();
+      m_proposed_disk_write_speed -= lag_per_sec;
+    }
+  }
+  if (lag > Int64(0))
+  {
+    /**
+     * We don't keep up with the calculated LCP change rate.
+     * We will increase the proposed disk write speed by up
+     * to 100% to keep up with the LCP change rate.
+     */
+    jam();
+    Uint64 percentage_increase = lag_per_sec * Uint64(100);
+    percentage_increase /= (m_proposed_disk_write_speed + 1);
+    if (percentage_increase > Uint64(100))
+    {
+      jam();
+      m_proposed_disk_write_speed *= Uint64(2);
+    }
+    else
+    {
+      jam();
+      m_proposed_disk_write_speed += lag_per_sec;
+    }
+  }
+}
+
+void
+Backup::measure_change_speed(Signal *signal)
+{
+  if (true)
+    return;
+  /**
+   * The aim of this function is to calculate the following values:
+   * 1) m_redo_alert_state
+   * 2) m_redo_alert_factor
+   * 3) m_proposed_disk_write_speed
+   *
+   * The m_redo_alert_state variable is used to set the m_redo_alert_factor
+   * that raises the priority of LCP writes towards other operation.
+   *
+   * The variable is kept consistent in the cluster to ensure that one
+   * REDO log that is overloaded will also ensure that all other LDMs in
+   * the cluster will speed up LCP execution.
+   *
+   * Based on this variable we raise the maximum speed based on the
+   * configured disk write parameters.
+   * This variable can also change the adaptive algorithm that slows down
+   * LCP execution due to high CPU load. It ensures that we raise the
+   * prio on LCP execution by ensuring that all LCP execution signals
+   * are executed at A-level and we fill the buffers more actively when
+   * set at alert levels.
+   * Finally setting this variable to an alert level means that we speed up
+   * handling of empty LCP fragments.
+   *
+   * The m_redo_alert_factor changes the amount of writes we will do in
+   * one real-time break when executing at A-level.
+   *
+   * The proposed disk write speed is used to increase the maximum speed
+   * used in the adaptive disk write speed algorithm if necessary.
+   *
+   * Calculation of the proposed disk write speed is fairly complicated.
+   * The idea is to use the same mechanics used to decide how much an LCP
+   * will execute on a fragment basis on a global level.
+   *
+   * get_redo_stats
+   * --------------
+   * To do this we keep track of the amount of changes we have done since
+   * the start of the previous LCP. We keep track of this by adding the
+   * average row size to a global update_size, insert_size and delete_size
+   * in DBLQH. These variables are requested in the get_redo_stats call to
+   * DBLQH.
+   *
+   * calculate_total_size
+   * --------------------
+   * To calculate the change size we use different change factors for
+   * inserts and deletes. Deletes generate 20% more per byte compared
+   * to updates and inserts generate less, 40% by default, compared to
+   * updates. If we have both inserts and deletes we will only use
+   * the larger of the two and the overlap is treated as updates.
+   * This is the same mechanism used in the method calculate_row_change_count
+   * used when deciding the number of parts to checkpoint for a specific
+   * fragment.
+   *
+   * calculate_parts
+   * ---------------
+   * Updates can at times hit the same row, we estimate the number of updates
+   * to the same row by using a Poisson distribution of writes to the rows.
+   * This means that we can estimate the number of rows not written by using
+   * an exponential distribution. Thus it is easy to calculate the percent of
+   * data that has been written. Using this information we use the same
+   * function (calculate_min_parts) to calculate the parts to checkpoint
+   * on a global level, this function returns the number of parts with the
+   * maximum number of parts being the BackupFormat::NDB_MAX_LCP_PARTS.
+   *
+   * calculate_change_rate
+   * ---------------------
+   * Finally we use the change size, the number of parts and the seconds since
+   * the changes we used was started. This gives us a calculated proposed disk
+   * write speed. To calculate we will retrieve the time since the start of
+   * previous LCP.
+   *
+   * calculate_redo_parameters
+   * -------------------------
+   * We got redo_size, redo_usage and redo_written_since_last_call from the
+   * call to get_redo_stats. Based on this information we calculate the
+   * following variables.
+   * redo_percentage:
+   * ................
+   * Percentage of REDO log currently in use. This is used directly to set the
+   * m_redo_alert_factor.
+   *
+   * max_redo_used_before_cut:
+   * mean_redo_used_before_cut:
+   * redo_available:
+   * ..........................
+   * These three variables together are used to calculate if there is a risk
+   * that we will run out of REDO log even without a high REDO percentage. If
+   * so we will set the m_redo_alert_state based on these variables.
+   * The max_redo_used_before_cut is an estimate of how much REDO log will
+   * write before the next LCP is completed if maximum REDO write speed is
+   * used. Similarly for mean_redo_used_before_cut but based on average REDO
+   * write speed. redo_available is the amount of REDO log still available.
+   *
+   * mean_redo_speed_per_sec:
+   * current_redo_speed_per_sec:
+   * ...........................
+   * These are used to see if we are currently very active in writing the
+   * REDO log. If we are we will increase the proposed disk write speed a bit
+   * as an effect of this.
+   *
+   * change_alert_state_redo_percent
+   * -------------------------------
+   * Based on redo_percentage we will set m_redo_alert_state.
+   *
+   * change_alert_state_redo_usage
+   * -----------------------------
+   * The above calculation based on max_redo_before_cut, mean_before_redo_cut,
+   * and redo_available is performed here to set m_redo_alert_state
+   * appropriately.
+   *
+   * handle_global_alert_state
+   * -------------------------
+   * Ensure that we are synchronised in our REDO alert state with other LDMs
+   * in the cluster since the LCP protocol is global.
+   *
+   * set_redo_alert_factor
+   * ---------------------
+   * Set m_redo_alert_factor based on m_redo_alert_state and redo_percentage.
+   *
+   * calculate_change_rate
+   * ---------------------
+   * Calculate proposed disk write speed based on calculated value and on the
+   * current activity level as reported in mean_redo_speed_per_sec and
+   * current_redo_speed_per_sec. We will also increase to cater for some safety
+   * levels and based on the m_redo_alert_state.
+   */
+  NDB_TICKS current_time = getHighResTimer();
+  Uint64 millis_since_last_call =
+    NdbTick_Elapsed(m_last_redo_check_time, current_time).milliSec();
+
+  if (millis_since_last_call < 800)
+  {
+    jam();
+    return;
+  }
+  m_last_redo_check_time = current_time;
+  Uint64 redo_usage;
+  Uint64 redo_size;
+  Uint64 redo_written_since_last_call;
+  Uint64 insert_size;
+  Uint64 delete_size;
+  Uint64 update_size;
+  c_lqh->get_redo_stats(redo_usage,
+                        redo_size,
+                        redo_written_since_last_call,
+                        update_size,
+                        insert_size,
+                        delete_size);
+
+  if (redo_size == 0)
+  {
+    jam();
+    return;
+  }
+  init_lcp_timers(redo_written_since_last_call);
+
+  m_update_size_lcp_last = update_size;
+  m_insert_size_lcp_last = insert_size;
+  m_delete_size_lcp_last = delete_size;
+
+  Uint64 redo_percentage;
+  Uint64 max_redo_used_before_cut;
+  Uint64 mean_redo_used_before_cut;
+  Uint64 mean_redo_speed_per_sec;
+  Uint64 current_redo_speed_per_sec;
+  Uint64 redo_available;
+  calculate_redo_parameters(redo_usage,
+                            redo_size,
+                            redo_written_since_last_call,
+                            millis_since_last_call,
+                            redo_percentage,
+                            max_redo_used_before_cut,
+                            mean_redo_used_before_cut,
+                            mean_redo_speed_per_sec,
+                            current_redo_speed_per_sec,
+                            redo_available);
+
+  update_size -= m_update_size_lcp[0];
+  insert_size -= m_insert_size_lcp[0];
+  delete_size -= m_delete_size_lcp[0];
+  Uint64 seconds_since_lcp_cut = 0;
+  Uint64 lcp_time_in_secs = 0;
+  Uint64 change_rate = calculate_checkpoint_rate(update_size,
+                                                 insert_size,
+                                                 delete_size,
+                                                 get_total_memory(),
+                                                 seconds_since_lcp_cut,
+                                                 lcp_time_in_secs);
+  m_proposed_disk_write_speed = change_rate;
+
+  RedoStateRep::RedoAlertState save_redo_alert_state =
+    m_local_redo_alert_state;
+  change_alert_state_redo_percent(redo_percentage);
+  change_alert_state_redo_usage(max_redo_used_before_cut,
+                                mean_redo_used_before_cut,
+                                redo_available);
+  handle_global_alert_state(signal, save_redo_alert_state);
+  set_redo_alert_factor(redo_percentage);
+  set_lcp_timing_factors(seconds_since_lcp_cut,
+                         lcp_time_in_secs);
+  set_proposed_disk_write_speed(current_redo_speed_per_sec,
+                                mean_redo_speed_per_sec,
+                                seconds_since_lcp_cut);
+
+#ifdef DEBUG_REDO_CONTROL
+  Int64 current_lag = m_lcp_lag[0] + m_lcp_lag[1];
+  DEB_REDO_CONTROL(("(%u)Proposed speed is %llu kB/sec"
+                    ", current_redo_speed is %llu kB/sec and"
+                    ", mean_redo_speed is %llu kB/sec"
+                    ", %s is %llu kB",
+                    instance(),
+                    (m_proposed_disk_write_speed / Uint64(1024)),
+                    (current_redo_speed_per_sec / Uint64(1024)),
+                    (mean_redo_speed_per_sec / Uint64(1024)),
+                    (current_lag >= 0) ? "lag" : "ahead",
+                    (current_lag >= 0) ? current_lag : -current_lag
+                     ));
+  DEB_REDO_CONTROL(("(%u)state: %u, redo_size: %llu MByte, "
+                    "redo_percent: %llu, last LCP time in ms: %llu",
+                    instance(),
+                    m_redo_alert_state,
+                    redo_size,
+                    redo_percentage,
+                    m_last_lcp_exec_time_in_ms));
+#endif
+}
+
+Uint64
+Backup::calculate_proposed_disk_write_speed()
+{
+  if (m_enable_partial_lcp == 0 && false)
+  {
+    jam();
+    return 0;
+  }
+  Uint64 proposed_speed = m_proposed_disk_write_speed;
+  proposed_speed /= CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS;
+  return proposed_speed;
 }
 
 /**
@@ -869,6 +1895,22 @@ Backup::execCHECK_NODE_RESTARTCONF(Signal *signal)
 {
   bool old_is_backup_running = m_is_backup_running;
   bool old_is_any_node_restarting = m_is_any_node_restarting;
+  if (!m_is_lcp_running)
+  {
+    if (signal->theData[0] == 1)
+    {
+      jam();
+      lcp_start_point();
+    }
+  }
+  else
+  {
+    if (signal->theData[0] == 0)
+    {
+      jam();
+      lcp_end_point();
+    }
+  }
   m_is_lcp_running = (signal->theData[0] == 1);
   m_is_backup_running = g_is_backup_running;  /* Global from backup instance */
   m_is_any_node_restarting = (signal->theData[1] == 1);
@@ -960,6 +2002,7 @@ Backup::execCONTINUEB(Signal* signal)
       jam();
       m_node_restart_check_sent = false;
       monitor_disk_write_speed(curr_time, millisPassed);
+      measure_change_speed(signal);
       calculate_disk_write_speed(signal);
     }
     handle_overflow(m_overflow_disk_write,
@@ -6368,7 +7411,7 @@ Backup::check_scan_if_raise_prio(Signal *signal, BackupRecordPtr ptr)
   }
   ptr.p->m_lastSignalId = current_signal_id;
   ptr.p->m_prioA_scan_batches_to_execute = prioA_scan_batches_to_execute;
-  return flag;;
+  return flag;
 }
 
 void
@@ -6633,7 +7676,7 @@ Backup::execTRANSID_AI(Signal* signal)
                  fragPtr.p->fragmentId,
                  src[0],
                  src[1],
-                 src[3]));
+                 src[3]);
 #endif
     if (unlikely(dataLen >= op.maxRecordSize))
     {

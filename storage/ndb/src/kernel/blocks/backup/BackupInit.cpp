@@ -25,7 +25,7 @@
 
 #include <Properties.hpp>
 #include <Configuration.hpp>
-
+#include <signaldata/RedoStateRep.hpp>
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
@@ -121,6 +121,8 @@ Backup::Backup(Block_context& ctx, Uint32 instanceNumber) :
   addRecSignal(GSN_UTIL_SEQUENCE_REF, &Backup::execUTIL_SEQUENCE_REF);
   addRecSignal(GSN_UTIL_SEQUENCE_CONF, &Backup::execUTIL_SEQUENCE_CONF);
 
+  addRecSignal(GSN_REDO_STATE_REP, &Backup::execREDO_STATE_REP);
+
   addRecSignal(GSN_WAIT_GCP_REF, &Backup::execWAIT_GCP_REF);
   addRecSignal(GSN_WAIT_GCP_CONF, &Backup::execWAIT_GCP_CONF);
   addRecSignal(GSN_BACKUP_LOCK_TAB_CONF, &Backup::execBACKUP_LOCK_TAB_CONF);
@@ -168,6 +170,31 @@ Backup::Backup(Block_context& ctx, Uint32 instanceNumber) :
     ct.m_entry = m_callbackEntry;
     m_callbackTableAddr = &ct;
   }
+  m_redo_alert_state = RedoStateRep::NO_REDO_ALERT;
+  m_local_redo_alert_state = RedoStateRep::NO_REDO_ALERT;
+  m_global_redo_alert_state = RedoStateRep::NO_REDO_ALERT;
+  m_max_redo_speed_per_sec = Uint64(0);
+  NdbTick_Invalidate(&m_lcp_start_time);
+  NdbTick_Invalidate(&m_prev_lcp_start_time);
+  NdbTick_Invalidate(&m_last_redo_check_time);
+  NdbTick_Invalidate(&m_lcp_current_cut_point);
+  m_last_redo_used_in_bytes = Uint64(0);
+  m_last_lcp_exec_time_in_ms = Uint64(0);
+  m_update_size_lcp[0] = Uint64(0);
+  m_update_size_lcp[1] = Uint64(0);
+  m_update_size_lcp_last = Uint64(0);
+  m_insert_size_lcp[0] = Uint64(0);
+  m_insert_size_lcp[1] = Uint64(0);
+  m_insert_size_lcp_last = Uint64(0);
+  m_delete_size_lcp[0] = Uint64(0);
+  m_delete_size_lcp[1] = Uint64(0);
+  m_delete_size_lcp_last = Uint64(0);
+  m_proposed_disk_write_speed = Uint64(0);
+  m_lcp_lag[0] = Int64(0);
+  m_lcp_lag[1] = Int64(0);
+  m_lcp_timing_counter = Uint64(0);
+  m_lcp_change_rate = Uint64(0);
+  m_lcp_timing_factor = Uint64(100);
 }
   
 Backup::~Backup()
