@@ -60,6 +60,8 @@ void Dbtup::initData()
   cCopyOverwrite = 0;
   cCopyOverwriteLen = 0;
 
+  c_debug_count = 0;
+
   // Records with constant sizes
   init_list_sizes();
   cpackedListIndex = 0;
