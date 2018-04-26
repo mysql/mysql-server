@@ -107,6 +107,7 @@ extern EventLogger * g_eventLogger;
 //#define DEBUG_LOCAL_LCP 1
 //#define DEBUG_LOCAL_LCP_EXTRA
 //#define DEBUG_REDO_FLAG
+//#define DEBUG_TRANSACTION_TIMEOUT
 #endif
 
 #ifdef DEBUG_EXTRA_LCP
@@ -195,13 +196,14 @@ operator<<(NdbOut& out, Dblqh::ScanRecord::ScanState state){
   return out;
 }
 
+#ifdef DEB_TRANSACTION_TIMEOUT
 static
 NdbOut &
 operator<<(NdbOut& out, Dblqh::LogFileOperationRecord::LfoState state){
   out << (int)state;
   return out;
 }
-
+#endif
 static
 NdbOut &
 operator<<(NdbOut& out, Dblqh::ScanRecord::ScanType state){
@@ -3542,6 +3544,7 @@ void Dblqh::timer_handling(Signal *signal)
   }//if
 
   cLqhTimeOutCheckCount = 0;
+#ifdef DEBUG_TRANSACTION_TIMEOUT
 #ifdef VM_TRACE
   TcConnectionrecPtr tTcConptr;
   
@@ -3582,7 +3585,7 @@ void Dblqh::timer_handling(Signal *signal)
   }//for
 
 #endif
-
+#endif
 #if 0
   LcpRecordPtr TlcpPtr;
   // Print information about the current local checkpoint
