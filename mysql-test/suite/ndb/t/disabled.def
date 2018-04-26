@@ -95,7 +95,6 @@ ndb_alter_table_error: Need WL#9185 MySQL Cluster support for new DD
 ndb_dist_priv_bug_13340854: Bug #26434578 NDB_DIST_PRIV_BUG_13340854 TEST FAILS WITH MYSQLD CRASHING
 
 # Tests disabled under various bugs pending further investigation
-ndb_dd_sql_features: Bug #26484275 FAILURE OF NDB_DD_SQL_FEATURES TEST ON WINDOWS
 ndb_bushy_joins: Bug #26484136 FAILURE OF NDB_BUSHY_JOINS AND NDB_MANY_FRAGMENTS TESTS ON WINDOWS
 ndb_many_fragments: Bug #26484136 FAILURE OF NDB_BUSHY_JOINS AND NDB_MANY_FRAGMENTS TESTS ON WINDOWS
 
