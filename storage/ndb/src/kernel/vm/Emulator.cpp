@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -625,7 +625,8 @@ static const char* const jamFileNames[] =
    "SegmentList.hpp",                    // 496
    "SegmentList.cpp",                    // 497
    "LocalSysfile.hpp",                   // 498
-   "UndoLogLevel.hpp"                    // 499
+   "UndoLogLevel.hpp",                   // 499
+   "RedoStateRep.hpp"                    // 500
    };
 
 bool 

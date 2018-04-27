@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -50,6 +50,7 @@ void Ndbcntr::initData()
   m_local_lcp_started = false;
   m_local_lcp_completed = false;
   m_full_local_lcp_started = false;
+  m_first_distributed_lcp_started = false;
   m_distributed_lcp_started = false;
   m_copy_fragment_in_progress = false;
   m_max_gci_in_lcp = 0;
@@ -65,6 +66,10 @@ void Ndbcntr::initData()
   m_initial_local_lcp_started = false;
   m_lcp_id = 0;
   m_local_lcp_id = 0;
+  m_global_redo_alert_state = RedoStateRep::NO_REDO_ALERT;
+  m_node_redo_alert_state = RedoStateRep::NO_REDO_ALERT;
+  for (Uint32 i = 0; i < MAX_NDBMT_LQH_THREADS; i++)
+    m_redo_alert_state[i] = RedoStateRep::NO_REDO_ALERT;
 }//Ndbcntr::initData()
 
 void Ndbcntr::initRecords() 
@@ -142,6 +147,8 @@ Ndbcntr::Ndbcntr(Block_context& ctx):
   addRecSignal(GSN_WAIT_GCP_CONF, &Ndbcntr::execWAIT_GCP_CONF);
   addRecSignal(GSN_CHANGE_NODE_STATE_CONF, 
 	       &Ndbcntr::execCHANGE_NODE_STATE_CONF);
+
+  addRecSignal(GSN_REDO_STATE_REP, &Ndbcntr::execREDO_STATE_REP);
 
   addRecSignal(GSN_ABORT_ALL_REF, &Ndbcntr::execABORT_ALL_REF);
   addRecSignal(GSN_ABORT_ALL_CONF, &Ndbcntr::execABORT_ALL_CONF);

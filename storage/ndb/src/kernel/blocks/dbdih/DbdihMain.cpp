@@ -96,8 +96,15 @@ static const Uint32 WaitTableStateChangeMillis = 10;
 extern EventLogger * g_eventLogger;
 
 #ifdef VM_TRACE
+#define DEBUG_REDO_CONTROL 1
 //#define DEBUG_LCP 1
 //#define DEBUG_LCP_COMP 1
+#endif
+
+#ifdef DEBUG_REDO_CONTROL
+#define DEB_REDO_CONTROL(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_REDO_CONTROL(arglist) do { } while (0)
 #endif
 
 #ifdef DEBUG_LCP
@@ -27391,6 +27398,92 @@ void Dbdih::execSTOP_ME_CONF(Signal* signal)
 	     StopMeConf::SignalLength, JBB);
   c_stopMe.clientRef = 0;
 }//Dbdih::execSTOP_ME_CONF()
+
+void
+Dbdih::sendREDO_STATE_REP_to_all(Signal *signal,
+                                 Uint32 block,
+                                 bool send_to_all)
+{
+  NodeRecordPtr nodePtr;
+  nodePtr.i = cfirstAliveNode;
+  jam();
+  do
+  {
+    ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+    if (nodePtr.p->copyCompleted || send_to_all)
+    {
+      jamLine(nodePtr.i);
+      BlockReference ref = numberToRef(block, nodePtr.i);
+      sendSignal(ref, GSN_REDO_STATE_REP, signal, 2, JBB);
+    }
+    nodePtr.i = nodePtr.p->nextNode;
+  } while (nodePtr.i != RNIL);
+}
+
+RedoStateRep::RedoAlertState
+Dbdih::get_global_redo_alert_state()
+{
+  RedoStateRep::RedoAlertState redo_alert_state = RedoStateRep::NO_REDO_ALERT;
+  NodeRecordPtr nodePtr;
+  nodePtr.i = cfirstAliveNode;
+  jam();
+  do
+  {
+    ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+    if (m_node_redo_alert_state[nodePtr.i] > redo_alert_state &&
+        nodePtr.p->copyCompleted)
+    {
+      jamLine(nodePtr.i);
+      redo_alert_state = m_node_redo_alert_state[nodePtr.i];
+    }
+    nodePtr.i = nodePtr.p->nextNode;
+  } while (nodePtr.i != RNIL);
+  return redo_alert_state;
+}
+
+void Dbdih::execREDO_STATE_REP(Signal* signal)
+{
+  RedoStateRep* rep = (RedoStateRep*)&signal->theData[0];
+  if (rep->receiverInfo == RedoStateRep::ToLocalDih)
+  {
+    /**
+     * Our local REDO alert state have changed. We should send
+     * this information to all alive DIH nodes.
+     */
+    jam();
+    rep->receiverInfo = RedoStateRep::ToAllDih;
+    sendREDO_STATE_REP_to_all(signal, DBDIH, true);
+  }
+  else
+  {
+    /**
+     * We received a new REDO alert state from a node. We record
+     * this information. Only if we are the master will we
+     * send this information onward to all the NDBCNTR of the live
+     * nodes. In addition only send this onwards when the global
+     * state have changed.
+     */
+    jam();
+    RedoStateRep::RedoAlertState new_global_redo_alert_state;
+    ndbrequire(rep->receiverInfo == RedoStateRep::ToAllDih);
+    BlockReference sender = signal->senderBlockRef();
+    Uint32 node_id_sender = refToNode(sender);
+    m_node_redo_alert_state[node_id_sender] =
+      (RedoStateRep::RedoAlertState)rep->redoState;
+    new_global_redo_alert_state = get_global_redo_alert_state();
+    if (isMaster() &&
+        new_global_redo_alert_state != m_global_redo_alert_state)
+    {
+      jam();
+      DEB_REDO_CONTROL(("Send out new REDO alert state: %u",
+                        (Uint32)new_global_redo_alert_state));
+      m_global_redo_alert_state = new_global_redo_alert_state;
+      rep->receiverInfo = RedoStateRep::ToNdbcntr;
+      rep->redoState = (RedoStateRep::RedoAlertState)m_global_redo_alert_state;
+      sendREDO_STATE_REP_to_all(signal, NDBCNTR, false);
+    }
+  }
+}
 
 void Dbdih::execWAIT_GCP_REQ(Signal* signal)
 {
