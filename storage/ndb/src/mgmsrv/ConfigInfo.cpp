@@ -739,6 +739,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
 
   {
+    CFG_DB_WATCHDOG_IMMEDIATE_KILL,
+    "WatchDogImmediateKill",
+    DB_TOKEN,
+    "Kill threads immediately at watchdog issue",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_BOOL,
+    "true",
+    "false",
+    "true"},
+
+  {
     CFG_DB_STOP_ON_ERROR,
     "StopOnError",
     DB_TOKEN,

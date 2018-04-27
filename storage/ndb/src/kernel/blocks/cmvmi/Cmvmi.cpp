@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -842,6 +842,10 @@ void Cmvmi::execSTTOR(Signal* signal)
                                 &db_watchdog_interval);
       ndbrequire(db_watchdog_interval);
       update_watch_dog_timer(db_watchdog_interval);
+      Uint32 kill_val;
+      ndb_mgm_get_int_parameter(p, CFG_DB_WATCHDOG_IMMEDIATE_KILL, 
+                                &kill_val);
+      globalEmulatorData.theWatchDog->setKillSwitch((bool)kill_val);
     }
 
     /**
