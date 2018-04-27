@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -78,11 +78,6 @@ public:
    * clear - Clear all bits.
    */
   static void clear(unsigned size, Uint32 data[]);
-
-  /**
-   * clear bit from <em>start</em> to <em>last</em>
-   */
-  static void clear_range(unsigned size, Uint32 data[], unsigned start, unsigned last);
 
   static Uint32 getWord(unsigned size, const Uint32 data[], unsigned word_pos);
   static void setWord(unsigned size, Uint32 data[],
@@ -292,6 +287,11 @@ inline void
 BitmaskImpl::setRange(unsigned size, Uint32 data[],
                       unsigned start, unsigned len)
 {
+  if (len == 0)
+  {
+    return;
+  }
+
   Uint32 last = start + len - 1;
   Uint32 *ptr = data + (start >> 5);
   Uint32 *end =  data + (last >> 5);
@@ -312,7 +312,7 @@ BitmaskImpl::setRange(unsigned size, Uint32 data[],
     tmp_word = ~(Uint32)0;
   }
 
-  tmp_word &= ~(~(Uint32)0 << (last & 31));
+  tmp_word &= ~(~(Uint32)1 << (last & 31));
   
   * ptr |= tmp_word;
 }
@@ -338,34 +338,6 @@ BitmaskImpl::clear(unsigned size, Uint32 data[])
   for (unsigned i = 0; i < size; i++) {
     data[i] = 0;
   }
-}
-
-inline void
-BitmaskImpl::clear_range(unsigned size, Uint32 data[], 
-			 unsigned start, unsigned last)
-{
-  Uint32 *ptr = data + (start >> 5);
-  Uint32 *end =  data + (last >> 5);
-  assert(start <= last);
-  assert(last < (size << 5));
-  
-  Uint32 tmp_word = ~(Uint32)0 << (start & 31);
-
-  if (ptr < end)
-  {
-    * ptr ++ &= ~tmp_word;
-    
-    for(; ptr < end; )
-    {
-      * ptr ++ = 0;
-    }
-    
-    tmp_word = ~(Uint32)0;
-  }
-
-  tmp_word &= ~(~(Uint32)0 << (last & 31));
-
-  * ptr &= ~tmp_word;
 }
 
 inline
