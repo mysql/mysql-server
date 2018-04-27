@@ -60,14 +60,16 @@ if (!$eval_result)
 {
   --echo ######## Test assertion failed: $assert_text ########
   --echo Dumping debug info:
+  --let $assert_cond_interp = $_eval_expr_interp
+  --let $assert_result = $eval_result
   if ($show_rpl_debug_info)
   {
     --source include/show_rpl_debug_info.inc
   }
   --echo Assertion text: '$assert_text'
   --echo Assertion condition: '$assert_cond'
-  --echo Assertion condition, interpolated: '$_eval_expr_interp'
-  --echo Assertion result: '$eval_result'
+  --echo Assertion condition, interpolated: '$assert_cond_interp'
+  --echo Assertion result: '$assert_result'
   --die Test assertion failed in assert.inc
 }
 

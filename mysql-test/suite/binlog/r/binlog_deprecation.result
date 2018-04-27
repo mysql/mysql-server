@@ -1,4 +1,0 @@
-# restart: --log-error=MYSQLTEST_VARDIR/tmp/binlog_deprecations-output.err
-include/assert_grep.inc [Assert that there is no  warning at bootstrap if expire_logs_days is not explicitly set]
-# restart:--expire_logs_days=99 --log-error=MYSQLTEST_VARDIR/tmp/binlog_deprecations-output.err
-include/assert_grep.inc [Assert that there is a warning at bootstrap for expire_logs_days]

@@ -198,6 +198,7 @@ if ($extra_debug_eval)
 {
   --let $eval_expr= $extra_debug_eval
   --source include/eval.inc
+  --echo extra evaluated debug expression: '$extra_debug_eval'
   --echo extra evaluated debug info: '$eval_result'
 }
 

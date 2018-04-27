@@ -5265,28 +5265,32 @@ static int init_server_components() {
     mysql_mutex_unlock(log_lock);
   }
 
+  /*
+    When we pass non-zero values for both expire_logs_days and
+    binlog_expire_logs_seconds at the server start-up, the value of
+    expire_logs_days will be ignored and only binlog_expire_logs_seconds
+    will be used.
+  */
+  if (binlog_expire_logs_seconds_supplied && expire_logs_days_supplied) {
+    if (binlog_expire_logs_seconds != 0 && expire_logs_days != 0) {
+      LogErr(WARNING_LEVEL, ER_EXPIRE_LOGS_DAYS_IGNORED);
+      expire_logs_days = 0;
+    }
+  } else if (expire_logs_days_supplied)
+    binlog_expire_logs_seconds = 0;
+  DBUG_ASSERT(expire_logs_days == 0 || binlog_expire_logs_seconds == 0);
+
   if (opt_bin_log) {
-    time_t purge_time = 0;
-
-    /*
-      When we pass non zero value for both expire_logs_days and
-      binlog_expire_logs_seconds at the server start up in that case the
-      of expire_logs_days will be ignored and only binlog_expire_logs_seconds
-      will be used.
-    */
-    if (binlog_expire_logs_seconds_supplied && expire_logs_days_supplied) {
-      if (binlog_expire_logs_seconds != 0 && expire_logs_days != 0) {
-        LogErr(WARNING_LEVEL, ER_EXPIRE_LOGS_DAYS_IGNORED);
-        expire_logs_days = 0;
-      }
-    } else if (expire_logs_days_supplied)
-      binlog_expire_logs_seconds = 0;
-
-    if (expire_logs_days > 0 || binlog_expire_logs_seconds > 0)
-      purge_time = my_time(0) - binlog_expire_logs_seconds -
-                   expire_logs_days * 24 * 60 * 60;
-
-    if (purge_time >= 0) mysql_bin_log.purge_logs_before_date(purge_time, true);
+    if (expire_logs_days > 0 || binlog_expire_logs_seconds > 0) {
+      time_t purge_time = my_time(0) - binlog_expire_logs_seconds -
+                          expire_logs_days * 24 * 60 * 60;
+      mysql_bin_log.purge_logs_before_date(purge_time, true);
+    }
+  } else {
+    if (binlog_expire_logs_seconds_supplied)
+      LogErr(WARNING_LEVEL, ER_NEED_LOG_BIN, "--binlog-expire-logs-seconds");
+    if (expire_logs_days_supplied)
+      LogErr(WARNING_LEVEL, ER_NEED_LOG_BIN, "--expire_logs_days");
   }
 
   if (opt_myisam_log) (void)mi_log(1);
