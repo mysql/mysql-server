@@ -135,13 +135,23 @@ WatchDog::setKillSwitch(bool kill)
 }
 
 static
-const char *get_action(Uint32 IPValue)
+const char *get_action(char *buf, Uint32 IPValue)
 {
   const char *action;
-  switch (IPValue) {
+  Uint32 place = IPValue & 255;
+  switch (place) {
   case 1:
-    action = "Job Handling";
+  {
+    Uint32 bno = (IPValue >> 8) & 1023;
+    Uint32 gsn = IPValue >> 20;
+    BaseString::snprintf(buf,
+                         128,
+                         "JobHandling in block: %u, gsn: %u",
+                         bno,
+                         gsn);
+    action = buf;
     break;
+  }
   case 2:
     action = "Scanning Timers";
     break;
@@ -189,6 +199,15 @@ const char *get_action(Uint32 IPValue)
     break;
   case 18:
     action = "Yielding to OS";
+    break;
+  case 19:
+    action = "Send thread main loop";
+    break;
+  case 20:
+    action = "Returned from do_send";
+    break;
+  case 21:
+    action = "Initial value in mt_job_thread_main";
     break;
   default:
     action = NULL;
@@ -381,7 +400,8 @@ WatchDog::run()
       */
       if (oldCounterValue[i] != 9 || elapsed[i] >= theIntervalCheck[i])
       {
-        const char *last_stuck_action = get_action(oldCounterValue[i]);
+        char buf[128];
+        const char *last_stuck_action = get_action(buf, oldCounterValue[i]);
         if (last_stuck_action != NULL)
         {
           g_eventLogger->warning("Ndb kernel thread %u is stuck in: %s "
