@@ -452,13 +452,17 @@ public:
   int prepare_inplace__add_index(THD *thd, KEY *key_info,
                                  uint num_of_keys) const;
   int create_ndb_index(THD *thd, const char *name, KEY *key_info,
-                       bool unique) const;
-  int create_ordered_index(THD *thd, const char *name, KEY *key_info) const;
-  int create_unique_index(THD *thd, const char *name, KEY *key_info) const;
+                       const NdbDictionary::Table *ndbtab, bool unique) const;
+  int create_ordered_index(THD *thd, const char *name, KEY *key_info,
+                           const NdbDictionary::Table *ndbtab) const;
+  int create_unique_index(THD *thd, const char *name, KEY *key_info,
+                          const NdbDictionary::Table *ndbtab) const;
   int create_index(THD *thd, const char *name, KEY *key_info,
-                   NDB_INDEX_TYPE idx_type) const;
+                   NDB_INDEX_TYPE idx_type,
+                   const NdbDictionary::Table *ndbtab) const;
   // Index list management
-  int create_indexes(THD *thd, TABLE *tab) const;
+  int create_indexes(THD *thd, TABLE *tab,
+                     const NdbDictionary::Table *ndbtab) const;
   int open_indexes(Ndb *ndb, TABLE *tab);
   void release_indexes(NdbDictionary::Dictionary* dict, int invalidate);
   void inplace__renumber_indexes(uint dropped_index_num);
@@ -472,7 +476,7 @@ public:
   int get_fk_data(THD *thd, Ndb *ndb);
   void release_fk_data();
   int create_fks(THD *thd, Ndb *ndb);
-  int copy_fk_for_offline_alter(THD * thd, Ndb*, NdbDictionary::Table* _dsttab);
+  int copy_fk_for_offline_alter(THD *thd, Ndb *, const char* tabname);
   int inplace__drop_fks(THD*, Ndb*, NdbDictionary::Dictionary*,
                        const NdbDictionary::Table*);
   static int get_fk_data_for_truncate(NdbDictionary::Dictionary*,

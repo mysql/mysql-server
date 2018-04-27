@@ -24,6 +24,7 @@
 
 #include "sql/ndb_thd_ndb.h"
 
+#include "derror.h"
 #include "my_dbug.h"
 #include "mysqld_error.h"
 #include "mysql/plugin.h"          // thd_get_thread_id
@@ -253,4 +254,17 @@ void Thd_ndb::push_warning(uint code, const char* fmt, ...) const {
   va_start(args, fmt);
   push_condition(m_thd, Sql_condition::SL_WARNING, code, fmt, args);
   va_end(args);
+}
+
+void Thd_ndb::push_ndb_error_warning(const NdbError& ndberr) const {
+  if (ndberr.status == NdbError::TemporaryError) {
+    push_warning_printf(m_thd, Sql_condition::SL_WARNING,
+                        ER_GET_TEMPORARY_ERRMSG,
+                        ER_THD(m_thd, ER_GET_TEMPORARY_ERRMSG), ndberr.code,
+                        ndberr.message, "NDB");
+  } else {
+    push_warning_printf(m_thd, Sql_condition::SL_WARNING, ER_GET_ERRMSG,
+                        ER_THD(m_thd, ER_GET_ERRMSG), ndberr.code,
+                        ndberr.message, "NDB");
+  }
 }

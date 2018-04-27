@@ -67,6 +67,7 @@
 #include "sql/ndb_modifiers.h"
 #include "sql/ndb_require.h"
 #include "sql/ndb_schema_dist.h"
+#include "sql/ndb_schema_trans_guard.h"
 #include "sql/ndb_sleep.h"
 #include "sql/ndb_table_guard.h"
 #include "sql/ndb_metadata.h"
@@ -2467,12 +2468,13 @@ static int fix_unique_index_attr_order(NDB_INDEX_DATA &data,
   DBUG_RETURN(0);
 }
 
-/*
-  Create all the indexes for a table.
-  If any index should fail to be created,
-  the error is returned immediately
+/**
+  @brief Create all the indexes for a table.
+  @note If any index should fail to be created, the error is returned
+  immediately
 */
-int ha_ndbcluster::create_indexes(THD *thd, TABLE *tab) const
+int ha_ndbcluster::create_indexes(THD *thd, TABLE *tab,
+                                  const NdbDictionary::Table *ndbtab) const
 {
   int error= 0;
   KEY* key_info= tab->key_info;
@@ -2483,7 +2485,7 @@ int ha_ndbcluster::create_indexes(THD *thd, TABLE *tab) const
   {
     const char* index_name= *key_name;
     NDB_INDEX_TYPE idx_type= get_index_type_from_table(i);
-    error= create_index(thd, index_name, key_info, idx_type);
+    error= create_index(thd, index_name, key_info, idx_type, ndbtab);
     if (error)
     {
       DBUG_PRINT("error", ("Failed to create index %u", i));
@@ -10314,7 +10316,6 @@ int ha_ndbcluster::create(const char *name,
   uint i, pk_length= 0;
   bool use_disk= false;
   bool ndb_sys_table= false;
-  int result= 0;
   Ndb_fk_list fk_list_for_truncate;
 
   // Verify default value for "single user mode" of the table
@@ -10698,21 +10699,53 @@ int ha_ndbcluster::create(const char *name,
     }
   }
 
-  if ((dict->beginSchemaTrans() == -1))
+  Ndb_schema_trans_guard schema_trans(thd_ndb, dict);
+  if (!schema_trans.begin_trans())
   {
-    DBUG_PRINT("info", ("Failed to start schema transaction"));
-    m_table= 0;
     ERR_RETURN(dict->getNdbError());
   }
-  DBUG_PRINT("info", ("Started schema transaction"));
 
-  int abort_error = 0;
-  int create_result;
-  DBUG_PRINT("table", ("name: %s", m_tabname));  
+  // Guard class which will invalidate the table in NdbApi global dict
+  // cache when class goes out of scope or at a specific place in the code
+  class Ndb_table_invalidator_guard {
+    NdbDictionary::Dictionary *const m_dict;
+    const char *const m_name;
+    bool m_have_invalidated{false};
+    void invalidate()
+    {
+      assert(!m_have_invalidated);
+      const NdbDictionary::Table *ndbtab = m_dict->getTableGlobal(m_name);
+      if (ndbtab) {
+        const int invalidate = 1;
+        (void)m_dict->removeTableGlobal(*ndbtab, invalidate);
+      }
+      m_have_invalidated = true;
+    }
+
+   public:
+    Ndb_table_invalidator_guard(NdbDictionary::Dictionary *dict,
+                                const char *tabname)
+        : m_dict(dict), m_name(tabname) {}
+    Ndb_table_invalidator_guard(const Ndb_table_invalidator_guard&) = delete;
+    ~Ndb_table_invalidator_guard()
+    {
+      if (!m_have_invalidated) {
+        invalidate();
+      }
+    }
+    void invalidate_after_sucessfully_created_table()
+    {
+      // NOTE! This function invalidates the table after table has
+      // been created sucessfully in NDB. The reason why it need to be
+      // invalidated is unknown and no test curently fails if this
+      // function is removed.
+      invalidate();
+    }
+  } table_invalidator(dict, m_tabname);
+
   if (tab.setName(m_tabname))
   {
-    abort_error = errno;
-    goto abort;
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
   }
   if (!ndb_sys_table)
   {
@@ -10779,8 +10812,7 @@ int ha_ndbcluster::create(const char *name,
         my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
                  ndbcluster_hton_name,
           "READ_BACKUP=0 cannot be used for fully replicated tables");
-        result = HA_WRONG_CREATE_OPTION;
-        goto abort_return;
+        DBUG_RETURN(HA_WRONG_CREATE_OPTION);
       }
       tab.setReadBackupFlag(true);
       tab.setFullyReplicated(true);
@@ -10809,15 +10841,14 @@ int ha_ndbcluster::create(const char *name,
     dd::sdi_t sdi;
     if (!ndb_sdi_serialize(thd, table_def, m_dbname, sdi))
     {
-      result= 1;
-      goto abort_return;
+      DBUG_RETURN(1);
     }
 
-    result = tab.setExtraMetadata(2, // version 2 for sdi
-                                  sdi.c_str(), (Uint32)sdi.length());
+    const int result = tab.setExtraMetadata(2,  // version 2 for sdi
+                                            sdi.c_str(), (Uint32)sdi.length());
     if (result != 0)
     {
-      goto abort_return;
+      DBUG_RETURN(result);
     }
   }
 
@@ -10878,8 +10909,7 @@ int ha_ndbcluster::create(const char *name,
           create_ndb_column(thd, col, field, create_info);
       if (create_column_result)
       {
-        abort_error = create_column_result;
-        goto abort;
+        DBUG_RETURN(create_column_result);
       }
 
       // Turn on use_disk if the column is configured to be on disk
@@ -10890,8 +10920,7 @@ int ha_ndbcluster::create(const char *name,
 
       if (tab.addColumn(col))
       {
-        abort_error = errno;
-        goto abort;
+        DBUG_RETURN(HA_ERR_OUT_OF_MEM);
       }
       if (col.getPrimaryKey())
         pk_length += (field->pack_length() + 3) / 4;
@@ -10911,8 +10940,7 @@ int ha_ndbcluster::create(const char *name,
                           ndbcluster_hton_name,
                           "NOLOGGING=1 on table with fields "
                           "using STORAGE DISK");
-      result= HA_ERR_UNSUPPORTED;
-      goto abort_return;
+      DBUG_RETURN(HA_ERR_UNSUPPORTED);
     }
     tab.setLogging(true);
     tab.setTemporary(false);
@@ -10927,8 +10955,7 @@ int ha_ndbcluster::create(const char *name,
       // also specifying a tablespace name
       my_error(ER_MISSING_HA_CREATE_OPTION, MYF(0),
                ndbcluster_hton_name);
-      result = HA_MISSING_CREATE_OPTION;
-      goto abort_return;
+      DBUG_RETURN(HA_MISSING_CREATE_OPTION);
     }
   }
 
@@ -10965,8 +10992,7 @@ int ha_ndbcluster::create(const char *name,
                         "in a way to use STORAGE MEMORY.",
                         MYF(0),
                         key_part->field->field_name);
-        result= HA_ERR_UNSUPPORTED;
-        goto abort_return;
+        DBUG_RETURN(HA_ERR_UNSUPPORTED);
       }
       table_map.getColumn(tab, key_part->fieldnr-1)->setStorageType(
         NdbDictionary::Column::StorageTypeMemory);
@@ -10979,8 +11005,7 @@ int ha_ndbcluster::create(const char *name,
     DBUG_PRINT("info", ("Generating shadow key"));
     if (col.setName("$PK"))
     {
-      abort_error = errno;
-      goto abort;
+      DBUG_RETURN(HA_ERR_OUT_OF_MEM);
     }
     col.setType(NdbDictionary::Column::Bigunsigned);
     col.setLength(1);
@@ -10990,8 +11015,7 @@ int ha_ndbcluster::create(const char *name,
     col.setDefaultValue(NULL, 0);
     if (tab.addColumn(col))
     {
-      abort_error = errno;
-      goto abort;
+      DBUG_RETURN(HA_ERR_OUT_OF_MEM);
     }
     pk_length += 2;
   }
@@ -11063,8 +11087,7 @@ int ha_ndbcluster::create(const char *name,
                                            tab, table_map);
     if (setup_partinfo_result)
     {
-      abort_error = setup_partinfo_result;
-      goto abort;
+      DBUG_RETURN(setup_partinfo_result);
     }
   }
 
@@ -11126,16 +11149,14 @@ int ha_ndbcluster::create(const char *name,
       if (res == -1)
       {
         const NdbError err= dict->getNdbError();
-        abort_error = ndb_to_mysql_error(&err);
-        goto abort;
+        DBUG_RETURN(ndb_to_mysql_error(&err));
       }
 
       res= dict->createHashMap(hm);
       if (res == -1)
       {
         const NdbError err= dict->getNdbError();
-        abort_error = ndb_to_mysql_error(&err);
-        goto abort;
+        DBUG_RETURN(ndb_to_mysql_error(&err));
       }
     }
   }
@@ -11144,11 +11165,8 @@ int ha_ndbcluster::create(const char *name,
   if (dict->createTable(tab) != 0)
   {
     const NdbError err= dict->getNdbError();
-    abort_error = ndb_to_mysql_error(&err);
-    goto abort;
+    DBUG_RETURN(ndb_to_mysql_error(&err));
   }
-
-
 
   DBUG_PRINT("info", ("Table '%s/%s' created in NDB, id: %d, version: %d",
                       m_dbname, m_tabname,
@@ -11161,171 +11179,70 @@ int ha_ndbcluster::create(const char *name,
                                          tab.getObjectId(),
                                          tab.getObjectVersion());
 
-  m_table= &tab;
-
   // Create secondary indexes
-  create_result = create_indexes(thd, form);
-
-  if (create_result == 0 &&
-      thd_sql_command(thd) != SQLCOM_TRUNCATE)
+  const int create_index_result = create_indexes(thd, form, &tab);
+  if (create_index_result != 0)
   {
-    create_result = create_fks(thd, ndb);
+    DBUG_RETURN(create_index_result);
   }
 
-  if (create_result == 0 &&
-      (thd->lex->sql_command == SQLCOM_ALTER_TABLE ||
-       thd->lex->sql_command == SQLCOM_DROP_INDEX ||
-       thd->lex->sql_command == SQLCOM_CREATE_INDEX))
+  if (thd_sql_command(thd) != SQLCOM_TRUNCATE)
   {
-    /**
-     * mysql doesnt know/care about FK (buhhh)
-     *   so we need to copy the old ones ourselves
-     */
-    create_result = copy_fk_for_offline_alter(thd, ndb, &tab);
-  }
-
-  if (create_result == 0 &&
-      !fk_list_for_truncate.is_empty())
-  {
-    /*
-     create FKs for the new table from the list got from old table.
-     for truncate table.
-     */
-    create_result = recreate_fk_for_truncate(thd, ndb, tab.getName(),
-                                             fk_list_for_truncate);
-  }
-
-  m_table= 0;
-
-  if (create_result == 0)
-  {
-
-    /*
-     * All steps have succeeded, try and commit schema transaction
-     */
-    if (dict->endSchemaTrans() == -1)
+    const int create_fks_result = create_fks(thd, ndb);
+    if (create_fks_result != 0)
     {
-      m_table= 0;
-      ERR_RETURN(dict->getNdbError());
+      DBUG_RETURN(create_fks_result);
     }
-
-    Ndb_table_guard ndbtab_g(dict);
-    ndbtab_g.init(m_tabname);
-    ndbtab_g.invalidate();
   }
-  else
+
+  if (thd->lex->sql_command == SQLCOM_ALTER_TABLE ||
+      thd->lex->sql_command == SQLCOM_DROP_INDEX ||
+      thd->lex->sql_command == SQLCOM_CREATE_INDEX)
   {
-    DBUG_PRINT("error", ("Failed to create schema objects in NDB, "
-                         "create_result: %d", create_result));
-    abort_error = create_result;
-
-abort:
-    /*
-     *  Some step during table creation failed, abort schema transaction
-     */
-
-    // Require that 'abort_error' was set before "goto abort"
-    DBUG_ASSERT(abort_error);
-
+    // Copy foreign keys from the old NDB table (which still exists)
+    const int copy_fk_result = copy_fk_for_offline_alter(thd, ndb, m_tabname);
+    if (copy_fk_result != 0)
     {
-      // Flush out the indexes(if any) from ndbapi dictionary's cache first
-      NDBDICT::List index_list;
-      dict->listIndexes(index_list, tab);
-      for (unsigned i = 0; i < index_list.count; i++)
-      {
-        const char * index_name= index_list.elements[i].name;
-        const NDBINDEX* index= dict->getIndexGlobal(index_name, tab);
-        if(index != NULL)
-        {
-          dict->removeIndexGlobal(*index, true);
-        }
-      }
+      DBUG_RETURN(copy_fk_result);
     }
-
-    // Now abort schema transaction
-    DBUG_PRINT("info", ("Aborting schema transaction due to error %i",
-                        abort_error));
-    if (dict->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort)
-        == -1)
-      DBUG_PRINT("info", ("Failed to abort schema transaction, %i",
-                          dict->getNdbError().code));
-    m_table= 0;
-
-    {
-      DBUG_PRINT("info", ("Flush out table %s out of dict cache",
-                          m_tabname));
-      // Flush the table out of ndbapi's dictionary cache
-      Ndb_table_guard ndbtab_g(dict);
-      ndbtab_g.init(m_tabname);
-      ndbtab_g.invalidate();
-    }
-
-    DBUG_RETURN(abort_error);
-
-abort_return:
-
-    // Require that "result" was set before "goto abort_return"
-    DBUG_ASSERT(result);
-
-    DBUG_PRINT("info", ("Aborting schema transaction"));
-    if (dict->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort)
-        == -1)
-      DBUG_PRINT("info", ("Failed to abort schema transaction, %i",
-                          dict->getNdbError().code));
-    DBUG_RETURN(result);
   }
 
-  // All objects have been created sucessfully and
-  // thus "create_result" have to be zero here
-  DBUG_ASSERT(create_result == 0);
+  if (!fk_list_for_truncate.is_empty())
+  {
+    // create foreign keys from the list extracted from old table
+    const int recreate_fk_result =
+        recreate_fk_for_truncate(thd, ndb, m_tabname, fk_list_for_truncate);
+    if (recreate_fk_result != 0)
+    {
+      DBUG_RETURN(recreate_fk_result);
+    }
+  }
 
-  /**
-   * createTable/index schema transaction OK
-   */
+  // All schema objects created, commit NDB schema transaction
+  if (!schema_trans.commit_trans())
+  {
+    ERR_RETURN(dict->getNdbError());
+  }
+
+  // Invalidate the sucessfully created table in NdbApi global dict cache
+  table_invalidator.invalidate_after_sucessfully_created_table();
+
+  if (DBUG_EVALUATE_IF("ndb_create_open_fail", true, false))
+  {
+    // The table has been sucessfully created in NDB, emulate
+    // failure to open the table by dropping the table from NDB
+    Ndb_table_guard ndbtab_g(dict, m_tabname);
+    (void)drop_table_and_related(thd, ndb, dict, ndbtab_g.get_table(),
+                                 0,       // drop_flags
+                                 false);  // skip_related
+  }
+
   Ndb_table_guard ndbtab_g(dict, m_tabname);
-  m_table= ndbtab_g.get_table();
-  if (m_table == NULL)
+  const NdbDictionary::Table* ndbtab = ndbtab_g.get_table();
+  if (ndbtab == nullptr)
   {
-    /*
-      Failed to create an index,
-      drop the table (and all it's indexes)
-    */
-    while (!thd->killed)
-    {
-      if (dict->beginSchemaTrans() == -1)
-        goto cleanup_failed;
-      if (m_table && dict->dropTableGlobal(*m_table))
-      {
-        switch (dict->getNdbError().status)
-        {
-        case NdbError::TemporaryError:
-          if (!thd->killed) 
-          {
-            if (dict->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort)
-                == -1)
-              DBUG_PRINT("info", ("Failed to abort schema transaction, %i",
-                                  dict->getNdbError().code));
-            goto cleanup_failed;
-          }
-          break;
-        default:
-          break;
-        }
-      }
-      if (dict->endSchemaTrans() == -1)
-      {
-cleanup_failed:
-        DBUG_PRINT("info", ("Could not cleanup failed create %i",
-                          dict->getNdbError().code));
-        continue; // retry indefinitly
-      }
-      break;
-    }
-    m_table = 0;
-
-    // The above code is activated when the table can't be opened in NDB,
-    // it then tries to drop the table which it can't open, having m_table
-    // being NULL indicates that most of the code is dead(and obfuscated).
+    // Failed to open the newly created table from NDB, since the
+    // table is apparently not in NDB it cant be dropped.
     // However an NDB error must have occured since the table can't
     // be opened and as such the NDB error can be returned here
     ERR_RETURN(dict->getNdbError());
@@ -11336,15 +11253,15 @@ cleanup_failed:
   // a mismatch
   const bool check_partition_count_result =
       ndb_dd_table_check_partition_count(table_def,
-                                         m_table->getPartitionCount());
+                                         ndbtab->getPartitionCount());
   if (!check_partition_count_result)
   {
     ndb_dd_table_fix_partition_count(table_def,
-                                     m_table->getPartitionCount());
+                                     ndbtab->getPartitionCount());
   }
 
   // Check that NDB and DD metadata matches
-  DBUG_ASSERT(Ndb_metadata::compare(thd, m_table, table_def));
+  DBUG_ASSERT(Ndb_metadata::compare(thd, ndbtab, table_def));
 
   mysql_mutex_lock(&ndbcluster_mutex);
 
@@ -11357,10 +11274,9 @@ cleanup_failed:
   {
     // Failed to create the NDB_SHARE instance for this table, most likely OOM.
     // Try to drop the table from NDB before returning
-    (void)drop_table_and_related(thd, ndb, dict, m_table,
+    (void)drop_table_and_related(thd, ndb, dict, ndbtab,
                                  0,          // drop_flags
                                  false);     // skip_related
-    m_table = nullptr;
     my_printf_error(ER_OUTOFMEMORY,
                     "Failed to acquire NDB_SHARE while creating table '%s'",
                     MYF(0), name);
@@ -11371,30 +11287,28 @@ cleanup_failed:
   {
     // Temporary named table created OK
     NDB_SHARE::release_reference(share, "create"); // temporary ref.
-    m_table= 0;
     DBUG_RETURN(0); // All OK
   }
 
   // Apply the mysql.ndb_replication settings
   // NOTE! Should check error and fail the create
   (void)binlog_client.apply_replication_info(ndb, share,
-                                             m_table,
+                                             ndbtab,
                                              conflict_fn,
                                              args,
                                              num_args,
                                              binlog_flags);
 
-  if (binlog_client.table_should_have_event(share, m_table))
+  if (binlog_client.table_should_have_event(share, ndbtab))
   {
-    if (binlog_client.create_event(ndb, m_table, share))
+    if (binlog_client.create_event(ndb, ndbtab, share))
     {
       // Failed to create event for this table, fail the CREATE
       // and drop the table from NDB before returning
-      (void)drop_table_and_related(thd, ndb, dict, m_table,
+      (void)drop_table_and_related(thd, ndb, dict, ndbtab,
                                    0,          // drop_flags
                                    false);     // skip_related
       NDB_SHARE::release_reference(share, "create"); // temporary ref.
-      m_table = nullptr;
       my_printf_error(ER_INTERNAL_ERROR,
                       "Failed to create event for table '%s'",
                       MYF(0), name);
@@ -11405,15 +11319,14 @@ cleanup_failed:
     {
       Ndb_event_data* event_data;
       if (!binlog_client.create_event_data(share, table_def, &event_data) ||
-          binlog_client.create_event_op(share, m_table, event_data))
+          binlog_client.create_event_op(share, ndbtab, event_data))
       {
         // Failed to create event operation for this table, fail the CREATE
         // and drop the table from NDB before returning
-        (void)drop_table_and_related(thd, ndb, dict, m_table,
+        (void)drop_table_and_related(thd, ndb, dict, ndbtab,
                                      0,          // drop_flags
                                      false);     // skip_related
         NDB_SHARE::release_reference(share, "create"); // temporary ref.
-        m_table = nullptr;
         my_printf_error(ER_INTERNAL_ERROR,
                         "Failed to create event operation for table '%s'",
                         MYF(0), name);
@@ -11426,15 +11339,15 @@ cleanup_failed:
   if (thd_sql_command(thd) == SQLCOM_TRUNCATE)
   {
     schema_dist_result = schema_dist_client.truncate_table(
-        share->db, share->table_name, m_table->getObjectId(),
-        m_table->getObjectVersion());
+        share->db, share->table_name, ndbtab->getObjectId(),
+        ndbtab->getObjectVersion());
   }
   else
   {
     DBUG_ASSERT(thd_sql_command(thd) == SQLCOM_CREATE_TABLE);
     schema_dist_result = schema_dist_client.create_table(
-        share->db, share->table_name, m_table->getObjectId(),
-        m_table->getObjectVersion());
+        share->db, share->table_name, ndbtab->getObjectId(),
+        ndbtab->getObjectVersion());
   }
   if (!schema_dist_result)
   {
@@ -11443,11 +11356,10 @@ cleanup_failed:
     // from NDB before returning
     // NOTE! Should probably not rollback a failed TRUNCATE by dropping
     // the new table(same in other places above).
-    (void)drop_table_and_related(thd, ndb, dict, m_table,
+    (void)drop_table_and_related(thd, ndb, dict, ndbtab,
                                  0,                 // drop_flags
                                  false);            // skip_related
     NDB_SHARE::release_reference(share, "create");  // temporary ref.
-    m_table = nullptr;
     my_printf_error(ER_INTERNAL_ERROR, "Failed to distribute table '%s'",
                     MYF(0), name);
     DBUG_RETURN(ER_INTERNAL_ERROR);
@@ -11455,13 +11367,12 @@ cleanup_failed:
 
   NDB_SHARE::release_reference(share, "create"); // temporary ref.
 
-  m_table= 0;
   DBUG_RETURN(0); // All OK
 }
 
-
 int ha_ndbcluster::create_index(THD *thd, const char *name, KEY *key_info,
-                                NDB_INDEX_TYPE idx_type) const
+                                NDB_INDEX_TYPE idx_type,
+                                const NdbDictionary::Table *ndbtab) const
 {
   int error= 0;
   char unique_name[FN_LEN + 1];
@@ -11480,11 +11391,11 @@ int ha_ndbcluster::create_index(THD *thd, const char *name, KEY *key_info,
     // Do nothing, already created
     break;
   case PRIMARY_KEY_ORDERED_INDEX:
-    error= create_ordered_index(thd, name, key_info);
+    error= create_ordered_index(thd, name, key_info, ndbtab);
     break;
   case UNIQUE_ORDERED_INDEX:
-    if (!(error= create_ordered_index(thd, name, key_info)))
-      error= create_unique_index(thd, unique_name, key_info);
+    if (!(error= create_ordered_index(thd, name, key_info, ndbtab)))
+      error= create_unique_index(thd, unique_name, key_info, ndbtab);
     break;
   case UNIQUE_INDEX:
     if (check_index_fields_not_null(key_info))
@@ -11493,7 +11404,7 @@ int ha_ndbcluster::create_index(THD *thd, const char *name, KEY *key_info,
 			  ER_NULL_COLUMN_IN_INDEX,
 			  "Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan");
     }
-    error= create_unique_index(thd, unique_name, key_info);
+    error= create_unique_index(thd, unique_name, key_info, ndbtab);
     break;
   case ORDERED_INDEX:
     if (key_info->algorithm == HA_KEY_ALG_HASH)
@@ -11507,7 +11418,7 @@ int ha_ndbcluster::create_index(THD *thd, const char *name, KEY *key_info,
       error= HA_ERR_UNSUPPORTED;
       break;
     }
-    error= create_ordered_index(thd, name, key_info);
+    error= create_ordered_index(thd, name, key_info, ndbtab);
     break;
   default:
     DBUG_ASSERT(false);
@@ -11517,30 +11428,28 @@ int ha_ndbcluster::create_index(THD *thd, const char *name, KEY *key_info,
   DBUG_RETURN(error);
 }
 
-int ha_ndbcluster::create_ordered_index(THD *thd, const char *name, 
-                                        KEY *key_info) const
+int ha_ndbcluster::create_ordered_index(
+    THD *thd, const char *name, KEY *key_info,
+    const NdbDictionary::Table *ndbtab) const
 {
   DBUG_ENTER("ha_ndbcluster::create_ordered_index");
-  DBUG_RETURN(create_ndb_index(thd, name, key_info, false));
+  DBUG_RETURN(create_ndb_index(thd, name, key_info, ndbtab, false));
 }
 
-int ha_ndbcluster::create_unique_index(THD *thd, const char *name, 
-                                       KEY *key_info) const
+int ha_ndbcluster::create_unique_index(
+    THD *thd, const char *name, KEY *key_info,
+    const NdbDictionary::Table *ndbtab) const
 {
-
   DBUG_ENTER("ha_ndbcluster::create_unique_index");
-  DBUG_RETURN(create_ndb_index(thd, name, key_info, true));
+  DBUG_RETURN(create_ndb_index(thd, name, key_info, ndbtab, true));
 }
 
 /**
-  Create an index in NDB Cluster.
-
-  @todo
-    Only temporary ordered indexes supported
+  @brief Create an index in NDB.
 */
 
-int ha_ndbcluster::create_ndb_index(THD *thd, const char *name, 
-                                    KEY *key_info,
+int ha_ndbcluster::create_ndb_index(THD *thd, const char *name, KEY *key_info,
+                                    const NdbDictionary::Table *ndbtab,
                                     bool unique) const
 {
   char index_name[FN_LEN + 1];
@@ -11561,13 +11470,19 @@ int ha_ndbcluster::create_ndb_index(THD *thd, const char *name,
   else 
   {
     ndb_index.setType(NdbDictionary::Index::OrderedIndex);
-    // TODO Only temporary ordered indexes supported
     ndb_index.setLogging(false);
   }
-  if (!m_table->getLogging())
+
+  if (!ndbtab->getLogging())
+  {
     ndb_index.setLogging(false);
-  if (((NDBTAB*)m_table)->getTemporary())
+  }
+
+  if (ndbtab->getTemporary())
+  {
     ndb_index.setTemporary(true);
+  }
+
   if (ndb_index.setTable(m_tabname))
   {
     // Can only fail due to memory -> return HA_ERR_OUT_OF_MEM
@@ -11594,7 +11509,7 @@ int ha_ndbcluster::create_ndb_index(THD *thd, const char *name,
     }
   }
   
-  if (dict->createIndex(ndb_index, *m_table))
+  if (dict->createIndex(ndb_index, *ndbtab))
     ERR_RETURN(dict->getNdbError());
 
   // Success
@@ -11671,7 +11586,7 @@ int ha_ndbcluster::prepare_inplace__add_index(THD *thd,
     // Create index in ndb
     const NDB_INDEX_TYPE idx_type =
         get_index_type_from_key(idx, key_info, false);
-    if ((error = create_index(thd, key_info[idx].name, key, idx_type)))
+    if ((error = create_index(thd, key_info[idx].name, key, idx_type, m_table)))
     {
       break;
     }

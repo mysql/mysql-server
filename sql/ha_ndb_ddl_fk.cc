@@ -1394,10 +1394,42 @@ flush_parent_table_for_fk(THD* thd,
 }
 
 
+/*
+  @brief Guard class for references to indexes in the global
+  NdbApi dictionary cache which need to be released(and sometimes
+  invalidated) when guard goes out of scope
+*/
+template<bool invalidate_index> class Ndb_index_release_guard {
+  NdbDictionary::Dictionary* const m_dict;
+  std::vector<const NdbDictionary::Index*> m_indexes;
+ public:
+  Ndb_index_release_guard(NdbDictionary::Dictionary* dict) : m_dict(dict) {}
+  Ndb_index_release_guard(const Ndb_index_release_guard&) = delete;
+  ~Ndb_index_release_guard() {
+    for (const NdbDictionary::Index* index : m_indexes) {
+      DBUG_PRINT("info", ("Releasing index: '%s'", index->getName()));
+      m_dict->removeIndexGlobal(*index, invalidate_index);
+    }
+  }
+  // Register index to be released
+  void add_index_to_release(const NdbDictionary::Index* index) {
+    DBUG_PRINT("info", ("Adding index '%s' to release", index->getName()));
+    m_indexes.push_back(index);
+  }
+};
+
 int
 ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
 {
   DBUG_ENTER("ha_ndbcluster::create_fks");
+
+  NdbDictionary::Dictionary *dict= ndb->getDictionary();
+  // Releaser for child(i.e the table being created/altered) which
+  // need to be invalidated when released
+  Ndb_index_release_guard<true> child_index_releaser(dict);
+  // Releaser for parent(i.e the _other_ table) which is not modified
+  // and thus need not be invalidated
+  Ndb_index_release_guard<false> parent_index_releaser(dict);
 
   // return real mysql error to avoid total randomness..
   const int err_default= HA_ERR_CANNOT_ADD_FOREIGN;
@@ -1409,14 +1441,9 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
     if (key->type != KEYTYPE_FOREIGN)
       continue;
 
-    NDBDICT *dict= ndb->getDictionary();
     const Foreign_key_spec * fk= down_cast<const Foreign_key_spec*>(key);
 
-    /**
-     * NOTE: we need to fetch also child table...
-     *   cause the one we just created (in m_table) is not properly
-     *   initialize
-     */
+    // Open the table to create foreign keys for
     Ndb_table_guard child_tab(dict, m_tabname);
     if (child_tab.get_table() == 0)
     {
@@ -1462,6 +1489,10 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
                                                      child_tab.get_table(),
                                                      childcols,
                                                      child_primary_key);
+    if (child_index)
+    {
+      child_index_releaser.add_index_to_release(child_index);
+    }
 
     if (!child_primary_key && child_index == 0)
     {
@@ -1595,6 +1626,10 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
                                                       parent_tab.get_table(),
                                                       parentcols,
                                                       parent_primary_key);
+    if (parent_index)
+    {
+      parent_index_releaser.add_index_to_release(parent_index);
+    }
 
     db_guard.restore(); // restore db
 
@@ -1701,18 +1736,7 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
       flags |= NdbDictionary::Dictionary::CreateFK_NoVerify;
     }
     NdbDictionary::ObjectId objid;
-    int err= dict->createForeignKey(ndbfk, &objid, flags);
-
-    if (child_index)
-    {
-      dict->removeIndexGlobal(* child_index, 0);
-    }
-
-    if (parent_index)
-    {
-      dict->removeIndexGlobal(* parent_index, 0);
-    }
-
+    const int err = dict->createForeignKey(ndbfk, &objid, flags);
     if (err)
     {
       const NdbError err = dict->getNdbError();
@@ -2215,9 +2239,12 @@ ha_ndbcluster::free_foreign_key_create_info(char* str)
 }
 
 int
-ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
+ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb,
+                                         const char* tabname)
 {
   DBUG_ENTER("ha_ndbcluster::copy_fk_for_offline_alter");
+  DBUG_PRINT("enter", ("tabname: '%s'", tabname));
+
   if (thd->lex == 0)
   {
     assert(false);
@@ -2234,7 +2261,6 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
     DBUG_RETURN(0);
   }
 
-  assert(thd->lex != 0);
   NDBDICT* dict = ndb->getDictionary();
   setDbName(ndb, src_db);
   Ndb_table_guard srctab(dict, src_tab);
@@ -2247,7 +2273,7 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
   }
 
   db_guard.restore();
-  Ndb_table_guard dsttab(dict, _dsttab->getName());
+  Ndb_table_guard dsttab(dict, tabname);
   if (dsttab.get_table() == 0)
   {
     ERR_RETURN(dict->getNdbError());
