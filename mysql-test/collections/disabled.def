@@ -40,7 +40,7 @@ main.internal_tmp_disk_storage_engine : BUG#26917416 2017-04-13 Allen Disabled i
 
 # max_parts suite tests
 max_parts.innodb-import-partition-1                         : BUG#27413612 Ashish Fails consistently on hudson jobs. Disabled until bug is fixed.
-max_parts.innodb_partition_open_files_limit @linux          : BUG#27924122 2018-04-25 Horst Disabled on Linux, only.
+# max_parts.innodb_partition_open_files_limit @linux          : BUG#27924122 2018-04-25 Horst Disabled on Linux, only.
 max_parts.innodb_partition_open_files_limit @solaris        : BUG#27423163 Ashish Times out on Solaris platform on Hudson. Disabled until bug is fixed.
 max_parts.partition_max_parts_hash_innodb @windows          : BUG#27681900 2018-02-20 Ashish Disabling max_parts tests on windows.
 max_parts.partition_max_parts_inv_innodb @windows           : BUG#27681900 2018-02-20 Ashish Disabling max_parts tests on windows.
