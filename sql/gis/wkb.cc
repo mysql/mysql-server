@@ -430,7 +430,8 @@ bool parse_srid(const char *str, std::size_t length, srid_t *srid) {
 
 bool parse_geometry(THD *thd, const char *func_name, const String *str,
                     const dd::Spatial_reference_system **srs,
-                    std::unique_ptr<Geometry> *geometry) {
+                    std::unique_ptr<Geometry> *geometry,
+                    bool treat_unknown_srid_as_cartesian) {
   srid_t srid;
   if (parse_srid(str->ptr(), str->length(), &srid)) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name);
@@ -441,7 +442,7 @@ bool parse_geometry(THD *thd, const char *func_name, const String *str,
   *srs = nullptr;
   if (srid != 0 && fetcher.acquire(srid, srs)) return true;
 
-  if (srid != 0 && *srs == nullptr) {
+  if (srid != 0 && *srs == nullptr && !treat_unknown_srid_as_cartesian) {
     my_error(ER_SRS_NOT_FOUND, MYF(0), srid);
     return true;
   }
@@ -473,14 +474,14 @@ bool parse_geometry(THD *thd, const char *func_name, const String *str,
   gis::Coordinate_range_visitor crv(*srs);
   if ((*geometry)->accept(&crv)) {
     if (crv.longitude_out_of_range()) {
-      my_error(ER_LONGITUDE_OUT_OF_RANGE, MYF(0), crv.coordinate_value(),
-               func_name, (*srs)->from_radians(-M_PI),
+      my_error(ER_GEOMETRY_PARAM_LONGITUDE_OUT_OF_RANGE, MYF(0), func_name,
+               crv.coordinate_value(), (*srs)->from_radians(-M_PI),
                (*srs)->from_radians(M_PI));
       return true;
     }
     if (crv.latitude_out_of_range()) {
-      my_error(ER_LATITUDE_OUT_OF_RANGE, MYF(0), crv.coordinate_value(),
-               func_name, (*srs)->from_radians(-M_PI_2),
+      my_error(ER_GEOMETRY_PARAM_LATITUDE_OUT_OF_RANGE, MYF(0), func_name,
+               crv.coordinate_value(), (*srs)->from_radians(-M_PI_2),
                (*srs)->from_radians(M_PI_2));
       return true;
     }

@@ -821,10 +821,11 @@ class Srid_instantiator {
   Item *instantiate(THD *thd, PT_item_list *args) {
     switch (args->elements()) {
       case 1:
-        return new (thd->mem_root) Item_func_get_srid(POS(), (*args)[0]);
+        return new (thd->mem_root)
+            Item_func_st_srid_observer(POS(), (*args)[0]);
       case 2:
         return new (thd->mem_root)
-            Item_func_set_srid(POS(), (*args)[0], (*args)[1]);
+            Item_func_st_srid_mutator(POS(), (*args)[0], (*args)[1]);
       default:
         DBUG_ASSERT(false);
         return nullptr;

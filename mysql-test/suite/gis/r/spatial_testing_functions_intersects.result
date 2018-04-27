@@ -2280,22 +2280,26 @@ ST_GEOMFROMTEXT('POINT(0 0)', 4326)
 # WL#10827 Ellipsoidal R-tree support functions
 #
 SET @pt = ST_GeomFromText('POINT(0 0)', 4326);
-SELECT ST_Intersects(ST_SRID(ST_GeomFromText('POINT(0 -91)'), 4326), @pt);
-ERROR 22S03: Latitude -91.000000 is out of range in function st_intersects. It must be within [-90.000000, 90.000000].
-SELECT ST_Intersects(ST_SRID(ST_GeomFromText('POINT(0 91)'), 4326), @pt);
-ERROR 22S03: Latitude 91.000000 is out of range in function st_intersects. It must be within [-90.000000, 90.000000].
-SELECT ST_Intersects(ST_SRID(ST_GeomFromText('POINT(-181 0)'), 4326), @pt);
-ERROR 22S02: Longitude -181.000000 is out of range in function st_intersects. It must be within (-180.000000, 180.000000].
-SELECT ST_Intersects(ST_SRID(ST_GeomFromText('POINT(181 0)'), 4326), @pt);
-ERROR 22S02: Longitude 181.000000 is out of range in function st_intersects. It must be within (-180.000000, 180.000000].
-SELECT MBRIntersects(ST_SRID(ST_GeomFromText('POINT(0 -91)'), 4326), @pt);
-ERROR 22S03: Latitude -91.000000 is out of range in function mbrintersects. It must be within [-90.000000, 90.000000].
-SELECT MBRIntersects(ST_SRID(ST_GeomFromText('POINT(0 91)'), 4326), @pt);
-ERROR 22S03: Latitude 91.000000 is out of range in function mbrintersects. It must be within [-90.000000, 90.000000].
-SELECT MBRIntersects(ST_SRID(ST_GeomFromText('POINT(-181 0)'), 4326), @pt);
-ERROR 22S02: Longitude -181.000000 is out of range in function mbrintersects. It must be within (-180.000000, 180.000000].
-SELECT MBRIntersects(ST_SRID(ST_GeomFromText('POINT(181 0)'), 4326), @pt);
-ERROR 22S02: Longitude 181.000000 is out of range in function mbrintersects. It must be within (-180.000000, 180.000000].
+SET @pt_lat_minus_91 = x'E6100000010100000000000000000000000000000000C056C0';
+SET @pt_lat_plus_91 = x'E6100000010100000000000000000000000000000000C05640';
+SET @pt_long_minus_181 = x'E610000001010000000000000000A066C00000000000000000';
+SET @pt_long_plus_181 = x'E610000001010000000000000000A066400000000000000000';
+SELECT ST_Intersects(@pt_lat_minus_91, @pt);
+ERROR 22S03: A parameter of function st_intersects contains a geometry with latitude -91.000000, which is out of range. It must be within [-90.000000, 90.000000].
+SELECT ST_Intersects(@pt_lat_plus_91, @pt);
+ERROR 22S03: A parameter of function st_intersects contains a geometry with latitude 91.000000, which is out of range. It must be within [-90.000000, 90.000000].
+SELECT ST_Intersects(@pt_long_minus_181, @pt);
+ERROR 22S02: A parameter of function st_intersects contains a geometry with longitude -181.000000, which is out of range. It must be within (-180.000000, 180.000000].
+SELECT ST_Intersects(@pt_long_plus_181, @pt);
+ERROR 22S02: A parameter of function st_intersects contains a geometry with longitude 181.000000, which is out of range. It must be within (-180.000000, 180.000000].
+SELECT MBRIntersects(@pt_lat_minus_91, @pt);
+ERROR 22S03: A parameter of function mbrintersects contains a geometry with latitude -91.000000, which is out of range. It must be within [-90.000000, 90.000000].
+SELECT MBRIntersects(@pt_lat_plus_91, @pt);
+ERROR 22S03: A parameter of function mbrintersects contains a geometry with latitude 91.000000, which is out of range. It must be within [-90.000000, 90.000000].
+SELECT MBRIntersects(@pt_long_minus_181, @pt);
+ERROR 22S02: A parameter of function mbrintersects contains a geometry with longitude -181.000000, which is out of range. It must be within (-180.000000, 180.000000].
+SELECT MBRIntersects(@pt_long_plus_181, @pt);
+ERROR 22S02: A parameter of function mbrintersects contains a geometry with longitude 181.000000, which is out of range. It must be within (-180.000000, 180.000000].
 CREATE TABLE t1 (
 id INT,
 c GEOMETRY NOT NULL SRID 0,

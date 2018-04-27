@@ -1671,44 +1671,28 @@ class Item_func_st_length : public Item_real_func {
   }
 };
 
-/**
-  Implements the one-parameter ST_SRID observer function. If used with a
-  valid geometry, it returns the SRID of the geometry object. Ex:
-
-  SELECT ST_SRID(geometry_column) FROM t1;
-
-  will return the SRIDs of the geometries in geometry_column
-  in table t1.
-*/
-class Item_func_get_srid : public Item_int_func {
-  String value;
-
+/// This class implements the two-parameter ST_SRID function which sets
+/// the SRID of a geometry.
+class Item_func_st_srid_mutator : public Item_geometry_func {
  public:
-  Item_func_get_srid(const POS &pos, Item *a) : Item_int_func(pos, a) {}
-  longlong val_int() override;
+  Item_func_st_srid_mutator(const POS &pos, Item *a, Item *b)
+      : Item_geometry_func(pos, a, b) {}
+  String *val_str(String *) override;
   const char *func_name() const override { return "st_srid"; }
-  bool resolve_type(THD *) override {
-    max_length = 10;
-    maybe_null = true;
-    return false;
-  }
 };
 
-/**
-  Updates the SRID of a geometry object without changing its content.
-  This extends the ST_SRID function to two parameters: a geometry and an
-  SRID. Can be used as follows:
-
-  UPDATE t1 SET geometry_column=ST_SRID(geometry_column, 4326);
-
-  This will update all geometries in geometry_column to have SRID 4326.
-*/
-class Item_func_set_srid : public Item_geometry_func {
+/// This class implements the one-parameter ST_SRID function which
+/// returns the SRID of a geometry.
+class Item_func_st_srid_observer : public Item_int_func {
  public:
-  Item_func_set_srid(const POS &pos, Item *a, Item *b)
-      : Item_geometry_func(pos, a, b){};
-  String *val_str(String *str) override;
+  Item_func_st_srid_observer(const POS &pos, Item *a) : Item_int_func(pos, a) {}
+  longlong val_int() override;
   const char *func_name() const override { return "st_srid"; }
+  bool resolve_type(THD *thd) override {
+    bool error = Item_int_func::resolve_type(thd);
+    max_length = 10;
+    return error;
+  }
 };
 
 class Item_func_distance : public Item_real_func {
