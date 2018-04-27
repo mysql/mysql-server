@@ -203,7 +203,7 @@ class JOIN {
         tmp_tables(0),
         send_group_parts(0),
         sort_and_group(false),
-        first_record(false),
+        seen_first_record(false),
         // @todo Can this be substituted with select->is_explicitly_grouped()?
         grouped(select->is_explicitly_grouped()),
         do_send_rows(true),
@@ -358,7 +358,7 @@ class JOIN {
     @see make_group_fields, alloc_group_fields, JOIN::exec
   */
   bool sort_and_group;
-  bool first_record;
+  bool seen_first_record;   ///< Whether we've seen at least one row already
   bool grouped;             ///< If query contains GROUP BY clause
   bool do_send_rows;        ///< If true, send produced rows using query_result
   table_map all_table_map;  ///< Set of tables contained in query

@@ -1303,7 +1303,7 @@ void JOIN::reset() {
   unit->offset_limit_cnt = (ha_rows)(
       select_lex->offset_limit ? select_lex->offset_limit->val_uint() : 0ULL);
 
-  first_record = false;
+  seen_first_record = false;
   group_sent = false;
   recursive_iteration_count = 0;
   executed = false;
@@ -4035,7 +4035,7 @@ bool JOIN::make_tmp_tables_info() {
         tmp_table_param.func_count = 0;
 
     tmp_table_param.cleanup();
-    first_record = sort_and_group = 0;
+    seen_first_record = sort_and_group = false;
 
     if (!group_optimized_away) {
       grouped = false;

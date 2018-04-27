@@ -3121,12 +3121,12 @@ enum_nested_loop_state end_send_group(JOIN *join, QEP_TAB *qep_tab,
     (2) Have seen all rows
     (3) GROUP expression are different from previous row's
   */
-  if (!join->first_record ||                                        // (1)
+  if (!join->seen_first_record ||                                   // (1)
       end_of_records ||                                             // (2)
       (idx = test_if_item_cache_changed(join->group_fields)) >= 0)  // (3)
   {
     if (!join->group_sent &&
-        (join->first_record ||
+        (join->seen_first_record ||
          (end_of_records && !join->grouped && !join->group_optimized_away))) {
       if (idx < (int)join->send_group_parts) {
         /*
@@ -3153,7 +3153,7 @@ enum_nested_loop_state end_send_group(JOIN *join, QEP_TAB *qep_tab,
         int error = 0;
         {
           table_map save_nullinfo = 0;
-          if (!join->first_record) {
+          if (!join->seen_first_record) {
             // Calculate aggregate functions for no rows
             List_iterator_fast<Item> it(*fields);
             Item *item;
@@ -3205,7 +3205,7 @@ enum_nested_loop_state end_send_group(JOIN *join, QEP_TAB *qep_tab,
       }
     } else {
       if (end_of_records) DBUG_RETURN(NESTED_LOOP_OK);
-      join->first_record = 1;
+      join->seen_first_record = true;
       // Initialize the cache of GROUP expressions with this 1st row's values
       (void)(test_if_item_cache_changed(join->group_fields));
     }
@@ -5271,10 +5271,10 @@ enum_nested_loop_state end_write_group(JOIN *join, QEP_TAB *const qep_tab,
     join->thd->send_kill_message();
     DBUG_RETURN(NESTED_LOOP_KILLED); /* purecov: inspected */
   }
-  if (!join->first_record || end_of_records ||
+  if (!join->seen_first_record || end_of_records ||
       (idx = test_if_item_cache_changed(join->group_fields)) >= 0) {
     Temp_table_param *const tmp_tbl = qep_tab->tmp_table_param;
-    if (join->first_record || (end_of_records && !join->grouped)) {
+    if (join->seen_first_record || (end_of_records && !join->grouped)) {
       int send_group_parts = join->send_group_parts;
       if (idx < send_group_parts) {
         Switch_ref_item_slice slice_switch(join, qep_tab->ref_item_slice);
@@ -5282,7 +5282,7 @@ enum_nested_loop_state end_write_group(JOIN *join, QEP_TAB *const qep_tab,
                         join->ref_slice_immediately_before_group_by &&
                     qep_tab != join->ref_slice_immediately_before_group_by);
         table_map save_nullinfo = 0;
-        if (!join->first_record) {
+        if (!join->seen_first_record) {
           // Calculate aggregate functions for no rows
           List_iterator_fast<Item> it(*join->get_current_fields());
           Item *item;
@@ -5315,7 +5315,7 @@ enum_nested_loop_state end_write_group(JOIN *join, QEP_TAB *const qep_tab,
       }
     } else {
       if (end_of_records) DBUG_RETURN(NESTED_LOOP_OK);
-      join->first_record = 1;
+      join->seen_first_record = true;
 
       (void)(test_if_item_cache_changed(join->group_fields));
     }
