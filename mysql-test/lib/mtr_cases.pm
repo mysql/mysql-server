@@ -171,13 +171,22 @@ sub create_disabled_test_list($$) {
   if ($::opt_sanitize) {
     # Check for disabled-asan.list
     if ($::mysql_version_extra =~ /asan/i &&
-        !grep(/disabled-asan\.list$/, @{$opt_skip_test_list})) {
+        $opt_skip_test_list !~ /disabled-asan\.list$/) {
       push(@disabled_collection, "collections/disabled-asan.list");
     }
     # Check for disabled-ubsan.list
     elsif ($::mysql_version_extra =~ /ubsan/i &&
-           !grep(/disabled-ubsan\.list$/, @{$opt_skip_test_list})) {
+           $opt_skip_test_list !~ /disabled-ubsan\.list$/) {
       push(@disabled_collection, "collections/disabled-ubsan.list");
+    }
+  }
+
+  # Check for the tests to be skipped in valgrind which are listed
+  # in "mysql-test/collections/disabled-valgrind.list" file.
+  if ($::opt_valgrind) {
+   # Check for disabled-valgrind.list
+    if ($opt_skip_test_list !~ /disabled-valgrind\.list$/) {
+      push(@disabled_collection, "collections/disabled-valgrind.list");
     }
   }
 
