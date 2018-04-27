@@ -1549,10 +1549,81 @@ Backup::calculate_current_speed_bounds(Uint64& max_speed,
   max_backup_speed = c_defaults.m_disk_write_speed_max;
   min_speed = c_defaults.m_disk_write_speed_min;
 
-  if (m_is_any_node_restarting && m_is_lcp_running)
   {
+    /**
+     * Critical level for REDO means that we need to write checkpoint
+     * urgently. We set it to maximum configurable level (level at own
+     * restarts).
+     *
+     * High level for REDO means that we need to speed up checkpoints,
+     * but there is still no urgency. In this we set the maximum
+     * checkpoint speed equal to the speed when another node is
+     * performing a node restart.
+     *
+     * We calculate proposed speed based on the REDO write speed
+     * adjusted based on the setting of RecoveryWork. To keep up
+     * with writing in a large database we need to write about
+     * CHANGE_SPEED * (1 + (100 / RecoveryWork)). Thus at default
+     * setting of RecoveryWork we need to write 3x the CHANGE_SPEED
+     * to LCP files to keep the checkpoints short.
+     *
+     * We will attempt to keep the checkpoint short, but we will
+     * only adjust the maximum level for this purpose. We will
+     * not decrease application writes more than necessary to keep
+     * this write speed. We will impact application performance
+     * more when the REDO log level comes closer to critical levels.
+     *
+     * We keep track of proposed disk write speed also when no LCP
+     * is ongoing. Otherwise it will take a long time to speed up
+     * disk write speed again when a new LCP starts up again.
+     */
     jam();
-    max_speed = c_defaults.m_disk_write_speed_max_other_node_restart;
+    if (m_redo_alert_state == RedoStateRep::REDO_ALERT_CRITICAL)
+    {
+      jam();
+      max_speed = c_defaults.m_disk_write_speed_max_own_restart;
+      DEB_REDO_CONTROL(("(%u)Critical REDO level, new max_speed: %llu kB/sec",
+                        instance(),
+                        ((max_speed *
+         Uint64(CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS)) / Uint64(1024))
+                        ));
+    }
+    else if (m_redo_alert_state == RedoStateRep::REDO_ALERT_HIGH)
+    {
+      jam();
+      max_speed = c_defaults.m_disk_write_speed_max_other_node_restart;
+      DEB_REDO_CONTROL(("(%u)High REDO level, new max_speed: %llu kB/sec",
+                        instance(),
+                        ((max_speed *
+         Uint64(CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS)) / Uint64(1024))
+                        ));
+    }
+    else if (m_is_any_node_restarting)
+    {
+      jam();
+      max_speed = c_defaults.m_disk_write_speed_max_other_node_restart;
+      DEB_REDO_CONTROL(("(%u)Node restarting, new max_speed: %llu kB/sec",
+                        instance(),
+                        ((max_speed *
+         Uint64(CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS)) / Uint64(1024))
+                        ));
+    }
+    Uint64 proposed_speed = calculate_proposed_disk_write_speed();
+    if (proposed_speed > max_speed)
+    {
+      jam();
+      max_speed = proposed_speed;
+      DEB_REDO_CONTROL(("(%u)Proposed speed exceeds max_speed, "
+                        "new max_speed: %llu kB/sec",
+                        instance(),
+                        ((max_speed *
+         Uint64(CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS)) / Uint64(1024))
+                        ));
+    }
+    DEB_REDO_CONTROL(("(%u)max_speed set to %llu kB/sec",
+                      instance(),
+                      ((max_speed *
+      Uint64(CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS)) / Uint64(1024))));
   }
 
   /**
