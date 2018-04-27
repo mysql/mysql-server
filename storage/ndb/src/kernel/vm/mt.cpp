@@ -2783,7 +2783,7 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
 
   while (globalData.theRestartFlag != perform_stop)
   {
-    this_send_thread->m_watchdog_counter = 1;
+    this_send_thread->m_watchdog_counter = 19;
 
     NDB_TICKS now = NdbTick_getCurrentTicks();
     Uint64 sleep_time = micros_sleep;
@@ -5411,7 +5411,7 @@ void handle_scheduling_decisions(thr_data *selfptr,
     selfptr->m_watchdog_counter = 6;
     flush_jbb_write_state(selfptr);
     pending_send = do_send(selfptr, FALSE, FALSE);
-    selfptr->m_watchdog_counter = 1;
+    selfptr->m_watchdog_counter = 20;
     send_sum = 0;
     flush_sum = 0;
   }
@@ -5422,7 +5422,7 @@ void handle_scheduling_decisions(thr_data *selfptr,
     selfptr->m_watchdog_counter = 6;
     flush_jbb_write_state(selfptr);
     do_flush(selfptr);
-    selfptr->m_watchdog_counter = 1;
+    selfptr->m_watchdog_counter = 20;
     flush_sum = 0;
   }
 }
@@ -5509,7 +5509,10 @@ execute_signals(thr_data *selfptr,
     assert(block != 0);
 
     Uint32 gsn = s->theVerId_signalNumber;
-    *watchDogCounter = 1;
+    *watchDogCounter = 1 +
+      (gsn << 8) +
+      (bno << 20);
+
     /* Must update original buffer so signal dump will see it. */
     s->theSignalId = selfptr->m_signal_id_counter++;
     memcpy(&sig->header, s, 4*siglen);
@@ -6530,7 +6533,7 @@ mt_job_thread_main(void *thr_arg)
   signal = aligned_signal(signal_buf, thr_no);
 
   /* Avoid false watchdog alarms caused by race condition. */
-  watchDogCounter = 1;
+  watchDogCounter = 21;
 
   bool pending_send = false;
   Uint32 send_sum = 0;
