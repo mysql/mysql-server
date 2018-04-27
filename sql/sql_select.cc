@@ -2285,6 +2285,7 @@ bool JOIN::setup_semijoin_materialized_table(JOIN_TAB *tab, uint tableno,
   tl->set_tableno(tableno);
 
   table->pos_in_table_list = tl;
+  table->pos_in_table_list->select_lex = select_lex;
 
   if (!(sjm_opt->mat_fields = (Item_field **)alloc_root(
             thd->mem_root, field_count * sizeof(Item_field **))))

@@ -131,6 +131,8 @@ static bool init_fields(THD *thd, TABLE_LIST *tables,
                                                     false,  // No priv checking
                                                     true)))
       DBUG_RETURN(1);
+    find_fields->field->table->pos_in_table_list->select_lex =
+        thd->lex->select_lex;
     bitmap_set_bit(find_fields->field->table->read_set,
                    find_fields->field->field_index);
     /* To make life easier when setting values in keys */

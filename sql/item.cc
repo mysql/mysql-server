@@ -2294,7 +2294,7 @@ bool Item_ident_for_show::fix_fields(THD *, Item **) {
 }
 
 /**********************************************/
-
+void break_here() {}
 Item_field::Item_field(Field *f)
     : Item_ident(0, NullS, *f->table_name, f->field_name),
       orig_field(NULL),
@@ -2302,9 +2302,10 @@ Item_field::Item_field(Field *f)
       no_const_subst(false),
       have_privileges(0),
       any_privileges(false) {
-  if (f->table->pos_in_table_list != NULL)
+  if (f->table->pos_in_table_list != NULL) {
+    if (f->table->pos_in_table_list->select_lex == nullptr) break_here();
     context = &(f->table->pos_in_table_list->select_lex->context);
-
+  }
   set_field(f);
   /*
     field_name and table_name should not point to garbage
