@@ -56,6 +56,7 @@
 #cmakedefine HAVE_SYS_CDEFS_H 1
 #cmakedefine HAVE_SYS_IOCTL_H 1
 #cmakedefine HAVE_SYS_MMAN_H 1
+#cmakedefine HAVE_SYS_PRCTL_H 1
 #cmakedefine HAVE_SYS_RESOURCE_H 1
 #cmakedefine HAVE_SYS_SELECT_H 1
 #cmakedefine HAVE_SYS_SOCKET_H 1
