@@ -14354,8 +14354,6 @@ void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
    * those values and when we start allowing more computations due to
    * higher CPU throughput also in signals part of user transactions.
    */
-#define ZMAX_WORDS_PER_SCAN_BATCH_LOW_PRIO 500
-#define ZMAX_WORDS_PER_SCAN_BATCH_HIGH_PRIO 4000
 
   Uint32 max_scan_direct_count = scanPtr->m_reserved == 1 ?
                                  ZMAX_SCAN_DIRECT_COUNT :
