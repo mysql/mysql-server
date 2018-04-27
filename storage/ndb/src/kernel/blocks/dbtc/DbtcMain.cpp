@@ -14776,13 +14776,6 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
 
 void Dbtc::gcpTcfinished(Signal* signal, Uint64 gci)
 {
-  GCPTCFinished* conf = (GCPTCFinished*)signal->getDataPtrSend();
-  conf->senderData = c_gcp_data;
-  conf->gci_hi = Uint32(gci >> 32);
-  conf->gci_lo = Uint32(gci);
-  conf->tcFailNo = cfailure_nr; /* Indicate highest handled failno in GCP */
-
-#ifdef ERROR_INSERT
   if (ERROR_INSERTED(8098))
   {
     if (cmasterNodeId == getOwnNodeId())
@@ -14830,16 +14823,22 @@ void Dbtc::gcpTcfinished(Signal* signal, Uint64 gci)
     SET_ERROR_INSERT_VALUE(8099);
   }
 
+  GCPTCFinished* conf = (GCPTCFinished*)signal->getDataPtrSend();
+  conf->senderData = c_gcp_data;
+  conf->gci_hi = Uint32(gci >> 32);
+  conf->gci_lo = Uint32(gci);
+  conf->tcFailNo = cfailure_nr; /* Indicate highest handled failno in GCP */
+
   if (ERROR_INSERTED(8099))
   {
     /* Slow it down */
     ndbout_c("TC : Sending delayed GCP_TCFINISHED (%u/%u), failNo %u to local DIH(%x)",
              conf->gci_hi, conf->gci_lo, cfailure_nr, cdihblockref);
-    sendSignalWithDelay(cdihblockref, GSN_GCP_TCFINISHED, signal,
+    sendSignalWithDelay(c_gcp_ref, GSN_GCP_TCFINISHED, signal,
                         2000, GCPTCFinished::SignalLength);
     return;
   }
-#endif
+
   sendSignal(c_gcp_ref, GSN_GCP_TCFINISHED, signal,
              GCPTCFinished::SignalLength, JBB);
 }//Dbtc::gcpTcfinished()
