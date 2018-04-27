@@ -1239,7 +1239,7 @@ jd	col18
 Warnings:
 Note	1265	Data truncated for column 'col18' at row 1
 Warning	3156	Invalid JSON value for CAST to DECIMAL from column col18 at row 1
-Warning	3156	Invalid JSON value for CAST to DECIMAL from column col18 at row 3
+Warning	3156	Invalid JSON value for CAST to DECIMAL from column col18 at row 2
 DROP TABLE t1;
 #
 # Bug#25540027: SIG 11 IN FIND_FIELD_IN_TABLE | SQL/SQL_BASE.CC

@@ -1225,7 +1225,7 @@ JSON
 1.5969205058614584
 1.5969205058614584
 Warnings:
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 8
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 1
 SELECT j, JSON_TYPE(j), STD(j) OVER (ORDER BY j ROWS 3 PRECEDING) FROM tj;
 j	JSON_TYPE(j)	STD(j) OVER (ORDER BY j ROWS 3 PRECEDING)
 NULL	NULL	NULL
@@ -1371,9 +1371,9 @@ NULL	NULL	2.711535802469135
 5	0.0	2.711535802469135
 Warnings:
 Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 4
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 5
 Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 4
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 5
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 1
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 1
 SELECT j,CAST(STD(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON), CAST(VARIANCE(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON) FROM tj;
 j	CAST(STD(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON)	CAST(VARIANCE(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON)
 NULL	NULL	NULL

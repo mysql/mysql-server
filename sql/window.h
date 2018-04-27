@@ -1231,19 +1231,6 @@ class Window {
   }
 
   /**
-    Set the current row number for diagnostics. This should be the
-    absolute row number across all partitions in the windowing step, i.e.
-    after ordering the row if applicable.
-
-    @param da                   Diagnostics_area to store row number
-    @param rowno_in_partition   The logical row number within the partition
-  */
-  void set_diagnostics_rowno(Diagnostics_area *da, int64 rowno_in_partition) {
-    da->set_current_row_for_condition(rowno_in_partition +
-                                      m_frame_buffer_partition_offset - 1);
-  }
-
-  /**
     Free up any resource used to process the window functions of this window,
     e.g. temporary files and in-memory data structures. Called when done
     with all window processing steps from SELECT_LEX::cleanup.

@@ -4270,7 +4270,7 @@ CAST(SUM(j) OVER () AS JSON)
 18.14
 18.14
 Warnings:
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 8
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 1
 ----------------------------------------------------------------------
 -    SELECT DISTINCT
 ----------------------------------------------------------------------
@@ -4354,9 +4354,9 @@ NULL	NULL	NULL
 12	5	5
 Warnings:
 Warning	3156	Invalid JSON value for CAST to INTEGER from column j at row 1
-Warning	3156	Invalid JSON value for CAST to INTEGER from column j at row 0
-Warning	3156	Invalid JSON value for CAST to INTEGER from column j at row 0
-Warning	3156	Invalid JSON value for CAST to INTEGER from column j at row 0
+Warning	3156	Invalid JSON value for CAST to INTEGER from column j at row 2
+Warning	3156	Invalid JSON value for CAST to INTEGER from column j at row 2
+Warning	3156	Invalid JSON value for CAST to INTEGER from column j at row 2
 Fix for lineno in warnings buffered and unbuffered windows
 SELECT j,CAST(SUM(j) OVER (PARTITION BY i) AS JSON), CAST(SUM(j) OVER () AS JSON) FROM tj;
 j	CAST(SUM(j) OVER (PARTITION BY i) AS JSON)	CAST(SUM(j) OVER () AS JSON)
@@ -4370,7 +4370,7 @@ NULL	NULL	18.14
 5	5.0	18.14
 Warnings:
 Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 3
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 3
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 1
 SELECT j,CAST(SUM(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON), CAST(SUM(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON) FROM tj;
 j	CAST(SUM(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON)	CAST(SUM(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON)
 NULL	NULL	NULL

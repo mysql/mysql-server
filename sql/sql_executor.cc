@@ -1860,7 +1860,6 @@ static enum_nested_loop_state evaluate_join_record(JOIN *join,
 
       rc = (*qep_tab->next_select)(join, qep_tab + 1, 0);
 
-      join->thd->get_stmt_da()->inc_current_row_for_condition();
       if (rc != NESTED_LOOP_OK) DBUG_RETURN(rc);
 
       /* check for errors evaluating the condition */
@@ -1894,7 +1893,6 @@ static enum_nested_loop_state evaluate_join_record(JOIN *join,
 
       set_if_smaller(join->return_tab, return_tab);
     } else {
-      join->thd->get_stmt_da()->inc_current_row_for_condition();
       if (qep_tab->not_null_compl) {
         /* a NULL-complemented row is not in a table so cannot be locked */
         qep_tab->read_record.unlock_row(qep_tab);
@@ -1906,7 +1904,6 @@ static enum_nested_loop_state evaluate_join_record(JOIN *join,
       with the beginning coinciding with the current partial join.
     */
     join->examined_rows++;
-    join->thd->get_stmt_da()->inc_current_row_for_condition();
     if (qep_tab->not_null_compl) qep_tab->read_record.unlock_row(qep_tab);
   }
   DBUG_RETURN(NESTED_LOOP_OK);
@@ -3054,6 +3051,7 @@ static enum_nested_loop_state end_send(JOIN *join, QEP_TAB *qep_tab,
     if (error) DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
 
     ++join->send_records;
+    join->thd->get_stmt_da()->inc_current_row_for_condition();
     if (join->send_records >= join->unit->select_limit_cnt &&
         !join->do_send_rows) {
       /*
@@ -3259,6 +3257,7 @@ enum_nested_loop_state end_send_group(JOIN *join, QEP_TAB *qep_tab,
             if (join->do_send_rows)
               error = join->select_lex->query_result()->send_data(*fields);
             join->send_records++;
+            join->thd->get_stmt_da()->inc_current_row_for_condition();
             join->group_sent = true;
           }
           if (join->rollup.state != ROLLUP::STATE_NONE && error <= 0) {
@@ -3936,8 +3935,6 @@ static bool bring_back_frame_row(THD *thd, Window &w,
     w.m_frame_buffer_positions[reason + fno].m_rowno = rowno;
   }
 
-  w.set_diagnostics_rowno(thd->get_stmt_da(), rowno);
-
   if (!do_fetch) DBUG_RETURN(false);
 
   Temp_table_param *const fb_info = w.frame_buffer_param();
@@ -4358,7 +4355,6 @@ static bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
     DBUG_RETURN(false);  // We haven't read enough rows yet, so return
 
   w.set_rowno_in_partition(current_row);
-  w.set_diagnostics_rowno(thd->get_stmt_da(), current_row);
 
   /*
     By default, we must:
@@ -4945,6 +4941,7 @@ static inline enum_nested_loop_state write_or_send_row(
     join->unit->select_limit_cnt = HA_POS_ERROR;
     return NESTED_LOOP_OK;
   }
+  join->thd->get_stmt_da()->inc_current_row_for_condition();
 
   return NESTED_LOOP_OK;
 }
@@ -4990,6 +4987,7 @@ static enum_nested_loop_state end_write(JOIN *join, QEP_TAB *const qep_tab,
         join->unit->select_limit_cnt = HA_POS_ERROR;
         DBUG_RETURN(NESTED_LOOP_OK);
       }
+      join->thd->get_stmt_da()->inc_current_row_for_condition();
     }
   }
 end:
