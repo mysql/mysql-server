@@ -176,6 +176,7 @@ static dberr_t z_replace(InsertContext &ctx, trx_t *trx, dict_index_t *index,
                          ref_t ref, z_first_page_t &first_page, ulint offset,
                          ulint len, byte *buf) {
   DBUG_ENTER("lob::z_replace");
+  dberr_t ret(DB_SUCCESS);
   uint32_t new_entries = 0;
   trx_id_t trxid = (trx == nullptr) ? 0 : trx->id;
   const undo_no_t undo_no = (trx == nullptr ? 0 : trx->undo_no - 1);
@@ -216,7 +217,12 @@ static dberr_t z_replace(InsertContext &ctx, trx_t *trx, dict_index_t *index,
 
   /* The cur_entry points to the chunk that needs to be
   partially replaced. */
-  std::unique_ptr<byte[]> tmp(new byte[Z_CHUNK_SIZE]);
+  std::unique_ptr<byte[]> tmp(new (std::nothrow) byte[Z_CHUNK_SIZE]);
+
+  if (tmp == nullptr) {
+    return (DB_OUT_OF_MEMORY);
+  }
+
   byte *chunk = tmp.get();
   ut_ad(yet_to_skip < Z_CHUNK_SIZE);
 
@@ -264,8 +270,12 @@ static dberr_t z_replace(InsertContext &ctx, trx_t *trx, dict_index_t *index,
       ut_ad(first_page.get_page_type() == FIL_PAGE_TYPE_ZLOB_FIRST);
 
       /* Chunk now contains new data to be inserted. */
-      z_insert_chunk(index, first_page, trx, ref, chunk, len1, &new_entry, mtr,
-                     false);
+      ret = z_insert_chunk(index, first_page, trx, ref, chunk, len1, &new_entry,
+                           mtr, false);
+
+      if (ret != DB_SUCCESS) {
+        return (ret);
+      }
 
       cur_entry.insert_after(base_node, new_entry);
       cur_entry.remove(base_node);
@@ -283,8 +293,12 @@ static dberr_t z_replace(InsertContext &ctx, trx_t *trx, dict_index_t *index,
 
       /* Full chunk is to be replaced. No need to read
       old data. */
-      z_insert_chunk(index, first_page, trx, ref, from_ptr, size, &new_entry,
-                     mtr, false);
+      ret = z_insert_chunk(index, first_page, trx, ref, from_ptr, size,
+                           &new_entry, mtr, false);
+
+      if (ret != DB_SUCCESS) {
+        return (ret);
+      }
 
       ut_ad(new_entry.get_trx_id() == trx->id);
 
@@ -314,7 +328,7 @@ static dberr_t z_replace(InsertContext &ctx, trx_t *trx, dict_index_t *index,
   ut_ad(first_page.validate());
 #endif /* LOB_DEBUG */
 
-  DBUG_RETURN(DB_SUCCESS);
+  DBUG_RETURN(ret);
 }
 
 }; /* namespace lob */

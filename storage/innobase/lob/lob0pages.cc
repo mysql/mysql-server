@@ -65,6 +65,10 @@ buf_block_t *data_page_t::replace(trx_t *trx, ulint offset, const byte *&ptr,
   data_page_t new_page(mtr, m_index);
   new_block = new_page.alloc(mtr, false);
 
+  if (new_block == nullptr) {
+    return (nullptr);
+  }
+
   byte *new_ptr = new_page.data_begin();
   byte *old_ptr = data_begin();
 
@@ -142,7 +146,16 @@ buf_block_t *data_page_t::alloc(mtr_t *alloc_mtr, bool is_bulk) {
   ut_ad(alloc_mtr != nullptr);
 
   page_no_t hint = FIL_NULL;
+
   m_block = alloc_lob_page(m_index, alloc_mtr, hint, is_bulk);
+
+  /* For testing purposes, pretend that the LOB page allocation failed.*/
+  DBUG_EXECUTE_IF("innodb_lob_data_page_alloc_failed", m_block = nullptr;);
+
+  if (m_block == nullptr) {
+    return (m_block);
+  }
+
   set_page_type();
   set_version_0();
   set_next_page_null();

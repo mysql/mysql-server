@@ -42,7 +42,7 @@ namespace lob {
 @param[in]	hint	the hint page number for allocation.
 @param[in]	bulk	true if operation is OPCODE_INSERT_BULK,
                         false otherwise.
-@return the allocated block of the BLOB page. */
+@return the allocated block of the BLOB page or nullptr. */
 buf_block_t *alloc_lob_page(dict_index_t *index, mtr_t *lob_mtr, page_no_t hint,
                             bool bulk) {
   ulint r_extents;
@@ -61,9 +61,16 @@ buf_block_t *alloc_lob_page(dict_index_t *index, mtr_t *lob_mtr, page_no_t hint,
     alloc_mtr = lob_mtr;
   }
 
-  if (!fsp_reserve_free_extents(&r_extents, space_id, 1, FSP_BLOB, alloc_mtr,
-                                1)) {
-    alloc_mtr->commit();
+  bool success =
+      fsp_reserve_free_extents(&r_extents, space_id, 1, FSP_BLOB, alloc_mtr, 1);
+
+  DBUG_EXECUTE_IF("innodb_alloc_lob_page_failed", success = false;);
+
+  if (!success) {
+    if (bulk) {
+      ut_ad(alloc_mtr == &mtr_bulk);
+      alloc_mtr->commit();
+    }
     return (nullptr);
   }
 
@@ -72,6 +79,7 @@ buf_block_t *alloc_lob_page(dict_index_t *index, mtr_t *lob_mtr, page_no_t hint,
   fil_space_release_free_extents(space_id, r_extents);
 
   if (bulk) {
+    ut_ad(alloc_mtr == &mtr_bulk);
     alloc_mtr->commit();
   }
 
