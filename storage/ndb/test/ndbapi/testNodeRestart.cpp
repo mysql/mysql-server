@@ -1477,6 +1477,7 @@ runBug16772(NDBT_Context* ctx, NDBT_Step* step){
   NdbRestarter restarter;
   if (restarter.getNumDbNodes() < 2)
   {
+    g_err << "[SKIPPED] Test skipped. Requires at least 2 nodes" << endl;
     ctx->stopTest();
     return NDBT_OK;
   }
@@ -1537,6 +1538,7 @@ runBug18414(NDBT_Context* ctx, NDBT_Step* step){
   NdbRestarter restarter;
   if (restarter.getNumDbNodes() < 2)
   {
+    g_err << "[SKIPPED] Test skipped. Requires at least 2 nodes" << endl;
     ctx->stopTest();
     return NDBT_OK;
   }
@@ -1610,6 +1612,7 @@ runBug18612(NDBT_Context* ctx, NDBT_Step* step){
   NdbRestarter restarter;
   if (restarter.getNumDbNodes() < 2)
   {
+    g_err << "[SKIPPED] Test skipped. Requires at least 2 nodes" << endl;
     ctx->stopTest();
     return NDBT_OK;
   }
@@ -1721,6 +1724,7 @@ runBug18612SR(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK; /* Until we fix handling of partitioned clusters */
   if (restarter.getNumDbNodes() < 2)
   {
+    g_err << "[SKIPPED] Test skipped. Requires at least 2 nodes" << endl;
     ctx->stopTest();
     return NDBT_OK;
   }
@@ -1951,7 +1955,10 @@ runBug29364(NDBT_Context* ctx, NDBT_Step* step)
   HugoTransactions hugoTrans(*ctx->getTab());
 
   if (restarter.getNumDbNodes() < 4)
+  {
+    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
     return NDBT_OK;
+  }
 
   int dump0[] = { 9000, 0 } ;
   int dump1[] = { 9001, 0 } ;
@@ -1996,7 +2003,10 @@ int runBug25364(NDBT_Context* ctx, NDBT_Step* step)
   int loops = ctx->getNumLoops();
   
   if (restarter.getNumDbNodes() < 4)
+  {
+    g_err << "[SKIPPED] Test skipped. Requires at least 2 nodes" << endl;
     return NDBT_OK;
+  }
 
   int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
 
@@ -2151,7 +2161,10 @@ int runBug25554(NDBT_Context* ctx, NDBT_Step* step)
   NdbRestarter restarter;
   
   if (restarter.getNumDbNodes() < 4)
+  {
+    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
     return NDBT_OK;
+  }
 
   for (int i = 0; i<loops; i++)
   {
@@ -2201,8 +2214,11 @@ int runBug25984(NDBT_Context* ctx, NDBT_Step* step)
   NdbDictionary::Table tab = * ctx->getTab();
   NdbDictionary::Dictionary* pDict = GETNDB(step)->getDictionary();
 
-  if (restarter.getNumDbNodes() < 2)
+  if (restarter.getNumDbNodes() < 4)
+  {
+    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
     return NDBT_OK;
+  }
 
   pDict->dropTable(tab.getName());
 
@@ -2307,7 +2323,10 @@ runBug26457(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter res;
   if (res.getNumDbNodes() < 4)
+  {
+    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
     return NDBT_OK;
+  }
 
   int loops = ctx->getNumLoops();
   while (loops --)
@@ -2531,6 +2550,7 @@ runBug27283(NDBT_Context* ctx, NDBT_Step* step)
 
   if (res.getNumDbNodes() < 2)
   {
+    g_err << "[SKIPPED] Test skipped. Requires at least 2 nodes" << endl;
     return NDBT_OK;
   }
 
@@ -2571,6 +2591,7 @@ runBug27466(NDBT_Context* ctx, NDBT_Step* step)
 
   if (res.getNumDbNodes() < 2)
   {
+    g_err << "[SKIPPED] Test skipped. Requires at least 2 nodes" << endl;
     return NDBT_OK;
   }
 
@@ -2622,9 +2643,9 @@ runBug28023(NDBT_Context* ctx, NDBT_Step* step)
 
   if (res.getNumDbNodes() < 2)
   {
+    g_err << "[SKIPPED] Test skipped. Requires at least 2 nodes" << endl;
     return NDBT_OK;
   }
-
 
   HugoTransactions hugoTrans(*ctx->getTab());
   if (hugoTrans.loadTable(pNdb, records) != 0){
@@ -2687,6 +2708,7 @@ runBug28717(NDBT_Context* ctx, NDBT_Step* step)
 
   if (res.getNumDbNodes() < 4)
   {
+    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
     return NDBT_OK;
   }
 
@@ -2800,6 +2822,7 @@ runGCP(NDBT_Context* ctx, NDBT_Step* step)
 
   if (res.getNumDbNodes() < 2)
   {
+    g_err << "[SKIPPED] Test skipped. Requires at least 2 nodes" << endl;
     return NDBT_OK;
   }
 
@@ -2854,7 +2877,10 @@ runCommitAck(NDBT_Context* ctx, NDBT_Step* step)
   if (records < 2)
     return NDBT_OK;
   if (restarter.getNumDbNodes() < 2)
+  {
+    g_err << "[SKIPPED] Test skipped. Requires at least 2 nodes" << endl;
     return NDBT_OK;
+  }
 
   int trans_type= -1;
   NdbConnection *pCon;
@@ -3230,6 +3256,7 @@ runBug31525(NDBT_Context* ctx, NDBT_Step* step)
 
   if (res.getNumDbNodes() < 2)
   {
+    g_err << "[SKIPPED] Test skipped. Requires at least 2 nodes" << endl;
     return NDBT_OK;
   }
 
@@ -3304,9 +3331,9 @@ runBug31980(NDBT_Context* ctx, NDBT_Step* step)
 
   if (res.getNumDbNodes() < 2)
   {
+    g_err << "[SKIPPED] Test skipped. Requires at least 2 nodes" << endl;
     return NDBT_OK;
   }
-
 
   HugoOperations hugoOps (* ctx->getTab());
   if(hugoOps.startTransaction(pNdb) != 0)
@@ -3356,6 +3383,7 @@ runBug32160(NDBT_Context* ctx, NDBT_Step* step)
 
   if (res.getNumDbNodes() < 2)
   {
+    g_err << "[SKIPPED] Test skipped. Requires at least 2 nodes" << endl;
     return NDBT_OK;
   }
 
@@ -3401,6 +3429,7 @@ runBug32922(NDBT_Context* ctx, NDBT_Step* step)
 
   if (res.getNumDbNodes() < 2)
   {
+    g_err << "[SKIPPED] Test skipped. Requires at least 2 nodes" << endl;
     return NDBT_OK;
   }
 
@@ -3450,6 +3479,7 @@ runBug34216(NDBT_Context* ctx, NDBT_Step* step)
 
   if (restarter.getNumDbNodes() < 2)
   {
+    g_err << "[SKIPPED] Test skipped. Requires at least 2 nodes" << endl;
     ctx->stopTest();
     return NDBT_OK;
   }
@@ -3591,6 +3621,7 @@ runNF_commit(NDBT_Context* ctx, NDBT_Step* step)
   NdbRestarter restarter(0, &ctx->m_cluster_connection);
   if (restarter.getNumDbNodes() < 2)
   {
+    g_err << "[SKIPPED] Test skipped. Requires at least 2 nodes" << endl;
     ctx->stopTest();
     return NDBT_OK;
   }
@@ -3657,6 +3688,7 @@ runBug34702(NDBT_Context* ctx, NDBT_Step* step)
 
   if (res.getNumDbNodes() < 2)
   {
+    g_err << "[SKIPPED] Test skipped. Requires at least 2 nodes" << endl;
     return NDBT_OK;
   }
 
@@ -3712,6 +3744,7 @@ runMNF(NDBT_Context* ctx, NDBT_Step* step)
   
   if (res.getNumDbNodes() < 2 || num_replicas < 2)
   {
+    g_err << "[SKIPPED] Test skipped. Requires at least 2 nodes & replicas" << endl;
     return NDBT_OK;
   }
 
@@ -4006,7 +4039,10 @@ runBug36199(NDBT_Context* ctx, NDBT_Step* step)
   NdbRestarter res;
 
   if (res.getNumDbNodes() < 4)
+  {
+    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
     return NDBT_OK;
+  }
 
   int master = res.getMasterNodeId();
   int nextMaster = res.getNextMasterNodeId(master);
@@ -4056,7 +4092,10 @@ runBug36246(NDBT_Context* ctx, NDBT_Step* step)
   Ndb* pNdb = GETNDB(step);
 
   if (res.getNumDbNodes() < 4)
+  {
+    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
     return NDBT_OK;
+  }
 
   HugoOperations hugoOps(*ctx->getTab());
 restartloop:
@@ -4147,7 +4186,10 @@ runBug36247(NDBT_Context* ctx, NDBT_Step* step)
   Ndb* pNdb = GETNDB(step);
 
   if (res.getNumDbNodes() < 4)
+  {
+    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
     return NDBT_OK;
+  }
 
   HugoOperations hugoOps(*ctx->getTab());
 
@@ -4244,7 +4286,10 @@ runBug36276(NDBT_Context* ctx, NDBT_Step* step)
   //Ndb* pNdb = GETNDB(step);
   
   if (res.getNumDbNodes() < 4)
+  {
+    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
     return NDBT_OK;
+  }
   
   int master = res.getMasterNodeId();
   int nextMaster = res.getNextMasterNodeId(master);
@@ -4289,7 +4334,10 @@ runBug36245(NDBT_Context* ctx, NDBT_Step* step)
   Ndb* pNdb = GETNDB(step);
 
   if (res.getNumDbNodes() < 4)
+  {
+    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
     return NDBT_OK;
+  }
 
   /**
    * Make sure master and nextMaster is in different node groups
@@ -4506,6 +4554,7 @@ runBug41295(NDBT_Context* ctx, NDBT_Step* step)
 
   if (res.getNumDbNodes() < 2)
   {
+    g_err << "[SKIPPED] Test skipped. Requires at least 2 nodes" << endl;
     ctx->stopTest();
     return NDBT_OK;
   }
@@ -4575,6 +4624,7 @@ runBug41469(NDBT_Context* ctx, NDBT_Step* step)
 
   if (res.getNumDbNodes() < 4)
   {
+    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
     ctx->stopTest();
     return NDBT_OK;
   }
@@ -4615,6 +4665,7 @@ runBug42422(NDBT_Context* ctx, NDBT_Step* step)
   
   if (res.getNumDbNodes() < 4)
   {
+    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
     ctx->stopTest();
     return NDBT_OK;
   }
@@ -4674,6 +4725,7 @@ runBug43224(NDBT_Context* ctx, NDBT_Step* step)
   
   if (res.getNumDbNodes() < 2)
   {
+    g_err << "[SKIPPED] Test skipped. Requires at least 2 nodes" << endl;
     ctx->stopTest();
     return NDBT_OK;
   }
@@ -4733,6 +4785,7 @@ runBug43888(NDBT_Context* ctx, NDBT_Step* step)
   
   if (res.getNumDbNodes() < 2)
   {
+    g_err << "[SKIPPED] Test skipped. Requires at least 2 nodes" << endl;
     ctx->stopTest();
     return NDBT_OK;
   }
@@ -5013,7 +5066,10 @@ runBug56044(NDBT_Context* ctx, NDBT_Step* step)
   NdbRestarter res;
 
   if (res.getNumDbNodes() < 2)
+  {
+    g_err << "[SKIPPED] Test skipped. Requires at least 2 nodes" << endl;
     return NDBT_OK;
+  }
 
   for (int i = 0; i<loops; i++)
   {
@@ -5046,7 +5102,10 @@ runBug57767(NDBT_Context* ctx, NDBT_Step* step)
   NdbRestarter res;
 
   if (res.getNumDbNodes() < 2)
+  {
+    g_err << "[SKIPPED] Test skipped. Requires at least 2 nodes" << endl;
     return NDBT_OK;
+  }
 
   int node0 = res.getNode(NdbRestarter::NS_RANDOM);
   int node1 = res.getRandomNodeSameNodeGroup(node0, rand());
@@ -5079,7 +5138,10 @@ runBug57522(NDBT_Context* ctx, NDBT_Step* step)
   NdbRestarter res;
 
   if (res.getNumDbNodes() < 4)
+  {
+    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
     return NDBT_OK;
+  }
 
   for (int i = 0; i<loops; i++)
   {
@@ -5110,8 +5172,11 @@ int
 runForceStopAndRestart(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter res;
-  if (res.getNumDbNodes() < 2 || res.getNumDbNodes() > 2)
+  if (res.getNumDbNodes() != 2)
+  {
+    g_err << "[SKIPPED] Test skipped. Requires 2 nodes" << endl;
     return NDBT_OK;
+  }
 
   Vector<int> group1;
   Vector<int> group2;
@@ -5228,7 +5293,10 @@ runBug58453(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter res;
   if (res.getNumDbNodes() < 4)
+  {
+    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
     return NDBT_OK;
+  }
 
   Ndb* pNdb = GETNDB(step);
   HugoOperations hugoOps(*ctx->getTab());
@@ -5302,6 +5370,7 @@ int runRestartToDynamicOrder(NDBT_Context* ctx, NDBT_Step* step)
   int num_replicas = (numNodes - numNoNodeGroups) / numNodeGroups;
   if (num_replicas != 2)
   {
+    g_err << "[SKIPPED] Test skipped. Requires 2 replicas" << endl;
     return NDBT_OK;
   }
 
@@ -5535,6 +5604,7 @@ int analyseDynamicOrder(NDBT_Context* ctx, NDBT_Step* step)
   int num_replicas = (numNodes - numNoNodeGroups) / numNodeGroups;
   if (num_replicas != 2)
   {
+    g_err << "[SKIPPED] Test skipped. Requires 2 replicas" << endl;
     return NDBT_OK;
   }
 
@@ -5788,6 +5858,7 @@ int runSplitLatency25PctFail(NDBT_Context* ctx, NDBT_Step* step)
   int num_replicas = (numNodes - numNoNodeGroups) / numNodeGroups;
   if (num_replicas != 2)
   {
+    g_err << "[SKIPPED] Test skipped. Requires 2 replicas" << endl;
     return NDBT_OK;
   }
 
@@ -6024,6 +6095,7 @@ runMasterFailSlowLCP(NDBT_Context* ctx, NDBT_Step* step)
 
   if (res.getNumDbNodes() < 4)
   {
+    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
     return NDBT_OK;
   }
 
@@ -6334,13 +6406,12 @@ static struct { int errnum; bool obsolete; } other_err[] =
 int
 runLCPTakeOver(NDBT_Context* ctx, NDBT_Step* step)
 {
+  NdbRestarter res;
+  if (res.getNumDbNodes() < 4)
   {
-    NdbRestarter res;
-    if (res.getNumDbNodes() < 4)
-    {
-      ctx->stopTest();
-      return NDBT_OK;
-    }
+    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
+    ctx->stopTest();
+    return NDBT_OK;
   }
 
   for (int i = 0; master_err[i] != 0; i++)
@@ -7023,6 +7094,8 @@ runNodeFailGCPOpen(NDBT_Context* ctx, NDBT_Step* step)
   int num_replicas = (numDbNodes - numNoNodeGroups) / numNodeGroups;
   if (num_replicas != 2)
   {
+    g_err << "[SKIPPED] Test skipped. Requires 2 replicas" << endl;
+    ctx->stopTest();
     return NDBT_OK;
   }
 
@@ -8757,6 +8830,7 @@ int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step)
   NdbMgmd mgmd;
   if (nodeCount != 2)
   {
+    g_err << "[SKIPPED] Test skipped.  Needs 2 nodes" << endl;
     return NDBT_OK; /* Requires exact 2 nodes to run */
   }
   if (!mgmd.connect()) 
@@ -8891,6 +8965,7 @@ int run_PLCP_I1(NDBT_Context *ctx, NDBT_Step *step)
 
   if (nodeCount < 2)
   {
+    g_err << "[SKIPPED] Test skipped. Requires at least 2 nodes" << endl;
     return NDBT_OK; /* Requires at least 2 nodes to run */
   }
   g_err << "Executing " << loops << " loops" << endl;
@@ -8968,6 +9043,7 @@ int run_PLCP_I2(NDBT_Context *ctx, NDBT_Step *step)
 
   if (nodeCount < 2)
   {
+    g_info << "Test skipped, requires at least 2 nodes" << endl;
     return NDBT_OK; /* Requires at least 2 nodes to run */
   }
   g_err << "Executing " << loops << " loops" << endl;
