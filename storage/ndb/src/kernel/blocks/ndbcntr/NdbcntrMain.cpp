@@ -80,9 +80,16 @@
 extern EventLogger * g_eventLogger;
 
 #ifdef VM_TRACE
+#define DEBUG_REDO_CONTROL 1
 //#define DEBUG_LOCAL_SYSFILE 1
 //#define DEBUG_LCP 1
 //#define DEBUG_UNDO 1
+#endif
+
+#ifdef DEBUG_REDO_CONTROL
+#define DEB_REDO_CONTROL(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_REDO_CONTROL(arglist) do { } while (0)
 #endif
 
 #ifdef DEBUG_LOCAL_SYSFILE
@@ -6107,6 +6114,100 @@ Ndbcntr::sendWriteLocalSysfile_startLcp(Signal *signal, Uint32 type)
              JBB);
 }
 
+RedoStateRep::RedoAlertState
+Ndbcntr::get_node_redo_alert_state()
+{
+  RedoStateRep::RedoAlertState redo_alert_state = RedoStateRep::NO_REDO_ALERT;
+  for (Uint32 i = 0; i < MAX_NDBMT_LQH_THREADS; i++)
+  {
+    if (m_redo_alert_state[i] > redo_alert_state)
+    {
+      jamLine(i);
+      redo_alert_state = m_redo_alert_state[i];
+    }
+  }
+  return redo_alert_state;
+}
+
+void
+Ndbcntr::execREDO_STATE_REP(Signal *signal)
+{
+  RedoStateRep *rep = (RedoStateRep*)signal->getDataPtr();
+  BlockReference sender = signal->senderBlockRef();
+  Uint32 instance = refToInstance(sender);
+  Uint32 block = refToMain(sender);
+  bool any_changes = false;
+  if (block == DBDIH)
+  {
+    /**
+     * The DIH master informs us of a new global redo alert state.
+     * We will record this, DIH manages this information based on
+     * knowledge of all state's in all nodes.
+     */
+    ndbrequire(rep->receiverInfo == RedoStateRep::ToNdbcntr);
+    if (rep->redoState != (Uint32)m_global_redo_alert_state)
+    {
+      jam();
+      any_changes = true;
+      m_global_redo_alert_state = (RedoStateRep::RedoAlertState)rep->redoState;
+    }
+  }
+  else
+  {
+    /**
+     * The backup block in some LDM thread has changed the state of
+     * REDO alert state. We will update our view on this state and
+     * calculate the REDO alert state of this node.
+     */
+    RedoStateRep::RedoAlertState node_redo_alert_state;
+    ndbrequire(block == BACKUP);
+    ndbrequire(m_redo_alert_state[instance] !=
+               (RedoStateRep::RedoAlertState)rep->redoState);
+    m_redo_alert_state[instance] =
+      (RedoStateRep::RedoAlertState)rep->redoState;
+    node_redo_alert_state = get_node_redo_alert_state();
+    if (node_redo_alert_state != m_node_redo_alert_state)
+    {
+      any_changes = true;
+      m_node_redo_alert_state = node_redo_alert_state;
+      if (m_first_distributed_lcp_started)
+      {
+        jam();
+        rep->receiverInfo = RedoStateRep::ToLocalDih;
+        rep->redoState = (RedoStateRep::RedoAlertState)m_node_redo_alert_state;
+        sendSignal(DBDIH_REF, GSN_REDO_STATE_REP, signal, 2, JBB);
+      }
+    }
+  }
+  if (!any_changes)
+    return;
+  /**
+   * We update the REDO alert state in all LDM threads if there was any
+   * change of either global REDO alert state or the node REDO alert state.
+   * If the node state is on a higher alert level we use this since we
+   * could receive this information before the global state have been
+   * updated.
+   */
+  RedoStateRep::RedoAlertState redo_alert_state;
+  if (m_node_redo_alert_state > m_global_redo_alert_state)
+  {
+    jam();
+    redo_alert_state = m_node_redo_alert_state;
+  }
+  else
+  {
+    jam();
+    redo_alert_state = m_global_redo_alert_state;
+  }
+  DEB_REDO_CONTROL(("Set node REDO alert state to %u",
+                    redo_alert_state));
+  rep->receiverInfo = RedoStateRep::ToBackup;
+  rep->redoState = (RedoStateRep::RedoAlertState)redo_alert_state;
+  send_to_all_backup(signal,
+                     GSN_REDO_STATE_REP,
+                     2);
+}
+
 void Ndbcntr::execCOPY_FRAG_IN_PROGRESS_REP(Signal *signal)
 {
   jamEntry();
@@ -6114,9 +6215,36 @@ void Ndbcntr::execCOPY_FRAG_IN_PROGRESS_REP(Signal *signal)
   DEB_LCP(("m_copy_fragment_in_progress: %u", m_copy_fragment_in_progress));
 }
 
-Uint32 Ndbcntr::send_to_all_lqh(Signal *signal,
-                                Uint32 gsn,
-                                Uint32 sig_len)
+Uint32
+Ndbcntr::send_to_all_backup(Signal *signal,
+                            Uint32 gsn,
+                            Uint32 sig_len)
+{
+  Uint32 ldm_workers = globalData.ndbMtLqhWorkers == 0 ?
+                       1 : globalData.ndbMtLqhWorkers;
+  if (isNdbMtLqh())
+  {
+    jam();
+    for (Uint32 i = 1; i <= ldm_workers; i++)
+    {
+      jam();
+      BlockReference ref = numberToRef(BACKUP, i, getOwnNodeId());
+      sendSignal(ref, gsn, signal, sig_len, JBB);
+    }
+  }
+  else
+  {
+    jam();
+    sendSignal(BACKUP_REF, gsn, signal,
+               sig_len, JBB);
+  }
+  return ldm_workers;
+}
+
+Uint32
+Ndbcntr::send_to_all_lqh(Signal *signal,
+                         Uint32 gsn,
+                         Uint32 sig_len)
 {
   Uint32 ldm_workers = globalData.ndbMtLqhWorkers == 0 ?
                        1 : globalData.ndbMtLqhWorkers;
@@ -6436,6 +6564,7 @@ void Ndbcntr::execSTART_DISTRIBUTED_LCP_ORD(Signal *signal)
     jam();
     DEB_LCP(("Start distributed LCP: lcpId = %u", lcpId));
     ndbrequire(m_outstanding_wait_lcp == 0);
+    m_first_distributed_lcp_started = true;
     m_distributed_lcp_started = true;
     m_outstanding_wait_lcp = ldm_workers;
     m_distributed_lcp_id = lcpId;
