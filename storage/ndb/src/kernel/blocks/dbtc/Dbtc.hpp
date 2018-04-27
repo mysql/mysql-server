@@ -2817,6 +2817,7 @@ private:
 public:
 static Uint64 getTransactionMemoryNeed(
     const Uint32 dbtc_instance_count,
+    const Uint32 MaxDMLOperationsPerTransaction,
     const Uint32 MaxNoOfConcurrentIndexOperations,
     const Uint32 MaxNoOfConcurrentOperations,
     const Uint32 MaxNoOfConcurrentScans,

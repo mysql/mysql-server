@@ -458,6 +458,7 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     tcInstances = globalData.ndbMtTcThreads;
   }
 
+  Uint32 MaxDMLOperationsPerTransaction = ~0;
   Uint32 MaxNoOfConcurrentIndexOperations = 8192;
   Uint32 MaxNoOfConcurrentOperations = 32768;
   Uint32 MaxNoOfConcurrentScans = 256;
@@ -466,25 +467,28 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
   Uint32 MaxNoOfLocalScans = 0;
   Uint32 TransactionBufferMemory = 1048576;
 
+  ndb_mgm_get_int_parameter(p, CFG_DB_MAX_DML_OPERATIONS_PER_TRANSACTION,
+                            &MaxDMLOperationsPerTransaction);
   ndb_mgm_get_int_parameter(p, CFG_DB_NO_INDEX_OPS,
                             &MaxNoOfConcurrentIndexOperations);
   ndb_mgm_get_int_parameter(p, CFG_DB_NO_OPS, &MaxNoOfConcurrentOperations);
   ndb_mgm_get_int_parameter(p, CFG_DB_NO_SCANS, &MaxNoOfConcurrentScans);
   ndb_mgm_get_int_parameter(p, CFG_DB_NO_TRANSACTIONS, &MaxNoOfConcurrentTransactions);
   ndb_mgm_get_int_parameter(p, CFG_DB_NO_TRIGGERS, &MaxNoOfFiredTriggers);
-  ndb_mgm_get_int_parameter(p, CFG_DB_NO_LOCAL_SCANS, &MaxNoOfLocalScans);
+  // Use CFG_TC_LOCAL_SCAN instead of CFG_DB_NO_LOCAL_SCANS since it is
+  // calculated if MaxNoOfLocalScans is not set.
+  ndb_mgm_get_int_parameter(p, CFG_TC_LOCAL_SCAN, &MaxNoOfLocalScans);
   ndb_mgm_get_int_parameter(p, CFG_DB_TRANS_BUFFER_MEM, &TransactionBufferMemory);
 
-  if (MaxNoOfLocalScans == 0)
+  if (~MaxDMLOperationsPerTransaction == 0)
   {
-    const Uint32 noOfDBNodes = 48;
-    MaxNoOfLocalScans = tcInstances * lqhInstances *
-        (noOfDBNodes * MaxNoOfConcurrentScans) + 1 + 1;
+    MaxDMLOperationsPerTransaction = MaxNoOfConcurrentOperations;
   }
 
   Uint64 transmem_bytes =
       globalEmulatorData.theSimBlockList->getTransactionMemoryNeed(
         tcInstances,
+        MaxDMLOperationsPerTransaction,
         MaxNoOfConcurrentIndexOperations,
         MaxNoOfConcurrentOperations,
         MaxNoOfConcurrentScans,

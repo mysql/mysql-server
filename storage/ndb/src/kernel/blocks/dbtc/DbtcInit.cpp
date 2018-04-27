@@ -28,14 +28,22 @@
 #include <ndb_limits.h>
 #include <Properties.hpp>
 #include <Configuration.hpp>
+#include <EventLogger.hpp>
+
 
 #define JAM_FILE_ID 349
 
+extern EventLogger * g_eventLogger;
+
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+#define DEBUG_MEM
+#endif
 
 #define DEBUG(x) { ndbout << "TC::" << x << endl; }
 
 Uint64 Dbtc::getTransactionMemoryNeed(
     const Uint32 dbtc_instance_count,
+    const Uint32 MaxDMLOperationsPerTransaction,
     const Uint32 MaxNoOfConcurrentIndexOperations,
     const Uint32 MaxNoOfConcurrentOperations,
     const Uint32 MaxNoOfConcurrentScans,
@@ -44,24 +52,20 @@ Uint64 Dbtc::getTransactionMemoryNeed(
     const Uint32 MaxNoOfLocalScans,
     const Uint32 TransactionBufferMemory)
 {
-#define Q(x) fprintf(stderr, #x " = %u\n", x)
-  Q(MaxNoOfConcurrentIndexOperations);
-  Q(MaxNoOfConcurrentOperations);
-  Q(MaxNoOfConcurrentScans);
-  Q(MaxNoOfConcurrentTransactions);
-  Q(MaxNoOfFiredTriggers);
-  Q(MaxNoOfLocalScans);
-  Q(TransactionBufferMemory);
-  fprintf(stderr,"TransactionBufferMemory %u segments of size %zu\n", AttributeBuffer_pool::getMemoryNeed(TransactionBufferMemory / (11 * sizeof(Uint32))), sizeof(AttributeBufferSegment));
-
   Uint64 byte_count = 0;
-  byte_count += ApiConnectRecord_pool::getMemoryNeed(3 * MaxNoOfConcurrentTransactions);
-  byte_count += ApiConTimers_pool::getMemoryNeed((MaxNoOfConcurrentTransactions + 1) / 2);
+  Uint64 byte_count_to = 0; // Only one tc instance do tc take over.
+  byte_count += ApiConnectRecord_pool::getMemoryNeed(2 * MaxNoOfConcurrentTransactions);
+  byte_count_to += ApiConnectRecord_pool::getMemoryNeed(MaxNoOfConcurrentTransactions);
+  byte_count += ApiConTimers_pool::getMemoryNeed((2 * MaxNoOfConcurrentTransactions + 5) / 6);
+  byte_count_to += ApiConTimers_pool::getMemoryNeed((MaxNoOfConcurrentTransactions + 5) / 6);
   byte_count += AttributeBuffer_pool::getMemoryNeed(TransactionBufferMemory / (11 * sizeof(Uint32))); // sizeof(AttributeBuffer_pool::T::getSegmentSize()));
   byte_count += CacheRecord_pool::getMemoryNeed(MaxNoOfConcurrentTransactions);
-  byte_count += CommitAckMarker_pool::getMemoryNeed(6 * MaxNoOfConcurrentTransactions);
-  byte_count += CommitAckMarkerBuffer_pool::getMemoryNeed(12 * MaxNoOfConcurrentTransactions);
-  byte_count += TcConnectRecord_pool::getMemoryNeed(2 * MaxNoOfConcurrentOperations + 16 + MaxNoOfConcurrentTransactions);
+  byte_count += CommitAckMarker_pool::getMemoryNeed(4 * MaxNoOfConcurrentTransactions);
+  byte_count_to += CommitAckMarker_pool::getMemoryNeed(2 * MaxNoOfConcurrentTransactions);
+  byte_count += CommitAckMarkerBuffer_pool::getMemoryNeed(8 * MaxNoOfConcurrentTransactions);
+  byte_count_to += CommitAckMarkerBuffer_pool::getMemoryNeed(4 * MaxNoOfConcurrentTransactions);
+  byte_count += TcConnectRecord_pool::getMemoryNeed(MaxNoOfConcurrentOperations + 16 + MaxNoOfConcurrentTransactions);
+  byte_count_to += TcConnectRecord_pool::getMemoryNeed(MaxDMLOperationsPerTransaction);
   byte_count += TcFiredTriggerData_pool::getMemoryNeed(MaxNoOfFiredTriggers);
   byte_count += TcIndexOperation_pool::getMemoryNeed(MaxNoOfConcurrentIndexOperations);
   byte_count += ScanFragLocation_pool::getMemoryNeed(0);
@@ -69,9 +73,37 @@ Uint64 Dbtc::getTransactionMemoryNeed(
   byte_count += ScanRecord_pool::getMemoryNeed(MaxNoOfConcurrentScans);
   byte_count += GcpRecord_pool::getMemoryNeed(1); // ZGCP_FILESIZE);
 
-  fprintf(stderr,"Dbtc TransactionMemory: %llu bytes: %llu pages\n", (dbtc_instance_count * byte_count), (dbtc_instance_count * byte_count)/32768);
+  Uint64 byte_total = dbtc_instance_count * byte_count + byte_count_to;
 
-  return dbtc_instance_count * byte_count;
+#ifdef DEBUG_MEM
+  g_eventLogger->info("MaxDMLOperationsPerTransaction: %u",
+      MaxDMLOperationsPerTransaction);
+  g_eventLogger->info("MaxNoOfConcurrentIndexOperations: %u",
+      MaxNoOfConcurrentIndexOperations);
+  g_eventLogger->info("MaxNoOfConcurrentOperations: %u",
+      MaxNoOfConcurrentOperations);
+  g_eventLogger->info("MaxNoOfConcurrentScans: %u",
+      MaxNoOfConcurrentScans);
+  g_eventLogger->info("MaxNoOfConcurrentTransactions: %u",
+      MaxNoOfConcurrentTransactions);
+  g_eventLogger->info("MaxNoOfFiredTriggers: %u", MaxNoOfFiredTriggers);
+  g_eventLogger->info("MaxNoOfLocalScans: %u", MaxNoOfLocalScans);
+  g_eventLogger->info("TransactionBufferMemory: %u bytes %llu segments",
+      TransactionBufferMemory,
+      AttributeBuffer_pool::getMemoryNeed(
+        TransactionBufferMemory /
+          (sizeof(AttributeBufferSegment) * sizeof(Uint32))));
+  g_eventLogger->info("Dbtc instances %u", dbtc_instance_count);
+  g_eventLogger->info("Dbtc transaction memory per instance %llu bytes",
+      byte_count);
+  g_eventLogger->info("Dbtc transaction memory extra for take over %llu",
+      byte_count_to);
+  g_eventLogger->info("Dbtc total transaction memory %llu bytes %llu pages",
+      byte_total,
+      byte_total / 32768);
+#endif
+
+  return byte_total;
 }
 
 void Dbtc::initData() 
