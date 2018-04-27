@@ -196,7 +196,8 @@ Backup::execSTTOR(Signal* signal)
     m_is_any_node_restarting = false;
     m_node_restart_check_sent = false;
     m_our_node_started = false;
-    m_lcp_ptr_i = RNIL;
+    m_lcp_ptr.i = RNIL;
+    m_lcp_ptr.p = 0;
     m_first_lcp_started = false;
     m_newestRestorableGci = 0;
     m_delete_lcp_files_ongoing = false;
@@ -2232,7 +2233,7 @@ Backup::execCONTINUEB(Signal* signal)
   case BackupContinueB::ZDELETE_LCP_FILE:
   {
     jam();
-    delete_lcp_file_processing(signal, signal->theData[1]);
+    delete_lcp_file_processing(signal);
     return;
   }
   default:
@@ -5657,7 +5658,7 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
      */
     jam();
     TablePtr tabPtr;
-    m_lcp_ptr_i = ptr.i;
+    m_lcp_ptr = ptr;
     ndbrequire(ptr.p->prepare_table.seizeLast(tabPtr));
     ndbrequire(tabPtr.p->fragments.seize(1));
     ndbrequire(ptr.p->tables.seizeLast(tabPtr));
@@ -7550,7 +7551,7 @@ Backup::record_deleted_pageid(Uint32 pageNo, Uint32 record_size)
   BackupRecordPtr ptr;
   BackupFilePtr zeroFilePtr;
   BackupFilePtr currentFilePtr;
-  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr = m_lcp_ptr;
   c_backupFilePool.getPtr(zeroFilePtr, ptr.p->dataFilePtr[0]);
   c_backupFilePool.getPtr(currentFilePtr, ptr.p->m_working_data_file_ptr);
   OperationRecord & current_op = currentFilePtr.p->operation;
@@ -7589,7 +7590,7 @@ Backup::record_deleted_rowid(Uint32 pageNo, Uint32 pageIndex, Uint32 gci)
   BackupRecordPtr ptr;
   BackupFilePtr zeroFilePtr;
   BackupFilePtr currentFilePtr;
-  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr = m_lcp_ptr;
   c_backupFilePool.getPtr(zeroFilePtr, ptr.p->dataFilePtr[0]);
   c_backupFilePool.getPtr(currentFilePtr, ptr.p->m_working_data_file_ptr);
   OperationRecord & current_op = currentFilePtr.p->operation;
@@ -7828,8 +7829,8 @@ bool
 Backup::is_change_part_state(Uint32 page_id)
 {
   BackupRecordPtr ptr;
-  jamEntry();
-  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  jamEntryDebug();
+  ptr = m_lcp_ptr;
   Uint32 part_id = hash_lcp_part(page_id);
   bool is_all_part = is_all_rows_page(ptr, part_id);
   return !is_all_part;
@@ -7870,7 +7871,7 @@ Backup::change_current_page_temp(Uint32 page_no)
 {
   BackupRecordPtr ptr;
   jamEntry();
-  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr = m_lcp_ptr;
   Uint32 part_id = hash_lcp_part(page_no);
   ptr.p->m_working_changed_row_page_flag = !(is_all_rows_page(ptr, part_id));
   set_working_file(ptr,
@@ -7927,7 +7928,7 @@ Backup::init_lcp_scan(Uint32 & scanGCI,
    */
   BackupRecordPtr ptr;
   jamEntry();
-  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr = m_lcp_ptr;
   Uint32 part_id = hash_lcp_part(0);
   get_page_info(ptr,
                 part_id,
@@ -7960,7 +7961,7 @@ Backup::alloc_page_after_lcp_start(Uint32 page_no)
 {
   BackupRecordPtr ptr;
   jamEntry();
-  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr = m_lcp_ptr;
   ptr.p->m_any_lcp_page_ops = true;
   if (is_change_part_state(page_no))
     ptr.p->m_change_page_alloc_after_start++;
@@ -7973,7 +7974,7 @@ Backup::alloc_dropped_page_after_lcp_start(bool is_change_page)
 {
   BackupRecordPtr ptr;
   jamEntry();
-  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr = m_lcp_ptr;
   ptr.p->m_any_lcp_page_ops = true;
   if (is_change_page)
   {
@@ -7991,7 +7992,7 @@ Backup::dropped_page_after_lcp_start(bool is_change_page,
 {
   BackupRecordPtr ptr;
   jamEntry();
-  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr = m_lcp_ptr;
   ptr.p->m_any_lcp_page_ops = true;
   if (is_last_lcp_state_A)
   {
@@ -8014,7 +8015,7 @@ Backup::skip_page_lcp_scanned_bit()
 {
   BackupRecordPtr ptr;
   jamEntry();
-  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr = m_lcp_ptr;
   ptr.p->m_any_lcp_page_ops = true;
   if (ptr.p->m_working_changed_row_page_flag)
     ptr.p->m_skip_change_page_lcp_scanned_bit++;
@@ -8027,7 +8028,7 @@ Backup::skip_no_change_page()
 {
   BackupRecordPtr ptr;
   jamEntryDebug();
-  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr = m_lcp_ptr;
   ptr.p->m_any_lcp_page_ops = true;
   ptr.p->m_skip_change_page_no_change++;
 }
@@ -8036,8 +8037,8 @@ void
 Backup::skip_empty_page_lcp()
 {
   BackupRecordPtr ptr;
-  jamEntry();
-  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  jamEntryDebug();
+  ptr = m_lcp_ptr;
   ptr.p->m_any_lcp_page_ops = true;
   if (ptr.p->m_working_changed_row_page_flag)
     ptr.p->m_skip_empty_change_page++;
@@ -8050,7 +8051,7 @@ Backup::record_dropped_empty_page_lcp()
 {
   BackupRecordPtr ptr;
   jamEntry();
-  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr = m_lcp_ptr;
   ndbrequire(ptr.p->m_working_changed_row_page_flag)
   ptr.p->m_any_lcp_page_ops = true;
   ptr.p->m_record_empty_change_page_A++;
@@ -8061,7 +8062,7 @@ Backup::record_late_alloc_page_lcp()
 {
   BackupRecordPtr ptr;
   jamEntry();
-  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr = m_lcp_ptr;
   ndbrequire(ptr.p->m_working_changed_row_page_flag)
   ptr.p->m_any_lcp_page_ops = true;
   ptr.p->m_record_late_alloc_change_page_A++;
@@ -8072,7 +8073,7 @@ Backup::page_to_skip_lcp(bool is_last_lcp_state_A)
 {
   BackupRecordPtr ptr;
   jamEntry();
-  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr = m_lcp_ptr;
   ptr.p->m_any_lcp_page_ops = true;
   if (ptr.p->m_working_changed_row_page_flag)
   {
@@ -8093,7 +8094,7 @@ Backup::lcp_keep_delete_by_page_id()
 {
   BackupRecordPtr ptr;
   jamEntry();
-  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr = m_lcp_ptr;
   ptr.p->m_any_lcp_page_ops = true;
   if (ptr.p->m_working_changed_row_page_flag)
     ptr.p->m_lcp_keep_delete_change_pages++;
@@ -8106,7 +8107,7 @@ Backup::lcp_keep_delete_row()
 {
   BackupRecordPtr ptr;
   jamEntry();
-  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr = m_lcp_ptr;
   ptr.p->m_any_lcp_page_ops = true;
   if (ptr.p->m_working_changed_row_page_flag)
     ptr.p->m_lcp_keep_delete_row_change_pages++;
@@ -8119,7 +8120,7 @@ Backup::lcp_keep_row()
 {
   BackupRecordPtr ptr;
   jamEntry();
-  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr = m_lcp_ptr;
   ptr.p->m_any_lcp_page_ops = true;
   if (ptr.p->m_working_changed_row_page_flag)
     ptr.p->m_lcp_keep_row_change_pages++;
@@ -8131,7 +8132,7 @@ void
 Backup::print_extended_lcp_stat()
 {
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr = m_lcp_ptr;
   if (!ptr.p->m_any_lcp_page_ops)
     return;
   g_eventLogger->info("(%u)change_page_alloc_after_start: %u, "
@@ -8193,7 +8194,7 @@ void
 Backup::init_extended_lcp_stat()
 {
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr = m_lcp_ptr;
   ptr.p->m_change_page_alloc_after_start = 0;
   ptr.p->m_all_page_alloc_after_start = 0;
   ptr.p->m_change_page_alloc_dropped_after_start = 0;
@@ -8231,7 +8232,7 @@ int
 Backup::is_page_lcp_scanned(Uint32 page_id, bool & all_part)
 {
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr = m_lcp_ptr;
   all_part = false;
 
   if (page_id >= ptr.p->m_lcp_max_page_cnt)
@@ -8291,7 +8292,7 @@ Backup::update_lcp_pages_scanned(Signal *signal,
    * scanned_pages also contains the Page number which can be used
    * to deduce the part_id for the page.
    */
-  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr = m_lcp_ptr;
   Uint32 part_id = hash_lcp_part(scanned_pages);
   ptr.p->m_lcp_current_page_scanned = scanned_pages;
   get_page_info(ptr,
@@ -14868,27 +14869,28 @@ Backup::execRESTORABLE_GCI_REP(Signal *signal)
   }
   jam();
   DEB_LCP_DEL_FILES(("(%u)TAGX Completed GCI: %u (delete files not ongoing)"
-                     ", waitGCI: %u, m_lcp_ptr_i = %u",
+                     ", waitGCI: %u",
                      instance(),
                      m_newestRestorableGci,
-                     waitGCI,
-                     m_lcp_ptr_i));
-  if (m_lcp_ptr_i != RNIL)
-  {
-    jam();
-    m_delete_lcp_files_ongoing = true;
-    delete_lcp_file_processing(signal, m_lcp_ptr_i);
-  }
+                     waitGCI));
+  m_delete_lcp_files_ongoing = true;
+  delete_lcp_file_processing(signal);
   return;
 }
 
 void
-Backup::delete_lcp_file_processing(Signal *signal, Uint32 ptrI)
+Backup::delete_lcp_file_processing(Signal *signal)
 {
   BackupRecordPtr ptr;
   DeleteLcpFilePtr deleteLcpFilePtr;
-  c_backupPool.getPtr(ptr, ptrI);
 
+  if (m_lcp_ptr.i == RNIL)
+  {
+    jam();
+    m_delete_lcp_files_ongoing = false;
+    return;
+  }
+  ptr = m_lcp_ptr;
   ndbrequire(m_delete_lcp_files_ongoing);
 
   LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
@@ -15317,7 +15319,7 @@ Backup::finished_removing_files(Signal *signal,
     else
     {
       jam();
-      delete_lcp_file_processing(signal, ptr.i);
+      delete_lcp_file_processing(signal);
     }
   }
 }

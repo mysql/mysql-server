@@ -305,7 +305,6 @@ public:
   DeleteLcpFile_list::Head m_delete_lcp_file_head;
 
   Uint32 m_newestRestorableGci;
-  Uint32 m_lcp_ptr_i;
   bool m_delete_lcp_files_ongoing;
   Uint32 m_enable_partial_lcp;
   Uint32 m_recovery_work;
@@ -1332,7 +1331,7 @@ public:
   void lcp_write_undo_log(Signal *signal, BackupRecordPtr);
 
   void check_wait_end_lcp(Signal*, BackupRecordPtr ptr);
-  void delete_lcp_file_processing(Signal*, Uint32 ptrI);
+  void delete_lcp_file_processing(Signal*);
   void finished_removing_files(Signal*, BackupRecordPtr);
   void sendEND_LCPCONF(Signal*, BackupRecordPtr);
   void sendINFORM_BACKUP_DROP_TAB_CONF(Signal*, BackupRecordPtr);
