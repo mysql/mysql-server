@@ -2785,7 +2785,6 @@ Backup::execUTIL_SEQUENCE_REF(Signal* signal)
                utilRef->errorCode,
                utilRef->TCErrorCode);
 
-  ndbrequire(false); //Temporary to get crash to analyse problem
   sendBackupRef(signal, ptr, BackupRef::SequenceFailure);
 }//execUTIL_SEQUENCE_REF()
 
