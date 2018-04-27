@@ -481,16 +481,16 @@ ST_ISVALID( ST_GEOMFROMTEXT('POLYGON((0 0,0 1,1 1,1 0,0 0),(0.25 0.25,1.75 0.25,
 SELECT ST_ISVALID( ST_GEOMFROMTEXT('POLYGON((0 0,0 1,1 1,1 0,0 0),(0.25 0.25,1.75 0.25, 0.25 0.75, 0.25 0.25))',4326));
 ST_ISVALID( ST_GEOMFROMTEXT('POLYGON((0 0,0 1,1 1,1 0,0 0),(0.25 0.25,1.75 0.25, 0.25 0.75, 0.25 0.25))',4326))
 0
-# Verify that ST_IsValid() returns ER_LONGITUDE_OUT_OF_RANGE error with a
-# geometry in a geographic SRS and a longitude value is not in the range
-# (-180,180]
+# Verify that ST_IsValid() returns
+# ER_GEOMETRY_PARAM_LONGITUDE_OUT_OF_RANGE error with a geometry in a
+# geographic SRS and a longitude value is not in the range (-180,180]
 DO ST_ISVALID(X'D50F0000010100000000000000000070400000000000000000');
-ERROR 22S02: Longitude 256.000000 is out of range in function st_isvalid. It must be within (-180.000000, 180.000000].
-# Verify that ST_IsValid() returns ER_LATITUDE_OUT_OF_RANGE error with a
-# geometry in geographic SRS and a latitude value is not in the range
-# [-90,90]
+ERROR 22S02: A parameter of function st_isvalid contains a geometry with longitude 256.000000, which is out of range. It must be within (-180.000000, 180.000000].
+# Verify that ST_IsValid() returns
+# ER_GEOMETRY_PARAM_LATITUDE_OUT_OF_RANGE error with a geometry in
+# geographic SRS and a latitude value is not in the range [-90,90]
 DO ST_ISVALID(X'D50F0000010100000000000000000000000000000000008040');
-ERROR 22S03: Latitude 512.000000 is out of range in function st_isvalid. It must be within [-90.000000, 90.000000].
+ERROR 22S03: A parameter of function st_isvalid contains a geometry with latitude 512.000000, which is out of range. It must be within [-90.000000, 90.000000].
 # If a multipoint is made up of valid points it should be valid.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('multipoint((0 0),(1 1))',4053 )) AS RESULT;
 RESULT

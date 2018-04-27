@@ -8516,6 +8516,12 @@ ER_INDEX_TYPE_NOT_SUPPORTED_FOR_SPATIAL_INDEX
 ER_FK_CANNOT_DROP_PARENT
   eng "Cannot drop table '%s' referenced by a foreign key constraint '%s' on table '%s'."
 
+ER_GEOMETRY_PARAM_LONGITUDE_OUT_OF_RANGE 22S02
+  eng "A parameter of function %.192s contains a geometry with longitude %f, which is out of range. It must be within (%f, %f]."
+
+ER_GEOMETRY_PARAM_LATITUDE_OUT_OF_RANGE 22S03
+  eng "A parameter of function %.192s contains a geometry with latitude %f, which is out of range. It must be within [%f, %f]."
+
 #
 #  End of 8.0 error messages.
 #

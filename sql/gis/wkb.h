@@ -82,12 +82,15 @@ std::unique_ptr<Geometry> parse_wkb(const dd::Spatial_reference_system *srs,
 /// @param[in] str The geometry string.
 /// @param[out] srs The spatial reference system of the geometry.
 /// @param[out] geometry The geometry.
+/// @param[in] treat_unknown_srid_as_cartesian Whether to treat unknown
+/// SRIDs as Cartesian. If false, raise an error if the SRID is unknown.
 ///
 /// @retval false Success.
 /// @retval true Error. my_error() has been called.
 bool parse_geometry(THD *thd, const char *func_name, const String *str,
                     const dd::Spatial_reference_system **srs,
-                    std::unique_ptr<Geometry> *geometry);
+                    std::unique_ptr<Geometry> *geometry,
+                    bool treat_unknown_srid_as_cartesian = false);
 
 /// Writes a little-endian geometry string (SRID + WKB).
 ///

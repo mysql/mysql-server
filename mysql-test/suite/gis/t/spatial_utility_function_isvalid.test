@@ -437,15 +437,15 @@ SELECT ST_ISVALID( ST_GEOMFROMTEXT('POLYGON((0 0,0 1,1 1,1 0,0 0),(0.25 0.25,0.7
 --echo # Verify that ST_IsValid() returns 0 if input is geometrically invalid
 SELECT ST_ISVALID( ST_GEOMFROMTEXT('POLYGON((0 0,0 1,1 1,1 0,0 0),(0.25 0.25,1.75 0.25, 0.25 0.75, 0.25 0.25))',4053));
 SELECT ST_ISVALID( ST_GEOMFROMTEXT('POLYGON((0 0,0 1,1 1,1 0,0 0),(0.25 0.25,1.75 0.25, 0.25 0.75, 0.25 0.25))',4326));
---echo # Verify that ST_IsValid() returns ER_LONGITUDE_OUT_OF_RANGE error with a
---echo # geometry in a geographic SRS and a longitude value is not in the range
---echo # (-180,180]
---error ER_LONGITUDE_OUT_OF_RANGE
+--echo # Verify that ST_IsValid() returns
+--echo # ER_GEOMETRY_PARAM_LONGITUDE_OUT_OF_RANGE error with a geometry in a
+--echo # geographic SRS and a longitude value is not in the range (-180,180]
+--error ER_GEOMETRY_PARAM_LONGITUDE_OUT_OF_RANGE
 DO ST_ISVALID(X'D50F0000010100000000000000000070400000000000000000');
---echo # Verify that ST_IsValid() returns ER_LATITUDE_OUT_OF_RANGE error with a
---echo # geometry in geographic SRS and a latitude value is not in the range
---echo # [-90,90]
---error ER_LATITUDE_OUT_OF_RANGE
+--echo # Verify that ST_IsValid() returns
+--echo # ER_GEOMETRY_PARAM_LATITUDE_OUT_OF_RANGE error with a geometry in
+--echo # geographic SRS and a latitude value is not in the range [-90,90]
+--error ER_GEOMETRY_PARAM_LATITUDE_OUT_OF_RANGE
 DO ST_ISVALID(X'D50F0000010100000000000000000000000000000000008040');
 --echo # If a multipoint is made up of valid points it should be valid.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('multipoint((0 0),(1 1))',4053 )) AS RESULT;
