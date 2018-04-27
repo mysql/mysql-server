@@ -9060,6 +9060,188 @@ Backup::backupFragmentRef(Signal * signal, BackupFilePtr filePtr)
 }
 
 void
+Backup::update_pause_lcp_counter(Uint32 loop_count)
+{
+  /**
+   * We keep track of the time we are executing LCP writes on a
+   * fairly detailed level to ensure that our real-time properties
+   * are ok. In some cases we can loop quite extensively in TUP
+   * looking for rows to checkpoint. This involves scanning each
+   * row to see if it has changed since last LCP.
+   *
+   * We provide a loop count where scanning a row or a page is worth
+   * 4 ticks whereas a quick check of a row to find that it isn't
+   * eligible is only worth one tick.
+   * The checks of rows in CHANGED
+   * pages is optimised since it is such a common case. This scan
+   * uses prefetching techniques to ensure that we avoid being
+   * hindered by cache misses. In a large database it is very
+   * likely that these scans will touch lot of memory and will
+   * thus require prefetching to keep up. We predict that we can
+   * scan one row in about 25 nanoseconds. Thus one loop is equal
+   * to 100 nanoseconds. We estimate that we will be able to write
+   * about 320 bytes per microsecond and thus one loop count is
+   * counted equal to 32 bytes. This cost is fairly independent of
+   * the table size and table structure since we are only checking
+   * the header of the row.
+   */
+  BackupRecordPtr ptr = m_lcp_ptr;
+  ndbassert(ptr.p->is_lcp());
+  ptr.p->m_row_scan_counter += (loop_count / 4);
+  ptr.p->m_pause_counter += (loop_count * 8);
+}
+
+bool
+Backup::check_pause_lcp_backup(BackupRecordPtr ptr,
+                               bool is_lcp,
+                               bool is_send_scan_next_req)
+{
+  /**
+   * We call this function every time it is necessary to decide if
+   * we should issue a real-time break in an LCP scan, we also call
+   * it to decide if we are to stay at prio A level for backups.
+   *
+   * We keep track of the desired write speed. We try to write as
+   * much as is necessary to keep up with the desired write speed
+   * since the last time we had a real-time break.
+   *
+   * If we are lagging for some reason the desired write speed since
+  * the start of the scan, we write a bit more on each real-time
+   * break until we have catched up. There could be many reasons why
+   * this is necessary, one could be that we had a real-time break
+   * that overslept a bit.
+   *
+   * To avoid problems when we overslept we also maximise the amount
+   * of writes we can perform in one real-time break. This maximum
+   * is dependent on the ALERT level on the REDO log.
+   *
+   * To handle these requirements we keep track of the start time
+   * of the scan (sending SCAN_FRAGREQ). We keep track of the last
+   * time this method decided to issue a real-time break, it could
+   * also be decided by higher level methods, in this case they
+   * will call the pausing_lcp method to cause this timer and
+   * the amount of bytes written to that point before entering a
+   * real-time break.
+   */
+  if (!is_lcp)
+  {
+    jam();
+    ndbassert(!ptr.p->is_lcp());
+    Uint64 max_bytes_to_write = 4 * ZMAX_WORDS_PER_SCAN_BATCH_HIGH_PRIO;
+    if (ptr.p->m_num_scan_req_on_prioa == 0)
+    {
+      jam();
+      return false;
+    }
+    Uint64 bytes_written_in_last_lcp = ptr.p->m_bytes_written;
+    Uint64 last_recorded_bytes_written = ptr.p->m_last_recorded_bytes_written;
+    ptr.p->m_last_recorded_bytes_written = bytes_written_in_last_lcp;
+    Uint64 bytes_written_since_last_delay =
+      bytes_written_in_last_lcp - last_recorded_bytes_written;
+    return (bytes_written_since_last_delay >= max_bytes_to_write);
+  }
+  jam();
+  ndbassert(ptr.p->is_lcp());
+  Uint64 max_words_to_scan = 4 * (ZMAX_WORDS_PER_SCAN_BATCH_HIGH_PRIO *
+                                  m_redo_alert_factor);
+  if (ptr.p->m_num_scan_req_on_prioa == 0 &&
+      !is_send_scan_next_req)
+  {
+    jam();
+    max_words_to_scan = 4 * ZMAX_WORDS_PER_SCAN_BATCH_LOW_PRIO *
+                        m_redo_alert_factor;
+  }
+  Uint64 bytes_written_in_last_lcp = ptr.p->m_bytes_written;
+  Uint64 last_recorded_bytes_written = ptr.p->m_last_recorded_bytes_written;
+  Uint64 pause_counter = ptr.p->m_pause_counter;
+  Uint64 bytes_written_since_last_delay =
+    bytes_written_in_last_lcp - last_recorded_bytes_written;
+  bytes_written_since_last_delay += pause_counter;
+
+  /* Calculate if we are behind since start of scan */
+  /* Current disk write speed is in per 100 ms */
+  Uint64 desired_write_speed =
+    Uint64(CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS) *
+    m_curr_disk_write_speed;
+  NDB_TICKS now = getHighResTimer();
+  NDB_TICKS start_scan = ptr.p->m_scan_start_timer;
+  Uint64 micros_since_start_scan =
+    NdbTick_Elapsed(start_scan, now).microSec();
+  Uint64 desired_written_bytes =
+    (desired_write_speed * micros_since_start_scan) /
+      (Uint64(1000) * Uint64(1000));
+
+  /* Calculate if we are behind since last rt break */
+  NDB_TICKS last_delay_timer = ptr.p->m_last_delay_scan_timer;
+  Uint64 micros_since_last_delay =
+    NdbTick_Elapsed(last_delay_timer, now).microSec();
+  Uint64 desired_bytes_in_this_rt_break =
+    (micros_since_last_delay * desired_write_speed) /
+      (Uint64(1000) * Uint64(1000));
+
+  /* Adjust bytes to write in this rt break if behind since last scan */
+  if (bytes_written_in_last_lcp < desired_written_bytes)
+  {
+    desired_bytes_in_this_rt_break *= Uint64(125);
+    desired_bytes_in_this_rt_break /= Uint64(100);
+  }
+  Uint64 max_bytes_to_write = MIN(desired_bytes_in_this_rt_break,
+                                  max_words_to_scan);
+  max_bytes_to_write = MAX(max_bytes_to_write,
+                           (4 * ZMAX_WORDS_PER_SCAN_BATCH_LOW_PRIO));
+//#ifdef VM_TRACE
+  if (is_send_scan_next_req ||
+      (bytes_written_since_last_delay >= max_bytes_to_write))
+  {
+    m_debug_redo_log_count++;
+    if (m_debug_redo_log_count > 1000000)
+    {
+      if (m_debug_redo_log_count > 1000004)
+      {
+        m_debug_redo_log_count = 0;
+      }
+      DEB_REDO_CONTROL(("(%u)check_pause_lcp: bytes_since_last_delay: %llu"
+                        ", desired_bytes_in_this_break: %llu"
+                        ", max_bytes_to_write: %llu"
+                        ", micros_since_last_delay: %llu"
+                        ", scan_row_counter: %llu",
+                        instance(),
+                        bytes_written_since_last_delay,
+                        desired_bytes_in_this_rt_break,
+                        max_bytes_to_write,
+                        micros_since_last_delay,
+                        ptr.p->m_row_scan_counter));
+    }
+  }
+//#endif
+  return (bytes_written_since_last_delay >= max_bytes_to_write);
+}
+
+void
+Backup::pausing_lcp(Uint32 place, Uint32 val)
+{
+  /* Pause LCP execution, record current time and bytes written */
+  BackupRecordPtr ptr = m_lcp_ptr;
+  ndbassert(ptr.p->is_lcp());
+  Uint64 bytes_written_in_last_lcp =
+    ptr.p->m_bytes_written;
+  NDB_TICKS now = getHighResTimer();
+  ptr.p->m_last_recorded_bytes_written = bytes_written_in_last_lcp;
+  ptr.p->m_last_delay_scan_timer = now;
+  ptr.p->m_pause_counter = 0;
+  ptr.p->m_num_scan_req_on_prioa = 0;
+//#ifdef VM_TRACE
+  if (m_debug_redo_log_count > 1000000)
+  {
+    DEB_REDO_CONTROL(("(%u)pausing_lcp from place: %u, val: %u",
+                      instance(),
+                      place,
+                      val));
+  }
+//#endif
+}
+
+void
 Backup::checkScan(Signal* signal,
                   BackupRecordPtr ptr,
                   BackupFilePtr filePtr)

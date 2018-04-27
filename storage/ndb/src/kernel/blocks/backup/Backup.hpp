@@ -690,6 +690,15 @@ public:
     Uint64 m_lcp_keep_delete_row_all_pages;
     Uint32 m_lcp_keep_delete_change_pages;
     Uint32 m_lcp_keep_delete_all_pages;
+
+    Uint64 m_last_recorded_bytes_written;
+    Uint64 m_pause_counter;
+    Uint64 m_row_scan_counter;
+    NDB_TICKS m_last_delay_scan_timer;
+    NDB_TICKS m_scan_start_timer;
+
+    Uint32 m_num_scan_req_on_prioa;
+
     bool m_any_lcp_page_ops;
 
     BackupFormat::PartPair m_part_info[BackupFormat::NDB_MAX_LCP_PARTS];
@@ -752,6 +761,9 @@ public:
      */
     Uint64 noOfBytes;
     Uint64 noOfRecords;
+    /* m_bytes_written is used for scheduling of LCP and Backups */
+    Uint64 m_bytes_written;
+
     /**
      * Statistical variables for backups.
      */
@@ -1406,8 +1418,17 @@ public:
 
   void setRestorableGci(Uint32);
   Uint32 getRestorableGci();
+
+  bool check_pause_lcp_backup(BackupRecordPtr ptr,
+                              bool is_lcp,
+                              bool is_send_scan_next_req);
+  bool check_pause_lcp_backup(BackupRecordPtr ptr);
+  bool check_pause_lcp();
+  void update_pause_lcp_counter(Uint32 loop_count);
+  void pausing_lcp(Uint32 place, Uint32 val);
 public:
   bool is_change_part_state(Uint32 page_id);
+  Uint32 get_max_words_per_scan_batch(Uint32, Uint32&, Uint32, Uint32);
 };
 
 inline
@@ -1441,6 +1462,44 @@ Backup::OperationRecord::finished(Uint32 len)
   noOfRecords++;
 }
 
+ 
+#define ZMAX_WORDS_PER_SCAN_BATCH_LOW_PRIO 1600
+#define ZMAX_WORDS_PER_SCAN_BATCH_HIGH_PRIO 8000
+inline
+bool
+Backup::check_pause_lcp()
+{
+  return check_pause_lcp_backup(m_lcp_ptr, true, false);
+}
+
+inline
+bool
+Backup::check_pause_lcp_backup(BackupRecordPtr ptr)
+{
+  return check_pause_lcp_backup(ptr, ptr.p->is_lcp(), true);
+}
+
+inline
+Uint32
+Backup::get_max_words_per_scan_batch(Uint32 prioAFlag,
+                                     Uint32 & wordsWritten,
+                                     Uint32 is_lcp,
+                                     Uint32 ptrI)
+{
+  if (prioAFlag == 0)
+    return (wordsWritten >= ZMAX_WORDS_PER_SCAN_BATCH_LOW_PRIO);
+  else
+  {
+    bool ret_val;
+    if (is_lcp)
+      ret_val = check_pause_lcp();
+    else
+      ret_val = (wordsWritten >= ZMAX_WORDS_PER_SCAN_BATCH_HIGH_PRIO);
+    if (ret_val)
+      wordsWritten = 0;
+    return ret_val;
+  }
+}
 
 #undef JAM_FILE_ID
 
