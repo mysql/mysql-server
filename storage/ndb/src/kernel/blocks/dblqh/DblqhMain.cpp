@@ -11118,11 +11118,12 @@ Dblqh::scanMarkers(Signal* signal,
  *  directly if OK.
  */
 
-Uint32 Dblqh::get_is_scan_prioritised(Uint32 scan_ptr_i)
+Uint32 Dblqh::rt_break_is_scan_prioritised(Uint32 scan_ptr_i)
 {
   ScanRecordPtr scanPtr;
   scanPtr.i = scan_ptr_i;
   c_scanRecordPool.getPtr(scanPtr);
+  scanPtr.p->scan_direct_count = 1; /* Initialise before rt break */
   return is_prioritised_scan(scanPtr.p->scanApiBlockref);
 }
 
@@ -14354,21 +14355,21 @@ void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
    * those values and when we start allowing more computations due to
    * higher CPU throughput also in signals part of user transactions.
    */
-
-  Uint32 max_scan_direct_count = scanPtr->m_reserved == 1 ?
-                                 ZMAX_SCAN_DIRECT_COUNT :
-                                 c_max_scan_direct_count;
-
   Uint32 prioAFlag = scanPtr->prioAFlag;
+  Uint32 cnf_max_scan_direct_count = c_max_scan_direct_count;
   const Uint32 scan_direct_count = scanPtr->scan_direct_count;
-  const Uint32 exec_direct_batch_size_words =
-              scanPtr->m_exec_direct_batch_size_words;
-  const Uint32 exec_direct_limit = prioAFlag ?
-                            ZMAX_WORDS_PER_SCAN_BATCH_HIGH_PRIO :
-                            ZMAX_WORDS_PER_SCAN_BATCH_LOW_PRIO;
+  Uint32 max_scan_direct_count = scanPtr->m_reserved == 1 ?
+                                 (prioAFlag ? (ZRESERVED_SCAN_BATCH_SIZE + 1) :
+                                  ZMAX_SCAN_DIRECT_COUNT) :
+                                 cnf_max_scan_direct_count;
+  bool max_words_reached =
+    c_backup->get_max_words_per_scan_batch(prioAFlag,
+                                 scanPtr->m_exec_direct_batch_size_words,
+                                 scanPtr->lcpScan,
+                                 clientPtrI);
 
   if (scan_direct_count >= max_scan_direct_count ||
-      exec_direct_batch_size_words > exec_direct_limit)
+      max_words_reached)
   {
     BlockReference blockRef = scanPtr->scanBlockref;
     BlockReference resultRef = scanPtr->scanApiBlockref;
@@ -14381,29 +14382,19 @@ void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
       sendSignal(blockRef, GSN_NEXT_SCANREQ, signal, 3, JBB);
       return;
     }
-    if (exec_direct_batch_size_words > ZMAX_WORDS_PER_SCAN_BATCH_HIGH_PRIO)
-    {
-      /**
-       * See Backup.cpp for explanation of this limit and how it is derived */
-      jam();
-      prioAFlag = false;
-    }
-    scanPtr->m_exec_direct_batch_size_words = 0;
     if (prioAFlag)
     {
-      /* Prioritised scan at high load situation */
-      jam();
-      sendSignal(blockRef, GSN_NEXT_SCANREQ, signal, 3, JBA);
-      return;
+      if (scanPtr->lcpScan)
+      {
+        c_backup->pausing_lcp(4,scan_direct_count);
+      }
     }
-    else
-    {
-      /* Prioritised scan operation */
-      jam();
-      sendSignalWithDelay(blockRef, GSN_NEXT_SCANREQ,
-                          signal, BOUNDED_DELAY, 3);
-      return;
-    }
+    scanPtr->m_exec_direct_batch_size_words = 0;
+    /* Prioritised scan operation */
+    jam();
+    sendSignalWithDelay(blockRef, GSN_NEXT_SCANREQ,
+                        signal, BOUNDED_DELAY, 3);
+    return;
   }
   else
   {
@@ -14459,7 +14450,7 @@ void Dblqh::sendScanFragConf(Signal* signal,
     scanPtr->m_curr_batch_size_rows = 0;
     scanPtr->m_curr_batch_size_bytes= 0;
   }
-
+  scanPtr->scan_direct_count = 1;
   scanPtr->m_stop_batch = 0;
   ScanFragConf * conf = (ScanFragConf*)&signal->theData[0];
 #ifdef NOT_USED

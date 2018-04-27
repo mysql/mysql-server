@@ -152,8 +152,6 @@ static Uint32 g_TypeOfStart = NodeState::ST_ILLEGAL_TYPE;
  *
  * See much longer explanation of these values below.
  */
-#define MAX_LCP_WORDS_PER_BATCH (1500)
-
 #define HIGH_LOAD_LEVEL 32
 #define VERY_HIGH_LOAD_LEVEL 48
 #define NUMBER_OF_SIGNALS_PER_SCAN_BATCH 3
@@ -5738,8 +5736,6 @@ Backup::init_file(BackupFilePtr filePtr, Uint32 backupPtrI)
   filePtr.p->filePointer = RNIL;
   filePtr.p->m_flags = 0;
   filePtr.p->errorCode = 0;
-  filePtr.p->m_sent_words_in_scan_batch = 0;
-  filePtr.p->m_num_scan_req_on_prioa = 0;
 }
 
 void
@@ -5797,6 +5793,8 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
   ptr.p->backupDataLen = req->backupDataLen;
   ptr.p->masterData.errorCode = 0;
   ptr.p->noOfBytes = 0;
+  ptr.p->m_bytes_written = 0;
+  ptr.p->m_row_scan_counter = 0;
   ptr.p->noOfRecords = 0;
   ptr.p->noOfLogBytes = 0;
   ptr.p->noOfLogRecords = 0;
@@ -7268,7 +7266,7 @@ Backup::init_file_for_lcp(Signal *signal,
  *   few places where execution of one row operation contains breaks for
  *   scheduling. Executing a row operation on the maximum row size of
  *   around 14 kBytes means that signals can execute for up to about 20
- *   microseconds as of 2015. Clearly using smaller rows can give a better
+ *   microseconds as of 2018. Clearly using smaller rows can give a better
  *   response time experience.
  *
  * 2) Using complex conditions per row
@@ -7482,9 +7480,6 @@ Backup::init_file_for_lcp(Signal *signal,
  * The limit 4000 is ZMAX_WORDS_PER_SCAN_BATCH_HIGH_PRIO set in DblqhMain.cpp.
  * This constant limit the impact of wide rows on responsiveness.
  *
- * The limit 1500 is MAX_LCP_WORDS_PER_BATCH set in this block.
- * This constant limit the impact of row writes on LCP writes.
- *
  * When operating in normal mode, we will not continue gathering when we
  * already gathered at least 500 words. However we will only operate in
  * this mode when we are in low load scenario in which case this speed will
@@ -7517,23 +7512,30 @@ Backup::init_file_for_lcp(Signal *signal,
  * Means that at most 6 rows will be scanned per execute direct, set in
  * Dblqh.hpp. This applies to all scan types, not only to LCP scans.
  *
- * 2) ZMAX_WORDS_PER_SCAN_BATCH_LOW_PRIO set to 500
+ * 2) ZMAX_WORDS_PER_SCAN_BATCH_LOW_PRIO set to 1600
  * This controls the maximum number of words that is allowed to be gathered
  * before we decide to do a real-time break when executing at normal
- * priority level. This is defined in DblqhMain.cpp
+ * priority level. This is defined in Backup.hpp. This will execute for about
+ * 2 microseconds.
  *
- * 3) ZMAX_WORDS_PER_SCAN_BATCH_HIGH_PRIO set to 4000
+ * 3) ZMAX_WORDS_PER_SCAN_BATCH_HIGH_PRIO set to 8000
  * This controls the maximum words gathered before we decide to send the
  * next row to be scanned in another bounded delay signal. This is defined in
- * DblqhMain.cpp
+ * Backup.hpp. In this case the Backup block decided to execute on priority A
+ * level due to a high load in the node. This limit is set to execute for about
+ * 10 microseconds (around 300 MBytes can be written per second per CPU).
+ * LCPs can override this limit with a multiplication factor of
+ * m_redo_alert_factor.
  *
- * 4) MAX_LCP_WORDS_PER_BATCH set to 1500
- * This defines the maximum size gathered at A-level to allow for execution
- * of one more batch at A-level. This is defined here in Backup.cpp.
+ * We will always use the priority A-level when the REDO log limit has been
+ * reached to ensure that we execute proper batches already when seeing the
+ * first signs of REDO log overload.
+ *
+ * 4) MAX_LCP_WORDS_PER_BATCH no longer used
  *
  * 5) HIGH_LOAD_LEVEL set to 32
  * Limit of how many signals have been executed in this LDM thread since
- * starting last 16 rowsin order to enter high priority mode.
+ * starting last 16 rows in order to enter high priority mode.
  * Defined in this block Backup.cpp.
  *
  * 6) VERY_HIGH_LOAD_LEVEL set to 48
@@ -7589,7 +7591,7 @@ Backup::check_scan_if_raise_prio(Signal *signal, BackupRecordPtr ptr)
   Uint32 prioA_scan_batches_to_execute =
     ptr.p->m_prioA_scan_batches_to_execute;
   const Uint32 num_signals_executed = current_signal_id - lastSignalId;
-  
+
   if (num_signals_executed > HIGH_LOAD_LEVEL)
   {
     jam();
@@ -7601,6 +7603,12 @@ Backup::check_scan_if_raise_prio(Signal *signal, BackupRecordPtr ptr)
       jam();
       prioA_scan_batches_to_execute = MAX_RAISE_PRIO_MEMORY;
     }
+  }
+  else if (ptr.p->is_lcp() &&
+           m_redo_alert_state != RedoStateRep::NO_REDO_ALERT)
+  {
+    jam();
+    prioA_scan_batches_to_execute = 1;
   }
   if (prioA_scan_batches_to_execute > 0)
   {
@@ -7664,15 +7672,16 @@ Backup::sendScanFragReq(Signal* signal,
       ScanFragReq::setScanPrio(req->requestInfo, 1);
       ScanFragReq::setNoDiskFlag(req->requestInfo, 1);
       ScanFragReq::setLcpScanFlag(req->requestInfo, 1);
+      NDB_TICKS now = getHighResTimer();
+      ptr.p->m_scan_start_timer = now;
     }
-    filePtr.p->m_sent_words_in_scan_batch = 0;
-    filePtr.p->m_num_scan_req_on_prioa = 0;
+    ptr.p->m_num_scan_req_on_prioa = 0;
     init_scan_prio_level(signal, ptr);
     if (check_scan_if_raise_prio(signal, ptr))
     {
       jam();
       ScanFragReq::setPrioAFlag(req->requestInfo, 1);
-      filePtr.p->m_num_scan_req_on_prioa = 1;
+      ptr.p->m_num_scan_req_on_prioa = 1;
     }
 
     req->transId1 = 0;
@@ -7766,12 +7775,12 @@ Backup::record_deleted_pageid(Uint32 pageNo, Uint32 record_size)
   *dst = htonl(Uint32(dataLen + (BackupFormat::DELETE_BY_PAGEID_TYPE << 16)));
   memcpy(dst + 1, copy_array, dataLen*sizeof(Uint32));
   ndbrequire(dataLen < zero_op.maxRecordSize);
-  zeroFilePtr.p->m_sent_words_in_scan_batch += dataLen;
   zeroFilePtr.p->m_lcp_delete_by_pageids++;
   zero_op.finished(dataLen);
   current_op.newRecord(dst + dataLen + 1);
   ptr.p->noOfRecords++;
   ptr.p->noOfBytes += (4*(dataLen + 1));
+  ptr.p->m_bytes_written += (4*(dataLen + 1));
   /**
    * LCP keep pages are handled out of order, so here we have prepared before
    * calling NEXT_SCANCONF by temporarily changing the current data file used.
@@ -7807,12 +7816,12 @@ Backup::record_deleted_rowid(Uint32 pageNo, Uint32 pageIndex, Uint32 gci)
   *dst = htonl(Uint32(dataLen + (BackupFormat::DELETE_BY_ROWID_TYPE << 16)));
   memcpy(dst + 1, copy_array, dataLen*sizeof(Uint32));
   ndbrequire(dataLen < zero_op.maxRecordSize);
-  zeroFilePtr.p->m_sent_words_in_scan_batch += dataLen;
   zeroFilePtr.p->m_lcp_delete_by_rowids++;
   zero_op.finished(dataLen);
   current_op.newRecord(dst + dataLen + 1);
   ptr.p->noOfRecords++;
   ptr.p->noOfBytes += (4*(dataLen + 1));
+  ptr.p->m_bytes_written += (4*(dataLen + 1));
   restore_current_page(ptr);
 }
 
@@ -7856,6 +7865,7 @@ Backup::execTRANSID_AI(Signal* signal)
     }
     ptr.p->noOfRecords++;
     ptr.p->noOfBytes += (4*(dataLen + 1));
+    ptr.p->m_bytes_written += (4*(dataLen + 1));
 #ifdef VM_TRACE
     Uint32 th = signal->theData[4];
     ndbassert(! (th & 0x00400000)); /* Is MM_GROWN set */
@@ -7885,7 +7895,6 @@ Backup::execTRANSID_AI(Signal* signal)
       jamLine(op.maxRecordSize);
       ndbrequire(false);
     }
-    filePtr.p->m_sent_words_in_scan_batch += dataLen;
     op.finished(dataLen);
     current_op.newRecord(dst + dataLen + 1);
     restore_current_page(ptr);
@@ -7914,7 +7923,7 @@ Backup::execTRANSID_AI(Signal* signal)
       copy(dst + 1, dataPtr);
       releaseSections(handle);
     }
-    filePtr.p->m_sent_words_in_scan_batch += dataLen;
+    ptr.p->m_bytes_written += (4*(dataLen + 1));
     op.finished(dataLen);
     op.newRecord(dst + dataLen + 1);
   }
@@ -8699,6 +8708,15 @@ Backup::check_frag_complete(BackupRecordPtr ptr, BackupFilePtr filePtr)
 bool
 Backup::check_min_buf_size(BackupRecordPtr ptr, OperationRecord &op)
 {
+  bool is_lcp = ptr.p->is_lcp();
+  if (is_lcp && m_redo_alert_state != RedoStateRep::NO_REDO_ALERT)
+  {
+    /**
+     * We have reached at least 25% REDO log fill level, we will be more
+     * active in filling up the buffers to write to disk for LCPs.
+     */
+    return false;
+  }
   if (ptr.p->is_lcp() && ptr.p->m_num_lcp_files > 1)
   {
     for (Uint32 i = 0; i < ptr.p->m_num_lcp_files; i++)
@@ -8987,7 +9005,7 @@ Backup::fragmentCompleted(Signal* signal,
                filePtr.p->m_lcp_writes,
                filePtr.p->m_lcp_delete_by_rowids,
                filePtr.p->m_lcp_delete_by_pageids,
-               ptr.p->noOfBytes,
+               ptr.p->m_bytes_written,
                ptr.p->m_num_lcp_files,
                ptr.p->m_first_data_file_number));
 #ifdef DEBUG_LCP_EXTENDED_STAT
@@ -9355,59 +9373,58 @@ Backup::checkScan(Signal* signal,
        * minimum desired checkpoint level.
        */
       JobBufferLevel prio_level = JBB;
+      bool file_buf_contains_min_write_size = false;
       if (check_scan_if_raise_prio(signal, ptr))
       {
         OperationRecord & op = filePtr.p->operation;
-        bool file_buf_contains_min_write_size =
+        file_buf_contains_min_write_size =
           check_min_buf_size(ptr, op);
 
         ScanFragNextReq::setPrioAFlag(req->requestInfo, 1);
-        if (file_buf_contains_min_write_size ||
-            filePtr.p->m_num_scan_req_on_prioa >= 2 ||
-            (filePtr.p->m_num_scan_req_on_prioa == 1 &&
-             filePtr.p->m_sent_words_in_scan_batch > MAX_LCP_WORDS_PER_BATCH))
+        if (!file_buf_contains_min_write_size &&
+            !check_pause_lcp_backup(ptr))
         {
           jam();
           /**
            * There are three reasons why we won't continue executing at
            * prio A level.
            *
-           * 1) Last two executions was on prio A, this means that we have now
-           *    executed 2 sets of 16 rows at prio A level. So it is time to
-           *    give up the prio A level and allow back in some B-level jobs.
-           *
-           * 2) The last execution at prio A generated more than the max words
+           * 1) The last execution at prio A generated more than the max words
            *    per A-level batch, so we get back to a bounded delay signal.
            *
-           * 3) We already have a buffer ready to be sent to the file
+           * 2) We already have a buffer ready to be sent to the file
            *    system. No reason to execute at a very high priority simply
-           *    to fill buffers not waiting to be filled.
+           *    to fill buffers not waiting to be filled. If it is an LCP and
+           *    we are reaching some limit we will be more active in filling
+           *    up buffers.
+           *
+           * We will continue a bit more if we have set m_redo_alert_factor
+           * higher than 1. We will do this in very critical situations when we
+           * want to ensure that LCP writes gets higher priority. The redo
+           * alert factor is always 1 for backups since there is no need of
+           * urgency to complete backups. It is enough to manage backups
+           * properly.
            */
-          filePtr.p->m_sent_words_in_scan_batch = 0;
-          filePtr.p->m_num_scan_req_on_prioa = 0;
-        }
-        else
-        {
-          jam();
           /* Continue at prio A level 16 more rows */
-          filePtr.p->m_num_scan_req_on_prioa++;
+          ptr.p->m_num_scan_req_on_prioa++;
           prio_level = JBA;
         }
       }
-      else
-      {
-        jam();
-        filePtr.p->m_sent_words_in_scan_batch = 0;
-        filePtr.p->m_num_scan_req_on_prioa = 0;
-      }
       if (lqhRef == calcInstanceBlockRef(DBLQH) && (prio_level == JBB))
       {
+        if (ptr.p->is_lcp())
+        {
+          pausing_lcp(1,
+                      (2*(ScanFragNextReq::getPrioAFlag(req->requestInfo))) +
+                      file_buf_contains_min_write_size);
+        }
         sendSignalWithDelay(lqhRef, GSN_SCAN_NEXTREQ, signal,
                             BOUNDED_DELAY, ScanFragNextReq::SignalLength);
       }
       else
       {
         /* Cannot send delayed signals to other threads. */
+        ndbrequire(!ptr.p->is_lcp() || prio_level == JBA);
         sendSignal(lqhRef,
                    GSN_SCAN_NEXTREQ,
                    signal,
@@ -9417,26 +9434,17 @@ Backup::checkScan(Signal* signal,
       /*
         check if it is time to report backup status
       */
-      BackupRecordPtr ptr;
-      c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
       if (!ptr.p->is_lcp())
       {
         jam();
         checkReportStatus(signal, ptr);
       }
-      else
-      {
-        jam();
-      }
     }
     return;
   }//if
-  
-  filePtr.p->m_sent_words_in_scan_batch = 0; 
-  filePtr.p->m_num_scan_req_on_prioa = 0;
-
   if (ptr.p->is_lcp())
   {
+    pausing_lcp(2,0);
     DEB_EXTRA_LCP(("(%u)newScan false in checkScan", instance()));
   }
   signal->theData[0] = BackupContinueB::BUFFER_FULL_SCAN;
@@ -14388,6 +14396,11 @@ Backup::start_execute_lcp(Signal *signal,
   ptr.p->prepareState = NOT_ACTIVE;
   ptr.p->m_lcp_lsn_synced = 1;
   ptr.p->m_num_lcp_data_files_open = 1;
+  ptr.p->m_bytes_written = 0;
+  ptr.p->m_row_scan_counter = 0;
+  ptr.p->m_last_recorded_bytes_written = 0;
+  ptr.p->m_pause_counter = 0;
+  pausing_lcp(3,0);
 
   copy_lcp_info_from_prepare(ptr);
 
@@ -16040,6 +16053,9 @@ Backup::sendEND_LCPCONF(Signal *signal, BackupRecordPtr ptr)
           ptr.p->backupId));
   ndbrequire(!ptr.p->m_wait_end_lcp);
   ptr.p->backupId = 0; /* Ensure next LCP_PREPARE_REQ sees a new LCP id */
+  DEB_LCP_STAT(("(%u)Bytes written in this LCP: %llu MB",
+                 instance(),
+                 ptr.p->noOfBytes / (1024 * 1024)));
   EndLcpConf* conf= (EndLcpConf*)signal->getDataPtrSend();
   conf->senderData = ptr.p->senderData;
   conf->senderRef = reference();
