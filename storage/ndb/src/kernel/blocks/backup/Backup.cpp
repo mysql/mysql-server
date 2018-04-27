@@ -1756,7 +1756,7 @@ Backup::adjust_disk_write_speed_up(Uint64& curr_disk_write_speed,
 void
 Backup::calculate_disk_write_speed(Signal *signal)
 {
-  if (!m_our_node_started)
+  if (!m_our_node_started && !m_first_lcp_started)
   {
     /* No adaptiveness while we're still starting. */
     jam();
@@ -1771,6 +1771,13 @@ Backup::calculate_disk_write_speed(Signal *signal)
                                  min_disk_write_speed);
 
   /**
+   * Get CPU usage for the thread */
+  EXECUTE_DIRECT_MT(THRMAN, GSN_GET_CPU_USAGE_REQ, signal,
+                    1,
+                    getThrmanInstance());
+  Uint32 cpu_usage = signal->theData[0];
+
+  /**
    * It is possible that the limits (max + min) have moved so that
    * the current speed is now outside them, if so we immediately
    * track to the relevant limit.
@@ -1782,17 +1789,38 @@ Backup::calculate_disk_write_speed(Signal *signal)
   {
     jam();
     m_curr_disk_write_speed = min_disk_write_speed;
+    DEB_REDO_CONTROL(("(%u)1:Current disk write speed is %llu kB/sec",
+                      instance(),
+                      ((m_curr_disk_write_speed *
+                        CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS) /
+                       Uint64(1024))
+                      ));
+    debug_report_redo_control(cpu_usage);
     ret_flag = true;
   }
   else if (m_curr_disk_write_speed > max_disk_write_speed)
   {
     jam();
     m_curr_disk_write_speed = max_disk_write_speed;
+    DEB_REDO_CONTROL(("(%u)2:Current disk write speed is %llu kB/sec",
+                      instance(),
+                      ((m_curr_disk_write_speed *
+                        CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS) /
+                       Uint64(1024))
+                      ));
+    debug_report_redo_control(cpu_usage);
     ret_flag = true;
   }
   if (m_curr_backup_disk_write_speed > max_backup_disk_write_speed)
   {
     jam();
+    DEB_REDO_CONTROL(("(%u)Current backup disk write speed is %llu kB/sec",
+                      instance(),
+                      ((m_curr_backup_disk_write_speed *
+                        CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS) /
+                       Uint64(1024))
+                      ));
+    debug_report_redo_control(cpu_usage);
     m_curr_backup_disk_write_speed = max_backup_disk_write_speed;
   }
   if (ret_flag)
@@ -1806,8 +1834,8 @@ Backup::calculate_disk_write_speed(Signal *signal)
    * Current speed is within bounds, now consider whether to adjust
    * based on feedback.
    * 
-   * Calculate the max - min and divide by 12 to get the adjustment parameter
-   * which is 8% of max - min. We will never adjust faster than this to avoid
+   * Calculate the max - min and divide by 6 to get the adjustment parameter
+   * which is 16% of max - min. We will never adjust faster than this to avoid
    * too quick adaptiveness. For adjustments down we will adapt faster for IO
    * lags, for CPU speed we will adapt a bit slower dependent on how high
    * the CPU load is.
@@ -1815,20 +1843,29 @@ Backup::calculate_disk_write_speed(Signal *signal)
   int diff_disk_write_speed =
     max_disk_write_speed - min_disk_write_speed;
 
-  int adjust_speed_up = diff_disk_write_speed / 12;
-  int adjust_speed_down_high = diff_disk_write_speed / 7;
-  int adjust_speed_down_medium = diff_disk_write_speed / 10;
-  int adjust_speed_down_low = diff_disk_write_speed / 14;
+  int adjust_speed_up = diff_disk_write_speed / 6;
+  int adjust_speed_up_high = diff_disk_write_speed / 3;
+  int adjust_speed_down_high = diff_disk_write_speed / 5;
+  int adjust_speed_down_medium = diff_disk_write_speed / 8;
+  int adjust_speed_down_low = diff_disk_write_speed / 12;
   
   jam();
-  if (diff_disk_write_speed <= 0 ||
-      adjust_speed_up == 0)
+  if (diff_disk_write_speed <= 0 || adjust_speed_up == 0)
   {
     jam();
     /**
      * The min == max which gives no room to adapt the LCP speed.
      * or the difference is too small to adapt it.
+     *
+     * If min == max for total we will treat backup the same way.
      */
+    DEB_REDO_CONTROL(("(%u)3:Current disk write speed is %llu kB/sec",
+                      instance(),
+                      ((m_curr_disk_write_speed *
+                        CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS) /
+                       Uint64(1024))
+                      ));
+    debug_report_redo_control(cpu_usage);
     return;
   }
   if (c_lqh->is_ldm_instance_io_lagging())
@@ -1858,6 +1895,10 @@ Backup::calculate_disk_write_speed(Signal *signal)
      * If CPU usage is over or equal to 95% we will decrease the LCP speed
      * If CPU usage is below 90% we will increase the LCP speed
      * one more step. Otherwise we will keep it where it currently is.
+     *
+     * We will not slow down checkpointing due to high CPU when the REDO log
+     * is close to become exhausted. This should protect it from becoming
+     * full.
      *
      * The speed of writing backups and LCPs are fairly linear to the
      * amount of bytes written. So e.g. writing 10 MByte/second gives
@@ -1893,59 +1934,145 @@ Backup::calculate_disk_write_speed(Signal *signal)
      * might have as much as 20% more capacity to use.
      */
     jam();
-    EXECUTE_DIRECT_MT(THRMAN, GSN_GET_CPU_USAGE_REQ, signal,
-                      1,
-                      getThrmanInstance());
-    Uint32 cpu_usage = signal->theData[0];
+    bool adjust_disk_speed = true;
+    bool adjust_backup_disk_speed = true;
+    if (m_redo_alert_state >= RedoStateRep::REDO_ALERT_LOW)
+    {
+      /**
+       * We are in a critical or high state for our REDO log, we must ensure
+       * that we step up to use more and more CPU for checkpoints as long as
+       * we don't oversubscribe the IO subsystem. This is why we check for
+       * IO lag slowdown before we come here. The IO lag will still slow
+       * down the checkpoint speed. CPU usage will not slow down checkpoint
+       * processing.
+       */
+      jam();
+      adjust_disk_speed = false;
+      adjust_disk_write_speed_up(m_curr_disk_write_speed,
+                                 max_disk_write_speed,
+                                 adjust_speed_up_high);
+    }
+    else if (!m_our_node_started)
+    {
+      adjust_disk_speed = false;
+      adjust_backup_disk_speed = false;
+      /**
+       * We are not in a critical state of the REDO log and we are
+       * executing a node restart. We will allow for more CPU usage
+       * in this state, but we will still slow down checkpoints when
+       * CPU become overloaded.
+       */
+      if (cpu_usage < 99)
+      {
+        jam();
+        /* 0-98% load, slow down */
+        adjust_disk_write_speed_up(m_curr_disk_write_speed,
+                                   max_disk_write_speed,
+                                   adjust_speed_up);
+      }
+      else if (cpu_usage < 100)
+      {
+        jam();
+        /* 99% load, slow down */
+        slowdowns_due_to_high_cpu++;
+        adjust_disk_write_speed_down(m_curr_disk_write_speed,
+                                     disk_write_speed_set_to_min,
+                                     min_disk_write_speed,
+                                     adjust_speed_down_low);
+      }
+      else
+      {
+        /* 100% load, slow down a bit faster */
+        jam();
+        slowdowns_due_to_high_cpu++;
+        adjust_disk_write_speed_down(m_curr_disk_write_speed,
+                                     disk_write_speed_set_to_min,
+                                     min_disk_write_speed,
+                                     adjust_speed_down_medium);
+      }
+    }
     if (cpu_usage < 90)
     {
       jamEntry();
-      adjust_disk_write_speed_up(m_curr_disk_write_speed,
-                                 max_disk_write_speed,
-                                 adjust_speed_up);
-      adjust_disk_write_speed_up(m_curr_backup_disk_write_speed,
-                                 max_backup_disk_write_speed,
-                                 adjust_speed_up);
+      if (adjust_disk_speed)
+      {
+        adjust_disk_write_speed_up(m_curr_disk_write_speed,
+                                   max_disk_write_speed,
+                                   adjust_speed_up);
+      }
+      if (adjust_backup_disk_speed)
+      {
+        adjust_disk_write_speed_up(m_curr_backup_disk_write_speed,
+                                   max_backup_disk_write_speed,
+                                   adjust_speed_up);
+      }
     }
     else if (cpu_usage < 95)
     {
-      jamEntry();
+      jam();
     }
     else if (cpu_usage < 97)
     {
-      jamEntry();
+      jam();
       /* 95-96% load, slightly slow down */
-      slowdowns_due_to_high_cpu++;
-      adjust_disk_write_speed_up(m_curr_disk_write_speed,
-                                 max_disk_write_speed,
-                                 adjust_speed_down_low);
-      adjust_disk_write_speed_up(m_curr_backup_disk_write_speed,
-                                 max_backup_disk_write_speed,
-                                 adjust_speed_down_low);
+      if (adjust_disk_speed)
+      {
+        slowdowns_due_to_high_cpu++;
+        adjust_disk_write_speed_down(m_curr_disk_write_speed,
+                                     disk_write_speed_set_to_min,
+                                     min_disk_write_speed,
+                                     adjust_speed_down_low);
+      }
+      if (adjust_backup_disk_speed)
+      {
+        slowdown_backups_due_to_high_cpu++;
+        adjust_disk_write_speed_down(m_curr_backup_disk_write_speed,
+                                     backup_disk_write_speed_set_to_min,
+                                     min_disk_write_speed,
+                                     adjust_speed_down_low);
+      }
     }
     else if (cpu_usage < 99)
     {
       jamEntry();
       /* 97-98% load, slow down */
-      slowdowns_due_to_high_cpu++;
-      adjust_disk_write_speed_up(m_curr_disk_write_speed,
-                                 max_disk_write_speed,
-                                 adjust_speed_down_medium);
-      adjust_disk_write_speed_up(m_curr_backup_disk_write_speed,
-                                 max_backup_disk_write_speed,
-                                 adjust_speed_down_medium);
+      if (adjust_disk_speed)
+      {
+        slowdowns_due_to_high_cpu++;
+        adjust_disk_write_speed_down(m_curr_disk_write_speed,
+                                     disk_write_speed_set_to_min,
+                                     min_disk_write_speed,
+                                     adjust_speed_down_medium);
+      }
+      if (adjust_backup_disk_speed)
+      {
+        slowdown_backups_due_to_high_cpu++;
+        adjust_disk_write_speed_down(m_curr_backup_disk_write_speed,
+                                     backup_disk_write_speed_set_to_min,
+                                     min_disk_write_speed,
+                                     adjust_speed_down_medium);
+      }
     }
     else
     {
       jamEntry();
       /* 99-100% load, slow down a bit faster */
-      slowdowns_due_to_high_cpu++;
-      adjust_disk_write_speed_up(m_curr_disk_write_speed,
-                                 max_disk_write_speed,
-                                 adjust_speed_down_high);
-      adjust_disk_write_speed_up(m_curr_backup_disk_write_speed,
-                                 max_backup_disk_write_speed,
-                                 adjust_speed_down_high);
+      if (adjust_disk_speed)
+      {
+        slowdowns_due_to_high_cpu++;
+        adjust_disk_write_speed_down(m_curr_disk_write_speed,
+                                     disk_write_speed_set_to_min,
+                                     min_disk_write_speed,
+                                     adjust_speed_down_high);
+      }
+      if (adjust_backup_disk_speed)
+      {
+        slowdown_backups_due_to_high_cpu++;
+        adjust_disk_write_speed_down(m_curr_backup_disk_write_speed,
+                                     backup_disk_write_speed_set_to_min,
+                                     min_disk_write_speed,
+                                     adjust_speed_down_high);
+      }
     }
   }
 }
