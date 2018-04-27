@@ -1522,7 +1522,7 @@ Backup::measure_change_speed(Signal *signal)
 Uint64
 Backup::calculate_proposed_disk_write_speed()
 {
-  if (m_enable_partial_lcp == 0 && false)
+  if (m_enable_partial_lcp == 0)
   {
     jam();
     return 0;

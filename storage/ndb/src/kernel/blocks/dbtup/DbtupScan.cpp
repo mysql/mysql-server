@@ -1793,7 +1793,6 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
       // get TUP real page
       {
         PagePtr pagePtr;
-        Fix_page *fix_page;
         loop_count+= 4;
         if (pos.m_realpid_mm == RNIL)
         {
@@ -2513,8 +2512,8 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
      */
     jam();
 //#ifdef VM_TRACE
-    cdebug_count++;
-    if (cdebug_count % 10000 == 0)
+    c_debug_count++;
+    if (c_debug_count % 10000 == 0)
     {
       DEB_LCP_DELAY(("(%u)TupScan delayed 10000 times", instance()));
     }
