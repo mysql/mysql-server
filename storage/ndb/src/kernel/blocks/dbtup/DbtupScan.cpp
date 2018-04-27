@@ -42,6 +42,15 @@
 //#define DEBUG_LCP_SCANNED_BIT 1
 //#define DEBUG_LCP_FILTER 1
 #endif
+#define DEBUG_LCP_SKIP 1
+#define DEBUG_LCP_DEL 1
+#define DEBUG_LCP_DELAY 1
+
+#ifdef DEBUG_LCP_DELAY
+#define DEB_LCP_DELAY(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_DELAY(arglist) do { } while (0)
+#endif
 
 #ifdef DEBUG_LCP_FILTER
 #define DEB_LCP_FILTER(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -1784,6 +1793,8 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
       // get TUP real page
       {
         PagePtr pagePtr;
+        Fix_page *fix_page;
+        loop_count+= 4;
         if (pos.m_realpid_mm == RNIL)
         {
           Uint32 *next_ptr, *prev_ptr;
@@ -2333,13 +2344,18 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
       jam();
       {
         // caller has already set pos.m_get to next tuple
-        if (! (bits & ScanOp::SCAN_LCP && thbits & Tuple_header::LCP_SKIP))
+        if (likely(! (bits & ScanOp::SCAN_LCP &&
+                      thbits & Tuple_header::LCP_SKIP)))
         {
           Local_key& key_mm = pos.m_key_mm;
-          if (! (bits & ScanOp::SCAN_DD))
+          if (likely(! (bits & ScanOp::SCAN_DD)))
           {
             key_mm = pos.m_key;
             // real page id is already set
+            if (bits & ScanOp::SCAN_LCP)
+            {
+              c_backup->update_pause_lcp_counter(loop_count);
+            }
           }
           else
           {
@@ -2379,6 +2395,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
   record_dropped_change_page:
       {
         ndbassert(c_backup->is_partial_lcp_enabled());
+        c_backup->update_pause_lcp_counter(loop_count);
         record_delete_by_pageid(signal,
                                 frag.fragTableId,
                                 frag.fragmentId,
@@ -2440,6 +2457,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
          *
          * This code is also used by LCPs to record deleted row ids.
          */
+        c_backup->update_pause_lcp_counter(loop_count);
         record_delete_by_rowid(signal,
                                frag.fragTableId,
                                frag.fragmentId,
@@ -2456,15 +2474,30 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
       ndbrequire(false);
       break;
     }
-    if (++loop_count >= 32)
+    loop_count+= 4;
+    if (loop_count >= 512)
+    {
+      jam();
+      if (bits & ScanOp::SCAN_LCP)
+      {
+        jam();
+        c_backup->update_pause_lcp_counter(loop_count);
+        if (!c_backup->check_pause_lcp())
+        {
+          loop_count = 0;
+          continue;
+        }
+        c_backup->pausing_lcp(5,loop_count);
+      }
       break;
+    }
   }
   // TODO: at drop table we have to flush and terminate these
   jam();
   scan.m_last_seen = __LINE__;
   signal->theData[0] = ZTUP_SCAN;
   signal->theData[1] = scanPtr.i;
-  if (!c_lqh->get_is_scan_prioritised(scan.m_userPtr))
+  if (!c_lqh->rt_break_is_scan_prioritised(scan.m_userPtr))
   {
     jam();
     sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
@@ -2479,10 +2512,16 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
      * than 100 signals.
      */
     jam();
+//#ifdef VM_TRACE
+    cdebug_count++;
+    if (cdebug_count % 10000 == 0)
+    {
+      DEB_LCP_DELAY(("(%u)TupScan delayed 10000 times", instance()));
+    }
+//#endif
     sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, BOUNDED_DELAY, 2);
   }
   return false;
-
 }
 
 void

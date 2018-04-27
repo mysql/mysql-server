@@ -2448,12 +2448,23 @@ public:
   void execTUPKEYCONF(Signal* signal);
   Uint32 get_scan_api_op_ptr(Uint32 scan_ptr_i);
 
-  Uint32 get_is_scan_prioritised(Uint32 scan_ptr_i);
+  Uint32 rt_break_is_scan_prioritised(Uint32 scan_ptr_i);
   Uint32 getCreateSchemaVersion(Uint32 tableId);
+
 private:
 
   BLOCK_DEFINES(Dblqh);
 
+  bool is_scan_from_backup_block(BlockReference resultRef)
+  {
+    NodeId nodeId = refToNode(resultRef);
+    Uint32 block = refToMain(resultRef);
+    if (nodeId != getOwnNodeId())
+      return false;
+    if (block == BACKUP)
+      return true;
+    return false;
+  }
   bool is_prioritised_scan(BlockReference resultRef)
   {
     /**
