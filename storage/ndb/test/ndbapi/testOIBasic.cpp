@@ -3921,7 +3921,7 @@ scanreadindex(const Par& par, const ITab& itab, BSet& bset, bool calc)
     CHK(set2.getkey(par, &i) == 0);
 
     // Debug code to track down 'putval()' of duplicate records.
-    if (true || set2.m_row[i] != nullptr) {
+    if (!par.m_dups && set2.m_row[i] != nullptr) {
       Row tmp(tab);
       for (uint k = 0; k < tab.m_cols; k++) {
         Val& val = *tmp.m_val[k];
