@@ -19350,7 +19350,7 @@ static MYSQL_SYSVAR_ULONG(concurrency_tickets, srv_n_free_tickets_to_enter,
                           "Number of times a thread is allowed to enter InnoDB "
                           "within the same SQL query after it has once got the "
                           "ticket",
-                          NULL, NULL, 5000L, 1L, ~0UL, 0);
+                          NULL, NULL, 5000L, 1L, UINT_MAX, 0);
 
 static MYSQL_SYSVAR_BOOL(
     deadlock_detect, innobase_deadlock_detect, PLUGIN_VAR_NOCMDARG,
