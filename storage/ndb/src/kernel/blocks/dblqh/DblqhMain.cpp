@@ -30473,7 +30473,7 @@ Dblqh::handle_check_system_scans(Signal *signal)
         else if (i == ZBACKUP_CHECK_INDEX)
         {
           jam();
-          g_eventLogger->info("Backup Scan have stalled for %u seconds, last"
+          g_eventLogger->info("Backup Scan have stalled for %u seconds, "
                               "last seen on line %u, check_lcp_stop_count: %u",
                               time_stalled,
                               c_check_scanptr_save_line[i],
@@ -30494,8 +30494,15 @@ Dblqh::handle_check_system_scans(Signal *signal)
         signal->theData[0] = DumpStateOrd::LqhDumpOneScanRec;
         signal->theData[1] = loc_scanptr.i;
         EXECUTE_DIRECT(DBLQH, GSN_DUMP_STATE_ORD, signal, 2);
-        if (time_stalled >= 120)
+        if (time_stalled >= 120 &&
+            (i != ZCOPY_FRAGREQ_CHECK_INDEX))
         {
+          /**
+           * LCP and Backup scans proceed even in the presence of locks,
+           * COPY_FRAGREQ scans can be held up on locks without any
+           * real limits since transactions have no specified maximum
+           * time.
+           */
           jam();
           abort();
         }
