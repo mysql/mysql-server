@@ -2367,7 +2367,7 @@ bool Item_func_interval::resolve_type(THD *) {
 
     for (uint i = 1; not_null_consts && i < rows; i++) {
       Item *el = row->element_index(i);
-      not_null_consts &= el->const_item() & !el->is_null();
+      not_null_consts = el->const_item() && !el->is_null();
     }
 
     if (not_null_consts) {
