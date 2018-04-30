@@ -1017,9 +1017,6 @@ static int get_options(int *argc, char ***argv)
                                         "mysql.apply_status", MYF(MY_WME))) ||
       my_hash_insert(&ignore_table,
                      (uchar*) my_strdup(PSI_NOT_INSTRUMENTED,
-                                        "mysql.gtid_executed", MYF(MY_WME))) ||
-      my_hash_insert(&ignore_table,
-                     (uchar*) my_strdup(PSI_NOT_INSTRUMENTED,
                                         "mysql.schema", MYF(MY_WME))) ||
       my_hash_insert(&ignore_table,
                      (uchar*) my_strdup(PSI_NOT_INSTRUMENTED,
@@ -2703,13 +2700,17 @@ static inline my_bool general_log_or_slow_log_tables(const char *db,
            !my_strcasecmp(charset_info, table, "slow_log"));
 }
 
-/* slave_master_info and slave_relay_log_info tables under mysql database */
+/*
+ slave_master_info,slave_relay_log_info and gtid_executed tables under
+ mysql database
+*/
 static inline my_bool replication_metadata_tables(const char *db,
                                                   const char *table)
 {
   return (!my_strcasecmp(charset_info, db, "mysql")) &&
           (!my_strcasecmp(charset_info, table, "slave_master_info") ||
-           !my_strcasecmp(charset_info, table, "slave_relay_log_info"));
+           !my_strcasecmp(charset_info, table, "slave_relay_log_info") ||
+           !my_strcasecmp(charset_info, table, "gtid_executed"));
 }
 
 /*
