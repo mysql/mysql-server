@@ -5122,6 +5122,7 @@ void Dblqh::seizeTcrec(TcConnectionrecPtr& tcConnectptr)
   locTcConnectptr.p->clientBlockref = RNIL;
   locTcConnectptr.p->tableref = RNIL;
   locTcConnectptr.p->hashIndex = RNIL;
+  locTcConnectptr.p->m_committed_log_space = 0;
 
   ctcNumFree = numFree - 1;
   cfirstfreeTcConrec = nextTc;
@@ -7764,6 +7765,8 @@ queueop:
     return;
   }//if
 
+  increment_committed_mbytes(regLogPartPtr,
+                             regTcPtr);
   logFilePtr.i = regLogPartPtr->currentLogfile;
   ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
 /* -------------------------------------------------- */
@@ -9810,6 +9813,7 @@ void Dblqh::releaseTcrec(Signal* signal, TcConnectionrecPtr locTcConnectptr)
   ctcNumFree = numFree + 1;
 
   ndbassert(locTcConnectptr.p->tcScanRec == RNIL);
+  ndbassert(locTcConnectptr.p->m_committed_log_space == 0);
 
   TablerecPtr tabPtr;
   tabPtr.i = locTcConnectptr.p->tableref;
@@ -18451,7 +18455,7 @@ retry:
       LogPosition head = { tmpfile.p->fileNo, tmpfile.p->currentMbyte };
       LogPosition tail = { sltLogPartPtr.p->logTailFileNo,
                            sltLogPartPtr.p->logTailMbyte};
-      Uint64 mb = free_log(head, tail, sltLogPartPtr.p->noLogFiles,
+      Uint64 free_mb = free_log(head, tail, sltLogPartPtr.p->noLogFiles,
                            clogFileSize);
 
 #ifdef DEBUG_CUT_REDO
@@ -18478,25 +18482,27 @@ retry:
                       ToldTailMByte,
                       fileNo,
                       mbyte,
-                      mb));
+                      free_mb));
       }
 #endif
 
-      if (mb <= c_free_mb_force_lcp_limit)
+      if (free_mb <= c_free_mb_force_lcp_limit)
       {
         /**
          * Force a new LCP
          */
         force_lcp(signal);
       }
-
-      if (tailmoved && mb > c_free_mb_tail_problem_limit)
+      Uint32 committed_mbytes = get_committed_mbytes(sltLogPartPtr.p);
+      if (tailmoved &&
+          (free_mb >
+           (c_free_mb_tail_problem_limit + committed_mbytes)))
       {
         jam();
         update_log_problem(signal, sltLogPartPtr,
                            LogPartRecord::P_TAIL_PROBLEM, false);
       }
-      else if (!tailmoved && mb <= c_free_mb_force_lcp_limit)
+      else if (!tailmoved && free_mb <= c_free_mb_force_lcp_limit)
       {
         jam();
         /**
@@ -18504,10 +18510,10 @@ retry:
          *   This could be as currentMb, contains backreferences making it
          *   Check if changing mb forward will help situation
          */
-        if (mb < 2)
+        if ((free_mb + committed_mbytes) < 4)
         {
           /**
-           * 0 or 1 mb free, no point in trying to changeMbyte forward...
+           * Less than 4 mb free, no point in trying to changeMbyte forward...
            */
           jam();
           goto next;
@@ -22245,8 +22251,13 @@ Dblqh::rebuildOrderedIndexes(Signal* signal, Uint32 tableId)
       LogPosition head = { logFile.p->fileNo, logFile.p->currentMbyte };
       LogPosition tail = { logPartPtr.p->logTailFileNo, 
                            logPartPtr.p->logTailMbyte};
-      Uint64 mb = free_log(head, tail, logPartPtr.p->noLogFiles, clogFileSize);
-      if (mb <= c_free_mb_tail_problem_limit)
+      Uint64 free_mb = free_log(head,
+                                tail,
+                                logPartPtr.p->noLogFiles,
+                                clogFileSize);
+      Uint32 committed_mbytes = get_committed_mbytes(logPartPtr.p);
+      if (free_mb <=
+          (c_free_mb_tail_problem_limit + committed_mbytes))
       {
         jam();
         update_log_problem(signal, logPartPtr,
@@ -26260,6 +26271,7 @@ void Dblqh::initLogpart(Signal* signal)
   logPartPtr.p->m_io_tracker.init(logPartPtr.p->logPartNo);
   logPartPtr.p->m_log_prepare_queue.init();
   logPartPtr.p->m_log_complete_queue.init();
+  logPartPtr.p->m_committed_words = 0;
 }//Dblqh::initLogpart()
 
 /* ========================================================================== 
@@ -27275,7 +27287,7 @@ void Dblqh::stepAhead(Signal* signal, Uint32 stepAheadWords)
  *       SUBROUTINE SHORT NAME: WAL
  * ------------------------------------------------------------------------- */
 void Dblqh::writeAbortLog(Signal* signal,
-                          const TcConnectionrec* regTcPtr,
+                          TcConnectionrec* regTcPtr,
                           LogPartRecord *regLogPartPtr)
 {
   if ((ZABORT_LOG_SIZE + ZNEXT_LOG_SIZE) > 
@@ -27289,6 +27301,8 @@ void Dblqh::writeAbortLog(Signal* signal,
   writeLogWord(signal, ZABORT_TYPE);
   writeLogWord(signal, regTcPtr->transid[0]);
   writeLogWord(signal, regTcPtr->transid[1]);
+  decrement_committed_mbytes(regLogPartPtr,
+                             regTcPtr);
 }//Dblqh::writeAbortLog()
 
 /* --------------------------------------------------------------------------
@@ -27298,7 +27312,7 @@ void Dblqh::writeAbortLog(Signal* signal,
  * ------------------------------------------------------------------------- */
 void Dblqh::writeCommitLog(Signal* signal,
                            LogPartRecordPtr regLogPartPtr,
-                           const TcConnectionrec* regTcPtr)
+                           TcConnectionrec* regTcPtr)
 {
   LogFileRecordPtr regLogFilePtr;
   LogPageRecordPtr regLogPagePtr;
@@ -27351,6 +27365,8 @@ void Dblqh::writeCommitLog(Signal* signal,
     dataPtr[7] = stopPageNo;
     dataPtr[8] = gci;
   }//if
+  decrement_committed_mbytes(regLogPartPtr.p,
+                             regTcPtr);
   TcConnectionrecPtr rloTcNextConnectptr;
   TcConnectionrecPtr rloTcPrevConnectptr;
   rloTcPrevConnectptr.i = regTcPtr->prevLogTcrec;
@@ -27718,10 +27734,14 @@ void Dblqh::writeNextLog(Signal* signal)
     force_lcp(signal);
   }
 
-  if (free_mb <= c_free_mb_tail_problem_limit)
+  if (free_mb <=
+      (c_free_mb_tail_problem_limit + get_committed_mbytes(logPartPtr.p)))
   {
     jam();
-    update_log_problem(signal, logPartPtr, LogPartRecord::P_TAIL_PROBLEM, true);
+    update_log_problem(signal,
+                       logPartPtr,
+                       LogPartRecord::P_TAIL_PROBLEM,
+                       true);
   }
 
   if (ERROR_INSERTED(5058) &&
@@ -30856,4 +30876,29 @@ Dblqh::is_ldm_instance_io_lagging()
   }
   c_is_io_lag_reported = io_lag_now;
   return change_and_get_io_laggers(change) == 0 ? false : true;
+}
+
+
+Uint32 Dblqh::get_committed_mbytes(LogPartRecord* logPartPtrP)
+{
+  Uint64 committed_words = logPartPtrP->m_committed_words;
+  Uint64 committed_mbytes = committed_words >> 18;
+  committed_mbytes += 1;
+  return (Uint32)committed_mbytes;
+}
+
+void Dblqh::increment_committed_mbytes(LogPartRecord* logPartPtrP,
+                                       TcConnectionrec* regTcPtr)
+{
+  logPartPtrP->m_committed_words += (ZCOMMIT_LOG_SIZE + 1);
+  regTcPtr->m_committed_log_space = 1;
+}
+
+void Dblqh::decrement_committed_mbytes(LogPartRecord* logPartPtrP,
+                                       TcConnectionrec* regTcPtr)
+{
+  ndbassert(logPartPtrP->m_committed_words >= (ZCOMMIT_LOG_SIZE + 1));
+  logPartPtrP->m_committed_words -= (ZCOMMIT_LOG_SIZE + 1);
+  ndbassert(regTcPtr->m_committed_log_space == 1);
+  regTcPtr->m_committed_log_space = 0;
 }
