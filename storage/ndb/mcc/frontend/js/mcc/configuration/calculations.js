@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -347,7 +347,8 @@ function typeSetup(processTypeItem) {
             mcc.storage.clusterStorage().getItem(0).then(function (cluster) {
                 // Leave process type level datadir undefined
 
-                // Check real time or web mode
+                // Check real time or web mode.
+                // This is OK since all those values are "undefined" in parameters.ja.
                 if (cluster.getValue("apparea") != "realtime") {
                     mcc.configuration.setPara(processFamilyName, null, 
                             "HeartbeatIntervalDbDb", "defaultValueType", 15000);
@@ -361,6 +362,7 @@ function typeSetup(processTypeItem) {
                 }
 
                 // Check read/write load
+                // This is OK since all those values are "undefined" in parameters.ja.
                 if (cluster.getValue("writeload") == "high") {
                     mcc.configuration.setPara(processFamilyName, null, 
                             "SendBufferMemory", "defaultValueType", 8);
@@ -384,15 +386,17 @@ function typeSetup(processTypeItem) {
                             "RedoBuffer", "defaultValueType", 32);
                 }
 
-                // Get disk page buffer memory, assign shared global memory
+                // Get disk page buffer memory, assign shared global memory.
                 var diskBuf = processFamilyItem.getValue(
                         mcc.configuration.getPara(processFamilyName, null, 
                                 "DiskPageBufferMemory", "attribute"));
                 if (!diskBuf) {
+                    // If user didn't set it, read from parameters.js.
                     diskBuf = mcc.configuration.getPara(processFamilyName, null, 
                         "DiskPageBufferMemory", "defaultValueType");
                 }
-
+                
+                // If user didn't set it, calculate.
                 if (diskBuf > 8192) {
                     mcc.configuration.setPara(processFamilyName, null, 
                             "SharedGlobalMemory", "defaultValueType", 1024);
@@ -401,7 +405,7 @@ function typeSetup(processTypeItem) {
                             "SharedGlobalMemory", "defaultValueType", 384);
                 } else {
                     mcc.configuration.setPara(processFamilyName, null, 
-                            "SharedGlobalMemory", "defaultValueType", 20);
+                            "SharedGlobalMemory", "defaultValueType", 32);
                 }
 
                 // Restrict MaxNoOfTables
@@ -409,6 +413,7 @@ function typeSetup(processTypeItem) {
                         mcc.configuration.getPara(processFamilyName, null, 
                                 "MaxNoOfTables", "attribute"));
                 if (maxTab) {
+                    //IF user has set it THEN do check.
                     if (maxTab > 20320) {
                         processFamilyItem.setValue(
                             mcc.configuration.getPara(processFamilyName, null, 
