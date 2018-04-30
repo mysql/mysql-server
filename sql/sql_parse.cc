@@ -4208,11 +4208,12 @@ end_with_restore_list:
   case SQLCOM_SHOW_CREATE_USER:
   {
     LEX_USER *show_user= get_current_user(thd, lex->grant_user);
-    if (!(strcmp(thd->security_context()->priv_user().str, show_user->user.str) ||
-         my_strcasecmp(system_charset_info, show_user->host.str,
-                              thd->security_context()->priv_host().str)) ||
-        !check_access(thd, SELECT_ACL, "mysql", NULL, NULL, 1, 0))
-      res= mysql_show_create_user(thd, show_user);
+    Security_context *sctx= thd->security_context();
+    bool are_both_users_same= !strcmp(sctx->priv_user().str, show_user->user.str) &&
+                              !my_strcasecmp(system_charset_info, show_user->host.str,
+                                             sctx->priv_host().str);
+    if (are_both_users_same || !check_access(thd, SELECT_ACL, "mysql", NULL, NULL, 1, 0))
+      res= mysql_show_create_user(thd, show_user, are_both_users_same);
     break;
   }
 #endif
