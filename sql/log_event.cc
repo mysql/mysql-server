@@ -9633,9 +9633,7 @@ search_key_in_table(TABLE *table, MY_BITMAP *bi_cols, uint key_type)
       DBUG_RETURN(table->s->primary_key);
   }
 
-  DBUG_PRINT("debug", ("Unique keys count: %u", table->s->uniques));
-
-  if (key_type & UNIQUE_KEY_FLAG && table->s->uniques)
+  if (key_type & UNIQUE_KEY_FLAG)
   {
     DBUG_PRINT("debug", ("Searching for UK"));
     for (key=0,keyinfo= table->key_info ;
