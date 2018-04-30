@@ -2337,6 +2337,13 @@ bool reinit_stmt_before_use(THD *thd, LEX *lex)
 
   // Default to READ access for every field that is resolved
   thd->mark_used_columns= MARK_COLUMNS_READ;
+
+  /*
+    THD::derived_tables_processing is not reset if derived table resolving fails
+    for the previous sub-statement. Hence resetting it here.
+  */
+  thd->derived_tables_processing= false;
+
   /*
     We have to update "thd" pointer in LEX, all its units and in LEX::result,
     since statements which belong to trigger body are associated with TABLE
