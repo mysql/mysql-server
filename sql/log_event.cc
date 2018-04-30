@@ -8328,16 +8328,10 @@ static uint search_key_in_table(TABLE *table, MY_BITMAP *bi_cols,
       DBUG_RETURN(table->s->primary_key);
   }
 
-#if 0  // see bug#23311892
-  DBUG_PRINT("debug", ("Unique keys count: %u", table->s->uniques));
-
-  if (key_type & UNIQUE_KEY_FLAG && table->s->uniques)
-  {
+  if (key_type & UNIQUE_KEY_FLAG) {
     DBUG_PRINT("debug", ("Searching for UK"));
-    for (key=0,keyinfo= table->key_info ;
-         (key < table->s->keys) && (res == MAX_KEY);
-         key++,keyinfo++)
-    {
+    for (key = 0, keyinfo = table->key_info;
+         (key < table->s->keys) && (res == MAX_KEY); key++, keyinfo++) {
       /*
         - Unique keys cannot be disabled, thence we skip the check.
         - Skip unique keys with nullable parts
@@ -8346,15 +8340,12 @@ static uint search_key_in_table(TABLE *table, MY_BITMAP *bi_cols,
       if (!((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME) ||
           (key == table->s->primary_key))
         continue;
-      res= are_all_columns_signaled_for_key(keyinfo, bi_cols) ?
-           key : MAX_KEY;
+      res = are_all_columns_signaled_for_key(keyinfo, bi_cols) ? key : MAX_KEY;
 
-      if (res < MAX_KEY)
-        DBUG_RETURN(res);
+      if (res < MAX_KEY) DBUG_RETURN(res);
     }
     DBUG_PRINT("debug", ("UK has NULLABLE parts or not all columns signaled."));
   }
-#endif
 
   if (key_type & MULTIPLE_KEY_FLAG && table->s->keys) {
     DBUG_PRINT("debug", ("Searching for K."));
