@@ -38,9 +38,6 @@
 
 
 GET_FILENAME_COMPONENT(MYSQL_CMAKE_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
-IF(WIN32 OR APPLE OR DISABLE_SHARED)
-  SET(_SKIP_PIC 1)
-ENDIF()
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/cmake_parse_arguments.cmake)
 # CREATE_EXPORT_FILE (VAR target api_functions)
@@ -138,22 +135,14 @@ MACRO(MERGE_LIBRARIES_SHARED)
   SET(LIBS ${ARG_DEFAULT_ARGS})
   LIST(REMOVE_AT LIBS 0)
 
-  SET(LIBTYPE SHARED)
-  # check for non-PIC libraries
-  IF(NOT _SKIP_PIC)
-    FOREACH(LIB ${LIBS})
-      GET_TARGET_PROPERTY(${LIB} TYPE LIBTYPE)
-      IF(LIBTYPE STREQUAL "STATIC_LIBRARY")
-        GET_TARGET_PROPERTY(LIB COMPILE_FLAGS LIB_COMPILE_FLAGS)
-        IF(NOT LIB_COMPILE_FLAGS MATCHES "<PIC_FLAG>")
-          MESSAGE(FATAL_ERROR
-            "Attempted to link non-PIC static library ${LIB} to shared library ${TARGET}\n"
-            "Please use ADD_CONVENIENCE_LIBRARY, instead of ADD_LIBRARY for ${LIB}"
-            )
-        ENDIF()
-      ENDIF()
-    ENDFOREACH()
-  ENDIF()
+  FOREACH(LIB ${LIBS})
+    LIST(FIND KNOWN_CONVENIENCE_LIBRARIES ${LIB} FOUNDIT)
+    IF(FOUNDIT LESS 0)
+      MESSAGE(STATUS "Known libs : ${KNOWN_CONVENIENCE_LIBRARIES}")
+      MESSAGE(FATAL_ERROR "Unknown static library ${LIB} FOUNDIT ${FOUNDIT}")
+    ENDIF()
+  ENDFOREACH()
+
   CREATE_EXPORT_FILE(SRC ${TARGET} "${ARG_EXPORTS}")
   IF(UNIX)
     # Mark every export as explicitly needed, so that ld won't remove the .a files
@@ -167,10 +156,11 @@ MACRO(MERGE_LIBRARIES_SHARED)
       ENDIF()
     ENDFOREACH()
   ENDIF()
+
   IF(NOT ARG_SKIP_INSTALL)
     ADD_VERSION_INFO(${TARGET} SHARED SRC)
   ENDIF()
-  ADD_LIBRARY(${TARGET} ${LIBTYPE} ${SRC})
+  ADD_LIBRARY(${TARGET} SHARED ${SRC})
 
   # Collect all dynamic libraries in the same directory
   SET_TARGET_PROPERTIES(${TARGET} PROPERTIES
@@ -267,8 +257,6 @@ MACRO(MERGE_CONVENIENCE_LIBRARIES)
 
   # Go though the list of libraries.
   # Known convenience libraries should have type "STATIC_LIBRARY"
-  # We assume that that unknown libraries (type "LIB_TYPE-NOTFOUND")
-  # are operating system libraries, to be linked with TARGET
   SET(OSLIBS)
   SET(MYLIBS)
   FOREACH(LIB ${LIBS})
@@ -276,8 +264,8 @@ MACRO(MERGE_CONVENIENCE_LIBRARIES)
     IF(LIB_TYPE STREQUAL "STATIC_LIBRARY")
       LIST(FIND KNOWN_CONVENIENCE_LIBRARIES ${LIB} FOUNDIT)
       IF(FOUNDIT LESS 0)
-        MESSAGE(FATAL_ERROR "Unknown static library ${LIB} FOUNDIT ${FOUNDIT}")
         MESSAGE(STATUS "Known libs : ${KNOWN_CONVENIENCE_LIBRARIES}")
+        MESSAGE(FATAL_ERROR "Unknown static library ${LIB} FOUNDIT ${FOUNDIT}")
       ELSE()
         ADD_DEPENDENCIES(${TARGET} ${LIB})
         GET_TARGET_PROPERTY(loc ${LIB} IMPORTED_LOCATION)
@@ -292,9 +280,8 @@ MACRO(MERGE_CONVENIENCE_LIBRARIES)
         ENDIF()
       ENDIF()
     ELSE()
-      # 3rd party library like libz.so. Make sure that everything
-      # that links to our library links to this one as well.
-      LIST(APPEND OSLIBS ${LIB})
+      # 3rd party library like libz.so. This is a usage error of this macro.
+      MESSAGE(FATAL_ERROR "Unknown 3rd party lib ${LIB}")
     ENDIF()
     # MESSAGE(STATUS "LIB ${LIB} LIB_TYPE ${LIB_TYPE}")
   ENDFOREACH()

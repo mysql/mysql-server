@@ -332,7 +332,7 @@ MACRO (MYSQL_CHECK_SSL)
     # If we are invoked with -DWITH_SSL=/path/to/custom/openssl
     # and we have found static libraries, then link them statically
     # into our executables and libraries.
-    # Adding IMPORTED_LOCATION allows MERGE_STATIC_LIBS
+    # Adding IMPORTED_LOCATION allows MERGE_CONVENIENCE_LIBRARIES
     # to merge imported libraries as well as our own libraries.
     SET(MY_CRYPTO_LIBRARY "${CRYPTO_LIBRARY}")
     SET(MY_OPENSSL_LIBRARY "${OPENSSL_LIBRARY}")
