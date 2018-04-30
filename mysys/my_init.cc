@@ -261,11 +261,16 @@ void my_parameter_handler(const wchar_t *expression, const wchar_t *function,
                           uintptr_t pReserved) {
 #ifndef DBUG_OFF
   fprintf(stderr,
-          "my_parameter_handler "
+          "my_parameter_handler errno %d "
           "expression: %ws  function: %ws  file: %ws, line: %d\n",
-          expression, function, file, line);
+          errno, expression, function, file, line);
   fflush(stderr);
-  DBUG_ASSERT(false);
+  // We have tests which do this kind of failure injection:
+  //   DBUG_EXECUTE_IF("ib_export_io_write_failure_1", close(fileno(file)););
+  // So ignore EBADF
+  if (errno != EBADF) {
+    DBUG_ASSERT(false);
+  }
 #endif
 }
 
