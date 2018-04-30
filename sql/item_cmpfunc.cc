@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2728,7 +2728,7 @@ void Item_func_interval::fix_length_and_dec()
     for (uint i= 1; not_null_consts && i < rows; i++)
     {
       Item *el= row->element_index(i);
-      not_null_consts&= el->const_item() & !el->is_null();
+      not_null_consts= el->const_item() && !el->is_null();
     }
 
     if (not_null_consts &&
