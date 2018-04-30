@@ -3919,6 +3919,61 @@ scanreadindex(const Par& par, const ITab& itab, BSet& bset, bool calc)
     }
     uint i = (uint)-1;
     CHK(set2.getkey(par, &i) == 0);
+
+    // Debug code to track down 'putval()' of duplicate records.
+    if (true || set2.m_row[i] != nullptr) {
+      Row tmp(tab);
+      for (uint k = 0; k < tab.m_cols; k++) {
+        Val& val = *tmp.m_val[k];
+        NdbRecAttr* rec = set2.m_rec[k];
+        require(rec != 0);
+        if (rec->isNULL()) {
+          val.m_null = true;
+          continue;
+        }
+        const char* aRef = rec->aRef();
+        val.copy(aRef);
+        val.m_null = false;
+      }
+
+      LL0("scanreadindex read duplicate, total rows expected in set: " << set1.count());
+      LL0("  read so far: " << set2.count());
+      LL0("  nextScanResult returned: " << ret << ", err: " << err);
+      LL0("");
+
+      LL0("  Row key existed, key=" << i << " row#" << n
+	   << "\n     old=" << *set2.m_row[i]
+           << "\n     new=" << tmp
+      );
+
+      LL0("------------ Set expected -----------");
+      for (uint i=0; i<set1.m_rows; i++) {
+	Row *row = set1.m_row[i];
+	if (row != nullptr) {
+	  LL0("Row#" << i << ", " << *row);
+	}
+      }
+
+      LL0("------------ Set read ---------------");
+      for (uint i=0; i<set2.m_rows; i++) {
+	Row *row = set2.m_row[i];
+	if (row != nullptr) {
+	  LL0("Row#" << i << ", " << *row);
+	}
+      }
+      LL0("-------------------------------------");
+
+      LL0("scanreadindex read duplicate, total rows expected in set: " << set1.count());
+      LL0("  read so far: " << set2.count());
+      LL0("  nextScanResult returned: " << ret << ", err: " << err);
+      LL0("");
+
+      LL0("  Row key existed, key=" << i << " row#" << n
+	   << "\n     old=" << *set2.m_row[i]
+           << "\n     new=" << tmp
+      );
+    }
+
     CHK(set2.putval(i, par.m_dups, n) == 0);
     LL4("key " << i << " row " << n << " " << *set2.m_row[i]);
     n++;
@@ -4474,7 +4529,7 @@ readverifyfull(Par par)
   }
   // each thread scans different indexes
   for (uint i = 0; i < tab.m_itabs; i++) {
-    if (i % par.m_usedthreads != par.m_no)
+    if ((i % par.m_usedthreads) != par.m_no)
       continue;
     if (tab.m_itab[i] == 0)
       continue;
@@ -5104,7 +5159,6 @@ struct Thr {
   }
   void join() {
     NdbThread_WaitFor(m_thread, &m_status);
-    m_thread = 0;
   }
 };
 
