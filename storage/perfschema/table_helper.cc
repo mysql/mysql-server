@@ -432,8 +432,8 @@ void make_source_column(const char *source_file, size_t source_line,
   }
 
   /* Make a working copy. */
-  char safe_source_file[COL_INFO_SIZE]; /* 1024 */
-  strncpy(safe_source_file, source_file, sizeof(safe_source_file));
+  char safe_source_file[COL_INFO_SIZE + 1]; /* 1024 + 1*/
+  strncpy(safe_source_file, source_file, COL_INFO_SIZE);
   safe_source_file[sizeof(safe_source_file) - 1] = 0;
 
   try {
