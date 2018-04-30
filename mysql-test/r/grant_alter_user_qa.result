@@ -2222,6 +2222,6 @@ SHOW CREATE USER bug20625566_user@localhost;
 ERROR 42000: Access denied for user 'bug20625566_dest'@'localhost' to database 'mysql'
 SHOW CREATE USER bug20625566_dest@localhost;
 CREATE USER for bug20625566_dest@localhost
-CREATE USER 'bug20625566_dest'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*64AC67AF30F51749441BE9044F20D83D608F4B33' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'bug20625566_dest'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
 DROP USER user1@localhost, user1@47.9.9.9, user2,
 bug20625566_user@localhost, bug20625566_dest@localhost;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -355,7 +355,8 @@ static void mysql_rewrite_set(THD *thd, String *rlb)
 */
 
 void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
-                                     std::set<LEX_USER *> *extra_users)
+                                     std::set<LEX_USER *> *extra_users,
+                                     bool hide_password_hash)
 {
   LEX                      *lex= thd->lex;
   LEX_USER                 *user_name, *tmp_user_name;
@@ -383,7 +384,7 @@ void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
           thd->lex->sql_command != SQLCOM_ALTER_USER)
         append_user(thd, rlb, user_name, comma, true);
       else
-        append_user_new(thd, rlb, user_name, comma);
+        append_user_new(thd, rlb, user_name, comma, hide_password_hash);
       comma= TRUE;
     }
   }
