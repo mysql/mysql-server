@@ -1372,6 +1372,14 @@ public:
     Uint64 m_last_total_written_words;
 
     /**
+     * Keep track of number of words that will eventually have to
+     * be written to the REDO log as COMMIT log messages and
+     * ABORT log messages. This ensures that we won't run out
+     * of REDO log in COMMIT and ABORT processing.
+     */
+    Uint64 m_committed_words;
+
+    /**
      *       Is a CONTINUEB(ZLOG_LQHKEYREQ) signal sent and
      *       outstanding. We do not want several instances of this
      *       signal out in the air since that would create multiple
@@ -2360,6 +2368,7 @@ public:
     Uint8 m_use_rowid;
     Uint8 m_dealloc;
     Uint8 m_fire_trig_pass;
+    Uint8 m_committed_log_space;
     enum op_flags {
       OP_ISLONGREQ              = 0x1,
       OP_SAVEATTRINFO           = 0x2,
@@ -2844,11 +2853,11 @@ private:
   void stepAhead(Signal* signal, Uint32 stepAheadWords);
   void systemError(Signal* signal, int line);
   void writeAbortLog(Signal* signal,
-                     const TcConnectionrec*,
+                     TcConnectionrec*,
                      LogPartRecord*);
   void writeCommitLog(Signal* signal,
                       LogPartRecordPtr regLogPartPtr,
-                      const TcConnectionrec*);
+                      TcConnectionrec*);
   void writeCompletedGciLog(Signal* signal);
   void writeDbgInfoPageHeader(LogPageRecordPtr logPagePtr, Uint32 place,
                               Uint32 pageNo, Uint32 wordWritten);
@@ -3963,6 +3972,9 @@ public:
   Uint32 c_num_fragments_created_since_restart;
   Uint32 c_fragments_in_lcp;
   bool c_wait_lcp_surfacing;
+  Uint32 get_committed_mbytes(LogPartRecord*);
+  void increment_committed_mbytes(LogPartRecord*, TcConnectionrec*);
+  void decrement_committed_mbytes(LogPartRecord*, TcConnectionrec*);
 #endif
 };
 
