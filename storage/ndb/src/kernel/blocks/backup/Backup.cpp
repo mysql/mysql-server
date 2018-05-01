@@ -1291,8 +1291,6 @@ Backup::set_proposed_disk_write_speed(Uint64 current_redo_speed_per_sec,
 void
 Backup::measure_change_speed(Signal *signal)
 {
-  if (true)
-    return;
   /**
    * The aim of this function is to calculate the following values:
    * 1) m_redo_alert_state
