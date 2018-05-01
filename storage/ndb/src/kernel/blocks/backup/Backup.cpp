@@ -91,11 +91,18 @@ static NDB_TICKS startTime;
 #define DEBUG_LCP_STAT 1
 #define DEBUG_EXTENDED_LCP_STAT 1
 #define DEBUG_REDO_CONTROL 1
+#define DEBUG_REDO_CONTROL_DETAIL 1
 
 #ifdef DEBUG_REDO_CONTROL
 #define DEB_REDO_CONTROL(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_REDO_CONTROL(arglist) do { } while (0)
+#endif
+
+#ifdef DEBUG_REDO_CONTROL_DETAIL
+#define DEB_REDO_CONTROL_DETAIL(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_REDO_CONTROL_DETAIL(arglist) do { } while (0)
 #endif
 
 #ifdef DEBUG_LCP
@@ -337,11 +344,11 @@ Backup::handle_overflow(Uint64& overflow_disk_write,
    * This routine is called both for collective LCP and Backup overflow
    * and for only Backup overflow.
    */
-  Uint32 overflowThisPeriod = MIN(overflow_disk_write, 
+  Uint64 overflowThisPeriod = MIN(overflow_disk_write, 
                                   curr_disk_write_speed + 1);
-    
+
   /* How much overflow remains after this period? */
-  Uint32 remainingOverFlow = overflow_disk_write - overflowThisPeriod;
+  Uint64 remainingOverFlow = overflow_disk_write - overflowThisPeriod;
   
   if (overflowThisPeriod)
   {
@@ -359,6 +366,18 @@ Backup::handle_overflow(Uint64& overflow_disk_write,
                  remainingOverFlow / curr_disk_write_speed);
 #endif
     }
+  }
+  if (curr_disk_write_speed == m_curr_disk_write_speed)
+  {
+    DEB_REDO_CONTROL_DETAIL(("(%u)bytes_written_this_period: %llu kB, "
+                             " overflowThisPeriod: %llu kB, "
+                             " remainingOverFlow: %llu kB, "
+                             " curr_disk_write_speed %llu kB",
+                             instance(),
+                             words_written_this_period / 256,
+                             overflowThisPeriod / 256,
+                             remainingOverFlow / 256,
+                             curr_disk_write_speed / 256));
   }
   words_written_this_period = overflowThisPeriod;
   overflow_disk_write = remainingOverFlow;
@@ -521,6 +540,13 @@ Backup::monitor_disk_write_speed(const NDB_TICKS curr_time,
               ((4 * m_monitor_words_written) -
                (4 * m_backup_monitor_words_written));
   m_lcp_lag[1] += lag;
+
+  DEB_REDO_CONTROL(("(%u)change_rate: %llu kB, LCP+Backup: %llu kB,"
+                    " Backup: %llu kB",
+                    instance(),
+                    m_lcp_change_rate / 1024,
+                    m_monitor_words_written / 256,
+                    m_backup_monitor_words_written / 256));
 
   m_monitor_words_written = 0;
   m_backup_monitor_words_written = 0;
