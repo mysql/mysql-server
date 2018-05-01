@@ -176,7 +176,6 @@ Backup::Backup(Block_context& ctx, Uint32 instanceNumber) :
   m_max_redo_speed_per_sec = Uint64(0);
   NdbTick_Invalidate(&m_lcp_start_time);
   NdbTick_Invalidate(&m_prev_lcp_start_time);
-  NdbTick_Invalidate(&m_last_redo_check_time);
   NdbTick_Invalidate(&m_lcp_current_cut_point);
   m_last_redo_used_in_bytes = Uint64(0);
   m_last_lcp_exec_time_in_ms = Uint64(0);

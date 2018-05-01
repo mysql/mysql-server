@@ -87,10 +87,10 @@ static NDB_TICKS startTime;
 //#define DEBUG_LCP_DEL_FILES 1
 //#define DEBUG_LCP_DEL 1
 //#define DEBUG_EXTRA_LCP 1
+#endif
 #define DEBUG_LCP_STAT 1
 #define DEBUG_EXTENDED_LCP_STAT 1
-//#define DEBUG_REDO_CONTROL 1
-#endif
+#define DEBUG_REDO_CONTROL 1
 
 #ifdef DEBUG_REDO_CONTROL
 #define DEB_REDO_CONTROL(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -202,7 +202,6 @@ Backup::execSTTOR(Signal* signal)
     m_reset_disk_speed_time = NdbTick_getCurrentTicks();
     m_reset_delay_used = Backup::DISK_SPEED_CHECK_DELAY;
     c_initial_start_lcp_not_done_yet = false;
-    m_last_redo_check_time = getHighResTimer();
     m_redo_alert_factor = 1;
     m_redo_alert_state = RedoStateRep::NO_REDO_ALERT;
     signal->theData[0] = BackupContinueB::RESET_DISK_SPEED_COUNTER;
@@ -629,13 +628,13 @@ Backup::lcp_start_point()
   m_insert_size_lcp[1] = m_insert_size_lcp_last;
   m_delete_size_lcp[0] = m_delete_size_lcp[1];
   m_delete_size_lcp[1] = m_delete_size_lcp_last;
-  DEB_REDO_CONTROL(("(%u)m_insert_size_lcp[0]: %llu, "
-                    "m_insert_size_lcp[1]: %llu, "
-                    "m_insert_size_lcp_last: %llu",
+  DEB_REDO_CONTROL(("(%u)m_insert_size_lcp[0]: %llu MByte, "
+                    "m_insert_size_lcp[1]: %llu MByte, "
+                    "m_insert_size_lcp_last: %llu MByte",
                     instance(),
-                    m_insert_size_lcp[0],
-                    m_insert_size_lcp[1],
-                    m_insert_size_lcp_last));
+                    (m_insert_size_lcp[0] / (1024 * 1024)),
+                    (m_insert_size_lcp[1] / (1024 * 1024)),
+                    (m_insert_size_lcp_last / (1024 * 1024))));
 }
 
 void
@@ -654,9 +653,9 @@ Backup::lcp_end_point()
   m_lcp_lag[1] = Int64(0);
 
   reset_lcp_timing_factors();
-  DEB_REDO_CONTROL(("(%u)LCP End: m_insert_size_lcp[0]: %llu",
+  DEB_REDO_CONTROL(("(%u)LCP End: m_insert_size_lcp[0]: %llu MByte",
                     instance(),
-                    m_insert_size_lcp[0]));
+                    (m_insert_size_lcp[0] / (1024 * 1024))));
 }
 
 Uint64
@@ -1289,7 +1288,7 @@ Backup::set_proposed_disk_write_speed(Uint64 current_redo_speed_per_sec,
 }
 
 void
-Backup::measure_change_speed(Signal *signal)
+Backup::measure_change_speed(Signal *signal, Uint64 millis_since_last_call)
 {
   /**
    * The aim of this function is to calculate the following values:
@@ -1416,16 +1415,6 @@ Backup::measure_change_speed(Signal *signal)
    * current_redo_speed_per_sec. We will also increase to cater for some safety
    * levels and based on the m_redo_alert_state.
    */
-  NDB_TICKS current_time = getHighResTimer();
-  Uint64 millis_since_last_call =
-    NdbTick_Elapsed(m_last_redo_check_time, current_time).milliSec();
-
-  if (millis_since_last_call < 800)
-  {
-    jam();
-    return;
-  }
-  m_last_redo_check_time = current_time;
   Uint64 redo_usage;
   Uint64 redo_size;
   Uint64 redo_written_since_last_call;
@@ -1498,15 +1487,16 @@ Backup::measure_change_speed(Signal *signal)
   Int64 current_lag = m_lcp_lag[0] + m_lcp_lag[1];
   DEB_REDO_CONTROL(("(%u)Proposed speed is %llu kB/sec"
                     ", current_redo_speed is %llu kB/sec and"
-                    ", mean_redo_speed is %llu kB/sec"
-                    ", %s is %llu kB",
+                    ", mean_redo_speed is %llu MB/sec"
+                    ", %s is %llu MB, change_rate is: %llu kB",
                     instance(),
                     (m_proposed_disk_write_speed / Uint64(1024)),
                     (current_redo_speed_per_sec / Uint64(1024)),
                     (mean_redo_speed_per_sec / Uint64(1024)),
                     (current_lag >= 0) ? "lag" : "ahead",
-                    (current_lag >= 0) ? current_lag : -current_lag
-                     ));
+                    (current_lag >= 0) ? (current_lag / (1024 * 1024)) :
+                                         (-current_lag/ (1024 * 1024)),
+                    (m_lcp_change_rate / 1024)));
   DEB_REDO_CONTROL(("(%u)state: %u, redo_size: %llu MByte, "
                     "redo_percent: %llu, last LCP time in ms: %llu",
                     instance(),
@@ -1791,7 +1781,6 @@ Backup::calculate_disk_write_speed(Signal *signal)
                         CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS) /
                        Uint64(1024))
                       ));
-    debug_report_redo_control(cpu_usage);
     ret_flag = true;
   }
   else if (m_curr_disk_write_speed > max_disk_write_speed)
@@ -1804,7 +1793,6 @@ Backup::calculate_disk_write_speed(Signal *signal)
                         CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS) /
                        Uint64(1024))
                       ));
-    debug_report_redo_control(cpu_usage);
     ret_flag = true;
   }
   if (m_curr_backup_disk_write_speed > max_backup_disk_write_speed)
@@ -1816,12 +1804,12 @@ Backup::calculate_disk_write_speed(Signal *signal)
                         CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS) /
                        Uint64(1024))
                       ));
-    debug_report_redo_control(cpu_usage);
     m_curr_backup_disk_write_speed = max_backup_disk_write_speed;
   }
   if (ret_flag)
   {
     jam();
+    debug_report_redo_control(cpu_usage);
     return;
   }
 
@@ -2071,6 +2059,7 @@ Backup::calculate_disk_write_speed(Signal *signal)
       }
     }
   }
+  debug_report_redo_control(cpu_usage);
 }
 
 void
@@ -2197,7 +2186,7 @@ Backup::execCONTINUEB(Signal* signal)
       jam();
       m_node_restart_check_sent = false;
       monitor_disk_write_speed(curr_time, millisPassed);
-      measure_change_speed(signal);
+      measure_change_speed(signal, Uint64(millisPassed));
       calculate_disk_write_speed(signal);
     }
     handle_overflow(m_overflow_disk_write,
