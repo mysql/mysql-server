@@ -941,7 +941,6 @@ public:
   Uint32 m_redo_alert_factor;
   BackupRecordPtr m_lcp_ptr;
 
-  NDB_TICKS m_last_redo_check_time;
   NDB_TICKS m_lcp_start_time;
   NDB_TICKS m_prev_lcp_start_time;
   NDB_TICKS m_lcp_current_cut_point;
@@ -1010,7 +1009,7 @@ public:
   void set_proposed_disk_write_speed(Uint64 current_redo_speed_per_sec,
                                      Uint64 mean_redo_speed_per_sec,
                                      Uint64 seconds_since_lcp_cut);
-  void measure_change_speed(Signal*);
+  void measure_change_speed(Signal*, Uint64 millis_since_last_call);
   void debug_report_redo_control(Uint32);
   void lcp_start_point();
   void lcp_end_point();
