@@ -575,10 +575,8 @@ static bool fix_fk_parent_key_names(THD *thd,
     }
     else
     {
-      const char *parent_key_name= find_fk_parent_key(parent_table_def, fk);
-      // Note: If the key returned above is "", this is interpreted as NULL
-      // when storing the value to the DD tables.
-      fk->set_unique_constraint_name(parent_key_name);
+      if (prepare_fk_parent_key(hton, parent_table_def, nullptr, nullptr, fk))
+        return false;
     }
   }
 
@@ -825,15 +823,14 @@ bool migrate_table_to_dd(THD *thd,
 
   // Foreign keys are handled at later stage by retrieving info from SE.
   FOREIGN_KEY *dummy_fk_key_info= NULL;
-  uint fk_key_count= 0;
+  uint dummy_fk_key_count= 0;
 
   if (mysql_prepare_create_table(thd, schema_name.c_str(), table_name.c_str(),
                                  &create_info, &alter_info,
                                  file, &key_info_buffer, &key_count,
-                                 &dummy_fk_key_info, &fk_key_count,
-                                 alter_ctx.fk_info, alter_ctx.fk_count,
-                                 alter_ctx.fk_max_generated_name_number,
-                                 0, false /* No FKs here. */))
+                                 &dummy_fk_key_info, &dummy_fk_key_count,
+                                 nullptr, 0, nullptr, 0, 0,
+                                 false /* No FKs here. */))
   {
     DBUG_RETURN(false);
   }
