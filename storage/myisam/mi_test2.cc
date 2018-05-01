@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,9 +43,8 @@ static void put_blob_in_record(uchar *blob_pos, char **blob_buffer);
 static void copy_key(MI_INFO *info, uint inx, uchar *record, uchar *key);
 
 static int verbose = 0, testflag = 0, first_key = 0, async_io = 0,
-           key_cacheing = 0, write_cacheing = 0, locking = 0,
-           rec_pointer_size = 0, pack_fields = 1, use_log = 0, silent = 0,
-           opt_quick_mode = 0;
+           key_cacheing = 0, locking = 0, rec_pointer_size = 0, pack_fields = 1,
+           use_log = 0, silent = 0, opt_quick_mode = 0;
 static int pack_seg = HA_SPACE_PACK, pack_type = HA_PACK_KEY, remove_count = -1,
            create_flag = 0;
 static ulong key_cache_size = IO_SIZE * 16;
@@ -212,7 +211,6 @@ int main(int argc, char *argv[]) {
   if (key_cacheing)
     init_key_cache(dflt_key_cache, key_cache_block_size, key_cache_size, 0, 0);
   if (locking) mi_lock_database(file, F_WRLCK);
-  if (write_cacheing) mi_extra(file, HA_EXTRA_WRITE_CACHE, 0);
   if (opt_quick_mode) mi_extra(file, HA_EXTRA_QUICK, 0);
 
   for (i = 0; i < recant; i++) {
@@ -258,12 +256,6 @@ int main(int argc, char *argv[]) {
   }
   if (testflag == 1) goto end;
 
-  if (write_cacheing) {
-    if (mi_extra(file, HA_EXTRA_NO_CACHE, 0)) {
-      puts("got error from mi_extra(HA_EXTRA_NO_CACHE)");
-      goto end;
-    }
-  }
   if (key_cacheing)
     resize_key_cache(dflt_key_cache, key_cache_block_size, key_cache_size * 2,
                      0, 0);
@@ -626,9 +618,9 @@ int main(int argc, char *argv[]) {
     puts("Warning: mi_is_changed reported that datafile was changed");
 
   if (!silent) printf("- mi_extra(CACHE) + mi_rrnd.... + mi_extra(NO_CACHE)\n");
-  if (mi_reset(file) || mi_extra(file, HA_EXTRA_CACHE, 0)) {
+  if (mi_reset(file)) {
     if (locking || (!use_blob && !pack_fields)) {
-      puts("got error from mi_extra(HA_EXTRA_CACHE)");
+      puts("got error from mi_reset()");
       goto end;
     }
   }
@@ -640,10 +632,6 @@ int main(int argc, char *argv[]) {
   if (ant != write_count - opt_delete) {
     printf("rrnd with cache: I can only find: %d records of %d\n", ant,
            write_count - opt_delete);
-    goto end;
-  }
-  if (mi_extra(file, HA_EXTRA_NO_CACHE, 0)) {
-    puts("got error from mi_extra(HA_EXTRA_NO_CACHE)");
     goto end;
   }
 
@@ -727,10 +715,7 @@ end:
     if (key_cacheing) {
       puts("Key cache used");
       printf("key_cache_block_size: %u\n", key_cache_block_size);
-      if (write_cacheing) puts("Key cache resized");
     }
-    if (write_cacheing) puts("Write cacheing used");
-    if (write_cacheing) puts("quick mode");
     if (async_io && locking)
       puts("Asyncron io with locking used");
     else if (locking)
@@ -781,7 +766,7 @@ static void get_options(int argc, char **argv) {
         if (*++pos) key_cache_size = atol(pos);
         break;
       case 'W': /* Use write cacheing */
-        write_cacheing = 1;
+        // Now ignored, but accept the option for copmatibility.
         if (*++pos) my_default_record_cache_size = atoi(pos);
         break;
       case 'd':

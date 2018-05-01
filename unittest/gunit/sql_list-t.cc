@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -194,8 +194,7 @@ TEST(SqlIlistTest, PushFrontAndIterate) {
   while ((node = i_list.get())) delete node;
 }
 
-static int cmp_test(void *a, void *b, void *c) {
-  EXPECT_EQ(c, (void *)0xFEE1BEEF);
+static int cmp_test(int *a, int *b) {
   return (*(int *)a < *(int *)b) ? -1 : (*(int *)a > *(int *)b) ? 1 : 0;
 }
 
@@ -203,13 +202,13 @@ static int cmp_test(void *a, void *b, void *c) {
 TEST_F(SqlListTest, Sort) {
   int values[] = {1, 9, 2, 7, 3, 6, 4, 5, 8};
   insert_values(values, &m_int_list);
-  m_int_list.sort(cmp_test, (void *)0xFEE1BEEF);
+  m_int_list.sort(cmp_test);
   for (int i = 1; i < 10; i++) {
     EXPECT_EQ(*m_int_list.pop(), i);
   }
   EXPECT_TRUE(m_int_list.is_empty());
   // Test sorting of empty string.
-  m_int_list.sort(cmp_test, (void *)0xFEE1BEEF);
+  m_int_list.sort(cmp_test);
   // Check that nothing has changed.
   EXPECT_TRUE(m_int_list.is_empty());
 }

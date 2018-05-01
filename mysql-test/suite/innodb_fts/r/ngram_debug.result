@@ -172,8 +172,8 @@ FULLTEXT KEY `con2` (j1,j3),
 FULLTEXT KEY `con3` (k2) WITH PARSER ngram
 ) ENGINE=InnoDB ;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET DEBUG='+d,alter_table_rollback_new_index';
 ALTER TABLE articles ADD FULLTEXT INDEX (c2(64));
 ERROR HY000: Unknown error

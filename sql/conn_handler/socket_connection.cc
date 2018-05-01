@@ -425,7 +425,7 @@ class TCP_socket {
     freeaddrinfo(ai);
     if (ret < 0) {
       DBUG_PRINT("error", ("Got error: %d from bind", socket_errno));
-      LogErr(ERROR_LEVEL, ER_CONN_TPC_BIND_FAIL, strerror(socket_errno));
+      LogErr(ERROR_LEVEL, ER_CONN_TCP_BIND_FAIL, strerror(socket_errno));
       LogErr(ERROR_LEVEL, ER_CONN_TCP_IS_THERE_ANOTHER_USING_PORT, m_tcp_port);
       mysql_socket_close(listener_socket);
       return MYSQL_INVALID_SOCKET;

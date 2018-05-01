@@ -159,11 +159,6 @@ bool PT_group::contextualize(Parse_context *pc) {
                  "global union parameters");
         return true;
       }
-      if (select->is_distinct()) {
-        // DISTINCT+ROLLUP does not work
-        my_error(ER_WRONG_USAGE, MYF(0), "WITH ROLLUP", "DISTINCT");
-        return true;
-      }
       select->olap = ROLLUP_TYPE;
       break;
     default:
@@ -180,12 +175,6 @@ bool PT_order::contextualize(Parse_context *pc) {
   SELECT_LEX_UNIT *const unit = pc->select->master_unit();
   const bool braces = pc->select->braces;
 
-  if (pc->select->linkage != GLOBAL_OPTIONS_TYPE &&
-      pc->select->olap != UNSPECIFIED_OLAP_TYPE &&
-      (pc->select->linkage != UNION_TYPE || braces)) {
-    my_error(ER_WRONG_USAGE, MYF(0), "CUBE/ROLLUP", "ORDER BY");
-    return true;
-  }
   if (lex->sql_command != SQLCOM_ALTER_TABLE && !unit->fake_select_lex) {
     /*
       A query of the of the form (SELECT ...) ORDER BY order_list is
@@ -1462,15 +1451,6 @@ bool PT_column_def::contextualize(Table_ddl_parse_context *pc) {
 }
 
 Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd) {
-  auto release_locks_guard = create_scope_guard([thd]() {
-    // While contextualizing column definitions, we may end up taking MDL locks
-    // on spatial reference system objects in order to check that the provided
-    // SRID exists if a column with the SRID attribute was given. If an error
-    // occures, we need to release these locks explicitly since there are no
-    // other mechanisms at any higher level that does this for us.
-    thd->mdl_context.release_transactional_locks();
-  });
-
   LEX *const lex = thd->lex;
 
   lex->sql_command = SQLCOM_CREATE_TABLE;
@@ -1589,7 +1569,6 @@ Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd) {
   }
   create_table_set_open_action_and_adjust_tables(lex);
 
-  release_locks_guard.commit();
   thd->lex->alter_info = &m_alter_info;
   return new (thd->mem_root) Sql_cmd_create_table(&m_alter_info, qe_tables);
 }
@@ -1885,15 +1864,6 @@ Sql_cmd *PT_alter_table_stmt::make_cmd(THD *thd) {
   if (init_alter_table_stmt(&pc, m_table_name, m_algo, m_lock, m_validation))
     return NULL;
 
-  auto release_locks_guard = create_scope_guard([thd]() {
-    // While contextualizing column definitions, we may end up taking MDL locks
-    // on spatial reference system objects in order to check that the provided
-    // SRID exists if a column with the SRID attribute was given. If an error
-    // occures, we need to release these locks explicitly since there are no
-    // other mechanisms at any higher level that does this for us.
-    thd->mdl_context.release_transactional_locks();
-  });
-
   if (m_opt_actions) {
     /*
       Move RENAME TO <table_name> clauses to the head of array, so they are
@@ -1918,7 +1888,6 @@ Sql_cmd *PT_alter_table_stmt::make_cmd(THD *thd) {
     pc.create_info->used_fields &= ~HA_CREATE_USED_ENGINE;
   }
 
-  release_locks_guard.commit();
   thd->lex->alter_info = &m_alter_info;
   return new (thd->mem_root) Sql_cmd_alter_table(&m_alter_info);
 }
@@ -2238,7 +2207,7 @@ bool PT_json_table_column_with_path::contextualize(Parse_context *pc) {
                 nullptr,                       // On update value
                 &EMPTY_STR,                    // Comment
                 nullptr,                       // Change
-                nullptr,                       // Interval list
+                m_type->get_interval_list(),   // Interval list
                 cs,                            // Charset
                 false,                         // No "COLLATE" clause
                 m_type->get_uint_geom_type(),  // Geom type

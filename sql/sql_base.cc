@@ -494,9 +494,9 @@ static TABLE_SHARE *process_found_table_share(THD *thd MY_ATTRIBUTE((unused)),
     DBUG_RETURN(NULL);
   }
 
-  ++share->ref_count;
+  share->increment_ref_count();
 
-  if (share->ref_count == 1 && share->prev) {
+  if (share->ref_count() == 1 && share->prev) {
     /*
       Share was not used before and it was in the old_unused_share list
       Unlink share from this list
@@ -512,7 +512,7 @@ static TABLE_SHARE *process_found_table_share(THD *thd MY_ATTRIBUTE((unused)),
   while (table_def_cache->size() > table_def_size && oldest_unused_share->next)
     table_def_cache->erase(to_string(oldest_unused_share->table_cache_key));
 
-  DBUG_PRINT("exit", ("share: %p ref_count: %u", share, share->ref_count));
+  DBUG_PRINT("exit", ("share: %p ref_count: %u", share, share->ref_count()));
   DBUG_RETURN(share);
 }
 
@@ -694,7 +694,7 @@ TABLE_SHARE *get_table_share(THD *thd, const char *db, const char *table_name,
     and TABLE_SHARE::wait_for_old_version. We must also set
     m_open_in_progress to indicate allocated but incomplete share.
   */
-  share->ref_count++;                // Mark in use
+  share->increment_ref_count();      // Mark in use
   share->m_open_in_progress = true;  // Mark being opened
 
   /*
@@ -785,7 +785,7 @@ TABLE_SHARE *get_table_share(THD *thd, const char *db, const char *table_name,
   */
   if (open_table_err) {
     share->error = true;  // Allow waiters to detect the error
-    share->ref_count--;
+    share->decrement_ref_count();
     table_def_cache->erase(to_string(share->table_cache_key));
 #if defined(ENABLED_DEBUG_SYNC)
     if (!thd->is_attachable_ro_transaction_active())
@@ -801,7 +801,7 @@ TABLE_SHARE *get_table_share(THD *thd, const char *db, const char *table_name,
   share->m_psi = NULL;
 #endif
 
-  DBUG_PRINT("exit", ("share: %p  ref_count: %u", share, share->ref_count));
+  DBUG_PRINT("exit", ("share: %p  ref_count: %u", share, share->ref_count()));
 
   /* If debug, assert that the share is actually present in the cache */
 #ifndef DBUG_OFF
@@ -906,12 +906,12 @@ void release_table_share(TABLE_SHARE *share) {
   DBUG_ENTER("release_table_share");
   DBUG_PRINT("enter", ("share: %p  table: %s.%s  ref_count: %u  version: %lu",
                        share, share->db.str, share->table_name.str,
-                       share->ref_count, share->version));
+                       share->ref_count(), share->version()));
 
   mysql_mutex_assert_owner(&LOCK_open);
 
-  DBUG_ASSERT(share->ref_count);
-  if (!--share->ref_count) {
+  DBUG_ASSERT(share->ref_count() != 0);
+  if (share->decrement_ref_count() == 0) {
     if (share->has_old_version() || table_def_shutdown_in_progress)
       table_def_cache->erase(to_string(share->table_cache_key));
     else {
@@ -1000,7 +1000,9 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild) {
     /* Skip shares that are being opened */
     if (share->m_open_in_progress) continue;
     if (db && my_strcasecmp(system_charset_info, db, share->db.str)) continue;
-    if (wild && wild_compare(share->table_name.str, wild, 0)) continue;
+    if (wild && wild_compare(share->table_name.str, share->table_name.length,
+                             wild, strlen(wild), 0))
+      continue;
 
     if (!(*start_list = (OPEN_TABLE_LIST *)sql_alloc(
               sizeof(**start_list) + share->table_cache_key.length))) {
@@ -2416,7 +2418,7 @@ bool wait_while_table_is_used(THD *thd, TABLE *table,
   DBUG_ENTER("wait_while_table_is_used");
   DBUG_PRINT("enter", ("table: '%s'  share: %p  db_stat: %u  version: %lu",
                        table->s->table_name.str, table->s, table->db_stat,
-                       table->s->version));
+                       table->s->version()));
 
   if (thd->mdl_context.upgrade_shared_lock(table->mdl_ticket, MDL_EXCLUSIVE,
                                            thd->variables.lock_wait_timeout))
@@ -3078,7 +3080,8 @@ retry_share : {
         concurrent table flush). So we need to compare version of opened
         tables with version of TABLE object we just have got.
       */
-      if (thd->open_tables && thd->open_tables->s->version != share->version) {
+      if (thd->open_tables &&
+          thd->open_tables->s->version() != share->version()) {
         tc->release_table(thd, table);
         tc->unlock();
         (void)ot_ctx->request_backoff_action(
@@ -3103,7 +3106,7 @@ retry_share : {
     */
     mysql_mutex_lock(&LOCK_open);
     tc->unlock();
-    share->ref_count++;
+    share->increment_ref_count();
     goto share_found;
   } else {
     /*
@@ -3253,7 +3256,8 @@ share_found:
       goto retry_share;
     }
 
-    if (thd->open_tables && thd->open_tables->s->version != share->version) {
+    if (thd->open_tables &&
+        thd->open_tables->s->version() != share->version()) {
       /*
         If the version changes while we're opening the tables,
         we have to back off, close all the tables opened-so-far,
@@ -3474,409 +3478,6 @@ TABLE *find_table_for_mdl_upgrade(THD *thd, const char *db,
     my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0), table_name);
 
   return tab;
-}
-
-/***********************************************************************
-  class Locked_tables_list implementation. Declared in sql_class.h
-************************************************************************/
-
-Locked_tables_list::Locked_tables_list()
-    : m_locked_tables(NULL),
-      m_locked_tables_last(&m_locked_tables),
-      m_reopen_array(NULL),
-      m_locked_tables_count(0) {
-  init_sql_alloc(key_memory_locked_table_list, &m_locked_tables_root,
-                 MEM_ROOT_BLOCK_SIZE, 0);
-}
-
-/**
-  Enter LTM_LOCK_TABLES mode.
-
-  Enter the LOCK TABLES mode using all the tables that are
-  currently open and locked in this connection.
-  Initializes a TABLE_LIST instance for every locked table.
-
-  @param  thd  thread handle
-
-  @return true if out of memory.
-*/
-
-bool Locked_tables_list::init_locked_tables(THD *thd) {
-  DBUG_ASSERT(thd->locked_tables_mode == LTM_NONE);
-  DBUG_ASSERT(m_locked_tables == NULL);
-  DBUG_ASSERT(m_reopen_array == NULL);
-  DBUG_ASSERT(m_locked_tables_count == 0);
-
-  for (TABLE *table = thd->open_tables; table;
-       table = table->next, m_locked_tables_count++) {
-    TABLE_LIST *src_table_list = table->pos_in_table_list;
-    char *db, *table_name, *alias;
-    size_t db_len = src_table_list->db_length;
-    size_t table_name_len = src_table_list->table_name_length;
-    size_t alias_len = strlen(src_table_list->alias);
-    TABLE_LIST *dst_table_list;
-
-    if (!multi_alloc_root(&m_locked_tables_root, &dst_table_list,
-                          sizeof(*dst_table_list), &db, db_len + 1, &table_name,
-                          table_name_len + 1, &alias, alias_len + 1, NullS)) {
-      unlock_locked_tables(0);
-      return true;
-    }
-
-    memcpy(db, src_table_list->db, db_len + 1);
-    memcpy(table_name, src_table_list->table_name, table_name_len + 1);
-    memcpy(alias, src_table_list->alias, alias_len + 1);
-    /**
-      Sic: remember the *actual* table level lock type taken, to
-      acquire the exact same type in reopen_tables().
-      E.g. if the table was locked for write, src_table_list->lock_type is
-      TL_WRITE_DEFAULT, whereas reginfo.lock_type has been updated from
-      thd->update_lock_default.
-    */
-    new (dst_table_list)
-        TABLE_LIST(table, db, db_len, table_name, table_name_len, alias,
-                   src_table_list->table->reginfo.lock_type);
-
-    dst_table_list->mdl_request.ticket = src_table_list->mdl_request.ticket;
-
-    /* Link last into the list of tables */
-    *(dst_table_list->prev_global = m_locked_tables_last) = dst_table_list;
-    m_locked_tables_last = &dst_table_list->next_global;
-    table->pos_in_locked_tables = dst_table_list;
-  }
-  if (m_locked_tables_count) {
-    /**
-      Allocate an auxiliary array to pass to mysql_lock_tables()
-      in reopen_tables(). reopen_tables() is a critical
-      path and we don't want to complicate it with extra allocations.
-    */
-    m_reopen_array = (TABLE **)alloc_root(
-        &m_locked_tables_root, sizeof(TABLE *) * (m_locked_tables_count + 1));
-    if (m_reopen_array == NULL) {
-      unlock_locked_tables(0);
-      return true;
-    }
-  }
-
-  if (thd->variables.session_track_transaction_info > TX_TRACK_NONE) {
-    ((Transaction_state_tracker *)thd->session_tracker.get_tracker(
-         TRANSACTION_INFO_TRACKER))
-        ->add_trx_state(thd, TX_LOCKED_TABLES);
-  }
-
-  thd->enter_locked_tables_mode(LTM_LOCK_TABLES);
-
-  return false;
-}
-
-/**
-  Leave LTM_LOCK_TABLES mode if it's been entered.
-
-  Close all locked tables, free memory, and leave the mode.
-
-  @note This function is a no-op if we're not in LOCK TABLES.
-*/
-
-void Locked_tables_list::unlock_locked_tables(THD *thd)
-
-{
-  if (thd) {
-    DBUG_ASSERT(!thd->in_sub_stmt &&
-                !(thd->state_flags & Open_tables_state::BACKUPS_AVAIL));
-    /*
-      Sic: we must be careful to not close open tables if
-      we're not in LOCK TABLES mode: unlock_locked_tables() is
-      sometimes called implicitly, expecting no effect on
-      open tables, e.g. from begin_trans().
-    */
-    if (thd->locked_tables_mode != LTM_LOCK_TABLES) return;
-
-    for (TABLE_LIST *table_list = m_locked_tables; table_list;
-         table_list = table_list->next_global) {
-      /*
-        Clear the position in the list, the TABLE object will be
-        returned to the table cache.
-      */
-      table_list->table->pos_in_locked_tables = NULL;
-    }
-    thd->leave_locked_tables_mode();
-
-    if (thd->variables.session_track_transaction_info > TX_TRACK_NONE) {
-      ((Transaction_state_tracker *)thd->session_tracker.get_tracker(
-           TRANSACTION_INFO_TRACKER))
-          ->clear_trx_state(thd, TX_LOCKED_TABLES);
-    }
-
-    DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
-    close_thread_tables(thd);
-    /*
-      We rely on the caller to implicitly commit the
-      transaction and release transactional locks.
-    */
-  }
-  /*
-    After closing tables we can free memory used for storing lock
-    request for metadata locks and TABLE_LIST elements.
-  */
-  free_root(&m_locked_tables_root, MYF(0));
-  m_locked_tables = NULL;
-  m_locked_tables_last = &m_locked_tables;
-  m_reopen_array = NULL;
-  m_locked_tables_count = 0;
-}
-
-/**
-  Unlink a locked table from the locked tables list, either
-  temporarily or permanently.
-
-  @param  thd        thread handle
-  @param  table_list the element of locked tables list.
-                     The implementation assumes that this argument
-                     points to a TABLE_LIST element linked into
-                     the locked tables list. Passing a TABLE_LIST
-                     instance that is not part of locked tables
-                     list will lead to a crash.
-  @param  remove_from_locked_tables
-                      true if the table is removed from the list
-                      permanently.
-
-  This function is a no-op if we're not under LOCK TABLES.
-
-  @sa Locked_tables_list::reopen_tables()
-*/
-
-void Locked_tables_list::unlink_from_list(THD *thd, TABLE_LIST *table_list,
-                                          bool remove_from_locked_tables) {
-  /*
-    If mode is not LTM_LOCK_TABLES, we needn't do anything. Moreover,
-    outside this mode pos_in_locked_tables value is not trustworthy.
-  */
-  if (thd->locked_tables_mode != LTM_LOCK_TABLES) return;
-
-  /*
-    table_list must be set and point to pos_in_locked_tables of some
-    table.
-  */
-  DBUG_ASSERT(table_list->table->pos_in_locked_tables == table_list);
-
-  /* Clear the pointer, the table will be returned to the table cache. */
-  table_list->table->pos_in_locked_tables = NULL;
-
-  /* Mark the table as closed in the locked tables list. */
-  table_list->table = NULL;
-
-  /*
-    If the table is being dropped or renamed, remove it from
-    the locked tables list (implicitly drop the LOCK TABLES lock
-    on it).
-  */
-  if (remove_from_locked_tables) {
-    *table_list->prev_global = table_list->next_global;
-    if (table_list->next_global == NULL)
-      m_locked_tables_last = table_list->prev_global;
-    else
-      table_list->next_global->prev_global = table_list->prev_global;
-  }
-}
-
-/**
-  This is an attempt to recover (somewhat) in case of an error.
-  If we failed to reopen a closed table, let's unlink it from the
-  list and forget about it. From a user perspective that would look
-  as if the server "lost" the lock on one of the locked tables.
-
-  @note This function is a no-op if we're not under LOCK TABLES.
-*/
-
-void Locked_tables_list::unlink_all_closed_tables(THD *thd, MYSQL_LOCK *lock,
-                                                  size_t reopen_count) {
-  /* If we managed to take a lock, unlock tables and free the lock. */
-  if (lock) mysql_unlock_tables(thd, lock);
-  /*
-    If a failure happened in reopen_tables(), we may have succeeded
-    reopening some tables, but not all.
-    This works when the connection was killed in mysql_lock_tables().
-  */
-  if (reopen_count) {
-    while (reopen_count--) {
-      /*
-        When closing the table, we must remove it
-        from thd->open_tables list.
-        We rely on the fact that open_table() that was used
-        in reopen_tables() always links the opened table
-        to the beginning of the open_tables list.
-      */
-      DBUG_ASSERT(thd->open_tables == m_reopen_array[reopen_count]);
-
-      thd->open_tables->pos_in_locked_tables->table = NULL;
-
-      close_thread_table(thd, &thd->open_tables);
-    }
-  }
-  /* Exclude all closed tables from the LOCK TABLES list. */
-  for (TABLE_LIST *table_list = m_locked_tables; table_list;
-       table_list = table_list->next_global) {
-    if (table_list->table == NULL) {
-      /* Unlink from list. */
-      *table_list->prev_global = table_list->next_global;
-      if (table_list->next_global == NULL)
-        m_locked_tables_last = table_list->prev_global;
-      else
-        table_list->next_global->prev_global = table_list->prev_global;
-    }
-  }
-}
-
-/**
-  Reopen the tables locked with LOCK TABLES and temporarily closed
-  by a DDL statement or FLUSH TABLES.
-
-  @note This function is a no-op if we're not under LOCK TABLES.
-
-  @return true if an error reopening the tables. May happen in
-               case of some fatal system error only, e.g. a disk
-               corruption, out of memory or a serious bug in the
-               locking.
-*/
-
-bool Locked_tables_list::reopen_tables(THD *thd) {
-  Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
-  size_t reopen_count = 0;
-  MYSQL_LOCK *lock;
-  MYSQL_LOCK *merged_lock;
-
-  /*
-    DDL statements routinely call this method after reporting error.
-    OTOH some code (e.g. fix_partitioning_func()) which is invoked
-    while opening tables might fail in the presence of error status.
-    To avoid problems we hide error status by installing temporary DA.
-  */
-  Diagnostics_area tmp_da(false);
-  thd->push_diagnostics_area(&tmp_da, false);
-
-  for (TABLE_LIST *table_list = m_locked_tables; table_list;
-       table_list = table_list->next_global) {
-    if (table_list->table) /* The table was not closed */
-      continue;
-
-    /* Links into thd->open_tables upon success */
-    if (open_table(thd, table_list, &ot_ctx)) {
-      unlink_all_closed_tables(thd, 0, reopen_count);
-      thd->pop_diagnostics_area();
-      if (!thd->get_stmt_da()->is_error() && tmp_da.is_error()) {
-        // Copy the exception condition information.
-        thd->get_stmt_da()->set_error_status(tmp_da.mysql_errno(),
-                                             tmp_da.message_text(),
-                                             tmp_da.returned_sqlstate());
-      }
-      thd->get_stmt_da()->copy_sql_conditions_from_da(thd, &tmp_da);
-      return true;
-    }
-    table_list->table->pos_in_locked_tables = table_list;
-    /* See also the comment on lock type in init_locked_tables(). */
-    table_list->table->reginfo.lock_type = table_list->lock_descriptor().type;
-
-    DBUG_ASSERT(reopen_count < m_locked_tables_count);
-    m_reopen_array[reopen_count++] = table_list->table;
-  }
-
-  thd->pop_diagnostics_area();
-
-  if (reopen_count) {
-    thd->in_lock_tables = 1;
-    /*
-      We re-lock all tables with mysql_lock_tables() at once rather
-      than locking one table at a time because of the case
-      reported in Bug#45035: when the same table is present
-      in the list many times, thr_lock.c fails to grant READ lock
-      on a table that is already locked by WRITE lock, even if
-      WRITE lock is taken by the same thread. If READ and WRITE
-      lock are passed to thr_lock.c in the same list, everything
-      works fine. Patching legacy code of thr_lock.c is risking to
-      break something else.
-    */
-    lock =
-        mysql_lock_tables(thd, m_reopen_array, reopen_count, MYSQL_OPEN_REOPEN);
-    thd->in_lock_tables = 0;
-    if (lock == NULL ||
-        (merged_lock = mysql_lock_merge(thd->lock, lock)) == NULL) {
-      unlink_all_closed_tables(thd, lock, reopen_count);
-      if (!thd->killed) my_error(ER_LOCK_DEADLOCK, MYF(0));
-      return true;
-    }
-    thd->lock = merged_lock;
-  }
-  return false;
-}
-
-/**
-  Update database and table names of table locked with LOCK TABLES after
-  table rename.
-
-  @param old_table_list     Table list element representing old db/table name.
-  @param new_db             Table's new database.
-  @param new_table_name     Table's new name.
-  @param target_mdl_ticket  Ticket representing metadata lock acquired on new
-                            table name.
-
-  @note This function is a no-op if we're not under LOCK TABLES.
-*/
-
-void Locked_tables_list::rename_locked_table(TABLE_LIST *old_table_list,
-                                             const char *new_db,
-                                             const char *new_table_name,
-                                             MDL_ticket *target_mdl_ticket) {
-  for (TABLE_LIST *table_list = m_locked_tables; table_list;
-       table_list = table_list->next_global) {
-    if (my_strcasecmp(table_alias_charset, table_list->db,
-                      old_table_list->db) == 0 &&
-        my_strcasecmp(table_alias_charset, table_list->table_name,
-                      old_table_list->table_name) == 0) {
-      DBUG_ASSERT(table_list->table == nullptr);
-
-      /*
-        Update TABLE_LIST element with new db and name. Allocate
-        them on Locked_tables_list private memory root.
-      */
-      size_t new_db_len = strlen(new_db);
-      size_t new_table_name_len = strlen(new_table_name);
-      const char *new_db_root =
-          strmake_root(&m_locked_tables_root, new_db, new_db_len);
-      const char *new_table_name_root = strmake_root(
-          &m_locked_tables_root, new_table_name, new_table_name_len);
-
-      if (new_db_root != nullptr && new_table_name_root != nullptr) {
-        TABLE_LIST *save_next_global = table_list->next_global;
-        TABLE_LIST **save_prev_global = table_list->prev_global;
-
-        /*
-          If explicit alias was used in LOCK TABLES then it makes sense
-          to preserve it after rename. We might have several instances of
-          the same table locked in different modes, so alias is useful to
-          differentiate between them.
-        */
-        bool real_alias =
-            my_strcasecmp(table_alias_charset, table_list->table_name,
-                          table_list->alias) != 0;
-
-        *table_list = TABLE_LIST(
-            new_db_root, new_db_len, new_table_name_root, new_table_name_len,
-            real_alias ? table_list->alias : new_table_name_root,
-            table_list->lock_descriptor().type);
-
-        table_list->mdl_request.ticket = target_mdl_ticket;
-        table_list->next_global = save_next_global;
-        table_list->prev_global = save_prev_global;
-      } else {
-        // OOM. We just unlink table from the list of locked tables.
-        *table_list->prev_global = table_list->next_global;
-        if (table_list->next_global == nullptr)
-          m_locked_tables_last = table_list->prev_global;
-        else
-          table_list->next_global->prev_global = table_list->prev_global;
-      }
-    }
-  }
 }
 
 /*
@@ -5065,7 +4666,7 @@ static bool open_and_process_routine(
           */
           mysql_mutex_lock(&LOCK_open);
           tc->unlock();
-          share->ref_count++;
+          share->increment_ref_count();
           mysql_mutex_unlock(&LOCK_open);
 
           /*
@@ -5619,7 +5220,6 @@ bool get_and_lock_tablespace_names(THD *thd, TABLE_LIST *tables_start,
           return true;
       }
     }
-
   }  // End of for(;;)
 
   /*
@@ -9808,7 +9408,7 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
       shares with m_open_in_progress == true, since such shares don't
       have any TABLE objects associated.
     */
-    if (share->ref_count) {
+    if (share->ref_count() > 0) {
       /*
         Set share's version to zero in order to ensure that it gets
         automatically deleted once it is no longer referenced.
@@ -9820,7 +9420,8 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
         TDC does not contain old shares which don't have any tables
         used.
       */
-      if (remove_type != TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE) share->version = 0;
+      if (remove_type != TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE)
+        share->clear_version();
       table_cache_manager.free_table(thd, remove_type, share);
     } else {
       DBUG_ASSERT(remove_type != TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE);

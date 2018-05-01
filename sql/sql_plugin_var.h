@@ -264,6 +264,7 @@ class sys_var_pluginvar : public sys_var {
   }
   bool do_check(THD *thd, set_var *var);
   virtual void session_save_default(THD *, set_var *) {}
+  virtual void saved_value_to_string(THD *thd, set_var *var, char *def_val);
   virtual void global_save_default(THD *, set_var *) {}
   bool session_update(THD *thd, set_var *var);
   bool global_update(THD *thd, set_var *var);

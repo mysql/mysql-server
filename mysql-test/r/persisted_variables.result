@@ -324,7 +324,7 @@ SELECT @@global.foreign_key_checks;
 SELECT @@global.flush_time;
 @@global.flush_time
 2
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] option 'persisted_globals_load': boolean value 'NULL' wasn't recognized. Set to OFF.");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] \\[[^]]*\\] option 'persisted_globals_load': boolean value 'NULL' wasn't recognized. Set to OFF.");
 call mtr.add_suppression("\\[Warning\\] option 'persisted_globals_load': boolean value 'NULL' wasn't recognized. Set to OFF.");
 # Restart server with persisted-globals-load=NULL
 # Should get warning in error log.

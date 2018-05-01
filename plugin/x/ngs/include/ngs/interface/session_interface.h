@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _NGS_SESSION_INTERFACE_H_
-#define _NGS_SESSION_INTERFACE_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_SESSION_INTERFACE_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_SESSION_INTERFACE_H_
 
 #include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
@@ -32,7 +32,6 @@
 
 namespace ngs {
 
-class Request;
 class Client_interface;
 
 class Session_interface {
@@ -63,13 +62,14 @@ class Session_interface {
       const Authentication_interface::Response &response) = 0;
 
   // handle a single message, returns true if message was handled false if not
-  virtual bool handle_message(Request &command) = 0;
+  virtual bool handle_message(Message_request &command) = 0;
 
  public:
   virtual State state() const = 0;
   virtual State state_before_close() const = 0;
 
   virtual Client_interface &client() = 0;
+  virtual const Client_interface &client() const = 0;
 
   virtual Session_status_variables &get_status_variables() = 0;
   virtual void mark_as_tls_session() = 0;
@@ -80,4 +80,4 @@ class Session_interface {
 
 }  // namespace ngs
 
-#endif  // _NGS_SESSION_INTERFACE_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_SESSION_INTERFACE_H_

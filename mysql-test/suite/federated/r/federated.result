@@ -1842,10 +1842,10 @@ drop table federated.test1, federated.test2;
 drop table federated.test;
 set names utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table federated.t1 (a varchar(64)) DEFAULT CHARSET=utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into federated.t1 values (0x6DC3A56E6164);
 select hex(a) from federated.t1;
 hex(a)
@@ -1855,10 +1855,10 @@ ENGINE=FEDERATED
 connection='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1'
 DEFAULT CHARSET=utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 set names utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select hex(a) from federated.t1;
 hex(a)
 6DC3A56E6164
@@ -1916,13 +1916,13 @@ drop table federated.t1;
 create table federated.t1 (a int primary key, b varchar(64))
 DEFAULT CHARSET=utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table federated.t1 (a int primary key, b varchar(64))
 ENGINE=FEDERATED
 connection='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1'
   DEFAULT CHARSET=utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert ignore into federated.t1 values (1,"Larry"), (2,"Curly"), (1,"Moe");
 select * from federated.t1;
 a	b
@@ -1944,13 +1944,13 @@ drop table federated.t1;
 create table federated.t1 (a int primary key, b varchar(64))
 DEFAULT CHARSET=utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table federated.t1 (a int primary key, b varchar(64))
 ENGINE=FEDERATED
 connection='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1'
   DEFAULT CHARSET=utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into federated.t1 values (1,"Larry"), (2,"Curly"), (1,"Moe")
 on duplicate key update a=a+100;
 ERROR 23000: Can't write; duplicate key in table 't1'
@@ -1976,13 +1976,13 @@ a
 drop table federated.t1, federated.t2;
 CREATE TABLE federated.t1 (a INT PRIMARY KEY) DEFAULT CHARSET=utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE federated.t1 (a INT PRIMARY KEY)
 ENGINE=FEDERATED
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1'
   DEFAULT CHARSET=utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT transactions FROM information_schema.engines WHERE engine="FEDERATED";
 transactions
 NO
@@ -2214,7 +2214,7 @@ ENGINE=FEDERATED
 connection='mysql://root@127.0.0.1:MASTER_PORT/federated/t1'
   DEFAULT CHARSET=utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 connection master;
 INSERT INTO federated.t1 VALUES (1,"Larry"), (2,"Curly"), (3,"Moe");
 CREATE TABLE federated.t1_child(a int);
@@ -2263,6 +2263,52 @@ DROP TABLE federated.t2;
 connection master;
 DROP TABLE federated.t1_child;
 DROP TABLE federated.t1;
+###
+### Bug#27509959: EXCEPTION NOT CAUGHT W/IN SPROC ADDING A ROW
+###               THAT FAILS FK CHECK IN FED TABLE
+###
+CREATE TABLE federated.parent(a INT, PRIMARY KEY(a)) ENGINE=InnoDB;
+CREATE TABLE federated.child(a INT, b INT, PRIMARY KEY(b),FOREIGN KEY(a) REFERENCES federated.parent(a))ENGINE=InnoDB;
+INSERT federated.parent VALUES (1);
+INSERT federated.child VALUES (1,1);
+CREATE TABLE federated.child(a INT, b INT, PRIMARY KEY(b),
+FOREIGN KEY(a) REFERENCES federated.parent(a))
+ENGINE=FEDERATED
+CONNECTION='mysql://root@127.0.0.1:MASTER_PORT/federated/child';
+SELECT * FROM federated.child;
+a	b
+1	1
+DROP PROCEDURE IF EXISTS add_child;
+Warnings:
+Note	1305	PROCEDURE test.add_child does not exist
+CREATE PROCEDURE add_child(IN new_a INT, IN new_b INT)
+DETERMINISTIC MODIFIES SQL DATA
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+BEGIN
+GET DIAGNOSTICS @p1 = NUMBER, @p2 = ROW_COUNT;
+GET DIAGNOSTICS CONDITION 1 @p3=CLASS_ORIGIN, @p4=SUBCLASS_ORIGIN, @p5=RETURNED_SQLSTATE, @p6=MESSAGE_TEXT, @p7=MYSQL_ERRNO;
+SELECT
+@p1 as 'NUMBER'
+    , @p2 as 'ROW_COUNT'
+    , @p3 as 'CLASS_ORIGIN'
+    , @p4 as 'SUBCLASS_ORIGIN'
+    , @p5 as 'RETURNED_SQLSTATE'
+    , @p6 as 'MESSAGE_TEXT'
+    , @p7 as 'MYSQL_ERRNO';
+END;
+INSERT federated.child(a, b) VALUES(new_a, new_b);
+END|
+CALL add_child(2,2);
+NUMBER	ROW_COUNT	CLASS_ORIGIN	SUBCLASS_ORIGIN	RETURNED_SQLSTATE	MESSAGE_TEXT	MYSQL_ERRNO
+1	-1	ISO 9075	ISO 9075	23000	Cannot add or update a child row: a foreign key constraint fails ()	1452
+CALL add_child(1,1);
+NUMBER	ROW_COUNT	CLASS_ORIGIN	SUBCLASS_ORIGIN	RETURNED_SQLSTATE	MESSAGE_TEXT	MYSQL_ERRNO
+1	-1	ISO 9075	ISO 9075	23000	Can't write; duplicate key in table 'child'	1022
+DROP TABLE federated.child;
+DROP PROCEDURE add_child;
+DROP TABLE federated.child;
+DROP TABLE federated.parent;
 SET @@GLOBAL.CONCURRENT_INSERT= @OLD_MASTER_CONCURRENT_INSERT;
 SET @@GLOBAL.CONCURRENT_INSERT= @OLD_SLAVE_CONCURRENT_INSERT;
 DROP TABLE IF EXISTS federated.t1;

@@ -100,11 +100,16 @@ then
 		fi
 	fi
 
+	set +e
+fi
+# The following should also be shown on upgrades
+if [ "$1" = "configure" ];
+then
+	set -e
 	OVERRIDEFILE="/etc/mysql/mysql.conf.d/default-auth-override.cnf"
 	if [ ! -e "$OVERRIDEFILE" ]; then
-		db_input high mysql-@DEB_PRODUCTNAME@-server/default-auth-override || true
+		db_input high mysql-server/default-auth-override || true
 		db_go
 	fi
-
 	set +e
 fi

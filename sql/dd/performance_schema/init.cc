@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -87,7 +87,7 @@ bool create_pfs_schema(THD *thd) {
     ret =
         execute_query(thd, dd::String_type("CREATE SCHEMA ") +
                                dd::String_type(PERFORMANCE_SCHEMA_DB_NAME.str) +
-                               dd::String_type(" CHARACTER SET utf8"));
+                               dd::String_type(" CHARACTER SET utf8mb4"));
 
   return ret || execute_query(
                     thd, dd::String_type("USE ") +

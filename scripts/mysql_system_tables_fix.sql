@@ -1,4 +1,4 @@
--- Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
@@ -30,8 +30,13 @@
 # Warning message(s) produced for a statement can be printed by explicitly
 # adding a 'SHOW WARNINGS' after the statement.
 
-set sql_mode='';
 set default_storage_engine=InnoDB;
+
+# We meed to turn off the default strict mode in case legacy data contains e.g.
+# zero dates ('0000-00-00-00:00:00'), otherwise, we risk to end up with
+# e.g. failing ALTER TABLE statements and incorrect table definitions.
+
+SET @old_sql_mode = @@session.sql_mode, @@session.sql_mode = '';
 
 # Create a user mysql.infoschema@localhost as the owner of views in information_schema.
 # That user should be created at the beginning of the script, because a query against a
@@ -42,7 +47,7 @@ set default_storage_engine=InnoDB;
 
 INSERT IGNORE INTO mysql.user
 (host, user, select_priv, plugin, authentication_string, ssl_cipher, x509_issuer, x509_subject)
-VALUES ('localhost','mysql.infoschema','Y','mysql_native_password','*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE','','','');
+VALUES ('localhost','mysql.infoschema','Y','caching_sha2_password','$A$005$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED','','','');
 
 FLUSH PRIVILEGES;
 
@@ -623,7 +628,7 @@ SET GLOBAL automatic_sp_privileges = @global_automatic_sp_privileges;
 --
 
 ALTER TABLE user ADD password_last_changed timestamp NULL;
-UPDATE user SET password_last_changed = CURRENT_TIMESTAMP WHERE plugin in ('mysql_native_password','sha256_password') and password_last_changed is NULL;
+UPDATE user SET password_last_changed = CURRENT_TIMESTAMP WHERE plugin in ('caching_sha2_password','mysql_native_password','sha256_password') and password_last_changed is NULL;
 
 ALTER TABLE user ADD password_lifetime smallint unsigned NULL;
 
@@ -912,6 +917,18 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
+-- Add a column that serves as a primary key of the table
+--
+SET @firewall_whitelist_id_column =
+  (SELECT COUNT(column_name) FROM information_schema.columns
+     WHERE table_schema = 'mysql' AND table_name = 'firewall_whitelist' AND column_name = 'ID');
+SET @cmd="ALTER TABLE mysql.firewall_whitelist ADD ID INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY";
+SET @str = IF(@had_firewall_whitelist > 0 AND @firewall_whitelist_id_column = 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
 -- Change engine of the audit log tables to InnoDB
 --
 SET @had_audit_log_filter =
@@ -984,17 +1001,22 @@ DROP PREPARE stmt;
 # internal server session service
 # Notes:
 # This user is disabled for login
-# This user has super privileges and select privileges into performance schema
-# tables the mysql.user table.
+# This user has:
+# Select privileges into performance schema tables the mysql.user table.
+# SUPER, PERSIST_RO_VARIABLES_ADMIN, SYSTEM_VARIABLES_ADMIN privileges
 #
 
-INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'mysql_native_password','*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE','N',CURRENT_TIMESTAMP,NULL,'Y', 'N', 'N', NULL, NULL);
+INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'caching_sha2_password','$A$005$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED','N',CURRENT_TIMESTAMP,NULL,'Y', 'N', 'N', NULL, NULL);
 
 UPDATE user SET Create_role_priv= 'N', Drop_role_priv= 'N' WHERE User= 'mysql.session';
 
 INSERT IGNORE INTO mysql.tables_priv VALUES ('localhost', 'mysql', 'mysql.session', 'user', 'root\@localhost', CURRENT_TIMESTAMP, 'Select', '');
 
 INSERT IGNORE INTO mysql.db VALUES ('localhost', 'performance_schema', 'mysql.session','Y','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N');
+
+INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.session', 'localhost', 'PERSIST_RO_VARIABLES_ADMIN', 'N');
+
+INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.session', 'localhost', 'SYSTEM_VARIABLES_ADMIN', 'N');
 
 FLUSH PRIVILEGES;
 
@@ -1062,3 +1084,5 @@ ALTER TABLE mysql.slave_worker_info TABLESPACE = mysql;
 ALTER TABLE mysql.gtid_executed TABLESPACE = mysql;
 ALTER TABLE mysql.server_cost TABLESPACE = mysql;
 ALTER TABLE mysql.engine_cost TABLESPACE = mysql;
+
+SET @@session.sql_mode = @old_sql_mode;

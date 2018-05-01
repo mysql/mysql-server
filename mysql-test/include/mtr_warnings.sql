@@ -150,8 +150,8 @@ INSERT INTO global_suppressions VALUES
  ("Slave: Query caused different errors on master and slave"),
  ("Slave: Table .* doesn't exist"),
  ("Slave: Table width mismatch"),
- ("Slave: The incident LOST_EVENTS occured on the master"),
- ("Slave: Unknown error.* 1105"),
+ ("Slave: The incident LOST_EVENTS occurred on the master"),
+ ("Slave: Unknown error.* MY-001105"),
  ("Slave: Can't drop database.* database doesn't exist"),
  ("Sort aborted"),
  ("Time-out in NDB"),
@@ -210,9 +210,6 @@ INSERT INTO global_suppressions VALUES
  ("==[0-9]*== Memcheck,"),
  ("==[0-9]*== Copyright"),
  ("==[0-9]*== Using"),
- ("==[0-9]*== For more details"),
- /* This comes with innodb plugin tests */
- ("==[0-9]*== Warning: set address range perms: large range"),
  /* valgrind-3.5.0 dumps this */
  ("==[0-9]*== Command: "),
  /* Messages from valgrind tools */
@@ -223,11 +220,6 @@ INSERT INTO global_suppressions VALUES
  ("==[0-9]*== I   refs:      [0-9]+"),
  ("==[0-9]*== Massif"),
  ("==[0-9]*== Helgrind"),
-
- /* valgrind warnings: invalid file descriptor -1 in syscall
-    write()/read(). Bug #50414 */
- ("==[0-9]*== Warning: invalid file descriptor -1 in syscall write()"),
- ("==[0-9]*== Warning: invalid file descriptor -1 in syscall read()"),
 
  /*
    Transient network failures that cause warnings on reconnect.
@@ -308,6 +300,15 @@ INSERT INTO global_suppressions VALUES
  ("Member with address .* is reachable again."),
  ("The member has resumed contact with a majority of the members in the group.*"),
  ("Members removed from the group.*"),
+
+ /*
+   Warnings/errors related to SSL connection by mysqlx
+ */
+ ("Plugin mysqlx reported: 'Unable to use user mysql.session account when connecting the server for internal plugin requests.'"),
+ ("Plugin mysqlx reported: 'Failed at SSL configuration: \"SSL_CTX_new failed\""),
+ ("Plugin mysqlx reported: 'Could not open"),
+ ("Plugin mysqlx reported: 'All I/O interfaces are disabled"),
+ ("Plugin mysqlx reported: 'Failed at SSL configuration: \"SSL context is not usable without certificate and private key\"'"),
 
  ("THE_LAST_SUPPRESSION")||
 

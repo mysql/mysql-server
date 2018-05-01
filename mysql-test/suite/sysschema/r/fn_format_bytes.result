@@ -1,9 +1,6 @@
 SELECT sys.format_bytes(NULL);
 sys.format_bytes(NULL)
 NULL
-Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT sys.format_bytes(1);
 sys.format_bytes(1)
 1 bytes

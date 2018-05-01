@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,10 @@ sp_rcontext::sp_rcontext(const sp_pcontext *root_parsing_ctx,
       m_ccount(0) {}
 
 sp_rcontext::~sp_rcontext() {
-  if (m_var_table) free_blobs(m_var_table);
+  if (m_var_table) {
+    free_blobs(m_var_table);
+    destroy(m_var_table);
+  }
 
   delete_container_pointers(m_activated_handlers);
   delete_container_pointers(m_visible_handlers);

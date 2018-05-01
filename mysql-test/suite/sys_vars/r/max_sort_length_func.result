@@ -11,7 +11,7 @@ CREATE TABLE t1
 (
 id INT AUTO_INCREMENT PRIMARY KEY,
 c BLOB(30)
-) charset latin1;
+);
 CREATE TABLE t2
 (
 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -245,17 +245,17 @@ INSERT INTO t1 set c = concat(repeat('x',28),'s','y');
 INSERT INTO t1 set c = concat(repeat('x',28),'g','w');
 SELECT c from t1 ORDER BY c, id;
 c
-xxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxgw
 xxxxxxxxxxxxxxxxxxxxxxxxxxxrx
 xxxxxxxxxxxxxxxxxxxxxxxxxxxsy
-xxxxxxxxxxxxxxxxxxxxxxxxxxxgw
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
-** Results should not be sorted **
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+** Results should still be sorted **
 '#--------------------FN_DYNVARS_098_08-------------------------#'
-Testing type CHAR
+Testing type TEXT
 SET @@global.max_sort_length = 30;
 SELECT @@global.max_sort_length;
 @@global.max_sort_length

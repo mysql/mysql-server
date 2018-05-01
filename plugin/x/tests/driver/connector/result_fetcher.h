@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef X_TESTS_DRIVER_CONNECTOR_RESULT_FETCHER_H_
-#define X_TESTS_DRIVER_CONNECTOR_RESULT_FETCHER_H_
+#ifndef PLUGIN_X_TESTS_DRIVER_CONNECTOR_RESULT_FETCHER_H_
+#define PLUGIN_X_TESTS_DRIVER_CONNECTOR_RESULT_FETCHER_H_
 
 #include <memory>
 #include <string>
@@ -135,4 +135,4 @@ std::ostream &operator<<(std::ostream &os,
 
 std::ostream &operator<<(std::ostream &os, Result_fetcher *result);
 
-#endif  // X_TESTS_DRIVER_CONNECTOR_RESULT_FETCHER_H_
+#endif  // PLUGIN_X_TESTS_DRIVER_CONNECTOR_RESULT_FETCHER_H_

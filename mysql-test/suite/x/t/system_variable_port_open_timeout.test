@@ -47,7 +47,7 @@ SELECT COUNT(@@SESSION.Mysqlx_port_open_timeout);
 --echo #
 --echo #
 --let $restart_parameters = restart: --loose-mysqlx-port-open-timeout=1
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
+--source include/restart_mysqld.inc
 
 --let $assert_text= Mysqlx_port_open_timeout global variablem must exist
 --let $assert_cond= [SELECT COUNT(@@GLOBAL.Mysqlx_port_open_timeout) as Result;, Result, 1] =1
@@ -76,7 +76,7 @@ SELECT COUNT(@@SESSION.Mysqlx_port_open_timeout);
 --echo #
 # Under the MIN value
 --let $restart_parameters = restart: --loose-mysqlx-port-open-timeout=-1
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
+--source include/restart_mysqld.inc
 --let $assert_text= Mysqlx_port_open_timeout global variable must be changed to 0 by MySQL Server
 --let $assert_cond= [SELECT @@GLOBAL.Mysqlx_port_open_timeout as Result;, Result, 1] =0
 --source include/assert.inc
@@ -84,7 +84,7 @@ SELECT COUNT(@@SESSION.Mysqlx_port_open_timeout);
 
 # Above the MAX value
 --let $restart_parameters = restart: --loose-mysqlx-port-open-timeout=10000
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
+--source include/restart_mysqld.inc
 --let $assert_text= Mysqlx_port_open_timeout global variable must be changed to 120 by MySQL Server
 --let $assert_cond= [SELECT @@GLOBAL.Mysqlx_port_open_timeout as Result;, Result, 1] =120
 --source include/assert.inc
@@ -92,7 +92,7 @@ SELECT COUNT(@@SESSION.Mysqlx_port_open_timeout);
 
 # Above the MAX value
 --let $restart_parameters = restart: --loose-mysqlx-port-open-timeout=2G
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
+--source include/restart_mysqld.inc
 --let $assert_text= 2Giga is outside the range of Mysqlx_port_open_timeout global variable, MySQL Server is going to set it to 120
 --let $assert_cond= [SELECT @@GLOBAL.Mysqlx_port_open_timeout as Result;, Result, 1] =120
 --source include/assert.inc
@@ -100,7 +100,7 @@ SELECT COUNT(@@SESSION.Mysqlx_port_open_timeout);
 
 # Above the MAX value
 --let $restart_parameters = restart: --loose-mysqlx-port-open-timeout=1K
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
+--source include/restart_mysqld.inc
 --let $assert_text= 1Kilo is outside the range of Mysqlx_port_open_timeout global variable, MySQL Server is going to set it to 120
 --let $assert_cond= [SELECT @@GLOBAL.Mysqlx_port_open_timeout as Result;, Result, 1] =120
 --source include/assert.inc

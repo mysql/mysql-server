@@ -96,7 +96,7 @@ select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPT
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 insert into t2 values(current_user())	20	0
 insert into t2 values(current_user())	20	0
-insert into t3 select * from t3	2893	0
+insert into t3 select * from t3	2910	0
 
 # Show that really all global privileges are needed: let root
 # revoke just one from user1. Because user1 does not have all global
@@ -812,7 +812,7 @@ select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPT
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 insert into t2 values(current_user())	20	0
 insert into t2 values(current_user())	20	0
-insert into t3 select * from t3	2893	0
+insert into t3 select * from t3	2910	0
 # Trace exposed body of trigger, and content of t2/t3, which we
 # could see anyway:
 show create trigger trg2;

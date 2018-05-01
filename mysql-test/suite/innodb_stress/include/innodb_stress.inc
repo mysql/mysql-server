@@ -168,7 +168,7 @@ let $slave_sync_timeout = 7200;
 
 connection master;
 
-# --exec rm -rf $MYSQL_TMP_DIR/load_generator
+--exec rm -rf $MYSQL_TMP_DIR/load_generator
 
 --connection slave
 # Restore the value of variable on slave

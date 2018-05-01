@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -124,7 +124,10 @@ class Mock_share : public TABLE_SHARE {
   Table_cache_element *cache_element_arr[Table_cache_manager::MAX_TABLE_CACHES];
 
  public:
-  Mock_share(const char *key) {
+  Mock_share(const char *key)
+      :  // Assertion in some of Table_cache methods check that the
+         // version of the share is up-to-date, so make sure it's set.
+        TABLE_SHARE(refresh_version) {
     /*
       Both table_cache_key and cache_element array are used by
       Table_cache code.
@@ -135,13 +138,8 @@ class Mock_share : public TABLE_SHARE {
     cache_element = cache_element_arr;
     // MEM_ROOT is used for constructing ha_example() instances.
     init_alloc_root(PSI_NOT_INSTRUMENTED, &m_mem_root, 1024, 0);
-    /*
-      Assertion in some of Table_cache methods check that version of
-      the share is up-to-date.
-    */
-    version = refresh_version;
     // Ensure that share is never destroyed.
-    ref_count = UINT_MAX;
+    increment_ref_count();
   }
 
   ~Mock_share() { free_root(&m_mem_root, MYF(0)); }
@@ -257,6 +255,15 @@ TEST_F(TableCacheBasicDeathTest, ManagerCreateAndDestroy) {
   table_cache_manager.destroy();
 }
 
+/**
+  Add a TABLE to a table cache and increment the reference count of
+  its TABLE_SHARE.
+*/
+void add_used_table(Table_cache *table_cache, THD *thd, TABLE *table) {
+  table->s->increment_ref_count();
+  EXPECT_FALSE(table_cache->add_used_table(thd, table));
+}
+
 /*
   Test addition and removal of TABLE objects to/from the table cache.
 */
@@ -269,7 +276,7 @@ TEST_F(TableCacheSingleCacheTest, CacheAddAndRemove) {
 
   Table_cache *table_cache = table_cache_manager.get_cache(thd);
   table_cache->lock();
-  EXPECT_FALSE(table_cache->add_used_table(thd, table_1));
+  add_used_table(table_cache, thd, table_1);
 
   // There should be one TABLE in the cache after we have added table_1.
   EXPECT_EQ(1U, table_cache->cached_tables());
@@ -312,7 +319,7 @@ TEST_F(TableCacheSingleCacheTest, CacheAddAndRemove) {
 
   // Also it should be possible to remove unused TABLE from the cache
   // Add TABLE instance and mark it as unused
-  EXPECT_FALSE(table_cache->add_used_table(thd, table_1));
+  add_used_table(table_cache, thd, table_1);
   table_cache->release_table(thd, table_1);
 
   table_cache->remove_table(table_1);
@@ -349,8 +356,8 @@ TEST_F(TableCacheSingleCacheTest, CacheOverflow) {
   Table_cache *table_cache = table_cache_manager.get_cache(thd);
 
   table_cache->lock();
-  table_cache->add_used_table(thd, table_1);
-  table_cache->add_used_table(thd, table_2);
+  add_used_table(table_cache, thd, table_1);
+  add_used_table(table_cache, thd, table_2);
 
   // There should be two TABLE instances in the cache.
   EXPECT_EQ(2U, table_cache->cached_tables());
@@ -361,21 +368,21 @@ TEST_F(TableCacheSingleCacheTest, CacheOverflow) {
   // Still there should be two TABLE instances in the cache.
   EXPECT_EQ(2U, table_cache->cached_tables());
 
-  table_cache->add_used_table(thd, table_3);
+  add_used_table(table_cache, thd, table_3);
 
   // One TABLE was added and one expelled (table_1), so still two TABLE objects.
   EXPECT_EQ(2U, table_cache->cached_tables());
 
   // Old value of table_1 points to garbage thanks to expelling
   table_1 = share_1.create_table(thd);
-  table_cache->add_used_table(thd, table_1);
+  add_used_table(table_cache, thd, table_1);
 
   // Still two TABLE instances (table_2 was expelled).
   EXPECT_EQ(2U, table_cache->cached_tables());
 
   // Old value of table_2 points to garbage thanks to expelling
   table_2 = share_1.create_table(thd);
-  table_cache->add_used_table(thd, table_2);
+  add_used_table(table_cache, thd, table_2);
 
   /*
     Now we should have three TABLE instances in cache since all
@@ -418,7 +425,7 @@ TEST_F(TableCacheSingleCacheTest, CacheGetAndRelease) {
   EXPECT_TRUE(share_2 == NULL);
 
   table_1 = share_1.create_table(thd);
-  table_cache->add_used_table(thd, table_1);
+  add_used_table(table_cache, thd, table_1);
 
   // There should be no unused TABLE in cache, but there should be
   // information about the share.
@@ -435,7 +442,7 @@ TEST_F(TableCacheSingleCacheTest, CacheGetAndRelease) {
   EXPECT_TRUE(share_2 == NULL);
 
   table_2 = share_1.create_table(thd);
-  table_cache->add_used_table(thd, table_2);
+  add_used_table(table_cache, thd, table_2);
 
   // Still there should be no unused TABLE in cache, but there should
   // be information about the share.
@@ -519,12 +526,12 @@ TEST_F(TableCacheDoubleCacheTest, ManagerFreeAllUnused) {
 
   table_cache_manager.lock_all_and_tdc();
 
-  table_cache_1->add_used_table(thd_1, table_1);
-  table_cache_1->add_used_table(thd_1, table_2);
-  table_cache_1->add_used_table(thd_1, table_3);
-  table_cache_1->add_used_table(thd_1, table_4);
-  table_cache_2->add_used_table(thd_2, table_5);
-  table_cache_2->add_used_table(thd_2, table_6);
+  add_used_table(table_cache_1, thd_1, table_1);
+  add_used_table(table_cache_1, thd_1, table_2);
+  add_used_table(table_cache_1, thd_1, table_3);
+  add_used_table(table_cache_1, thd_1, table_4);
+  add_used_table(table_cache_2, thd_2, table_5);
+  add_used_table(table_cache_2, thd_2, table_6);
 
   EXPECT_EQ(4U, table_cache_1->cached_tables());
   EXPECT_EQ(2U, table_cache_2->cached_tables());
@@ -605,17 +612,17 @@ TEST_F(TableCacheDoubleCacheTest, ManagerCachedTables) {
 
   table_cache_manager.lock_all_and_tdc();
 
-  table_cache_1->add_used_table(thd_1, table_1);
-  table_cache_1->add_used_table(thd_1, table_2);
-  table_cache_1->add_used_table(thd_1, table_3);
+  add_used_table(table_cache_1, thd_1, table_1);
+  add_used_table(table_cache_1, thd_1, table_2);
+  add_used_table(table_cache_1, thd_1, table_3);
 
   // There should be 3 + 0 TABLE objects in cache
   EXPECT_EQ(3U, table_cache_1->cached_tables());
   EXPECT_EQ(0U, table_cache_2->cached_tables());
   EXPECT_EQ(3U, table_cache_manager.cached_tables());
 
-  table_cache_2->add_used_table(thd_2, table_4);
-  table_cache_2->add_used_table(thd_2, table_5);
+  add_used_table(table_cache_2, thd_2, table_4);
+  add_used_table(table_cache_2, thd_2, table_5);
 
   // There should be 3 + 2 TABLE objects in cache
   EXPECT_EQ(3U, table_cache_1->cached_tables());
@@ -724,14 +731,20 @@ TEST_F(TableCacheDoubleCacheDeathTest, ManagerFreeTable) {
   /*
     Coverage for TDC_RT_REMOVE_ALL case.
   */
-  table_cache_1->add_used_table(thd_1, table_1);
-  table_cache_1->add_used_table(thd_1, table_2);
+  add_used_table(table_cache_1, thd_1, table_1);
+  add_used_table(table_cache_1, thd_1, table_2);
   table_cache_1->release_table(thd_1, table_2);
-  table_cache_1->add_used_table(thd_1, table_3);
-  table_cache_2->add_used_table(thd_2, table_4);
-  table_cache_2->add_used_table(thd_2, table_5);
+  add_used_table(table_cache_1, thd_1, table_3);
+  add_used_table(table_cache_2, thd_2, table_4);
+  add_used_table(table_cache_2, thd_2, table_5);
 
   EXPECT_EQ(5U, table_cache_manager.cached_tables());
+
+  // Added three tables for share_1 and two tables for share_2. The
+  // reference count should be one higher due to Mock_share's
+  // constructor setting it to 1.
+  EXPECT_EQ(4U, share_1.ref_count());
+  EXPECT_EQ(3U, share_2.ref_count());
 
   // There should be assert failure since we are trying
   // to free all tables for share_1, while some tables
@@ -749,6 +762,11 @@ TEST_F(TableCacheDoubleCacheDeathTest, ManagerFreeTable) {
   // all tables should succeed.
   table_cache_manager.free_table(thd_1, TDC_RT_REMOVE_ALL, &share_1);
 
+  // After all the tables for share_1 are freed, the reference count
+  // should go down to 1. Not to 0, since Mock_share sets it to 1 in
+  // its constructor.
+  EXPECT_EQ(1U, share_1.ref_count());
+
   // We still should have 2 TABLE objects for share_2.
   EXPECT_EQ(2U, table_cache_manager.cached_tables());
 
@@ -759,10 +777,10 @@ TEST_F(TableCacheDoubleCacheDeathTest, ManagerFreeTable) {
   table_2 = share_1.create_table(thd_1);
   table_4 = share_1.create_table(thd_2);
 
-  table_cache_1->add_used_table(thd_1, table_1);
-  table_cache_1->add_used_table(thd_1, table_2);
+  add_used_table(table_cache_1, thd_1, table_1);
+  add_used_table(table_cache_1, thd_1, table_2);
   table_cache_1->release_table(thd_1, table_2);
-  table_cache_2->add_used_table(thd_2, table_4);
+  add_used_table(table_cache_2, thd_2, table_4);
 
   EXPECT_EQ(5U, table_cache_manager.cached_tables());
 
@@ -791,9 +809,9 @@ TEST_F(TableCacheDoubleCacheDeathTest, ManagerFreeTable) {
   table_2 = share_1.create_table(thd_1);
   table_4 = share_1.create_table(thd_2);
 
-  table_cache_1->add_used_table(thd_1, table_2);
+  add_used_table(table_cache_1, thd_1, table_2);
   table_cache_1->release_table(thd_1, table_2);
-  table_cache_2->add_used_table(thd_2, table_4);
+  add_used_table(table_cache_2, thd_2, table_4);
 
   EXPECT_EQ(5U, table_cache_manager.cached_tables());
 
@@ -850,7 +868,7 @@ TEST_F(TableCacheDoubleCacheTest, Iterator) {
   TABLE *table_4 = share_1.create_table(thd_2);
   TABLE *table_5 = share_2.create_table(thd_2);
 
-  table_cache_2->add_used_table(thd_2, table_4);
+  add_used_table(table_cache_2, thd_2, table_4);
 
   // Now the iterato should see table_4.
   it.rewind();
@@ -860,7 +878,7 @@ TEST_F(TableCacheDoubleCacheTest, Iterator) {
   EXPECT_TRUE(it++ == NULL);
   EXPECT_TRUE(it++ == NULL);
 
-  table_cache_1->add_used_table(thd_1, table_1);
+  add_used_table(table_cache_1, thd_1, table_1);
 
   // Now we should see two tables:
   it.rewind();
@@ -872,7 +890,7 @@ TEST_F(TableCacheDoubleCacheTest, Iterator) {
   EXPECT_TRUE(it++ == NULL);
   EXPECT_TRUE(it++ == NULL);
 
-  table_cache_1->add_used_table(thd_1, table_2);
+  add_used_table(table_cache_1, thd_1, table_2);
 
   // And now three !
   it.rewind();
@@ -899,8 +917,8 @@ TEST_F(TableCacheDoubleCacheTest, Iterator) {
   EXPECT_TRUE(it++ == NULL);
   EXPECT_TRUE(it++ == NULL);
 
-  table_cache_1->add_used_table(thd_1, table_3);
-  table_cache_2->add_used_table(thd_2, table_5);
+  add_used_table(table_cache_1, thd_1, table_3);
+  add_used_table(table_cache_2, thd_2, table_5);
 
   // We also should not be seeing TABLE objects for share_2
   it.rewind();

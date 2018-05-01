@@ -98,7 +98,7 @@ set @@foreign_key_checks=0;
 CREATE TABLE t1(a CHAR(100), b GEOMETRY NOT NULL SRID 0) ENGINE InnoDB;
 
 --echo # Creating a foreign key on a GEOMETRY column is not supported
---error ER_BLOB_KEY_WITHOUT_LENGTH
+--error ER_FK_NO_INDEX_CHILD
 ALTER TABLE t1 ADD CONSTRAINT fi_b FOREIGN KEY(b) REFERENCES ti2(b);
 
 --echo # Adds FULLTEXT and SPATAL indices which cannot be used as foreign keys
@@ -113,7 +113,7 @@ SHOW INDEXES FROM t1;
 --echo # Attempt to add a foreign key on column with SPATIAL index.
 --echo # The SPATIAL index cannot be used so this becomes an attempt at
 --echo # creating a foreign key on a GEOMETRY column which is not supported
---error ER_BLOB_KEY_WITHOUT_LENGTH
+--error ER_DROP_INDEX_FK
 ALTER TABLE t1 ADD CONSTRAINT fi_b FOREIGN KEY(b) REFERENCES ti2(b);
 
 DROP TABLE t1;
@@ -164,7 +164,7 @@ ID='test/child_table_ibfk_1';
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS WHERE
 ID='test/child_table_ibfk_1';
 
---error 1217
+--error ER_FK_CANNOT_DROP_PARENT
 DROP TABLE parent_table;
 DROP TABLE child_table;
 DROP TABLE parent_table;
@@ -212,7 +212,7 @@ CREATE TABLE t1 (
   KEY allkeygc(unique1gc,unique2gc,twogc,fourgc,tengc,twentygc,fortygc,sixtygc,eightygc)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 CREATE TABLE t2_fk (
   pk int(11) NOT NULL,
   sixty int(11) DEFAULT NULL,

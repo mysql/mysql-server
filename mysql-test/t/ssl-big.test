@@ -6,6 +6,7 @@
 -- source include/not_sparc_debug.inc
 # Skiping this test from Valgrind execution as per Bug-14627884
 --source include/not_valgrind.inc
+--source include/not_asan.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc

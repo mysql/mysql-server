@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,6 +62,7 @@
 #include "sql/mysqld.h"  // key_mutex_slave_parallel_worker
 #include "sql/psi_memory_key.h"
 #include "sql/rpl_info_handler.h"
+#include "sql/rpl_msr.h"  // For channel_map
 #include "sql/rpl_reporting.h"
 #include "sql/rpl_slave_commit_order_manager.h"  // Commit_order_manager
 #include "sql/sql_error.h"
@@ -1511,6 +1512,8 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
   const char *log_name =
       const_cast<Slave_worker *>(this)->get_master_log_name();
   ulonglong log_pos = const_cast<Slave_worker *>(this)->get_master_log_pos();
+  bool is_group_replication_applier_channel =
+      channel_map.is_group_replication_channel_name(c_rli->get_channel(), true);
   const Gtid_specification *gtid_next = &info_thd->variables.gtid_next;
   THD *thd = info_thd;
 
@@ -1521,16 +1524,28 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
                                    Transaction_ctx::SESSION))) {
     char coordinator_errmsg[MAX_SLAVE_ERRMSG];
 
-    snprintf(coordinator_errmsg, MAX_SLAVE_ERRMSG,
-             "Coordinator stopped because there were error(s) in the "
-             "worker(s). "
-             "The most recent failure being: Worker %u failed executing "
-             "transaction '%s' at master log %s, end_log_pos %llu. "
-             "See error log and/or "
-             "performance_schema.replication_applier_status_by_worker "
-             "table for "
-             "more details about this failure or others, if any.",
-             internal_id, buff_gtid, log_name, log_pos);
+    if (is_group_replication_applier_channel) {
+      snprintf(coordinator_errmsg, MAX_SLAVE_ERRMSG,
+               "Coordinator stopped because there were error(s) in the "
+               "worker(s). "
+               "The most recent failure being: Worker %u failed executing "
+               "transaction '%s'. See error log and/or "
+               "performance_schema.replication_applier_status_by_worker "
+               "table for "
+               "more details about this failure or others, if any.",
+               internal_id, buff_gtid);
+    } else {
+      snprintf(coordinator_errmsg, MAX_SLAVE_ERRMSG,
+               "Coordinator stopped because there were error(s) in the "
+               "worker(s). "
+               "The most recent failure being: Worker %u failed executing "
+               "transaction '%s' at master log %s, end_log_pos %llu. "
+               "See error log and/or "
+               "performance_schema.replication_applier_status_by_worker "
+               "table for "
+               "more details about this failure or others, if any.",
+               internal_id, buff_gtid, log_name, log_pos);
+    }
 
     /*
       We want to update the errors in coordinator as well as worker.
@@ -1543,10 +1558,16 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
     c_rli->fill_coord_err_buf(level, err_code, coordinator_errmsg);
   }
 
-  snprintf(buff_coord, sizeof(buff_coord),
-           "Worker %u failed executing transaction '%s' at "
-           "master log %s, end_log_pos %llu",
-           internal_id, buff_gtid, log_name, log_pos);
+  if (is_group_replication_applier_channel) {
+    snprintf(buff_coord, sizeof(buff_coord),
+             "Worker %u failed executing transaction '%s'", internal_id,
+             buff_gtid);
+  } else {
+    snprintf(buff_coord, sizeof(buff_coord),
+             "Worker %u failed executing transaction '%s' at "
+             "master log %s, end_log_pos %llu",
+             internal_id, buff_gtid, log_name, log_pos);
+  }
 
   /*
     Error reporting by the worker. The worker updates its error fields as well
@@ -1759,7 +1780,49 @@ bool Slave_worker::retry_transaction(uint start_relay_number,
     /* Simulate a lock deadlock error */
     uint error = 0;
 
-    if (found_order_commit_deadlock()) error = ER_LOCK_DEADLOCK;
+    if (found_order_commit_deadlock()) {
+      /*
+        This transaction was allowed to be executed in parallel with other that
+        happened earlier according to binary log order. It was asked to be
+        rolled back by the other transaction as it was holding a lock that is
+        needed by the other transaction to progress, according to binary log
+        order this configure a deadlock.
+
+        At this point, this transaction *should* have no non-temporary errors.
+
+        Having a non-temporary error may be a sign of:
+
+        a) Slave has diverged from the master;
+        b) There is an issue in the logical clock allowing a transaction to be
+           applied in parallel with its dependencies (the two transactions are
+           trying to change the same record in parallel).
+
+        For (a), a retry of this transaction will produce the same error. For
+        (b), this transaction might succeed upon retry, allowing the slave to
+        progress without manual intervention, but it is a sign of problems in LC
+        generation at the master.
+
+        So, we will make the worker to retry this transaction only if there is
+        no error or the error is a temporary error.
+      */
+      Diagnostics_area *da = thd->get_stmt_da();
+      if (!thd->get_stmt_da()->is_error() ||
+          has_temporary_error(thd, da->is_error() ? da->mysql_errno() : error,
+                              &silent)) {
+        error = ER_LOCK_DEADLOCK;
+      }
+#ifndef DBUG_OFF
+      else {
+        /*
+          The non-debug binary will not retry this transactions, stopping the
+          SQL thread because of the non-temporary error. But, as this situation
+          is not supposed to happen as described in the comment above, we will
+          fail an assert to ease the issue investigation when it happens.
+        */
+        if (DBUG_EVALUATE_IF("rpl_fake_cod_deadlock", 0, 1)) DBUG_ASSERT(false);
+      }
+#endif
+    }
 
     if (!has_temporary_error(thd, error, &silent) ||
         thd->get_transaction()->cannot_safely_rollback(

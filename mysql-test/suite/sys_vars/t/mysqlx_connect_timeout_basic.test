@@ -1,0 +1,40 @@
+# Variable: mysqlx_connect_timeout
+# Default : 300000
+# Scope   : GLOBAL
+# Dynamic : Yes
+
+SET @mysqlx_connect_timeout_sav= @@global.mysqlx_connect_timeout;
+
+## Valid cases
+SET GLOBAL mysqlx_connect_timeout=20;
+
+# IT will set value to 300000
+SET @@global.mysqlx_connect_timeout=500;
+show variables like 'mysqlx_connect_timeout';
+
+## Invalid cases
+--error ER_GLOBAL_VARIABLE
+SET mysqlx_connect_timeout=20;
+--error ER_GLOBAL_VARIABLE
+SET @@local.mysqlx_connect_timeout=20;
+--error ER_GLOBAL_VARIABLE
+SET @@mysqlx_connect_timeout=20;
+--error ER_GLOBAL_VARIABLE
+SET @@session.mysqlx_connect_timeout=20;
+--error ER_GLOBAL_VARIABLE
+SET SESSION mysqlx_connect_timeout=20;
+
+# Truncated incorrect mysqlx_connect_timeout value: '0'
+SET GLOBAL mysqlx_connect_timeout=0;
+
+SET GLOBAL mysqlx_connect_timeout=1;
+
+# It will set vaule to 1
+SET GLOBAL mysqlx_connect_timeout=-4686234;
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL mysqlx_connect_timeout='gduges7';
+
+show variables like 'mysqlx_connect_timeout';
+SET GLOBAL mysqlx_connect_timeout=300;
+
+SET @@global.mysqlx_connect_timeout= @mysqlx_connect_timeout_sav;

@@ -388,6 +388,38 @@ void recv_sys_create() {
   recv_sys->spaces = nullptr;
 }
 
+/** Resize the recovery parsing buffer upto log_buffer_size */
+static bool recv_sys_resize_buf() {
+  ut_ad(recv_sys->buf_len <= srv_log_buffer_size);
+
+  /* If the buffer cannot be extended further, return false. */
+  if (recv_sys->buf_len == srv_log_buffer_size) {
+    ib::error(ER_IB_MSG_723, srv_log_buffer_size);
+    return false;
+  }
+
+  /* Extend the buffer by double the current size with the resulting
+  size not more than srv_log_buffer_size. */
+  recv_sys->buf_len = ((recv_sys->buf_len * 2) >= srv_log_buffer_size)
+                          ? srv_log_buffer_size
+                          : recv_sys->buf_len * 2;
+
+  /* Resize the buffer to the new size. */
+  recv_sys->buf =
+      static_cast<byte *>(ut_realloc(recv_sys->buf, recv_sys->buf_len));
+
+  ut_ad(recv_sys->buf != nullptr);
+
+  /* Return error and fail the recovery if not enough memory available */
+  if (recv_sys->buf == nullptr) {
+    ib::error(ER_IB_MSG_740);
+    return false;
+  }
+
+  ib::info(ER_IB_MSG_739, recv_sys->buf_len);
+  return true;
+}
+
 /** Free up recovery data structures. */
 static void recv_sys_finish() {
   if (recv_sys->spaces != nullptr) {
@@ -558,6 +590,7 @@ void recv_sys_init(ulint max_mem) {
   }
 
   recv_sys->buf = static_cast<byte *>(ut_malloc_nokey(RECV_PARSING_BUF_SIZE));
+  recv_sys->buf_len = RECV_PARSING_BUF_SIZE;
 
   recv_sys->len = 0;
   recv_sys->recovered_offset = 0;
@@ -1299,48 +1332,6 @@ void recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf) {
 }
 
 #else /* !UNIV_HOTBACKUP */
-/** Reads the checkpoint info needed in hot backup.
-@param[in]	hdr		buffer containing the log group header
-@param[out]	lsn		checkpoint lsn
-@param[out]	offset		checkpoint offset in the log group
-@param[out]	cp_no		checkpoint number
-@param[out]	first_header_lsn lsn of of the start of the first log file
-@return true if success */
-bool meb_read_checkpoint_info(const byte *hdr, lsn_t *lsn, lsn_t *offset,
-                              lsn_t *cp_no, lsn_t *first_header_lsn) {
-  ulint max_cp = 0;
-  uint64_t max_cp_no = 0;
-  const byte *cp_buf = hdr + LOG_CHECKPOINT_1;
-
-  if (recv_check_log_header_checksum(cp_buf)) {
-    max_cp_no = mach_read_from_8(cp_buf + LOG_CHECKPOINT_NO);
-    max_cp = LOG_CHECKPOINT_1;
-  }
-
-  cp_buf = hdr + LOG_CHECKPOINT_2;
-
-  if (recv_check_log_header_checksum(cp_buf)) {
-    if (mach_read_from_8(cp_buf + LOG_CHECKPOINT_NO) > max_cp_no) {
-      max_cp = LOG_CHECKPOINT_2;
-    }
-  }
-
-  if (max_cp == 0) {
-    return (false);
-  }
-
-  cp_buf = hdr + max_cp;
-
-  *lsn = mach_read_from_8(cp_buf + LOG_CHECKPOINT_LSN);
-  *offset = mach_read_from_8(cp_buf + LOG_CHECKPOINT_OFFSET);
-
-  *cp_no = mach_read_from_8(cp_buf + LOG_CHECKPOINT_NO);
-
-  *first_header_lsn = mach_read_from_8(hdr + LOG_HEADER_START_LSN);
-
-  return (true);
-}
-
 /** Scans the log segment and n_bytes_scanned is set to the length of valid
 log scanned.
 @param[in]	buf			buffer containing log data
@@ -1493,7 +1484,8 @@ void meb_apply_log_record(recv_addr_t *recv_addr, buf_block_t *block) {
 
   buf_flush_init_for_writing(block, block->frame, buf_block_get_page_zip(block),
                              mach_read_from_8(block->frame + FIL_PAGE_LSN),
-                             fsp_is_checksum_disabled(block->page.id.space()));
+                             fsp_is_checksum_disabled(block->page.id.space()),
+                             true /* skip_lsn_check */);
 
   mutex_exit(&recv_sys->mutex);
 
@@ -3058,7 +3050,7 @@ static bool recv_sys_add_to_parsing_buf(const byte *log_block,
 
     recv_sys->len += end_offset - start_offset;
 
-    ut_a(recv_sys->len <= RECV_PARSING_BUF_SIZE);
+    ut_a(recv_sys->len <= recv_sys->buf_len);
   }
 
   return (true);
@@ -3243,19 +3235,20 @@ bool meb_scan_log_recs(
       parsing buffer if parse_start_lsn is already
       non-zero */
 
-      if (recv_sys->len + 4 * OS_FILE_LOG_BLOCK_SIZE >= RECV_PARSING_BUF_SIZE) {
-        ib::error(ER_IB_MSG_723);
-
-        recv_sys->found_corrupt_log = true;
+      if (recv_sys->len + 4 * OS_FILE_LOG_BLOCK_SIZE >= recv_sys->buf_len) {
+        if (!recv_sys_resize_buf()) {
+          recv_sys->found_corrupt_log = true;
 
 #ifndef UNIV_HOTBACKUP
-        if (srv_force_recovery == 0) {
-          ib::error(ER_IB_MSG_724);
-          return (true);
-        }
+          if (srv_force_recovery == 0) {
+            ib::error(ER_IB_MSG_724);
+            return (true);
+          }
 #endif /* !UNIV_HOTBACKUP */
+        }
+      }
 
-      } else if (!recv_sys->found_corrupt_log) {
+      if (!recv_sys->found_corrupt_log) {
         more_data = recv_sys_add_to_parsing_buf(log_block, scanned_lsn);
       }
 
@@ -3298,7 +3291,7 @@ bool meb_scan_log_recs(
     }
 #endif /* !UNIV_HOTBACKUP */
 
-    if (recv_sys->recovered_offset > RECV_PARSING_BUF_SIZE / 4) {
+    if (recv_sys->recovered_offset > recv_sys->buf_len / 4) {
       /* Move parsing buffer data to the buffer start */
 
       recv_reset_buffer();

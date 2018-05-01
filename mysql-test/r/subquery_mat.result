@@ -1617,6 +1617,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
+Warnings:
+Note	1003	insert into `test`.`t3` /* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` <> 2) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))))
 INSERT INTO t3 SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
 SELECT * FROM t3;
 a
@@ -1629,6 +1631,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using temporary
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
+Warnings:
+Note	1003	insert into `test`.`t2` /* select#1 */ select sql_buffer_result `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` <> 2) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))))
 INSERT INTO t2 SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
 SELECT * FROM t2;
 a
@@ -1641,6 +1645,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using temporary
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	75.00	Using where
+Warnings:
+Note	1003	insert into `test`.`t2` /* select#1 */ select sql_buffer_result `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` <> 2) ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`)))))
 INSERT INTO t2 SELECT * FROM t2 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
 SELECT * FROM t2;
 a
@@ -1662,6 +1668,8 @@ EXPLAIN UPDATE t2 SET a=a-1 WHERE a IN (SELECT * FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
 2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	update `test`.`t2` set `test`.`t2`.`a` = (`test`.`t2`.`a` - 1) where <in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` where (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))
 UPDATE t2 SET a=a-1 WHERE a IN (SELECT * FROM t1);
 SELECT * FROM t2;
 a
@@ -1676,6 +1684,8 @@ EXPLAIN DELETE FROM t2 WHERE a IN (SELECT * FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t2	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
 2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	delete from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` where (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))
 DELETE FROM t2 WHERE a IN (SELECT * FROM t1);
 SELECT * FROM t2;
 a
@@ -1703,6 +1713,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
+Warnings:
+Note	1003	update `test`.`t2` join `test`.`t3` set `test`.`t2`.`a` = (`test`.`t2`.`a` - 2) where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`a` <> 2) ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`)))))
 UPDATE t2,t3 SET t2.a=t2.a-2 WHERE t2.a IN (SELECT * FROM t1 WHERE a <> 2);
 SELECT * FROM t2;
 a
@@ -1717,6 +1729,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 1	DELETE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
+Warnings:
+Note	1003	delete `test`.`t2` from `test`.`t2` join `test`.`t3` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`a` <> 2) ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`)))))
 DELETE t2.* FROM t2,t3 WHERE t2.a IN (SELECT * FROM t1 WHERE a <> 2);
 SELECT * FROM t2;
 a
@@ -2031,7 +2045,7 @@ DROP TABLE t1,t2,t3;
 #
 CREATE TABLE t1 (a VARCHAR(500) CHARACTER SET UTF8) ENGINE=INNODB;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET @str= repeat("a",450);
 SET @num=1000;
 INSERT INTO t1 VALUES (CONCAT((@num:=@num+1), @str));

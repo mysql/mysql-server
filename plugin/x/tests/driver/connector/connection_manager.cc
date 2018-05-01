@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -94,6 +94,14 @@ Connection_manager::Connection_manager(const Connection_options &co,
   m_variables->make_special_variable(
       "%OPTION_SSL_MODE%",
       new Variable_dynamic_string(m_connection_options.ssl_mode));
+
+  m_variables->make_special_variable(
+      "%OPTION_SSL_CIPHER%",
+      new Variable_dynamic_string(m_connection_options.ssl_cipher));
+
+  m_variables->make_special_variable(
+      "%OPTION_TLS_VERSION%",
+      new Variable_dynamic_string(m_connection_options.allowed_tls));
 
   m_active_holder.reset(new Session_holder(xcl::create_session(), m_console));
 
@@ -363,13 +371,13 @@ void Connection_manager::set_active(const std::string &name,
 }
 
 Session_holder &Connection_manager::active_holder() {
-  if (!m_active_holder) std::runtime_error("no active session");
+  if (!m_active_holder) throw std::runtime_error("no active session");
 
   return *m_active_holder;
 }
 
 xcl::XSession *Connection_manager::active_xsession() {
-  if (!m_active_holder) std::runtime_error("no active session");
+  if (!m_active_holder) throw std::runtime_error("no active session");
   return m_active_holder->get_session();
 }
 

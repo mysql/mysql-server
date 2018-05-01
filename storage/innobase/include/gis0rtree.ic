@@ -40,7 +40,7 @@ void rtr_page_cal_mbr(const dict_index_t *index, /*!< in: index */
 {
   page_t *page;
   rec_t *rec;
-  byte *field;
+  const byte *field;
   ulint len;
   ulint *offsets = NULL;
   double bmin, bmax;

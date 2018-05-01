@@ -25,6 +25,8 @@ SET(SEMISYNC_MASTER_SOURCES
  semisync.h semisync_master.h semisync_master_ack_receiver.cc)
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)
+ADD_DEFINITIONS(-DLOG_SUBSYS_TAG="Repl")
+ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="semisync")
 
 MYSQL_ADD_PLUGIN(semisync_master ${SEMISYNC_MASTER_SOURCES}  
   MODULE_ONLY MODULE_OUTPUT_NAME "semisync_master")

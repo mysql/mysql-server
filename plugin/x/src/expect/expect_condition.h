@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef X_SRC_EXPECT_EXPECT_CONDITION_H
-#define X_SRC_EXPECT_EXPECT_CONDITION_H
+#ifndef PLUGIN_X_SRC_EXPECT_EXPECT_CONDITION_H_
+#define PLUGIN_X_SRC_EXPECT_EXPECT_CONDITION_H_
 
 #include <memory>
 #include <string>
@@ -58,4 +58,4 @@ class Expect_condition {
 
 }  // namespace xpl
 
-#endif  // X_SRC_EXPECT_EXPECT_CONDITION_H
+#endif  // PLUGIN_X_SRC_EXPECT_EXPECT_CONDITION_H_

@@ -50,7 +50,6 @@ enum dberr_t {
   DB_DEADLOCK,
   DB_ROLLBACK,
   DB_DUPLICATE_KEY,
-  DB_QUE_THR_SUSPENDED,
   DB_MISSING_HISTORY, /*!< required history data has been
                       deleted due to lack of space in
                       rollback segment */

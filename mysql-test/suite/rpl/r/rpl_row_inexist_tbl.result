@@ -14,7 +14,7 @@ DROP TABLE t1;
 INSERT INTO t1 VALUES (1);
 ==== Verify error on slave ====
 [on slave]
-call mtr.add_suppression("Slave SQL.*Error executing row event: .Table .test.t1. doesn.t exist., Error_code: 1146");
+call mtr.add_suppression("Slave SQL.*Error executing row event: .Table .test.t1. doesn.t exist., Error_code: MY-001146");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 include/wait_for_slave_sql_error.inc [errno=1146]
 ==== Clean up ====

@@ -124,9 +124,10 @@ std::string Admin_command_index::get_default_field_type(
  * - schema: string - name of collection's schema
  * - unique: bool - whether the index should be a unique index
  * - type: string, optional - name of index's type  {"INDEX"|"SPATIAL"}
- * - constraint: object, list - detailed information for the generated column
- *   - member: string - path to document member for which the index will be
- *     created
+ * - fields|constraint: object, list - detailed information for the generated
+ *   column
+ *   - field|member: string - path to document member for which the index
+ *     will be created
  *   - required: bool - whether the generated column will be created as NOT NULL
  *   - type: string - data type of the generated column
  *   - options: int, optional - parameter for generation spatial column
@@ -151,20 +152,20 @@ ngs::Error_code Admin_command_index::create(const std::string &name_space,
 
   ngs::Error_code error;
   if (name_space == Admin_command_handler::MYSQLX_NAMESPACE)
-    error = args->string_arg("schema", &schema)
-                .string_arg("collection", &collection)
-                .string_arg("name", &index_name)
-                .bool_arg("unique", &is_unique)
-                .string_arg("type", &index_type, true)
-                .string_arg("with_parser", &parser, true)
-                .object_list("constraint", &constraints)
+    error = args->string_arg({"schema"}, &schema)
+                .string_arg({"collection"}, &collection)
+                .string_arg({"name"}, &index_name)
+                .bool_arg({"unique"}, &is_unique)
+                .string_arg({"type"}, &index_type, true)
+                .string_arg({"with_parser"}, &parser, true)
+                .object_list({"fields", "constraint"}, &constraints)
                 .error();
   else
-    error = args->string_arg("schema", &schema)
-                .string_arg("collection", &collection)
-                .string_arg("name", &index_name)
-                .bool_arg("unique", &is_unique)
-                .object_list("constraint", &constraints)
+    error = args->string_arg({"schema"}, &schema)
+                .string_arg({"collection"}, &collection)
+                .string_arg({"name"}, &index_name)
+                .bool_arg({"unique"}, &is_unique)
+                .object_list({"constraint"}, &constraints)
                 .error();
 
   if (error) return error;
@@ -334,9 +335,9 @@ ngs::Error_code Admin_command_index::drop(const std::string & /*name_space*/,
   std::string collection;
   std::string name;
 
-  ngs::Error_code error = args->string_arg("schema", &schema)
-                              .string_arg("collection", &collection)
-                              .string_arg("name", &name)
+  ngs::Error_code error = args->string_arg({"schema"}, &schema)
+                              .string_arg({"collection"}, &collection)
+                              .string_arg({"name"}, &name)
                               .end();
   if (error) return error;
 
@@ -470,14 +471,19 @@ void Admin_command_index::Index_field::add_column(
   qb->put(" GENERATED ALWAYS AS (");
   add_path(qb);
   qb->put(") ");
-  qb->put(m_is_virtual_allowed ? "VIRTUAL" : "STORED");
-  if (m_is_required) qb->put(" NOT NULL");
+  add_options(qb);
 }
 
 void Admin_command_index::Index_field::add_field(
     Query_string_builder *qb) const {
   qb->quote_identifier(m_name);
   add_length(qb);
+}
+
+void Admin_command_index::Index_field::add_options(
+    Query_string_builder *qb) const {
+  qb->put(m_is_virtual_allowed ? "VIRTUAL" : "STORED");
+  if (m_is_required) qb->put(" NOT NULL");
 }
 
 Admin_command_index::Index_field::Field_type_id
@@ -605,6 +611,11 @@ class Index_geojson_field : public Admin_command_index::Index_field {
         .put(")");
   }
 
+  void add_options(Query_string_builder *qb) const override {
+    Index_field::add_options(qb);
+    qb->put(" SRID ").put(m_srid);
+  }
+
   const int64_t m_options, m_srid;
 };
 
@@ -660,16 +671,16 @@ Admin_command_index::Index_field::create(const std::string &name_space,
   uint64_t options{MAX_UINT64}, srid{MAX_UINT64};
   bool is_required{false};
   if (name_space == Admin_command_handler::MYSQLX_NAMESPACE)
-    *error = constraint->docpath_arg("member", &path)
-                 .string_arg("type", &type, true)
-                 .bool_arg("required", &is_required)
-                 .uint_arg("options", &options, true)
-                 .uint_arg("srid", &srid, true)
+    *error = constraint->docpath_arg({"field", "member"}, &path)
+                 .string_arg({"type"}, &type, true)
+                 .bool_arg({"required"}, &is_required)
+                 .uint_arg({"options"}, &options, true)
+                 .uint_arg({"srid"}, &srid, true)
                  .error();
   else
-    *error = constraint->docpath_arg("member", &path)
-                 .string_arg("type", &type, true)
-                 .bool_arg("required", &is_required)
+    *error = constraint->docpath_arg({"member"}, &path)
+                 .string_arg({"type"}, &type, true)
+                 .bool_arg({"required"}, &is_required)
                  .error();
 
   if (*error) return nullptr;

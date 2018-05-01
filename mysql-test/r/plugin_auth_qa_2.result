@@ -8,9 +8,9 @@ GRANT PROXY ON qa_test_1_dest TO qa_test_1_user;
 GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_1_user;
 SELECT user,plugin FROM mysql.user WHERE user != 'root';
 user	plugin
-mysql.infoschema	mysql_native_password
-mysql.session	mysql_native_password
-mysql.sys	mysql_native_password
+mysql.infoschema	caching_sha2_password
+mysql.session	caching_sha2_password
+mysql.sys	caching_sha2_password
 qa_test_1_dest	caching_sha2_password
 qa_test_1_user	qa_auth_interface
 SELECT @@proxy_user;
@@ -132,7 +132,7 @@ mysql: [Warning] Using a password on the command line interface can be insecure.
 ERROR 1045 (28000): Access denied for user 'root'@'localhost' (using password: YES)
 DROP USER qa_test_6_user;
 DROP USER qa_test_6_dest;
-DELETE FROM mysql.user WHERE user='root' AND plugin='qa_auth_interface';
+DROP USER 'root'@'%';
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 user	plugin
 === Test of the --default_auth option for clients ====

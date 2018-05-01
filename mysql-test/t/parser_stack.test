@@ -394,3 +394,6 @@ let $i=`select repeat("set @a=1;", 65535)`;
 --disable_query_log
 eval $i;
 --enable_query_log
+
+# Bug#27799194 - MAIN.PARSER_STACK FAILS CHECK-TESTCASE ON ASAN BUILD
+--source include/force_restart.inc

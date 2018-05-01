@@ -65,21 +65,21 @@ engine = <engine_to_be_tested>;
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' into table t11;
 SET sql_mode = default;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Section 3.1.8 - SHOW statement checks:
 --------------------------------------------------------------------------------
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.1.8.9:
 -----------------
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Ensure that all stored procedure changes made with ALTER PROCEDURE or ALTER
 FUNCTION are properly recorded and displayed when a SHOW CREATE PROCEDURE or
@@ -87,7 +87,7 @@ SHOW CREATE PROCEDURE STATUS statement, or a SHOW CREATE FUNCTION or SHOW CREATE
 FUNCTION STATUS statement (respectively) is executed.
 --------------------------------------------------------------------------------
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP FUNCTION IF EXISTS fn_1;
 DROP FUNCTION IF EXISTS fn_2;
 DROP PROCEDURE IF EXISTS sp_1;
@@ -142,7 +142,7 @@ set @y=@x;
 return i4;
 END
 EXTERNAL_NAME	NULL
-EXTERNAL_LANGUAGE	NULL
+EXTERNAL_LANGUAGE	SQL
 PARAMETER_STYLE	SQL
 IS_DETERMINISTIC	NO
 SQL_DATA_ACCESS	CONTAINS SQL
@@ -177,7 +177,7 @@ set @y=@x;
 return i4;
 END
 EXTERNAL_NAME	NULL
-EXTERNAL_LANGUAGE	NULL
+EXTERNAL_LANGUAGE	SQL
 PARAMETER_STYLE	SQL
 IS_DETERMINISTIC	NO
 SQL_DATA_ACCESS	CONTAINS SQL
@@ -210,7 +210,7 @@ ROUTINE_DEFINITION	BEGIN
 set @x=i1;
 END
 EXTERNAL_NAME	NULL
-EXTERNAL_LANGUAGE	NULL
+EXTERNAL_LANGUAGE	SQL
 PARAMETER_STYLE	SQL
 IS_DETERMINISTIC	NO
 SQL_DATA_ACCESS	CONTAINS SQL
@@ -243,7 +243,7 @@ ROUTINE_DEFINITION	BEGIN
 set @x=i1;
 END
 EXTERNAL_NAME	NULL
-EXTERNAL_LANGUAGE	NULL
+EXTERNAL_LANGUAGE	SQL
 PARAMETER_STYLE	SQL
 IS_DETERMINISTIC	NO
 SQL_DATA_ACCESS	CONTAINS SQL
@@ -352,12 +352,12 @@ character_set_client	utf8mb4
 collation_connection	utf8mb4_0900_ai_ci
 Database Collation	utf8mb4_0900_ai_ci
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 ... now change some stuff:
 --------------------------
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ALTER PROCEDURE sp_1 SQL SECURITY INVOKER;
 ALTER PROCEDURE sp_1 COMMENT 'new comment, SP changed to INVOKER';
 ALTER PROCEDURE sp_2 SQL SECURITY DEFINER;
@@ -398,7 +398,7 @@ set @y=@x;
 return i4;
 END
 EXTERNAL_NAME	NULL
-EXTERNAL_LANGUAGE	NULL
+EXTERNAL_LANGUAGE	SQL
 PARAMETER_STYLE	SQL
 IS_DETERMINISTIC	NO
 SQL_DATA_ACCESS	NO SQL
@@ -433,7 +433,7 @@ set @y=@x;
 return i4;
 END
 EXTERNAL_NAME	NULL
-EXTERNAL_LANGUAGE	NULL
+EXTERNAL_LANGUAGE	SQL
 PARAMETER_STYLE	SQL
 IS_DETERMINISTIC	NO
 SQL_DATA_ACCESS	MODIFIES SQL DATA
@@ -466,7 +466,7 @@ ROUTINE_DEFINITION	BEGIN
 set @x=i1;
 END
 EXTERNAL_NAME	NULL
-EXTERNAL_LANGUAGE	NULL
+EXTERNAL_LANGUAGE	SQL
 PARAMETER_STYLE	SQL
 IS_DETERMINISTIC	NO
 SQL_DATA_ACCESS	CONTAINS SQL
@@ -499,7 +499,7 @@ ROUTINE_DEFINITION	BEGIN
 set @x=i1;
 END
 EXTERNAL_NAME	NULL
-EXTERNAL_LANGUAGE	NULL
+EXTERNAL_LANGUAGE	SQL
 PARAMETER_STYLE	SQL
 IS_DETERMINISTIC	NO
 SQL_DATA_ACCESS	READS SQL DATA
@@ -613,12 +613,12 @@ character_set_client	utf8mb4
 collation_connection	utf8mb4_0900_ai_ci
 Database Collation	utf8mb4_0900_ai_ci
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 ... change back to default and check result:
 --------------------------------------------
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ALTER FUNCTION  fn_2 CONTAINS SQL;
 
 ... now check what is stored:
@@ -647,7 +647,7 @@ set @y=@x;
 return i4;
 END
 EXTERNAL_NAME	NULL
-EXTERNAL_LANGUAGE	NULL
+EXTERNAL_LANGUAGE	SQL
 PARAMETER_STYLE	SQL
 IS_DETERMINISTIC	NO
 SQL_DATA_ACCESS	NO SQL
@@ -682,7 +682,7 @@ set @y=@x;
 return i4;
 END
 EXTERNAL_NAME	NULL
-EXTERNAL_LANGUAGE	NULL
+EXTERNAL_LANGUAGE	SQL
 PARAMETER_STYLE	SQL
 IS_DETERMINISTIC	NO
 SQL_DATA_ACCESS	CONTAINS SQL
@@ -715,7 +715,7 @@ ROUTINE_DEFINITION	BEGIN
 set @x=i1;
 END
 EXTERNAL_NAME	NULL
-EXTERNAL_LANGUAGE	NULL
+EXTERNAL_LANGUAGE	SQL
 PARAMETER_STYLE	SQL
 IS_DETERMINISTIC	NO
 SQL_DATA_ACCESS	CONTAINS SQL
@@ -748,7 +748,7 @@ ROUTINE_DEFINITION	BEGIN
 set @x=i1;
 END
 EXTERNAL_NAME	NULL
-EXTERNAL_LANGUAGE	NULL
+EXTERNAL_LANGUAGE	SQL
 PARAMETER_STYLE	SQL
 IS_DETERMINISTIC	NO
 SQL_DATA_ACCESS	READS SQL DATA
@@ -861,12 +861,12 @@ character_set_client	utf8mb4
 collation_connection	utf8mb4_0900_ai_ci
 Database Collation	utf8mb4_0900_ai_ci
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 ... cleanup
 -----------
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP FUNCTION fn_1;
 DROP FUNCTION fn_2;
 DROP PROCEDURE sp_1;
@@ -876,9 +876,9 @@ DROP PROCEDURE sp_1;
 DROP DATABASE IF EXISTS db_storedproc;
 DROP DATABASE IF EXISTS db_storedproc_1;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 .                               +++ END OF SCRIPT +++
 --------------------------------------------------------------------------------
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.

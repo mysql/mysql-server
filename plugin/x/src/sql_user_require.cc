@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -23,10 +23,9 @@
  */
 
 #include "plugin/x/src/sql_user_require.h"
+#include "plugin/x/ngs/include/ngs_common/ssl_session_options_interface.h"
 
-#include "plugin/x/ngs/include/ngs_common/options.h"
-
-using namespace xpl;
+namespace xpl {
 
 const std::string Sql_user_require::SSL_TYPE_NONE = "";
 const std::string Sql_user_require::SSL_TYPE_SSL = "ANY";
@@ -34,7 +33,7 @@ const std::string Sql_user_require::SSL_TYPE_X509 = "X509";
 const std::string Sql_user_require::SSL_TYPE_SPECIFIC = "SPECIFIED";
 
 ngs::Error_code Sql_user_require::validate(
-    const ngs::IOptions_session_ptr &options) const {
+    const ngs::Ssl_session_options_interface &options) const {
   if (ssl_type == SSL_TYPE_NONE)
     return ngs::Error_code();
   else if (ssl_type == SSL_TYPE_SSL)
@@ -44,53 +43,48 @@ ngs::Error_code Sql_user_require::validate(
   else if (ssl_type == SSL_TYPE_SPECIFIC)
     return check_specific(options);
 
-  return ngs::Error_code(ER_SECURE_TRANSPORT_REQUIRED,
-                         "Unknown SSL required option.");
+  return ngs::SQLError_access_denied();
 }
 
 ngs::Error_code Sql_user_require::check_ssl(
-    const ngs::IOptions_session_ptr &options) const {
-  if (!options->active_tls())
-    return ngs::Error_code(ER_SECURE_TRANSPORT_REQUIRED,
-                           "Current account requires TLS to be activate.");
+    const ngs::Ssl_session_options_interface &options) const {
+  if (!options.active_tls()) return ngs::SQLError_access_denied();
 
   return ngs::Error_code();
 }
 
 ngs::Error_code Sql_user_require::check_x509(
-    const ngs::IOptions_session_ptr &options) const {
+    const ngs::Ssl_session_options_interface &options) const {
   ngs::Error_code error;
 
   if ((error = check_ssl(options))) return error;
 
-  if (options->ssl_get_verify_result_and_cert() != X509_V_OK)
-    return ngs::Error_code(ER_SECURE_TRANSPORT_REQUIRED,
-                           "Current account requires TLS to be activate.");
+  if (options.ssl_get_verify_result_and_cert() != X509_V_OK)
+    return ngs::SQLError_access_denied();
 
   return ngs::Error_code();
 }
 
 ngs::Error_code Sql_user_require::check_specific(
-    const ngs::IOptions_session_ptr &options) const {
+    const ngs::Ssl_session_options_interface &options) const {
   ngs::Error_code error;
 
   if ((error = check_x509(options))) return error;
 
   if (ssl_cipher.length()) {
-    if (ssl_cipher != options->ssl_cipher())
-      return ngs::Error_code(ER_SECURE_TRANSPORT_REQUIRED,
-                             "Current user cipher isn't allowed.");
+    if (ssl_cipher != options.ssl_cipher())
+      return ngs::SQLError_access_denied();
   }
 
   if (ssl_x509_issuer.length() &&
-      ssl_x509_issuer != options->ssl_get_peer_certificate_issuer())
-    return ngs::Error_code(ER_SECURE_TRANSPORT_REQUIRED,
-                           "Current user certificate issuer is not valid.");
+      ssl_x509_issuer != options.ssl_get_peer_certificate_issuer())
+    return ngs::SQLError_access_denied();
 
   if (ssl_x509_subject.length() &&
-      ssl_x509_subject != options->ssl_get_peer_certificate_subject())
-    return ngs::Error_code(ER_SECURE_TRANSPORT_REQUIRED,
-                           "Current user certificate subject is not valid.");
+      ssl_x509_subject != options.ssl_get_peer_certificate_subject())
+    return ngs::SQLError_access_denied();
 
   return ngs::Error_code();
 }
+
+}  // namespace xpl

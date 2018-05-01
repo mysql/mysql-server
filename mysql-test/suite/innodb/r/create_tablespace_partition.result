@@ -325,7 +325,7 @@ SUBPARTITION BY KEY (b)
   SUBPARTITION subpart32 TABLESPACE = "innodb_file_per_table" DATA DIRECTORY = 'MYSQL_TMP_DIR/' ENGINE = InnoDB)) */
 # DISCARD will only work on the first partitions that use file_per_table
 ALTER TABLE t1 ALGORITHM=INPLACE, DISCARD TABLESPACE;
-ERROR 0A000: ALGORITHM=COPY/INPLACE is not supported for this operation. Try ALGORITHM=DEFAULT.
+ERROR 0A000: ALGORITHM=COPY/INPLACE/INSTANT is not supported for this operation. Try ALGORITHM=DEFAULT.
 ALTER TABLE t1 ALGORITHM=DEFAULT, DISCARD TABLESPACE;
 ERROR 42000: InnoDB: Cannot discard table `test/t1#p#hundreds#sp#subpart21` because it is in a general tablespace. It must be file-per-table.
 SET @@sql_mode = @old_sql_mode;

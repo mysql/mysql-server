@@ -21,6 +21,8 @@ SET SESSION DEBUG = "+d,ib_truncate_crash_after_rename";
 --source include/expect_crash.inc
 --error CR_SERVER_LOST
 TRUNCATE TABLE t2;
+# Wait for 300 seconds instead of the default 100
+--let $wait_counter= 3000
 --source include/start_mysqld.inc
 SELECT * FROM t2;
 
@@ -28,6 +30,8 @@ SET SESSION DEBUG = "+d,ib_truncate_crash_after_drop_old_table";
 --source include/expect_crash.inc
 --error CR_SERVER_LOST
 TRUNCATE TABLE t2;
+# Wait for 300 seconds instead of the default 100
+--let $wait_counter= 3000
 --source include/start_mysqld.inc
 SELECT * FROM t2;
 
@@ -35,6 +39,8 @@ SET SESSION DEBUG = "+d,ib_truncate_crash_after_create_new_table";
 --source include/expect_crash.inc
 --error CR_SERVER_LOST
 TRUNCATE TABLE t2;
+# Wait for 300 seconds instead of the default 100
+--let $wait_counter= 3000
 --source include/start_mysqld.inc
 SELECT * FROM t2;
 
@@ -42,6 +48,8 @@ SET SESSION DEBUG = "+d,ib_truncate_crash_after_innodb_complete";
 --source include/expect_crash.inc
 --error CR_SERVER_LOST
 TRUNCATE TABLE t2;
+# Wait for 300 seconds instead of the default 100
+--let $wait_counter= 3000
 --source include/start_mysqld.inc
 SELECT * FROM t2;
 

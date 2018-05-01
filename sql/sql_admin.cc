@@ -1050,11 +1050,12 @@ static bool mysql_admin_table(
             if (!thd->get_protocol()->connection_alive()) {
               LogEvent()
                   .type(LOG_TYPE_ERROR)
+                  .subsys(LOG_SUBSYSTEM_TAG)
                   .prio(ERROR_LEVEL)
                   .source_file(MY_BASENAME)
-                  .errcode(da->mysql_errno())
-                  .sqlstate(da->returned_sqlstate())
-                  .verbatim(da->message_text());
+                  .lookup(ER_ERROR_INFO_FROM_DA, da->mysql_errno(),
+                          da->message_text())
+                  .sqlstate(da->returned_sqlstate());
             } else {
               /* Hijack the row already in-progress. */
               protocol->store(STRING_WITH_LEN("error"), system_charset_info);
@@ -1300,7 +1301,7 @@ bool Sql_cmd_analyze_table::handle_histogram_command(THD *thd,
     results.emplace("", histograms::Message::MULTIPLE_TABLES_SPECIFIED);
     res = true;
   } else {
-    if (read_only) {
+    if (read_only || thd->tx_read_only) {
       // Do not try to update histograms when in read_only mode.
       results.emplace("", histograms::Message::SERVER_READ_ONLY);
       res = false;

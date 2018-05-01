@@ -23,8 +23,6 @@
 # NOTE: "vendor" is used in upgrade/downgrade check, so you can't
 # change these, has to be exactly as is.
 
-%global milestone    tr
-
 %global mysql_vendor Oracle and/or its affiliates
 %global mysqldatadir /var/lib/mysql
 
@@ -47,7 +45,7 @@
 %global compatsrc             https://cdn.mysql.com/Downloads/MySQL-5.6/mysql-%{compatver}.tar.gz
 %endif
 
-%global src_dir               %{src_base}-%{version}%{?milestone:-%{milestone}}
+%global src_dir               %{src_base}-@VERSION@
 
 # No debuginfo for now
 %if 0%{?nodebuginfo}
@@ -70,7 +68,7 @@ Name:           mysql-%{product_suffix}
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
 Version:        @MYSQL_NO_DASH_VERSION@
-Release:        0.1%{?milestone:.%{milestone}}%{?dist}
+Release:        0.1@MYSQL_VERSION_EXTRA_DOT@%{?dist}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field.
 Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
 Source1:        https://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
@@ -156,7 +154,8 @@ Requires:       grep
 Requires:       procps
 Requires:       shadow-utils
 Requires:       net-tools
-Requires:       mecab-ipadic
+Recommends:     mecab-ipadic
+Recommends:     mecab-ipadic-EUCJP
 %if 0%{?commercial}
 Obsoletes:      mysql-commercial-bench < 5.7.8
 Obsoletes:      mysql-community-server < %{version}-%{release}
@@ -248,7 +247,6 @@ Obsoletes:      mariadb-common
 Obsoletes:      mariadb-errmsg
 %endif # compatlib
 Obsoletes:      mariadb-config
-Obsoletes:      community-mysql-common < %{version}-%{release}
 Obsoletes:      community-mysql-errmsg < %{version}-%{release}
 Obsoletes:      mysql-common < %{version}-%{release}
 Provides:       mysql-common = %{version}-%{release}
@@ -262,6 +260,8 @@ MySQL database server.
 %package        test
 Summary:        Test suite for the MySQL database server
 Group:          Applications/Databases
+Requires:       mecab-ipadic
+Requires:       mecab-ipadic-EUCJP
 Requires:       perl(Carp)
 Requires:       perl(Config)
 Requires:       perl(Cwd)
@@ -338,7 +338,6 @@ Requires:       mysql-community-common%{?_isa} >= %{min}
 %if 0%{?compatlib}
 Obsoletes:      mariadb-libs
 %endif # compatlib
-Obsoletes:      community-mysql-libs < %{version}-%{release}
 Obsoletes:      mysql-libs < %{version}-%{release}
 Provides:       mysql-libs = %{version}-%{release}
 Provides:       mysql-libs%{?_isa} = %{version}-%{release}
@@ -612,7 +611,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 
 %files server
 %defattr(-, root, root, -)
-%doc %{?license_files_server} %{src_dir}/Docs/ChangeLog
+%doc %{?license_files_server}
 %doc %{src_dir}/Docs/INFO_SRC*
 %doc release/Docs/INFO_BIN*
 %attr(644, root, root) %{_mandir}/man1/innochecksum.1*
@@ -717,6 +716,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(644, root, root) %{_datadir}/mysql-*/mysql_sys_schema.sql
 %attr(644, root, root) %{_datadir}/mysql-*/mysql_system_tables.sql
 %attr(644, root, root) %{_datadir}/mysql-*/mysql_system_tables_data.sql
+%attr(644, root, root) %{_datadir}/mysql-*/mysql_system_users.sql
 %attr(644, root, root) %{_datadir}/mysql-*/mysql_test_data_timezone.sql
 %attr(644, root, root) %{_datadir}/mysql-*/mysql-log-rotate
 %attr(644, root, root) %{_datadir}/mysql-*/dictionary.txt
@@ -1004,7 +1004,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %endif # compatlib
 
 %changelog
-* Wed Jan 24 2018 Bjorn Munch <bjorn.munch@oracle.com> - 8.0.6-0.1
+* Mon Mar 12 2018 Bjorn Munch <bjorn.munch@oracle.com> - 8.0.12-0.1
 - Move mysqlx to default plugin
 - Add component_mysqlx_global_reset.so
 - Change the global milestone to 'dmr'

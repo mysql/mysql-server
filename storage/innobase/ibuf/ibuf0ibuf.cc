@@ -1091,7 +1091,7 @@ static page_no_t ibuf_rec_get_page_no_func(
   ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX) ||
         mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
   ut_ad(ibuf_inside(mtr));
-  ut_ad(rec_get_n_fields_old(rec) > 2);
+  ut_ad(rec_get_n_fields_old_raw(rec) > 2);
 
   field = rec_get_nth_field_old(rec, IBUF_REC_FIELD_MARKER, &len);
 
@@ -1125,7 +1125,7 @@ static space_id_t ibuf_rec_get_space_func(
   ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX) ||
         mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
   ut_ad(ibuf_inside(mtr));
-  ut_ad(rec_get_n_fields_old(rec) > 2);
+  ut_ad(rec_get_n_fields_old_raw(rec) > 2);
 
   field = rec_get_nth_field_old(rec, IBUF_REC_FIELD_MARKER, &len);
 
@@ -1171,7 +1171,7 @@ static void ibuf_rec_get_info_func(
   ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX) ||
         mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
   ut_ad(ibuf_inside(mtr));
-  fields = rec_get_n_fields_old(rec);
+  fields = rec_get_n_fields_old_raw(rec);
   ut_a(fields > IBUF_REC_FIELD_USER);
 
   types = rec_get_nth_field_old(rec, IBUF_REC_FIELD_METADATA, &len);
@@ -1237,7 +1237,7 @@ static ibuf_op_t ibuf_rec_get_op_type_func(
   ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX) ||
         mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
   ut_ad(ibuf_inside(mtr));
-  ut_ad(rec_get_n_fields_old(rec) > 2);
+  ut_ad(rec_get_n_fields_old_raw(rec) > 2);
 
   (void)rec_get_nth_field_old(rec, IBUF_REC_FIELD_MARKER, &len);
 
@@ -1263,7 +1263,7 @@ ulint ibuf_rec_get_counter(const rec_t *rec) /*!< in: ibuf record */
   const byte *ptr;
   ulint len;
 
-  if (rec_get_n_fields_old(rec) <= IBUF_REC_FIELD_METADATA) {
+  if (rec_get_n_fields_old_raw(rec) <= IBUF_REC_FIELD_METADATA) {
     return (ULINT_UNDEFINED);
   }
 
@@ -1401,9 +1401,9 @@ static dtuple_t *ibuf_build_entry_from_ibuf_rec_func(
 
   ut_a(len == 1);
   ut_a(*data == 0);
-  ut_a(rec_get_n_fields_old(ibuf_rec) > IBUF_REC_FIELD_USER);
+  ut_a(rec_get_n_fields_old_raw(ibuf_rec) > IBUF_REC_FIELD_USER);
 
-  n_fields = rec_get_n_fields_old(ibuf_rec) - IBUF_REC_FIELD_USER;
+  n_fields = rec_get_n_fields_old_raw(ibuf_rec) - IBUF_REC_FIELD_USER;
 
   tuple = dtuple_create(heap, n_fields);
 
@@ -1508,7 +1508,7 @@ static ulint ibuf_rec_get_volume_func(
   ut_ad(mtr_memo_contains_page(mtr, ibuf_rec, MTR_MEMO_PAGE_X_FIX) ||
         mtr_memo_contains_page(mtr, ibuf_rec, MTR_MEMO_PAGE_S_FIX));
   ut_ad(ibuf_inside(mtr));
-  ut_ad(rec_get_n_fields_old(ibuf_rec) > 2);
+  ut_ad(rec_get_n_fields_old_raw(ibuf_rec) > 2);
 
   data = rec_get_nth_field_old(ibuf_rec, IBUF_REC_FIELD_MARKER, &len);
   ut_a(len == 1);
@@ -1543,7 +1543,7 @@ static ulint ibuf_rec_get_volume_func(
   }
 
   types += info_len;
-  n_fields = rec_get_n_fields_old(ibuf_rec) - IBUF_REC_FIELD_USER;
+  n_fields = rec_get_n_fields_old_raw(ibuf_rec) - IBUF_REC_FIELD_USER;
 
   data_size = ibuf_rec_get_size(ibuf_rec, types, n_fields, comp);
 
@@ -2509,7 +2509,7 @@ static ibool ibuf_get_volume_buffered_hash(
   ulint bitmask;
 
   len = ibuf_rec_get_size(
-      rec, types, rec_get_n_fields_old(rec) - IBUF_REC_FIELD_USER, comp);
+      rec, types, rec_get_n_fields_old_raw(rec) - IBUF_REC_FIELD_USER, comp);
   fold = ut_fold_binary(data, len);
 
   hash += (fold / (CHAR_BIT * sizeof *hash)) % size;
@@ -2556,7 +2556,7 @@ static ulint ibuf_get_volume_buffered_count_func(
         mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
   ut_ad(ibuf_inside(mtr));
 
-  n_fields = rec_get_n_fields_old(rec);
+  n_fields = rec_get_n_fields_old_raw(rec);
   ut_ad(n_fields > IBUF_REC_FIELD_USER);
   n_fields -= IBUF_REC_FIELD_USER;
 
@@ -2895,7 +2895,7 @@ static ulint ibuf_get_entry_counter_low_func(
   ut_ad(ibuf_inside(mtr));
   ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX) ||
         mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
-  ut_ad(rec_get_n_fields_old(rec) > 2);
+  ut_ad(rec_get_n_fields_old_raw(rec) > 2);
 
   field = rec_get_nth_field_old(rec, IBUF_REC_FIELD_MARKER, &len);
 

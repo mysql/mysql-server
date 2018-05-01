@@ -61,6 +61,7 @@ perl;
     # s/\b196608\b/262144/;
     # s/\b524288\b/262144/;
     # s/\b393216\b/262144/;
+    s/\b860160\b/262144/;
     s/\b573440\b/262144/;
     s/\b286720\b/262144/;
     s/\b442368\b/262144/;
@@ -79,5 +80,6 @@ perl;
   close F;
 EOF
 
+--remove_file $MYSQL_TMP_DIR/mysqld--help.txt
 --rmdir $TMP_DATADIR
 --rmdir $MYDIR

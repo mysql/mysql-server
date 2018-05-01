@@ -94,19 +94,17 @@ INSERT INTO towns VALUES
 ('Maidenhead','Berkshire'),('Reading','Berkshire'),('Shrewsbury','Shropshire')
 ,('Oxford','Oxfordshire');
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 CREATE TABLE languages (language VARCHAR(30) NOT NULL PRIMARY KEY,
 country VARCHAR(30), INDEX lang_country_index(country), CONSTRAINT
 country_language FOREIGN KEY (country) REFERENCES counties(country) ON DELETE
 RESTRICT ON UPDATE RESTRICT) engine=ndb;
-show warnings;
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 CREATE TABLE languages (language VARCHAR(30) NOT NULL PRIMARY KEY,
 country VARCHAR(30), INDEX lang_country_index(country), CONSTRAINT
 country_language FOREIGN KEY (country) REFERENCES counties(country) ON DELETE
 RESTRICT ON UPDATE RESTRICT) engine=ndb;
-show warnings;
 
 CREATE TABLE languages (id INT NOT NULL PRIMARY KEY) engine=ndb;
 
@@ -147,7 +145,7 @@ drop table t2, t1;
 
 --echo # test: parent table not exist
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_CANNOT_OPEN_PARENT
 create table t2 (
   a int not null,
   b int not null,
@@ -155,7 +153,6 @@ create table t2 (
   key (b),
   constraint fk1 foreign key (b) references t1 (b)
 ) engine ndb;
-show warnings;
 
 create table t2 (
   a int not null,
@@ -164,10 +161,9 @@ create table t2 (
   key (b)
 ) engine ndb;
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_CANNOT_OPEN_PARENT
 alter table t2 algorithm=inplace,
   add constraint fk1 foreign key (b) references t1 (b);
-show warnings;
 
 drop table t2;
 
@@ -178,7 +174,7 @@ create table t1 (
   primary key using hash (a)
 ) engine ndb;
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 create table t2 (
   a int not null,
   b int not null,
@@ -186,7 +182,6 @@ create table t2 (
   key (b),
   constraint fk1 foreign key (b) references t1 (b)
 ) engine ndb;
-show warnings;
 
 create table t2 (
   a int not null,
@@ -195,10 +190,9 @@ create table t2 (
   key (b)
 ) engine ndb;
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 alter table t2 algorithm=inplace,
   add constraint fk1 foreign key (b) references t1 (b);
-show warnings;
 
 drop table t2, t1;
 
@@ -218,7 +212,6 @@ create table t2 (
   key (b),
   constraint fk1 foreign key (b) references t1 (b)
 ) engine ndb;
-show warnings;
 
 create table t2 (
   a int not null,
@@ -230,7 +223,6 @@ create table t2 (
 --error ER_FK_NO_INDEX_PARENT
 alter table t2 algorithm=inplace,
   add constraint fk1 foreign key (b) references t1 (b);
-show warnings;
 
 drop table t2, t1;
 
@@ -243,7 +235,7 @@ create table t1 (
   key (b)
 ) engine ndb;
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 create table t2 (
   a int not null,
   b int not null,
@@ -251,7 +243,6 @@ create table t2 (
   key (b),
   constraint fk1 foreign key (b) references t1 (b)
 ) engine ndb;
-show warnings;
 
 create table t2 (
   a int not null,
@@ -260,10 +251,9 @@ create table t2 (
   key (b)
 ) engine ndb;
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 alter table t2 algorithm=inplace,
   add constraint fk1 foreign key (b) references t1 (b);
-show warnings;
 
 drop table t2, t1;
 
@@ -348,7 +338,6 @@ create table t2 (
   key (b),
   constraint fk1 foreign key (b) references t1 (b)
 ) engine ndb;
-show warnings;
 
 create table t2 (
   a int not null,
@@ -360,7 +349,6 @@ create table t2 (
 --error ER_FK_NO_INDEX_PARENT
 alter table t2 algorithm=inplace,
   add constraint fk1 foreign key (b) references t1 (b);
-show warnings;
 
 drop table t2, t1;
 
@@ -537,7 +525,7 @@ while ($i)
 	     foreign key fk1 (b) references t1 (a)
 	) engine=$engine;
 
-	--error ER_ROW_IS_REFERENCED
+	--error ER_FK_CANNOT_DROP_PARENT
 	drop table t1;
 
 	drop table t2, t1;
@@ -717,7 +705,6 @@ create table t2 (
 --echo # try to drop indexes
 --error ER_DROP_INDEX_FK
 alter table t1 drop index t1x1;
-show warnings;
 --error ER_DROP_INDEX_FK
 alter table t2 drop index t2x1;
 show warnings;

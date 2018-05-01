@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -101,6 +101,7 @@ namespace ndb_dummy_ts {
 
 
   /** Insert/Update SDI in tablespace
+    @param[in]	hton		handlerton object
     @param[in]	tablespace	tablespace object
     @param[in]	table		table object
     @param[in]	sdi_key		SDI key to uniquely identify the tablespace
@@ -111,8 +112,8 @@ namespace ndb_dummy_ts {
     @retval		true		failure
   */
   static
-  bool sdi_set(const dd::Tablespace&, const dd::Table*, const dd::sdi_key_t*,
-               const void*, uint64)
+  bool sdi_set(handlerton *, const dd::Tablespace&, const dd::Table*,
+               const dd::sdi_key_t*, const void*, uint64)
   {
     return false; // Success
   }

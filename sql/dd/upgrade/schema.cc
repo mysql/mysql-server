@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,11 +40,12 @@
 #include "mysql/psi/mysql_file.h"  // mysql_file_open
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "sql/dd/dd_schema.h"  // Schema_MDL_locker
-#include "sql/log.h"           // LogErr()
-#include "sql/mysqld.h"        // key_file_dbopt
-#include "sql/sql_class.h"     // THD
-#include "sql/sql_table.h"     // build_tablename
+#include "sql/dd/cache/dictionary_client.h"  // Auto_releaser
+#include "sql/dd/dd_schema.h"                // Schema_MDL_locker
+#include "sql/log.h"                         // LogErr()
+#include "sql/mysqld.h"                      // key_file_dbopt
+#include "sql/sql_class.h"                   // THD
+#include "sql/sql_table.h"                   // build_tablename
 #include "sql/system_variables.h"
 #include "sql/thd_raii.h"
 #include "sql/transaction.h"  // trans_commit
@@ -134,6 +135,7 @@ bool migrate_schema_to_dd(THD *thd, const char *dbname) {
   char schema_name[NAME_LEN + 1];
   LEX_STRING dbopt_file_name;
   const CHARSET_INFO *schema_charset = thd->variables.collation_server;
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   // Construct the schema name from its canonical format.
   filename_to_tablename(dbname, schema_name, sizeof(schema_name));

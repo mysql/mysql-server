@@ -85,10 +85,10 @@ Mysqlx_sessions_rejected	0
 #
 # Try to login with bogus accounts that could match a valid account by collation
 #
-Application terminated with expected error: Invalid user or password (code 1045)
-not ok
-Application terminated with expected error: Invalid user or password (code 1045)
-not ok
+Application terminated with expected error: Authentication failed, check username and password or try a secure connection (code 2510)
+ok
+Application terminated with expected error: Authentication failed, check username and password or try a secure connection (code 2510)
+ok
 # Syncing with status [ 'Mysqlx_sessions_rejected' == 2 ]
 # Syncing with status [ 'Mysqlx_connections_closed' == 3 ]
 show status like 'Mysqlx_connections_closed';
@@ -168,7 +168,8 @@ Mysqlx_sessions_rejected	2
 #
 # try login with invalid host when mysqx plugin is installed
 #
-in main, line 0:ERROR: Host not foundnot ok
+Application terminated with expected error: No such host is known 'invalid' (code 2005)
+ok
 
 # Syncing with status [ 'Mysqlx_sessions_rejected' == 2 ]
 # Syncing with status [ 'Mysqlx_connections_closed' == 4 ]
@@ -194,8 +195,8 @@ Mysqlx_sessions_rejected	2
 # Trying with valid user when mysqlx is not installed
 #
 # restart: --skip-mysqlx
-in main, line 0:ERROR: Connection refused connecting to HOST:PORT (code 2002)
-not ok
+Application terminated with expected error:ERROR: Connection refused connecting to HOST:PORT (code 2002)
+ok
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 show status like 'Mysqlx_connections_accepted';
@@ -265,8 +266,8 @@ Mysqlx_sessions_rejected	0
 #
 # Try login with valid user but incorrect password
 #
-Application terminated with expected error: Invalid user or password (code 1045)
-not ok
+Application terminated with expected error: Authentication failed, check username and password or try a secure connection (code 2510)
+ok
 # Syncing with status [ 'Mysqlx_sessions_rejected' == 1 ]
 # Syncing with status [ 'Mysqlx_connections_closed' == 2 ]
 show status like 'Mysqlx_connections_closed';
@@ -290,8 +291,8 @@ Mysqlx_sessions_rejected	1
 #
 # Try login with user doesn't exists when mysqlx installed
 #
-Application terminated with expected error: Invalid user or password (code 1045)
-not ok
+Application terminated with expected error: Authentication failed, check username and password or try a secure connection (code 2510)
+ok
 # Syncing with status [ 'Mysqlx_sessions_rejected' == 2 ]
 # Syncing with status [ 'Mysqlx_connections_closed' == 3 ]
 show status like 'Mysqlx_connections_closed';
@@ -315,8 +316,8 @@ Mysqlx_sessions_rejected	2
 #
 # Try login with user whose password expired when mysqlx installed
 #
-Application terminated with expected error: Your password has expired. To log in you must change it using a client that supports expired passwords. (code 1045)
-not ok
+Application terminated with expected error: Your password has expired. To log in you must change it using a client that supports expired passwords. (code 1862)
+ok
 # Syncing with status [ 'Mysqlx_sessions_rejected' == 3 ]
 # Syncing with status [ 'Mysqlx_connections_closed' == 4 ]
 show status like 'Mysqlx_connections_closed';
@@ -340,8 +341,8 @@ Mysqlx_sessions_rejected	3
 #
 # Try login with user whose account is locked when mysqlx installed
 #
-Application terminated with expected error: Account is locked. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'abc'@'localhost'. Account is locked. (code 3118)
+ok
 # Syncing with status [ 'Mysqlx_sessions_rejected' == 4 ]
 # Syncing with status [ 'Mysqlx_connections_closed' == 5 ]
 show status like 'Mysqlx_connections_closed';
@@ -365,6 +366,7 @@ Mysqlx_sessions_rejected	4
 #
 # Try login with internal user account and expect account is locked error
 #
+Application terminated with expected error: Authentication failed, check username and password or try a secure connection (code 2510)
 # Syncing with status [ 'Mysqlx_sessions_rejected' == 5 ]
 # Syncing with status [ 'Mysqlx_connections_closed' == 6 ]
 show status like 'Mysqlx_connections_closed';
@@ -701,8 +703,8 @@ Mysqlx_sessions_rejected	0
 # Try login with valid non-super and super user when server is in offline mode and mysqlx loaded
 #
 # restart: --offline_mode=ON
-Application terminated with expected error: Server works in offline mode. (code 1045)
-not ok
+Application terminated with expected error: The server is currently in offline mode (code 3032)
+ok
 # Syncing with status [ 'Mysqlx_sessions_rejected' == 1 ]
 # Syncing with status [ 'Mysqlx_connections_closed' == 1 ]
 show status like 'Mysqlx_connections_closed';
@@ -1449,7 +1451,7 @@ Mysqlx.Ok {
 }
 ok
 connecting...
-Got expected error: Account is locked. (code 1045)
+Got expected error: Access denied for user 'abc'@'localhost'. Account is locked. (code 3118)
 ok
 drop user xplugin@localhost;
 drop user nonblank@localhost;

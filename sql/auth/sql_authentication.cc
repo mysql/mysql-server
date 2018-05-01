@@ -21,7 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #if defined(HAVE_OPENSSL)
-#define LOG_SUBSYSTEM_TAG "sha256_password"
+#define LOG_COMPONENT_TAG "sha256_password"
 #endif
 
 #include "sql/auth/sql_authentication.h"
@@ -96,13 +96,10 @@
 struct MEM_ROOT;
 
 #if defined(HAVE_OPENSSL)
-#include <wolfssl_fix_namespace_pollution_pre.h>
-
 #include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
 #include <openssl/x509v3.h>
-#include <wolfssl_fix_namespace_pollution.h>
 #endif /* HAVE_OPENSSL */
 
 /**
@@ -1106,7 +1103,7 @@ bool Rsa_authentication_keys::read_rsa_keys() {
 #endif /* HAVE_OPENSSL */
 
 void optimize_plugin_compare_by_pointer(LEX_CSTRING *plugin_name) {
-  g_cached_authentication_plugins->optimize_plugin_compare_by_pointer(
+  Cached_authentication_plugins::optimize_plugin_compare_by_pointer(
       plugin_name);
 }
 
@@ -3223,7 +3220,7 @@ int acl_authenticate(THD *thd, enum_server_command command) {
         activate_all_granted_and_mandatory_roles(acl_user, sctx);
       } else {
         /* The server policy is to only activate default roles */
-        get_default_roles(authid, &default_roles);
+        get_default_roles(authid, default_roles);
         List_of_auth_id_refs::iterator it = default_roles.begin();
         for (; it != default_roles.end(); ++it) {
           if (sctx->activate_role(it->first, it->second, true)) {

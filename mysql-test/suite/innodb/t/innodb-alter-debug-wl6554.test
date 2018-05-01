@@ -168,7 +168,7 @@ DROP TABLE t1;
 --echo # Bug#15863023 - case6 enlarge varchar other
 --echo # alter operations with fk on parent
 SET DEBUG_SYNC = 'RESET';
-CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(254) charset latin1) ENGINE=Innodb;
+CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(254) charset latin1, KEY(b)) ENGINE=Innodb;
 CREATE TABLE t2 (a2 INT , b2 VARCHAR(254) charset latin1, CONSTRAINT fk FOREIGN KEY (a2) REFERENCES t1 (a) ON UPDATE CASCADE ON DELETE CASCADE) ENGINE=Innodb;
 INSERT IGNORE INTO t1 (a,b) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
 INSERT IGNORE INTO t2 (a2,b2) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));

@@ -1,0 +1,211 @@
+--source include/have_debug.inc
+
+# Currently valgrind has issues with DBUG_SUICIDE()
+--source include/not_valgrind.inc
+
+# DEBUG_SYNC must be compiled in.
+--source include/have_debug_sync.inc
+
+--disable_query_log
+
+let $debug_test = 0;
+
+let $n_conn = 16;
+
+let $i = $n_conn;
+while ($i) {
+  eval CREATE TABLE t$i (a INT PRIMARY KEY, b VARCHAR(10000)) ENGINE = InnoDB;
+  eval INSERT INTO t$i (a, b) VALUES (0, '');
+  dec $i;
+}
+
+DELIMITER |;
+
+CREATE PROCEDURE mtr_redo_generate_single(IN tab INT, IN rec_size INT)
+BEGIN
+  DECLARE max_a INT;
+  SET @t = CONCAT("SELECT MAX(a)+1 FROM t", tab, " INTO @max_a");
+  PREPARE stmt_1 FROM @t;
+  EXECUTE stmt_1;
+
+  SET @t = CONCAT("INSERT INTO t", tab, " (a, b) "
+                  "VALUES (", @max_a, ", REPEAT('x', ", rec_size, "))");
+  PREPARE stmt_2 FROM @t;
+  EXECUTE stmt_2;
+
+  DEALLOCATE PREPARE stmt_2;
+  DEALLOCATE PREPARE stmt_1;
+END|
+
+CREATE PROCEDURE mtr_redo_generate_multi(IN tab INT, IN rec_size INT, IN n INT)
+BEGIN
+  DECLARE i INT DEFAULT 1;
+  WHILE i <= n DO
+    CALL mtr_redo_generate_single(tab, rec_size);
+    SET i = i + 1;
+  END WHILE;
+END|
+
+CREATE PROCEDURE mtr_noredo_generate_single()
+  BEGIN
+  DECLARE max_a INT;
+  SELECT MAX(a)+1 FROM tmp_t INTO @max_a;
+  INSERT INTO tmp_t (a, b) VALUES (@max_a, REPEAT('y', 10000));
+END|
+
+CREATE PROCEDURE mtr_noredo_generate_multi(IN n INT)
+BEGIN
+  DECLARE i INT DEFAULT 1;
+  WHILE i <= n DO
+    CALL mtr_noredo_generate_single();
+    SET i = i + 1;
+  END WHILE;
+END|
+
+CREATE PROCEDURE mtr_noredo_update_all()
+BEGIN
+  UPDATE tmp_t SET b = REPEAT('z', 10000);
+END|
+
+DELIMITER ;|
+
+--echo #
+--echo # BUG#27664539 INNODB: ASSERTION FAILURE: BUF0FLU.CC:457:
+--echo #              (BUF_POOL->FLUSH_LIST).START == __NULL
+--echo #
+
+# We need to test two main scenarios in which mini transaction with
+# MTR_LOG_NO_REDO can be involved:
+
+# 1. Pages dirtied without redo pretend to be inserted too quickly,
+#    when the current lsn is far away in future in comparison to lsn
+#    up to which we have finished inserting dirty pages to flush lists.
+#    The interesting case happens when current lsn is greater than
+#    log.recent_closed.tail() by more than log.recent_closed.capacity().
+#
+# 2. Pages dirtied without redo pretend to be inserted too late,
+#    with lsn which is smaller than log.recent_closed.tail().
+#    This might happen because they are not required to advance
+#    the log.recent_closed.tail() because they did not generate
+#    any redo records. However we need to be careful not to insert
+#    pages dirtied without redo, with oldest_modification smaller
+#    than checkpoint_lsn.
+#
+
+let $freeze_background_mtr = 1;
+
+--echo #
+--echo # Scenario 1.1.1 - No-redo dirtied page inserted too quickly.
+--echo #                  Non-empty flush list when it is inserted.
+--echo #                  The page is no-redo dirtied first time.
+--echo #
+--source ../include/log_flush_order_test_begin.inc
+let $noredo_remodify = 0;
+--source ../include/log_flush_order_test_too_fast.inc
+--source ../include/log_flush_order_test_end.inc
+
+--echo #
+--echo # Scenario 1.1.2 - No-redo dirtied page inserted too quickly.
+--echo #                  Non-empty flush list when it is inserted.
+--echo #                  The page is no-redo dirtied second time.
+--echo #
+--source ../include/log_flush_order_test_begin.inc
+let $noredo_remodify = 1;
+--source ../include/log_flush_order_test_too_fast.inc
+--source ../include/log_flush_order_test_end.inc
+
+--echo #
+--echo # Scenario 1.2.1 - No-redo dirtied page inserted too quickly.
+--echo #                  Empty flush list when it is inserted.
+--echo #                  The page is no-redo dirtied first time.
+--echo #
+--source ../include/log_flush_order_test_begin.inc
+let $noredo_remodify = 0;
+--source ../include/log_flush_order_test_too_fast_empty.inc
+--source ../include/log_flush_order_test_end.inc
+
+--echo #
+--echo # Scenario 1.2.2 - No-redo dirtied page inserted too quickly.
+--echo #                  Empty flush list when it is inserted.
+--echo #                  The page is no-redo dirtied second time,
+--echo #                  but it was flushed (empty flush list).
+--echo #
+--source ../include/log_flush_order_test_begin.inc
+let $noredo_remodify = 1;
+--source ../include/log_flush_order_test_too_fast_empty.inc
+--source ../include/log_flush_order_test_end.inc
+
+--echo #
+--echo # Scenario 2.1.1 - No-redo dirtied page inserted too late.
+--echo #                  Non-empty flush list when it is inserted.
+--echo #                  The page is no-redo dirtied first time.
+--echo #
+--source ../include/log_flush_order_test_begin.inc
+let $empty_flush_list = 0;
+let $noredo_remodify = 0;
+--source ../include/log_flush_order_test_too_slow.inc
+--source ../include/log_flush_order_test_end.inc
+
+--echo #
+--echo # Scenario 2.1.2 - No-redo dirtied page inserted too late.
+--echo #                  Non-empty flush list when it is inserted.
+--echo #                  The page is no-redo dirtied second time.
+--echo #
+--source ../include/log_flush_order_test_begin.inc
+let $empty_flush_list = 0;
+let $noredo_remodify = 1;
+--source ../include/log_flush_order_test_too_slow.inc
+--source ../include/log_flush_order_test_end.inc
+
+--echo #
+--echo # Scenario 2.2.1 - No-redo dirtied page inserted too late.
+--echo #                  Empty flush list when it is inserted.
+--echo #                  The page is no-redo dirtied first time.
+--echo #
+--source ../include/log_flush_order_test_begin.inc
+let $empty_flush_list = 1;
+let $noredo_remodify = 0;
+--source ../include/log_flush_order_test_too_slow.inc
+--source ../include/log_flush_order_test_end.inc
+
+--echo #
+--echo # Scenario 2.2.2 - No-redo dirtied page inserted too late.
+--echo #                  Empty flush list when it is inserted.
+--echo #                  The page is no-redo dirtied second time,
+--echo #                  but it was flushed (empty flush list).
+--echo #
+--source ../include/log_flush_order_test_begin.inc
+let $empty_flush_list = 1;
+let $noredo_remodify = 1;
+--source ../include/log_flush_order_test_too_slow.inc
+--source ../include/log_flush_order_test_end.inc
+
+--echo #
+--echo # Scenario 3 - Execute in parallel many redo and no-redo mini
+--echo #              transactions. Freeze and unfreeze recent_closed
+--echo #              every 1s.
+--echo #
+
+let $freeze_background_mtr = 0;
+--source ../include/log_flush_order_test_begin.inc
+--source ../include/log_flush_order_test_random.inc
+--source ../include/log_flush_order_test_end.inc
+
+--echo #
+--echo # CLEANUP
+--echo #
+
+--disable_query_log
+DROP PROCEDURE mtr_redo_generate_single;
+DROP PROCEDURE mtr_redo_generate_multi;
+DROP PROCEDURE mtr_noredo_generate_single;
+DROP PROCEDURE mtr_noredo_generate_multi;
+DROP PROCEDURE mtr_noredo_update_all;
+
+let $i = $n_conn;
+while ($i) {
+  eval DROP TABLE t$i;
+  dec $i;
+}
+
+--enable_query_log

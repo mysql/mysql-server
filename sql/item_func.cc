@@ -616,8 +616,11 @@ Item *Item_func::get_tmp_table_item(THD *thd) {
     For items with windowing functions, return the same
     object (temp table fields are not created for windowing
     functions if they are not evaluated at this stage).
+    For items which need to store ROLLUP NULLs, we need
+    the same object as we need to detect if ROLLUP NULL's
+    need to be written for this item (in has_rollup_result).
   */
-  if (!has_aggregation() && !const_item() && !has_wf()) {
+  if (!has_aggregation() && !const_item() && !has_wf() && !has_rollup_field()) {
     Item *result = new Item_field(result_field);
     DBUG_RETURN(result);
   }
@@ -776,6 +779,48 @@ Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type) {
 }
 
 /**
+  Attempt to substitute an expression with an equivalent generated
+  column in a predicate.
+
+  @param expr      the expression that should be substituted
+  @param gc_fields list of indexed generated columns to check for
+                   equivalence with the expression
+  @param type      the acceptable type of the generated column that
+                   replaces the expression
+  @param predicate the predicate in which the substitution is done
+
+  @return true on error, false on success
+*/
+static bool substitute_gc_expression(Item_func **expr, List<Field> *gc_fields,
+                                     Item_result type, Item_func *predicate) {
+  List_iterator<Field> li(*gc_fields);
+  Item_field *item_field = nullptr;
+  while (Field *field = li++) {
+    // Check whether the field has usable keys.
+    Key_map tkm = field->part_of_key;
+    tkm.merge(field->part_of_prefixkey);  // Include prefix keys.
+    tkm.intersect(field->table->keys_in_use_for_query);
+
+    if (!tkm.is_clear_all()) {
+      item_field = get_gc_for_expr(expr, field, type);
+      if (item_field != nullptr) break;
+    }
+  }
+
+  if (item_field == nullptr) return false;
+
+  // A matching expression is found. Substitute the expression with
+  // the matching generated column.
+  THD *thd = item_field->field->table->in_use;
+  thd->change_item_tree(pointer_cast<Item **>(expr), item_field);
+
+  // Adjust the predicate.
+  if (predicate->functype() == Item_func::IN_FUNC)
+    down_cast<Item_func_in *>(predicate)->cleanup_arrays();
+  return predicate->resolve_type(thd);
+}
+
+/**
   Transformer function for GC substitution.
 
   @param arg  List of indexed GC field
@@ -798,81 +843,51 @@ Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type) {
 */
 
 Item *Item_func::gc_subst_transformer(uchar *arg) {
+  List<Field> *gc_fields = pointer_cast<List<Field> *>(arg);
+
   switch (functype()) {
     case EQ_FUNC:
     case LT_FUNC:
     case LE_FUNC:
     case GE_FUNC:
     case GT_FUNC: {
-      Item_func **func = NULL;
-      Item **val = NULL;
-      List<Field> *gc_fields = (List<Field> *)arg;
-      List_iterator<Field> li(*gc_fields);
-      // Check if we can substitute a function with a GC
+      Item_func **func = nullptr;
+      Item *val = nullptr;
+
+      // Check if we can substitute a function with a GC. The
+      // predicate must be on the form <expr> OP <constant> or
+      // <constant> OP <expr>.
       if (args[0]->can_be_substituted_for_gc() && args[1]->const_item()) {
-        func = (Item_func **)args;
-        val = args + 1;
+        func = pointer_cast<Item_func **>(args);
+        val = args[1];
       } else if (args[1]->can_be_substituted_for_gc() &&
                  args[0]->const_item()) {
-        func = (Item_func **)args + 1;
-        val = args;
+        func = pointer_cast<Item_func **>(args + 1);
+        val = args[0];
+      } else {
+        break;
       }
-      if (func) {
-        Field *fld;
-        while ((fld = li++)) {
-          // Check whether field has usable keys
-          Key_map tkm = fld->part_of_key;
-          tkm.intersect(fld->table->keys_in_use_for_query);
-          Item_field *field;
 
-          if (!tkm.is_clear_all() &&
-              (field = get_gc_for_expr(func, fld, (*val)->result_type()))) {
-            // Matching expression is found, substutite arg with the new
-            // field
-            fld->table->in_use->change_item_tree(pointer_cast<Item **>(func),
-                                                 field);
-            // Adjust comparator
-            if (down_cast<Item_bool_func2 *>(this)->set_cmp_func()) return NULL;
-            break;
-          }
-        }
-      }
+      if (substitute_gc_expression(func, gc_fields, val->result_type(), this))
+        return nullptr; /* purecov: inspected */
       break;
     }
     case BETWEEN:
     case IN_FUNC: {
-      List<Field> *gc_fields = (List<Field> *)arg;
-      List_iterator<Field> li(*gc_fields);
       if (!args[0]->can_be_substituted_for_gc()) break;
-      Item_result type = args[1]->result_type();
-      bool can_do_subst = args[1]->const_item();
-      for (uint i = 2; i < arg_count && can_do_subst; i++)
-        if (!args[i]->const_item() || args[i]->result_type() != type) {
-          can_do_subst = false;
-          break;
-        }
-      if (can_do_subst) {
-        Field *fld;
-        while ((fld = li++)) {
-          // Check whether field has usable keys
-          Key_map tkm = fld->part_of_key;
-          tkm.intersect(fld->table->keys_in_use_for_query);
-          Item_field *field;
 
-          if (!tkm.is_clear_all() &&
-              (field = get_gc_for_expr(pointer_cast<Item_func **>(args), fld,
-                                       type))) {
-            // Matching expression is found, substutite arg[0] with the new
-            // field
-            fld->table->in_use->change_item_tree(pointer_cast<Item **>(args),
-                                                 field);
-            // Adjust comparators
-            if (functype() == IN_FUNC) ((Item_func_in *)this)->cleanup_arrays();
-            if (resolve_type(fld->table->in_use)) return NULL;
-            break;
-          }
-        }
+      // Can only substitute if all the operands on the right-hand
+      // side are constants of the same type.
+      Item_result type = args[1]->result_type();
+      if (!std::all_of(args + 1, args + arg_count, [type](const Item *arg) {
+            return arg->const_item() && arg->result_type() == type;
+          })) {
+        break;
       }
+
+      if (substitute_gc_expression(pointer_cast<Item_func **>(args), gc_fields,
+                                   type, this))
+        return nullptr; /* purecov: inspected */
       break;
     }
     default:
@@ -2212,7 +2227,11 @@ double Item_func_cot::val_real() {
   DBUG_ASSERT(fixed == 1);
   double value = args[0]->val_real();
   if ((null_value = args[0]->null_value)) return 0.0;
-  return check_float_overflow(1.0 / tan(value));
+  double val2 = tan(value);
+  if (val2 == 0.0) {
+    return raise_float_overflow();
+  }
+  return check_float_overflow(1.0 / val2);
 }
 
 // Bitwise functions

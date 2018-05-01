@@ -2,7 +2,7 @@
 # ----------------------------------------------------------------------
 SET NAMES utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Single window function (plus ORDER BY).
 CREATE TABLE t(i INT, j INT);
 INSERT INTO t VALUES (1,1), (1,4), (1,2), (1,4);
@@ -3271,7 +3271,7 @@ EXPLAIN
           "read_cost": "2.59",
           "eval_cost": "0.70",
           "prefix_cost": "3.29",
-          "data_read_per_join": "224"
+          "data_read_per_join": "280"
         },
         "used_columns": [
           "sex",
@@ -3641,7 +3641,7 @@ EXPLAIN
           "read_cost": "2.59",
           "eval_cost": "0.70",
           "prefix_cost": "3.29",
-          "data_read_per_join": "560"
+          "data_read_per_join": "952"
         },
         "used_columns": [
           "id",
@@ -3893,7 +3893,7 @@ EXPLAIN
           "read_cost": "2.55",
           "eval_cost": "0.40",
           "prefix_cost": "2.95",
-          "data_read_per_join": "320"
+          "data_read_per_join": "544"
         },
         "used_columns": [
           "id",
@@ -13450,7 +13450,7 @@ EXPLAIN
           "read_cost": "2.58",
           "eval_cost": "0.60",
           "prefix_cost": "3.18",
-          "data_read_per_join": "240"
+          "data_read_per_join": "288"
         },
         "used_columns": [
           "s1",
@@ -13864,7 +13864,7 @@ EXPLAIN
           "read_cost": "2.73",
           "eval_cost": "1.80",
           "prefix_cost": "4.53",
-          "data_read_per_join": "432"
+          "data_read_per_join": "576"
         },
         "used_columns": [
           "a",
@@ -15566,6 +15566,7 @@ EXPLAIN
   }
 }
 Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i` from `test`.`t` group by `test`.`t`.`i` asc
 EXPLAIN FORMAT=JSON SELECT * FROM t GROUP BY i ASC ORDER BY i DESC;
 EXPLAIN
@@ -15604,6 +15605,7 @@ EXPLAIN
   }
 }
 Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i` from `test`.`t` group by `test`.`t`.`i` desc order by `test`.`t`.`i` desc
 EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER () FROM t;
 EXPLAIN
@@ -16639,7 +16641,7 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
                   "tmp_table_info": {
                     "table": "intermediate_tmp_table",
                     "columns": 6,
-                    "row_length": 25,
+                    "row_length": 29,
                     "key_length": 0,
                     "unique_constraint": false,
                     "makes_grouped_rows": false,
@@ -16703,14 +16705,14 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
             ],
             "filesort_summary": {
               "memory_available": 262144,
-              "key_size": 13,
-              "row_size": 13,
+              "key_size": "XXX",
+              "row_size": "XXX",
               "max_rows_per_buffer": 34,
               "num_rows_estimate": 34,
               "num_rows_found": 24,
               "num_examined_rows": 24,
               "num_initial_chunks_spilled_to_disk": 0,
-              "sort_buffer_size": 720,
+              "peak_memory_used": "NNN",
               "sort_algorithm": "std::stable_sort",
               "unpacked_addon_fields": "using_heap_table",
               "sort_mode": "<fixed_sort_key, rowid>"
@@ -16722,7 +16724,7 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
                 "table": "intermediate_tmp_table",
                 "in_plan_at_position": 2,
                 "columns": 6,
-                "row_length": 25,
+                "row_length": 29,
                 "key_length": 0,
                 "unique_constraint": false,
                 "makes_grouped_rows": false,
@@ -16748,14 +16750,14 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
             ],
             "filesort_summary": {
               "memory_available": 262144,
-              "key_size": 13,
-              "row_size": 13,
+              "key_size": "XXX",
+              "row_size": "XXX",
               "max_rows_per_buffer": 34,
               "num_rows_estimate": 34,
               "num_rows_found": 24,
               "num_examined_rows": 24,
               "num_initial_chunks_spilled_to_disk": 0,
-              "sort_buffer_size": 720,
+              "peak_memory_used": "NNN",
               "sort_algorithm": "std::stable_sort",
               "unpacked_addon_fields": "using_heap_table",
               "sort_mode": "<fixed_sort_key, rowid>"
@@ -16767,7 +16769,7 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
                 "table": "intermediate_tmp_table",
                 "in_plan_at_position": 3,
                 "columns": 7,
-                "row_length": 41,
+                "row_length": 45,
                 "key_length": 0,
                 "unique_constraint": false,
                 "makes_grouped_rows": false,
@@ -16793,14 +16795,14 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
             ],
             "filesort_summary": {
               "memory_available": 262144,
-              "key_size": 13,
-              "row_size": 13,
+              "key_size": "XXX",
+              "row_size": "XXX",
               "max_rows_per_buffer": 34,
               "num_rows_estimate": 34,
               "num_rows_found": 24,
               "num_examined_rows": 24,
               "num_initial_chunks_spilled_to_disk": 0,
-              "sort_buffer_size": 720,
+              "peak_memory_used": "NNN",
               "sort_algorithm": "std::sort",
               "unpacked_addon_fields": "using_heap_table",
               "sort_mode": "<fixed_sort_key, rowid>"

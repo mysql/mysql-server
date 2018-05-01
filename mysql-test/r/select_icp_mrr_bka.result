@@ -578,6 +578,9 @@ attendants	1
 bedlam	1
 bedpost	1
 boasted	1
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 SET BIG_TABLES=1;
 select distinct fld3,count(*) from t2 group by companynr asc, fld3 asc limit 10;
 fld3	count(*)
@@ -591,6 +594,9 @@ attendants	1
 bedlam	1
 bedpost	1
 boasted	1
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 SET BIG_TABLES=0;
 select distinct fld3,repeat("a",length(fld3)),count(*) from t2 group by companynr asc,fld3 asc limit 100,10;
 fld3	repeat("a",length(fld3))	count(*)
@@ -604,6 +610,9 @@ contrition	aaaaaaaaaa	1
 corny	aaaaa	1
 cultivation	aaaaaaaaaaa	1
 definiteness	aaaaaaaaaaaa	1
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select distinct companynr,rtrim(space(512+companynr)) from t3 order by 1,2;
 companynr	rtrim(space(512+companynr))
 37	
@@ -1575,6 +1584,8 @@ companynr	count(*)	min(fld4)	max(fld4)	sum(fld1)	avg(fld1)	std(fld1)	variance(fl
 00	82	Anthony	windmills	10355753	126289.6707	115550.97568479746	13352027981.708656
 29	95	abut	wetness	14473298	152350.5053	8368.547956641249	70032594.90260443
 34	70	absentee	vest	17788966	254128.0857	3272.5939722090234	10709871.306938833
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select
 companynr,t2nr,count(price),sum(price),min(price),max(price),avg(price) from
 t3 where companynr = 37 group by companynr asc,t2nr asc limit 10;
@@ -1589,6 +1600,9 @@ companynr	t2nr	count(price)	sum(price)	min(price)	max(price)	avg(price)
 37	22	1	28357832	28357832	28357832	28357832.0000
 37	23	1	39654943	39654943	39654943	39654943.0000
 37	31	1	5987435	5987435	5987435	5987435.0000
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select /*! SQL_SMALL_RESULT */
 companynr,t2nr,count(price),sum(price),min(price),max(price),avg(price) from
 t3 where companynr = 37 group by companynr asc,t2nr asc limit 10;
@@ -1603,6 +1617,9 @@ companynr	t2nr	count(price)	sum(price)	min(price)	max(price)	avg(price)
 37	22	1	28357832	28357832	28357832	28357832.0000
 37	23	1	39654943	39654943	39654943	39654943.0000
 37	31	1	5987435	5987435	5987435	5987435.0000
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select companynr,count(price),sum(price),min(price),max(price),avg(price) from t3 group by companynr ;
 companynr	count(price)	sum(price)	min(price)	max(price)	avg(price)
 37	12543	309394878010	5987435	39654943	24666736.6667
@@ -3020,7 +3037,9 @@ NULL
 1.0000
 1.0000
 select distinct avg(s1) as x from t1 group by s1 with rollup;
-ERROR HY000: Incorrect usage of WITH ROLLUP and DISTINCT
+x
+NULL
+1.0000
 drop table t1;
 CREATE TABLE t1 (a int);
 CREATE TABLE t2 (a int);
@@ -3343,11 +3362,11 @@ create table t1 (id int(11) not null default '0');
 insert into t1 values (123),(191),(192);
 create table t2 (id char(16) character set utf8 not null);
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t2 values ('58013'),('58014'),('58015'),('58016');
 create table t3 (a_id int(11) not null, b_id char(16) character set utf8);
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t3 values (123,null),(123,null),(123,null),(123,null),(123,null),(123,'58013');
 select count(*)
 from t1 inner join (t3 left join t2 on t2.id = t3.b_id) on t1.id = t3.a_id;

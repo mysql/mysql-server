@@ -276,6 +276,82 @@ SELECT * FROM t1 ORDER BY c1;
 
 DROP TABLE t1;
 
+
+
+# Test EXPORT/IMPORT with instant ADD COLUMN
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b INT) PARTITION BY HASH (a) PARTITIONS 3;
+
+INSERT INTO t1 VALUES(1, 1), (2, 2), (11, 11), (12, 12), (21, 21), (22, 22), (26, 26), (27, 27);
+
+# Instant ADD COLUMN
+ALTER TABLE t1 ADD COLUMN c INT DEFAULT 100;
+
+SELECT * FROM t1;
+
+INSERT INTO t1(a, b) VALUES(5, 5), (6, 6), (28, 28);
+
+# Truncate one partition, so it's totally new
+ALTER TABLE t1 TRUNCATE PARTITION p2;
+
+SELECT * FROM t1;
+
+# Another instant ADD COLUMN
+ALTER TABLE t1 ADD COLUMN d INT DEFAULT 200;
+
+# Truncate another partition, so it's totally new
+ALTER TABLE t1 TRUNCATE PARTITION p1;
+
+SELECT * FROM t1;
+
+INSERT INTO t1(a, b) VALUES(3, 3), (4, 4);
+
+SELECT * FROM t1;
+
+CHECK TABLE t1;
+
+FLUSH TABLES t1 FOR EXPORT;
+
+SELECT * FROM t1;
+
+perl;
+require 'include/innodb-util.inc';
+ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+EOF
+
+UNLOCK TABLES;
+
+DROP TABLE t1;
+
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b INT, c INT, d INT) PARTITION BY HASH (a) PARTITIONS 3;
+ALTER TABLE t1 DISCARD PARTITION all TABLESPACE;
+
+perl;
+require 'include/innodb-util.inc';
+ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+EOF
+
+ALTER TABLE t1 IMPORT PARTITION all TABLESPACE;
+CHECK TABLE t1;
+SELECT * FROM t1;
+
+INSERT INTO t1(a, b) VALUES(8, 8), (9, 9), (13, 13), (14, 14), (23, 23), (24, 24);
+
+SELECT * FROM t1;
+
+UPDATE t1 SET c = 90 WHERE a < 10;
+
+SELECT * FROM t1;
+
+UPDATE t1 SET c = 110 WHERE a > 20;
+
+SELECT * FROM t1;
+
+CHECK TABLE t1;
+
+DROP TABLE t1;
+
+
 --disable_query_log
 call mtr.add_suppression("Cannot calculate statistics for table .* because the \.ibd file is missing");
 call mtr.add_suppression("Cannot delete tablespace .* in DISCARD TABLESPACE. Tablespace not found");

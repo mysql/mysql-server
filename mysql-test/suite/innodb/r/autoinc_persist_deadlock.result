@@ -18,7 +18,7 @@ SET @start_global_value = @@global.innodb_log_checkpoint_now;
 set global innodb_log_checkpoint_now=ON;
 SET @@global.innodb_log_checkpoint_now = @start_global_value;
 SET DEBUG_SYNC='delete_metadata_before SIGNAL delete WAIT_FOR insert';
-ALTER TABLE t2 ADD COLUMN b INT;
+ALTER TABLE t2 ADD COLUMN b INT, ALGORITHM=INPLACE;
 SET DEBUG_SYNC='now WAIT_FOR delete';
 INSERT INTO t1(b, c, d, e) VALUES(repeat('0a', 250), repeat('1a', 250), repeat('2a', 250), repeat('3a', 250));
 SET DEBUG_SYNC='now SIGNAL insert';

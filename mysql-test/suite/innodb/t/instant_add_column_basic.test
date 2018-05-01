@@ -1,0 +1,19 @@
+
+--echo ##############################################
+--echo # Test instant ADD COLUMN for REDUNDANT format
+--echo ##############################################
+let $row_format = REDUNDANT;
+--source suite/innodb/include/instant_add_column_basic.inc
+
+--echo ############################################
+--echo # Test instant ADD COLUMN for DYNAMIC format
+--echo ############################################
+let $row_format = DYNAMIC;
+--source suite/innodb/include/instant_add_column_basic.inc
+
+--echo ############################################
+--echo # Test instant ADD COLUMN for COMPACT format
+--echo ############################################
+let $row_format = COMPACT;
+--source suite/innodb/include/instant_add_column_basic.inc
+

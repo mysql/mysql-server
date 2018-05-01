@@ -229,13 +229,15 @@ bool has_exclusive_table_mdl(THD *thd, const char *schema_name,
   @param       no_wait        Use try_acquire_lock() if no_wait is true,
                               else use acquire_lock() with
                               thd->variables.lock_wait_timeout timeout value.
+  @param       ticket         ticket for request (optional out parameter)
 
   @retval      true           Failure, e.g. a lock wait timeout.
   @retval      false          Successful lock acquisition.
 */
 
 bool acquire_exclusive_tablespace_mdl(THD *thd, const char *tablespace_name,
-                                      bool no_wait)
+                                      bool no_wait,
+                                      MDL_ticket **ticket = nullptr)
     MY_ATTRIBUTE((warn_unused_result));
 
 /**
@@ -398,6 +400,18 @@ bool reset_tables_and_tablespaces();
 */
 template <typename Entity_object_type>
 const Object_table &get_dd_table();
+
+/**
+  Implicit tablespaces are renamed inside SE. But it is necessary to inform the
+  server layer about the rename, specifically which MDLs have been taken, so
+  that it can perform the necessary adjustment of MDLs when running in LOCK
+  TABLES mode.
+
+  @param thd thread context
+  @param src ticket for old name
+  @param dst ticket for new name
+*/
+void rename_tablespace_mdl_hook(THD *thd, MDL_ticket *src, MDL_ticket *dst);
 }  // namespace dd
 
 #endif  // DD__DICTIONARY_INCLUDED

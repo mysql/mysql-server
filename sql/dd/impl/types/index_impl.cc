@@ -50,7 +50,6 @@
 #include "sql/dd/types/object_table.h"
 #include "sql/dd/types/weak_object.h"
 #include "sql/field.h"
-#include "sql/sql_table.h"  // MAX_LEN_GEOM_POINT_FIELD
 
 using dd::tables::Index_column_usage;
 using dd::tables::Indexes;
@@ -358,6 +357,9 @@ bool Index_impl::is_candidate_key() const {
 
     if (idx_elem_obj->column().is_virtual()) return false;
 
+    if (idx_elem_obj->column().type() == enum_column_types::GEOMETRY)
+      return false;
+
     /*
       Probably we should adjust is_prefix() to take these two scenarios
       into account. But this also means that we probably need avoid
@@ -373,14 +375,6 @@ bool Index_impl::is_candidate_key() const {
         (idx_elem_obj->column().type() == enum_column_types::LONG_BLOB &&
          idx_elem_obj->length() == (1LL << 32) - 1))
       continue;
-
-    if (idx_elem_obj->column().type() == enum_column_types::GEOMETRY) {
-      uint32 sub_type;
-      idx_elem_obj->column().options().get_uint32("geom_type", &sub_type);
-      if (sub_type == Field::GEOM_POINT &&
-          idx_elem_obj->length() == MAX_LEN_GEOM_POINT_FIELD)
-        continue;
-    }
 
     if (idx_elem_obj->is_prefix()) return false;
   }

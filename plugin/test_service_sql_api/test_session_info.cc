@@ -20,6 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#define LOG_COMPONENT_TAG "test_session_info"
+
 #include <fcntl.h>
 #include <mysql/plugin.h>
 #include <stdlib.h>
@@ -35,6 +37,10 @@
 #include "mysql/psi/mysql_thread.h"
 #include "mysql_com.h"
 #include "sql_string.h" /* STRING_PSI_MEMORY_KEY */
+
+#include <mysql/components/my_service.h>
+#include <mysql/components/services/log_builtins.h>
+#include <mysqld_error.h>
 
 static const char *log_filename = "test_session_info";
 
@@ -65,6 +71,10 @@ static const char *sep =
     "==================\n";
 
 #define WRITE_SEP() my_write(outfile, (uchar *)sep, strlen(sep), MYF(0))
+
+static SERVICE_TYPE(registry) *reg_srv = nullptr;
+SERVICE_TYPE(log_builtins) *log_bi = nullptr;
+SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
 
 static const char *user_localhost = "localhost";
 static const char *user_local = "127.0.0.1";
@@ -261,16 +271,14 @@ static int sql_get_null(void *ctx) {
 }
 
 static int sql_get_integer(void *ctx, longlong value) {
-  char buffer[1024];
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
   DBUG_ENTER("sql_get_integer");
   uint row = pctx->num_rows;
   uint col = pctx->current_col;
   pctx->current_col++;
 
-  size_t len = snprintf(buffer, sizeof(buffer), "%lld", value);
-
-  strncpy(pctx->sql_str_value[row][col], buffer, len);
+  size_t len = snprintf(pctx->sql_str_value[row][col],
+                        sizeof(pctx->sql_str_value[row][col]), "%lld", value);
   pctx->sql_str_len[row][col] = len;
   pctx->sql_int_value[row][col] = value;
 
@@ -278,17 +286,16 @@ static int sql_get_integer(void *ctx, longlong value) {
 }
 
 static int sql_get_longlong(void *ctx, longlong value, uint is_unsigned) {
-  char buffer[1024];
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
   DBUG_ENTER("sql_get_longlong");
   uint row = pctx->num_rows;
   uint col = pctx->current_col;
   pctx->current_col++;
 
-  size_t len =
-      snprintf(buffer, sizeof(buffer), is_unsigned ? "%llu" : "%lld", value);
+  size_t len = snprintf(pctx->sql_str_value[row][col],
+                        sizeof(pctx->sql_str_value[row][col]),
+                        is_unsigned ? "%llu" : "%lld", value);
 
-  strncpy(pctx->sql_str_value[row][col], buffer, len);
   pctx->sql_str_len[row][col] = len;
   pctx->sql_longlong_value[row][col] = value;
   pctx->sql_is_unsigned[row][col] = is_unsigned;
@@ -297,19 +304,16 @@ static int sql_get_longlong(void *ctx, longlong value, uint is_unsigned) {
 }
 
 static int sql_get_decimal(void *ctx, const decimal_t *value) {
-  char buffer[1024];
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
   DBUG_ENTER("sql_get_decimal");
   uint row = pctx->num_rows;
   uint col = pctx->current_col;
   pctx->current_col++;
 
-  size_t len = snprintf(buffer, sizeof(buffer), "%s%d.%d(%d)[%s]",
-                        value->sign ? "+" : "-", value->intg, value->frac,
-                        value->len, (char *)value->buf);
-
-  strncpy(pctx->sql_str_value[row][col], buffer, len);
-
+  size_t len = snprintf(pctx->sql_str_value[row][col],
+                        sizeof(pctx->sql_str_value[row][col]),
+                        "%s%d.%d(%d)[%s]", value->sign ? "+" : "-", value->intg,
+                        value->frac, value->len, (char *)value->buf);
   pctx->sql_str_len[row][col] = len;
   pctx->sql_decimal_value[row][col].intg = value->intg;
   pctx->sql_decimal_value[row][col].frac = value->frac;
@@ -323,16 +327,15 @@ static int sql_get_decimal(void *ctx, const decimal_t *value) {
 }
 
 static int sql_get_double(void *ctx, double value, uint32 decimals) {
-  char buffer[1024];
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
   DBUG_ENTER("sql_get_double");
   uint row = pctx->num_rows;
   uint col = pctx->current_col;
   pctx->current_col++;
 
-  size_t len = snprintf(buffer, sizeof(buffer), "%3.7g", value);
+  size_t len = snprintf(pctx->sql_str_value[row][col],
+                        sizeof(pctx->sql_str_value[row][col]), "%3.7g", value);
 
-  strncpy(pctx->sql_str_value[row][col], buffer, len);
   pctx->sql_str_len[row][col] = len;
 
   pctx->sql_double_value[row][col] = value;
@@ -342,7 +345,6 @@ static int sql_get_double(void *ctx, double value, uint32 decimals) {
 }
 
 static int sql_get_date(void *ctx, const MYSQL_TIME *value) {
-  char buffer[1024];
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
   DBUG_ENTER("sql_get_date");
   uint row = pctx->num_rows;
@@ -350,10 +352,9 @@ static int sql_get_date(void *ctx, const MYSQL_TIME *value) {
   pctx->current_col++;
 
   size_t len =
-      snprintf(buffer, sizeof(buffer), "%s%4d-%02d-%02d", value->neg ? "-" : "",
-               value->year, value->month, value->day);
-
-  strncpy(pctx->sql_str_value[row][col], buffer, len);
+      snprintf(pctx->sql_str_value[row][col],
+               sizeof(pctx->sql_str_value[row][col]), "%s%4d-%02d-%02d",
+               value->neg ? "-" : "", value->year, value->month, value->day);
   pctx->sql_str_len[row][col] = len;
 
   pctx->sql_date_value[row][col].year = value->year;
@@ -370,7 +371,6 @@ static int sql_get_date(void *ctx, const MYSQL_TIME *value) {
 }
 
 static int sql_get_time(void *ctx, const MYSQL_TIME *value, uint decimals) {
-  char buffer[1024];
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
   DBUG_ENTER("sql_get_time");
   uint row = pctx->num_rows;
@@ -378,11 +378,11 @@ static int sql_get_time(void *ctx, const MYSQL_TIME *value, uint decimals) {
   pctx->current_col++;
 
   size_t len = snprintf(
-      buffer, sizeof(buffer), "%s%02d:%02d:%02d", value->neg ? "-" : "",
+      pctx->sql_str_value[row][col], sizeof(pctx->sql_str_value[row][col]),
+      "%s%02d:%02d:%02d", value->neg ? "-" : "",
       value->day ? (value->day * 24 + value->hour) : value->hour, value->minute,
       value->second);
 
-  strncpy(pctx->sql_str_value[row][col], buffer, len);
   pctx->sql_str_len[row][col] = len;
 
   pctx->sql_time_value[row][col].year = value->year;
@@ -400,19 +400,17 @@ static int sql_get_time(void *ctx, const MYSQL_TIME *value, uint decimals) {
 }
 
 static int sql_get_datetime(void *ctx, const MYSQL_TIME *value, uint decimals) {
-  char buffer[1024];
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
   DBUG_ENTER("sql_get_datetime");
   uint row = pctx->num_rows;
   uint col = pctx->current_col;
   pctx->current_col++;
 
-  size_t len =
-      snprintf(buffer, sizeof(buffer), "%s%4d-%02d-%02d %02d:%02d:%02d",
-               value->neg ? "-" : "", value->year, value->month, value->day,
-               value->hour, value->minute, value->second);
+  size_t len = snprintf(
+      pctx->sql_str_value[row][col], sizeof(pctx->sql_str_value[row][col]),
+      "%s%4d-%02d-%02d %02d:%02d:%02d", value->neg ? "-" : "", value->year,
+      value->month, value->day, value->hour, value->minute, value->second);
 
-  strncpy(pctx->sql_str_value[row][col], buffer, len);
   pctx->sql_str_len[row][col] = len;
 
   pctx->sql_datetime_value[row][col].year = value->year;
@@ -454,7 +452,8 @@ static void sql_handle_ok(void *ctx, uint server_status,
   pctx->warn_count = statement_warn_count;
   pctx->affected_rows = affected_rows;
   pctx->last_insert_id = last_insert_id;
-  if (message) strncpy(pctx->message, message, sizeof(pctx->message));
+  if (message) strncpy(pctx->message, message, sizeof(pctx->message) - 1);
+  pctx->message[sizeof(pctx->message) - 1] = '\0';
 
   DBUG_VOID_RETURN;
 }
@@ -538,9 +537,9 @@ static void handle_error(void *ctx) {
 #define EXEC_TEST_CMD_EX(s, q, p, ctx, err) \
   exec_test_cmd((s), (q), (p), (ctx), (err), __FUNCTION__, __LINE__)
 
-static void exec_test_cmd(MYSQL_SESSION session, const char *query, void *p,
-                          void *ctx, bool expect_error, const char *func,
-                          uint line) {
+static void exec_test_cmd(MYSQL_SESSION session, const char *query,
+                          void *p MY_ATTRIBUTE((unused)), void *ctx,
+                          bool expect_error, const char *func, uint line) {
   char buffer[STRING_BUFFER_SIZE];
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
   pctx->reset();
@@ -553,14 +552,14 @@ static void exec_test_cmd(MYSQL_SESSION session, const char *query, void *p,
   if (fail) {
     srv_session_close(session);
     if (!expect_error)
-      my_plugin_log_message(&p, MY_ERROR_LEVEL,
-                            "test_session_info - ret code : %d at %s:%u", fail,
-                            func, line);
+      LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                   "test_session_info - ret code : %d at %s:%u", fail, func,
+                   line);
   } else if (pctx->sql_errno)
     handle_error(ctx);
   else if (expect_error)
-    my_plugin_log_message(
-        &p, MY_ERROR_LEVEL,
+    LogPluginErrMsg(
+        ERROR_LEVEL, ER_LOG_PRINTF_MSG,
         "test_session_info - expected error but command did not fail at %s:%u",
         func, line);
   else {
@@ -572,8 +571,8 @@ static void exec_test_cmd(MYSQL_SESSION session, const char *query, void *p,
   WRITE_STR("\n");
 }
 
-static void test_com_init_db(void *p, MYSQL_SESSION st_session,
-                             const char *db_name) {
+static void test_com_init_db(void *p MY_ATTRIBUTE((unused)),
+                             MYSQL_SESSION st_session, const char *db_name) {
   char buffer[STRING_BUFFER_SIZE];
   DBUG_ENTER("test_com_init_db");
 
@@ -592,7 +591,8 @@ static void test_com_init_db(void *p, MYSQL_SESSION st_session,
                                          CS_TEXT_REPRESENTATION, plugin_ctx);
 
   if (fail) {
-    my_plugin_log_message(&p, MY_ERROR_LEVEL, "run_statement code: %d\n", fail);
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "run_statement code: %d\n",
+                 fail);
     delete plugin_ctx;
     DBUG_VOID_RETURN;
   }
@@ -616,7 +616,7 @@ static void test_sql(void *p) {
   WRITE_STR("Opening Session 1\n");
   session_1 = srv_session_open(NULL, plugin_ctx);
   if (!session_1)
-    my_plugin_log_message(&p, MY_ERROR_LEVEL, "Opening Session 1 failed");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Opening Session 1 failed");
   else
     switch_user(session_1, user_privileged);
 
@@ -624,7 +624,7 @@ static void test_sql(void *p) {
   WRITE_STR("Opening Session 2\n");
   session_2 = srv_session_open(NULL, plugin_ctx);
   if (!session_2)
-    my_plugin_log_message(&p, MY_ERROR_LEVEL, "Opening Session 2 failed");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Opening Session 2 failed");
   else
     switch_user(session_2, user_privileged);
 
@@ -640,9 +640,9 @@ static void test_sql(void *p) {
   MYSQL_THD thd = srv_session_info_get_thd(session_1);
   unsigned long thd_id = thd_get_thread_id(thd);
   if (thd_id != session_1_id) {
-    my_plugin_log_message(&p, MY_ERROR_LEVEL,
-                          "Thread handler id is NOT equal to session id "
-                          "srv_session_info_get_session_id(session_1)");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "Thread handler id is NOT equal to session id "
+                 "srv_session_info_get_session_id(session_1)");
     DBUG_VOID_RETURN;
   } else {
     WRITE_STR(
@@ -660,9 +660,9 @@ static void test_sql(void *p) {
   thd_id = thd_get_thread_id(thd);
 
   if (thd_id != session_2_id) {
-    my_plugin_log_message(&p, MY_ERROR_LEVEL,
-                          "Thread handler id is NOT equal to session id "
-                          "srv_session_info_get_session_id(session_2)");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "Thread handler id is NOT equal to session id "
+                 "srv_session_info_get_session_id(session_2)");
     delete plugin_ctx;
     DBUG_VOID_RETURN;
   } else {
@@ -791,9 +791,9 @@ static void test_sql(void *p) {
 
   WRITE_STR("Setting NO_VIO_TYPE on session_1\n");
   if (0 == srv_session_info_set_connection_type(session_1, NO_VIO_TYPE))
-    my_plugin_log_message(&p, MY_ERROR_LEVEL,
-                          "srv_session_info_set_connection_type(NO_VIO_TYPE) "
-                          "should fail but did not");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "srv_session_info_set_connection_type(NO_VIO_TYPE) "
+                 "should fail but did not");
 
   snprintf(buffer_query, sizeof(buffer_query),
            "SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE "
@@ -937,7 +937,8 @@ static void test_sql(void *p) {
                                          CS_TEXT_REPRESENTATION, plugin_ctx);
 
   if (fail) {
-    my_plugin_log_message(&p, MY_ERROR_LEVEL, "run_statement code: %d\n", fail);
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "run_statement code: %d\n",
+                 fail);
     delete plugin_ctx;
     DBUG_VOID_RETURN;
   }
@@ -956,7 +957,8 @@ static void test_sql(void *p) {
                                      CS_TEXT_REPRESENTATION, plugin_ctx);
 
   if (fail) {
-    my_plugin_log_message(&p, MY_ERROR_LEVEL, "run_statement code: %d\n", fail);
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "run_statement code: %d\n",
+                 fail);
     delete plugin_ctx;
     DBUG_VOID_RETURN;
   }
@@ -985,7 +987,7 @@ static void test_sql(void *p) {
 
   session_3 = srv_session_open(NULL, plugin_ctx);
   if (!session_3)
-    my_plugin_log_message(&p, MY_ERROR_LEVEL, "Opening Session 3 failed");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Opening Session 3 failed");
   else {
     switch_user(session_3, user_privileged);
 
@@ -1002,11 +1004,11 @@ static void test_sql(void *p) {
 
     WRITE_STR("Closing Session 2\n");
     if (srv_session_close(session_2))
-      my_plugin_log_message(&p, MY_ERROR_LEVEL, "Closing Session 2 failed");
+      LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Closing Session 2 failed");
 
     WRITE_STR("Closing Session 3\n");
     if (srv_session_close(session_3))
-      my_plugin_log_message(&p, MY_ERROR_LEVEL, "Closing Session 3 failed");
+      LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Closing Session 3 failed");
   }
 
   delete plugin_ctx;
@@ -1027,8 +1029,8 @@ static void *test_sql_threaded_wrapper(void *param) {
   WRITE_SEP();
   WRITE_STR("init thread\n");
   if (srv_session_init_thread(context->p))
-    my_plugin_log_message(&context->p, MY_ERROR_LEVEL,
-                          "srv_session_init_thread failed.");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "srv_session_init_thread failed.");
 
   context->test_function(context->p);
 
@@ -1068,8 +1070,8 @@ static void test_in_spawned_thread(void *p, void (*test_function)(void *)) {
   /* now create the thread and call test_session within the thread. */
   if (mysql_thread_create(key_thread_session_info, &(context.thread), &attr,
                           test_sql_threaded_wrapper, &context) != 0)
-    my_plugin_log_message(&p, MY_ERROR_LEVEL,
-                          "Could not create test session thread");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "Could not create test session thread");
   else
     my_thread_join(&context.thread, NULL);
 }
@@ -1077,7 +1079,9 @@ static void test_in_spawned_thread(void *p, void (*test_function)(void *)) {
 static int test_sql_service_plugin_init(void *p) {
   char buffer[STRING_BUFFER_SIZE];
   DBUG_ENTER("test_sql_service_plugin_init");
-  my_plugin_log_message(&p, MY_INFORMATION_LEVEL, "Installation.");
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
+    DBUG_RETURN(1);
+  LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Installation.");
 
   create_log_file(log_filename);
 
@@ -1101,9 +1105,10 @@ static int test_sql_service_plugin_init(void *p) {
   DBUG_RETURN(0);
 }
 
-static int test_sql_service_plugin_deinit(void *p) {
+static int test_sql_service_plugin_deinit(void *p MY_ATTRIBUTE((unused))) {
   DBUG_ENTER("test_sql_service_plugin_deinit");
-  my_plugin_log_message(&p, MY_INFORMATION_LEVEL, "Uninstallation.");
+  LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Uninstallation.");
+  deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
   DBUG_RETURN(0);
 }
 

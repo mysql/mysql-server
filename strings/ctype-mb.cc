@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -296,7 +296,7 @@ static int my_wildcmp_mb_impl(const CHARSET_INFO *cs, const char *str,
                                  w_one, w_many, recurse_level + 1);
           if (tmp <= 0) return (tmp);
         }
-      } while (str != str_end && wildstr[0] != w_many);
+      } while (str != str_end);
       return (-1);
     }
   }
@@ -402,7 +402,7 @@ int my_strnncoll_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                         const uchar *s, size_t slen, const uchar *t,
                         size_t tlen, bool t_is_prefix) {
   size_t len = MY_MIN(slen, tlen);
-  int cmp = memcmp(s, t, len);
+  int cmp = len == 0 ? 0 : memcmp(s, t, len);
   return cmp ? cmp : (int)((t_is_prefix ? len : slen) - tlen);
 }
 
@@ -1016,7 +1016,7 @@ static int my_wildcmp_mb_bin_impl(const CHARSET_INFO *cs, const char *str,
                                      w_one, w_many, recurse_level + 1);
           if (tmp <= 0) return (tmp);
         }
-      } while (str != str_end && wildstr[0] != w_many);
+      } while (str != str_end);
       return (-1);
     }
   }

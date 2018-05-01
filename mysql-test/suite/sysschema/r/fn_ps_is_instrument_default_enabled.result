@@ -1,9 +1,6 @@
 SELECT sys.ps_is_instrument_default_enabled('memory/performance_schema/internal_buffers');
 sys.ps_is_instrument_default_enabled('memory/performance_schema/internal_buffers')
 YES
-Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT sys.ps_is_instrument_default_enabled('statement/sql/select');
 sys.ps_is_instrument_default_enabled('statement/sql/select')
 YES

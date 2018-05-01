@@ -388,7 +388,7 @@ TABLE_SHARE *alloc_table_share(const char *db, const char *table_name,
                        &path_buff, path_length + 1, &cache_element_array,
                        table_cache_instances * sizeof(*cache_element_array),
                        NULL)) {
-    new (share) TABLE_SHARE();
+    new (share) TABLE_SHARE(refresh_version);
 
     share->set_table_cache_key(key_buff, key, key_length);
 
@@ -397,8 +397,6 @@ TABLE_SHARE *alloc_table_share(const char *db, const char *table_name,
     my_stpcpy(share->path.str, path);
     share->normalized_path.str = share->path.str;
     share->normalized_path.length = path_length;
-
-    share->version = refresh_version;
 
     /*
       Since alloc_table_share() can be called without any locking (for
@@ -485,17 +483,35 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
   DBUG_VOID_RETURN;
 }
 
-// NOTE: This has a copy in pfs_server_stubs.cc.
-TABLE_SHARE::TABLE_SHARE()
-    : row_type(ROW_TYPE_DEFAULT),
-      real_row_type(ROW_TYPE_DEFAULT),
-      stats_auto_recalc(HA_STATS_AUTO_RECALC_DEFAULT) {}
-
 Key_map TABLE_SHARE::usable_indexes(const THD *thd) const {
   Key_map usable_indexes(keys_in_use);
   if (!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_USE_INVISIBLE_INDEXES))
     usable_indexes.intersect(visible_indexes);
   return usable_indexes;
+}
+
+#ifndef DBUG_OFF
+/**
+  Assert that the #LOCK_open mutex is held when the reference count of
+  a TABLE_SHARE is accessed.
+
+  @param share the TABLE_SHARE
+  @return true if the assertion holds, terminates the process otherwise
+*/
+bool assert_ref_count_is_locked(const TABLE_SHARE *share) {
+  // The mutex is not needed while the TABLE_SHARE is being
+  // constructed, or if it is for a temporary table.
+  if (share->table_category != TABLE_UNKNOWN_CATEGORY &&
+      share->tmp_table == NO_TMP_TABLE) {
+    mysql_mutex_assert_owner(&LOCK_open);
+  }
+  return true;
+}
+#endif
+
+void TABLE_SHARE::clear_version() {
+  table_cache_manager.assert_owner_all_and_tdc();
+  m_version = 0;
 }
 
 /**
@@ -568,7 +584,7 @@ void TABLE_SHARE::destroy() {
 void free_table_share(TABLE_SHARE *share) {
   DBUG_ENTER("free_table_share");
   DBUG_PRINT("enter", ("table: %s.%s", share->db.str, share->table_name.str));
-  DBUG_ASSERT(share->ref_count == 0);
+  DBUG_ASSERT(share->ref_count() == 0);
 
   if (share->m_flush_tickets.is_empty()) {
     /*
@@ -712,16 +728,30 @@ void setup_key_part_field(TABLE_SHARE *share, handler *handler_file,
                          : MULTIPLE_KEY_FLAG);
   if (key_part_n == 0) field->key_start.set_bit(key_n);
   field->m_indexed = true;
-  if (field->key_length() == key_part->length && !(field->flags & BLOB_FLAG)) {
-    if (handler_file->index_flags(key_n, key_part_n, 0) & HA_KEYREAD_ONLY) {
-      share->keys_for_keyread.set_bit(key_n);
+
+  const bool full_length_key_part =
+      (field->key_length() == key_part->length && !(field->flags & BLOB_FLAG));
+  if ((handler_file->index_flags(key_n, key_part_n, 0) & HA_KEYREAD_ONLY) &&
+      field->type() != MYSQL_TYPE_GEOMETRY) {
+    /*
+      Set the key as 'keys_for_keyread' even if it is prefix key.
+      part_of_key contains all non-prefix keys, part_of_prefixkey
+      contains prefix keys.
+      Note that prefix keys in the extended PK key parts
+      (part_of_key_not_extended is false) are not considered.
+    */
+    share->keys_for_keyread.set_bit(key_n);
+    if (full_length_key_part) {
       field->part_of_key.set_bit(key_n);
       if (part_of_key_not_extended)
         field->part_of_key_not_extended.set_bit(key_n);
-    }
-    if (handler_file->index_flags(key_n, key_part_n, 1) & HA_READ_ORDER)
-      field->part_of_sortkey.set_bit(key_n);
+    } else if (part_of_key_not_extended)
+      field->part_of_prefixkey.set_bit(key_n);
   }
+
+  if (full_length_key_part &&
+      (handler_file->index_flags(key_n, key_part_n, 1) & HA_READ_ORDER))
+    field->part_of_sortkey.set_bit(key_n);
 
   if (!(key_part->key_part_flag & HA_REVERSE_SORT) &&
       *usable_parts == key_part_n)
@@ -2009,17 +2039,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
               table_field->type() == MYSQL_TYPE_BLOB &&
               table_field->field_length == key_part[i].length)
             continue;
-          /*
-            If the key column is of NOT NULL GEOMETRY type, specifically POINT
-            type whose length is known internally (which is 25). And key part
-            prefix size is equal to the POINT column max size, then we can
-            promote it to primary key.
-          */
-          if (!table_field->real_maybe_null() &&
-              table_field->type() == MYSQL_TYPE_GEOMETRY &&
-              table_field->get_geometry_type() == Field::GEOM_POINT &&
-              key_part[i].length == MAX_LEN_GEOM_POINT_FIELD)
-            continue;
 
           if (table_field->real_maybe_null() ||
               table_field->key_length() != key_part[i].length)
@@ -2684,7 +2703,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   uint records, i, bitmap_size;
   bool error_reported = false;
   const bool internal_tmp = share->table_category == TABLE_CATEGORY_TEMPORARY;
-  DBUG_ASSERT(!internal_tmp || share->ref_count != 0);
+  DBUG_ASSERT(!internal_tmp || share->ref_count() != 0);
   uchar *record, *bitmaps;
   Field **field_ptr, **vfield_ptr = NULL;
   Field *fts_doc_id_field = NULL;
@@ -2832,7 +2851,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
             Create a new field for the key part that matches the index
           */
           field = key_part->field = field->new_field(root, outparam, 0);
-          field->field_length = key_part->length;
+          field->set_field_length(key_part->length);
         }
       }
       /* Skip unused key parts if they exist */
@@ -3109,7 +3128,6 @@ static void open_table_error(THD *thd, TABLE_SHARE *share, int error,
   int err_no;
   char buff[FN_REFLEN];
   char errbuf[MYSYS_STRERROR_SIZE];
-  myf errortype = ME_ERRORLOG;
   DBUG_ENTER("open_table_error");
 
   switch (error) {
@@ -3129,8 +3147,12 @@ static void open_table_error(THD *thd, TABLE_SHARE *share, int error,
         default:
           strxmov(buff, share->normalized_path.str, reg_ext, NullS);
           my_error((db_errno == EMFILE) ? ER_CANT_OPEN_FILE : ER_FILE_NOT_FOUND,
-                   errortype, buff, db_errno,
+                   MYF(0), buff, db_errno,
                    my_strerror(errbuf, sizeof(errbuf), db_errno));
+          LogErr(ERROR_LEVEL,
+                 (db_errno == EMFILE) ? ER_SERVER_CANT_OPEN_FILE
+                                      : ER_SERVER_FILE_NOT_FOUND,
+                 buff, db_errno, my_strerror(errbuf, sizeof(errbuf), db_errno));
       }
       break;
     case 2: {
@@ -3149,15 +3171,22 @@ static void open_table_error(THD *thd, TABLE_SHARE *share, int error,
                    ? ER_FILE_NOT_FOUND
                    : (db_errno == EAGAIN) ? ER_FILE_USED : ER_CANT_OPEN_FILE;
       strxmov(buff, share->normalized_path.str, datext, NullS);
-      my_error(err_no, errortype, buff, db_errno,
+      my_error(err_no, MYF(0), buff, db_errno,
                my_strerror(errbuf, sizeof(errbuf), db_errno));
+      LogErr(ERROR_LEVEL,
+             (db_errno == ENOENT)
+                 ? ER_SERVER_FILE_NOT_FOUND
+                 : (db_errno == EAGAIN) ? ER_SERVER_FILE_USED
+                                        : ER_SERVER_CANT_OPEN_FILE,
+             buff, db_errno, my_strerror(errbuf, sizeof(errbuf), db_errno));
       destroy(file);
       break;
     }
     default: /* Better wrong error than none */
     case 4:
       strxmov(buff, share->normalized_path.str, reg_ext, NullS);
-      my_error(ER_NOT_FORM_FILE, errortype, buff);
+      my_error(ER_NOT_FORM_FILE, MYF(0), buff);
+      LogErr(ERROR_LEVEL, ER_SERVER_NOT_FORM_FILE, buff);
       break;
   }
   DBUG_VOID_RETURN;
@@ -3720,7 +3749,7 @@ bool TABLE_SHARE::wait_for_old_version(THD *thd, struct timespec *abstime,
     up to date and the share is referenced. Otherwise our
     thread will never be woken up from wait.
   */
-  DBUG_ASSERT(version != refresh_version && ref_count != 0);
+  DBUG_ASSERT(has_old_version() && ref_count() != 0);
 
   m_flush_tickets.push_front(&ticket);
 
@@ -3743,7 +3772,7 @@ bool TABLE_SHARE::wait_for_old_version(THD *thd, struct timespec *abstime,
 
   m_flush_tickets.remove(&ticket);
 
-  if (m_flush_tickets.is_empty() && ref_count == 0) {
+  if (m_flush_tickets.is_empty() && ref_count() == 0) {
     /*
       If our thread was the last one using the share,
       we must destroy it here.
@@ -3810,7 +3839,13 @@ Blob_mem_storage::~Blob_mem_storage() { free_root(&storage, MYF(0)); }
 */
 
 void TABLE::init(THD *thd, TABLE_LIST *tl) {
-  DBUG_ASSERT(s->ref_count > 0 || s->tmp_table != NO_TMP_TABLE);
+#ifndef DBUG_OFF
+  if (s->tmp_table == NO_TMP_TABLE) {
+    mysql_mutex_lock(&LOCK_open);
+    DBUG_ASSERT(s->ref_count() > 0);
+    mysql_mutex_unlock(&LOCK_open);
+  }
+#endif
 
   if (thd->lex->need_correct_ident())
     alias_name_used =
@@ -3904,7 +3939,7 @@ bool TABLE::init_tmp_table(THD *thd, TABLE_SHARE *share, MEM_ROOT *m_root,
 
   share->blob_field = blob_fld;
   share->db_low_byte_first = 1;  // True for HEAP and MyISAM
-  share->ref_count++;
+  share->increment_ref_count();
   share->primary_key = MAX_KEY;
   share->visible_indexes.init();
   share->keys_for_keyread.init();
@@ -5161,16 +5196,18 @@ void TABLE::mark_column_used(THD *thd, Field *field,
       if (get_fields_in_item_tree) field->flags |= GET_FIXED_FIELDS_FLAG;
       break;
 
-    case MARK_COLUMNS_READ:
+    case MARK_COLUMNS_READ: {
+      Key_map part_of_key = field->part_of_key;
       bitmap_set_bit(read_set, field->field_index);
 
+      part_of_key.merge(field->part_of_prefixkey);
       // Update covering_keys and merge_keys based on all fields that are read:
-      covering_keys.intersect(field->part_of_key);
+      covering_keys.intersect(part_of_key);
       merge_keys.merge(field->part_of_key);
       if (get_fields_in_item_tree) field->flags |= GET_FIXED_FIELDS_FLAG;
       if (field->is_virtual_gcol()) mark_gcol_in_maps(field);
       break;
-
+    }
     case MARK_COLUMNS_WRITE:
       if (bitmap_fast_test_and_set(write_set, field->field_index)) {
         /*
@@ -6509,7 +6546,7 @@ bool TABLE_LIST::update_derived_keys(Field *field, Item **values,
   See TABLE_LIST::generate_keys.
 */
 
-static int Derived_key_comp(Derived_key *e1, Derived_key *e2, void *) {
+static int Derived_key_comp(Derived_key *e1, Derived_key *e2) {
   /* Move entries for tables with greater table bit to the end. */
   return ((e1->referenced_by < e2->referenced_by)
               ? -1
@@ -6566,7 +6603,7 @@ bool TABLE_LIST::generate_keys() {
       return true; /* purecov: inspected */
 
   /* Sort entries to make key numbers sequence deterministic. */
-  derived_key_list.sort((Node_cmp_func)Derived_key_comp, 0);
+  derived_key_list.sort(Derived_key_comp);
 
   List_iterator<Derived_key> it(derived_key_list);
   Derived_key *entry;
@@ -6712,7 +6749,7 @@ void repoint_field_to_record(TABLE *table, uchar *old_rec, uchar *new_rec) {
 bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index) {
   DBUG_ENTER("update_generated_read_fields");
   DBUG_ASSERT(table && table->vfield);
-  DBUG_ASSERT(!table->in_use->is_error());
+  if (table->in_use->is_error()) DBUG_RETURN(true);
   if (active_index != MAX_KEY && table->key_read) {
     /*
       The covering index is providing all necessary columns, including
@@ -6807,7 +6844,8 @@ bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table) {
   int error = 0;
 
   DBUG_ASSERT(table->vfield);
-  DBUG_ASSERT(!table->in_use->is_error());
+  if (table->in_use->is_error()) DBUG_RETURN(true);
+
   /* Iterate over generated fields in the table */
   for (vfield_ptr = table->vfield; *vfield_ptr; vfield_ptr++) {
     Field *vfield;
@@ -7248,6 +7286,14 @@ const char *Binary_diff::new_data(Field *field) const {
   return fld->get_binary() + m_offset;
 }
 
+const char *Binary_diff::old_data(Field *field) const {
+  my_ptrdiff_t ptrdiff = field->table->record[1] - field->table->record[0];
+  field->move_field_offset(ptrdiff);
+  const char *data = new_data(field);
+  field->move_field_offset(-ptrdiff);
+  return data;
+}
+
 void TABLE::add_logical_diff(const Field_json *field,
                              const Json_seekable_path &path,
                              enum_json_diff_operation operation,
@@ -7482,4 +7528,20 @@ void TABLE::set_binlog_drop_if_temp(bool should_binlog) {
 bool TABLE::should_binlog_drop_if_temp(void) const {
   return should_binlog_drop_if_temp_flag;
 }
+
+void TABLE::update_covering_prefix_keys(Field *field, uint16 key_read_length,
+                                        Key_map *covering_prefix_keys) {
+  for (uint keyno = 0; keyno < s->keys; keyno++)
+    if (covering_prefix_keys->is_set(keyno)) {
+      KEY *key_info = &this->key_info[keyno];
+      for (KEY_PART_INFO *part = key_info->key_part,
+                         *part_end = part + actual_key_parts(key_info);
+           part != part_end; ++part)
+        if ((part->key_part_flag & HA_PART_KEY_SEG) && field->eq(part->field)) {
+          uint16 key_part_length = part->length / field->charset()->mbmaxlen;
+          if (key_part_length < key_read_length) covering_keys.clear_bit(keyno);
+        }
+    }
+}
+
 //////////////////////////////////////////////////////////////////////////

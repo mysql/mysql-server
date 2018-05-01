@@ -363,7 +363,7 @@ static ib_err_t ib_read_tuple(
       dfield = dtuple_get_nth_field(dtuple, i);
     }
 
-    data = rec_get_nth_field(copy, offsets, i, &len);
+    data = rec_get_nth_field_instant(copy, offsets, i, index, &len);
 
     /* Fetch and copy any externally stored column. */
     if (rec_offs_nth_extern(offsets, i)) {
@@ -373,8 +373,8 @@ static ib_err_t ib_read_tuple(
       means that partial update of LOB is not supported
       via this interface.*/
       data = lob::btr_rec_copy_externally_stored_field(
-          index, copy, offsets, page_size, i, &len, dict_index_is_sdi(index),
-          tuple->heap);
+          index, copy, offsets, page_size, i, &len, nullptr,
+          dict_index_is_sdi(index), tuple->heap);
 
       ut_a(len != UNIV_SQL_NULL);
     }

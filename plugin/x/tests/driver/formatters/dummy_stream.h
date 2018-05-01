@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,8 @@
 // MySQL DB access module, for use by plugins and others
 // For the module that implements interactive DB functionality see mod_db
 
-#ifndef X_TESTS_DRIVER_DUMMY_STREAM_H_
-#define X_TESTS_DRIVER_DUMMY_STREAM_H_
+#ifndef PLUGIN_X_TESTS_DRIVER_FORMATTERS_DUMMY_STREAM_H_
+#define PLUGIN_X_TESTS_DRIVER_FORMATTERS_DUMMY_STREAM_H_
 
 #include <iostream>
 
@@ -45,4 +45,4 @@ class Dummy_stream : public std::ostream {
   Dummy_streambuf m_streambuf;
 };
 
-#endif  // X_TESTS_DRIVER_DUMMY_STREAM_H_
+#endif  // PLUGIN_X_TESTS_DRIVER_FORMATTERS_DUMMY_STREAM_H_

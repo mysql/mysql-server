@@ -120,6 +120,11 @@ using std::max;
 /// The maximum number of histogram buckets.
 static const int MAX_NUMBER_OF_HISTOGRAM_BUCKETS= 1024;
 
+/// The default number of histogram buckets when the user does not specify it
+/// explicitly. A value of 100 is chosen because the gain in accuracy above this
+/// point seems to be generally low.
+static const int DEFAULT_NUMBER_OF_HISTOGRAM_BUCKETS= 100;
+
 int yylex(void *yylval, void *yythd);
 
 #define yyoverflow(A,B,C,D,E,F,G,H)           \
@@ -1294,9 +1299,11 @@ void warn_about_deprecated_national(THD *thd)
         trg_action_time trg_event
         view_check_option
         signed_num
+        opt_num_buckets
 
 
-%type <order_direction> order_dir
+%type <order_direction>
+        ordering_direction opt_ordering_direction
 
 /*
   Bit field of MYSQL_START_TRANS_OPT_* flags.
@@ -1493,6 +1500,7 @@ void warn_about_deprecated_national(THD *thd)
         opt_cache_key_list
 
 %type <order_expr> order_expr alter_order_item
+        grouping_expr
 
 %type <order_list> order_list group_list gorder_list opt_gorder_clause
       alter_order_list opt_partition_clause opt_window_order_by_clause
@@ -7012,13 +7020,13 @@ key_list:
         ;
 
 key_part:
-          ident order_dir
+          ident opt_ordering_direction
           {
             $$= new (*THR_MALLOC) Key_part_spec(to_lex_cstring($1), 0, (enum_order) $2);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
-        | ident '(' NUM ')' order_dir
+        | ident '(' NUM ')' opt_ordering_direction
           {
             int key_part_len= atoi($3.str);
             if (!key_part_len)
@@ -7899,6 +7907,8 @@ alter_algorithm_option_value:
           {
             if (is_identifier($1, "INPLACE"))
               $$= Alter_info::ALTER_TABLE_ALGORITHM_INPLACE;
+            else if (is_identifier($1, "INSTANT"))
+              $$= Alter_info::ALTER_TABLE_ALGORITHM_INSTANT;
             else if (is_identifier($1, "COPY"))
               $$= Alter_info::ALTER_TABLE_ALGORITHM_COPY;
             else
@@ -8262,21 +8272,12 @@ analyze_table_stmt:
           }
         ;
 
-opt_histogram:
-          /* empty */
+opt_num_buckets:
+          /* empty */ { $$= DEFAULT_NUMBER_OF_HISTOGRAM_BUCKETS; }
+        | WITH NUM BUCKETS_SYM
           {
-            $$.command= Sql_cmd_analyze_table::Histogram_command::NONE;
-            $$.columns= nullptr;
-            $$.num_buckets= 0;
-          }
-        | UPDATE_SYM HISTOGRAM_SYM ON_SYM ident_string_list WITH NUM BUCKETS_SYM
-          {
-            $$.command=
-              Sql_cmd_analyze_table::Histogram_command::UPDATE_HISTOGRAM;
-            $$.columns= $4;
-
             int error;
-            longlong num= my_strtoll10($6.str, nullptr, &error);
+            longlong num= my_strtoll10($2.str, nullptr, &error);
             MYSQL_YYABORT_UNLESS(error <= 0);
 
             if (num < 1 || num > MAX_NUMBER_OF_HISTOGRAM_BUCKETS)
@@ -8286,7 +8287,23 @@ opt_histogram:
               MYSQL_YYABORT;
             }
 
-            $$.num_buckets= static_cast<int>(num);
+            $$= num;
+          }
+        ;
+
+opt_histogram:
+          /* empty */
+          {
+            $$.command= Sql_cmd_analyze_table::Histogram_command::NONE;
+            $$.columns= nullptr;
+            $$.num_buckets= 0;
+          }
+        | UPDATE_SYM HISTOGRAM_SYM ON_SYM ident_string_list opt_num_buckets
+          {
+            $$.command=
+              Sql_cmd_analyze_table::Histogram_command::UPDATE_HISTOGRAM;
+            $$.columns= $4;
+            $$.num_buckets= $5;
           }
         | DROP HISTOGRAM_SYM ON_SYM ident_string_list
           {
@@ -11094,12 +11111,12 @@ opt_group_clause:
         ;
 
 group_list:
-          group_list ',' order_expr
+          group_list ',' grouping_expr
           {
             $1->push_back($3);
             $$= $1;
           }
-        | order_expr
+        | grouping_expr
           {
             $$= NEW_PTN PT_order_list();
             if ($1 == NULL)
@@ -11140,7 +11157,7 @@ alter_order_list:
         ;
 
 alter_order_item:
-          simple_ident_nospvar order_dir
+          simple_ident_nospvar opt_ordering_direction
           {
             $$= NEW_PTN PT_order_expr($1, $2);
           }
@@ -11177,9 +11194,13 @@ order_list:
           }
         ;
 
-order_dir:
+opt_ordering_direction:
           /* empty */ { $$= ORDER_NOT_RELEVANT; }
-        | ASC         { $$= ORDER_ASC; }
+        | ordering_direction
+        ;
+
+ordering_direction:
+          ASC         { $$= ORDER_ASC; }
         | DESC        { $$= ORDER_DESC; }
         ;
 
@@ -13301,8 +13322,21 @@ table_wild:
         ;
 
 order_expr:
-          expr order_dir
+          expr opt_ordering_direction
           {
+            $$= NEW_PTN PT_order_expr($1, $2);
+          }
+        ;
+
+grouping_expr:
+          expr
+          {
+            $$= NEW_PTN PT_order_expr($1, ORDER_NOT_RELEVANT);
+          }
+        | expr ordering_direction
+          {
+            push_deprecated_warn(YYTHD, "GROUP BY with ASC/DESC",
+                                 "GROUP BY ... ORDER BY ... ASC/DESC");
             $$= NEW_PTN PT_order_expr($1, $2);
           }
         ;

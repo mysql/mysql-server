@@ -596,7 +596,7 @@ t1c1	t2c1
 UNLOCK TABLES;
 DROP TABLE t1,t2;
 CREATE TABLE t1 (`a` int(11) NOT NULL default '0', `b` int(11) NOT NULL default '0', UNIQUE KEY `a` USING RTREE (`a`,`b`)) ENGINE=MyISAM;
-Got one of the listed errors
+ERROR 42000: A SPATIAL index may only contain a geometrical type column
 create table t1 (a int, b varchar(200), c text not null) checksum=1;
 create table t2 (a int, b varchar(200), c text not null) checksum=0;
 insert t1 values (1, "aaa", "bbb"), (NULL, "", "ccccc"), (0, NULL, "");
@@ -678,7 +678,7 @@ drop table t1;
 create table t1 (c1 int, c2 varchar(4) not null default '',
 key(c2(3))) default charset=utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (1,'A'), (2, 'B'), (3, 'A');
 update t1 set c2='A  B' where c1=2;
 check table t1;
@@ -1166,8 +1166,8 @@ length(c1)	c1
 0	
 SELECT DISTINCT length(c1), c1 FROM t1 ORDER BY c1;
 length(c1)	c1
-0	
 2		A
+0	
 2	 B
 DROP TABLE t1;
 End of 4.1 tests
@@ -1355,6 +1355,8 @@ f	10
 g	10
 h	10
 i	10
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select TRIM(v),count(t) from t1 group by TRIM(v) asc limit 10;
 TRIM(v)	count(t)
 a	1
@@ -1367,6 +1369,8 @@ f	10
 g	10
 h	10
 i	10
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select TRIM(v),count(c) from t1 group by TRIM(v) asc limit 10;
 TRIM(v)	count(c)
 a	1
@@ -1379,6 +1383,8 @@ f	10
 g	10
 h	10
 i	10
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select sql_big_result TRIM(v),count(t) from t1 group by TRIM(v) asc limit 10;
 TRIM(v)	count(t)
 a	1
@@ -1391,6 +1397,8 @@ f	10
 g	10
 h	10
 i	10
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select sql_big_result TRIM(v),count(c) from t1 group by TRIM(v) asc limit 10;
 TRIM(v)	count(c)
 a	1
@@ -1403,6 +1411,8 @@ f	10
 g	10
 h	10
 i	10
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select c,count(*) from t1 group by c asc limit 10;
 c	count(*)
 a	1
@@ -1415,6 +1425,8 @@ f	10
 g	10
 h	10
 i	10
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select c,count(t) from t1 group by c asc limit 10;
 c	count(t)
 a	1
@@ -1427,6 +1439,8 @@ f	10
 g	10
 h	10
 i	10
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select sql_big_result c,count(t) from t1 group by c limit 10;
 c	count(t)
 a	1
@@ -1451,6 +1465,8 @@ f	10
 g	10
 h	10
 i	10
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select t,count(t) from t1 group by t asc limit 10;
 t	count(t)
 a	1
@@ -1463,6 +1479,8 @@ f	10
 g	10
 h	10
 i	10
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select sql_big_result t,count(t) from t1 group by t asc limit 10;
 t	count(t)
 a	1
@@ -1475,6 +1493,8 @@ f	10
 g	10
 h	10
 i	10
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 alter table t1 modify v varchar(300), drop key v, drop key v_2, add key v (v);
 show create table t1;
 Table	Create Table
@@ -1541,6 +1561,8 @@ f	10
 g	10
 h	10
 i	10
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select TRIM(v),count(t) from t1 group by v asc limit 10;
 TRIM(v)	count(t)
 a	1
@@ -1553,6 +1575,8 @@ f	10
 g	10
 h	10
 i	10
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select sql_big_result TRIM(v),count(t) from t1 group by v asc limit 10;
 TRIM(v)	count(t)
 a	1
@@ -1565,6 +1589,8 @@ f	10
 g	10
 h	10
 i	10
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 alter table t1 drop key v, add key v (v(30));
 show create table t1;
 Table	Create Table
@@ -1601,7 +1627,7 @@ Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where (`test`.`t1`.`v` = 'a  ')
 explain select count(*) from t1 where v like 'a%';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	v	v	33	NULL	#	100.00	Using where
+1	SIMPLE	t1	NULL	range	v	v	33	NULL	#	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where (`test`.`t1`.`v` like 'a%')
 explain select count(*) from t1 where v between 'a' and 'a ';
@@ -1631,6 +1657,8 @@ f	10
 g	10
 h	10
 i	10
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select TRIM(v),count(t) from t1 group by v asc limit 10;
 TRIM(v)	count(t)
 a	1
@@ -1643,6 +1671,8 @@ f	10
 g	10
 h	10
 i	10
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select sql_big_result TRIM(v),count(t) from t1 group by v asc limit 10;
 TRIM(v)	count(t)
 a	1
@@ -1655,6 +1685,8 @@ f	10
 g	10
 h	10
 i	10
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 alter table t1 modify v varchar(600), drop key v, add key v (v);
 show create table t1;
 Table	Create Table
@@ -1678,6 +1710,8 @@ f	10
 g	10
 h	10
 i	10
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select TRIM(v),count(t) from t1 group by v asc limit 10;
 TRIM(v)	count(t)
 a	1
@@ -1690,6 +1724,8 @@ f	10
 g	10
 h	10
 i	10
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select sql_big_result TRIM(v),count(t) from t1 group by v asc limit 10;
 TRIM(v)	count(t)
 a	1
@@ -1702,6 +1738,8 @@ f	10
 g	10
 h	10
 i	10
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 drop table t1;
 SET NAMES utf8mb4;
 create table t1 (a char(10), unique (a));
@@ -1749,7 +1787,7 @@ t1	CREATE TABLE `t1` (
 drop table t1;
 create table t1 (v char(10) character set utf8);
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1801,7 +1839,7 @@ t1	CREATE TABLE `t1` (
 drop table t1;
 create table t1 (v varchar(65530) character set utf8);
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Note	1246	Converting column 'v' from VARCHAR to TEXT
 show create table t1;
 Table	Create Table
@@ -2322,10 +2360,10 @@ c1 CHAR(50),
 c2 VARCHAR(1)
 ) ENGINE=MyISAM DEFAULT CHARSET UTF8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES(REPEAT(_utf8 x'e0ae85',43), 'b');
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 1
@@ -2347,10 +2385,10 @@ c1 CHAR(50),
 c2 VARCHAR(1)
 ) ENGINE=MyISAM DEFAULT CHARSET UTF8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES(REPEAT(_utf8 x'e0ae85',43), 'b');
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 1
@@ -2372,10 +2410,10 @@ c1 CHAR(50),
 c2 VARCHAR(1)
 ) ENGINE=MyISAM DEFAULT CHARSET UTF8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES(REPEAT(_utf8 x'e0ae85',43), 'b');
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES('b', 'b');
 INSERT INTO t1 VALUES('c', 'b');
 DELETE FROM t1 WHERE c1='b';
@@ -2395,11 +2433,11 @@ c2 VARCHAR(1),
 KEY (c1)
 ) ENGINE=MyISAM DEFAULT CHARSET UTF8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Insert 100 rows. Query log disabled.
 UPDATE t1 SET c1=REPEAT(_utf8 x'e0ae85',43) LIMIT 90;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 100
@@ -2422,7 +2460,7 @@ KEY (c1),
 KEY (c2)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 PACK_KEYS=0;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 MyISAM file:         MYSQLD_DATADIR/test/t1
 Record format:       Packed

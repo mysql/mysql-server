@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -90,9 +90,8 @@ void Table_cache::check_unused() {
       DBUG_PRINT("error", ("Unused_links aren't connected"));
   }
 
-  for (uint idx = 0; idx < m_cache.records; idx++) {
-    Table_cache_element *el =
-        (Table_cache_element *)my_hash_element(&m_cache, idx);
+  for (const auto &hp : m_cache) {
+    Table_cache_element *el = hp.second.get();
 
     Table_cache_element::TABLE_list::Iterator it(el->free_tables);
     TABLE *entry;
@@ -100,8 +99,6 @@ void Table_cache::check_unused() {
       /* We must not have TABLEs in the free list that have their file closed.
        */
       DBUG_ASSERT(entry->db_stat && entry->file);
-      /* Merge children should be detached from a merge parent */
-      DBUG_ASSERT(!entry->file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
 
       if (entry->in_use)
         DBUG_PRINT("error", ("Used table is in share's list of unused tables"));
@@ -150,7 +147,7 @@ void Table_cache::print_tables() {
     TABLE *entry;
     while ((entry = it++)) {
       printf("%-14.14s %-32s%6ld%8u%6d  %s\n", entry->s->db.str,
-             entry->s->table_name.str, entry->s->version,
+             entry->s->table_name.str, entry->s->version(),
              entry->in_use->thread_id(), entry->db_stat ? 1 : 0,
              lock_descriptions[(int)entry->reginfo.lock_type]);
     }
@@ -158,7 +155,7 @@ void Table_cache::print_tables() {
     while ((entry = it++)) {
       unused++;
       printf("%-14.14s %-32s%6ld%8ld%6d  %s\n", entry->s->db.str,
-             entry->s->table_name.str, entry->s->version, 0L,
+             entry->s->table_name.str, entry->s->version(), 0L,
              entry->db_stat ? 1 : 0, "Not in use");
     }
   }

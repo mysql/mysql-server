@@ -25,8 +25,6 @@
 #include "plugin/x/client/mysql41_hash.h"
 
 #include <openssl/sha.h>
-#include <wolfssl_fix_namespace_pollution.h>
-#include <wolfssl_fix_namespace_pollution_pre.h>
 
 int mysql_mysql41_hash_reset(SHA_CTX *context) { return SHA1_Init(context); }
 

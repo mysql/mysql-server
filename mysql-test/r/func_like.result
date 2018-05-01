@@ -289,3 +289,32 @@ SELECT wildstr, str, like_result FROM t1 WHERE (str LIKE wildstr) <>
 like_result;
 wildstr	str	like_result
 DROP TABLE t1;
+#
+# Bug #12635103: VALGRIND WARNINGS IN MY_WILDCMP_MB AND
+#                MY_WILDCMP_8BIT WITH LIKE AND CONVERT
+#
+SELECT 'aa' LIKE CONVERT('%a' USING big5);
+'aa' LIKE CONVERT('%a' USING big5)
+1
+SELECT 'aa' LIKE CONVERT('%a' USING utf8mb4);
+'aa' LIKE CONVERT('%a' USING utf8mb4)
+1
+SELECT 'aa' LIKE CONVERT('%a' USING gb18030);
+'aa' LIKE CONVERT('%a' USING gb18030)
+1
+SELECT 'aa' LIKE CONVERT('%a' USING binary);
+'aa' LIKE CONVERT('%a' USING binary)
+1
+SELECT 'aa' LIKE CONVERT('%a' USING latin1);
+'aa' LIKE CONVERT('%a' USING latin1)
+1
+SET NAMES gb2312;
+SELECT 'aa' LIKE '%a' COLLATE gb2312_bin;
+'aa' LIKE '%a' COLLATE gb2312_bin
+1
+SET NAMES DEFAULT;
+SELECT 'aa' LIKE CONVERT('%a' USING utf8);
+'aa' LIKE CONVERT('%a' USING utf8)
+1
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.

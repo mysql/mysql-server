@@ -33,5 +33,5 @@ ok
 # Account user2 was created without interface name.
 # The authentication must fail because account IP
 # and client IP doesn't match
-in main, line 0:ERROR: Invalid user or password (code 1045)
+in main, line 0:ERROR: Authentication failed, check username and password or try a secure connection (code 2510)
 not ok

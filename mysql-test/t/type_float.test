@@ -1,4 +1,4 @@
- #Get deafult engine value
+# Get default engine value
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
 # Description

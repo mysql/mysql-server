@@ -1,7 +1,7 @@
 #ifndef SQL_SELECT_INCLUDED
 #define SQL_SELECT_INCLUDED
 
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,14 +71,20 @@ class Sql_cmd_select : public Sql_cmd_dml {
     result = result_arg;
   }
 
-  virtual enum_sql_command sql_command_code() const { return SQLCOM_SELECT; }
+  virtual enum_sql_command sql_command_code() const override {
+    return SQLCOM_SELECT;
+  }
 
-  virtual bool is_data_change_stmt() const { return false; }
+  virtual bool is_data_change_stmt() const override { return false; }
+
+  virtual bool accept(THD *thd, Select_lex_visitor *visitor) override {
+    return thd->lex->unit->accept(visitor);
+  }
 
  protected:
-  virtual bool precheck(THD *thd);
+  virtual bool precheck(THD *thd) override;
 
-  virtual bool prepare_inner(THD *thd);
+  virtual bool prepare_inner(THD *thd) override;
 };
 
 /**

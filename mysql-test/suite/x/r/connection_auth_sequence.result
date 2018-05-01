@@ -1,4 +1,19 @@
 call mtr.add_suppression("Maximum number of authentication attempts reached");
+CREATE USER user_to_lock@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'xxx';
+GRANT ALL ON *.* TO user_to_lock@localhost;
+RUN select 1
+
+1
+1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ALTER USER user_to_lock@localhost ACCOUNT LOCK;
+Application terminated with expected error: Access denied for user 'user_to_lock'@'localhost'. Account is locked. (code 3118)
+Got expected error: Access denied for user 'locked_user   pass    test    sha256_memory'@'localhost' (using password: NO) (code 1045)
+Got expected error: Access denied for user 'locked_user   pass    test    mysql41'@'localhost' (using password: NO) (code 1045)
+ok
 CREATE USER xuser_native@'localhost'
 IDENTIFIED WITH 'mysql_native_password' BY 'native';
 CREATE USER xuser_sha256@'localhost'
@@ -28,7 +43,7 @@ send Mysqlx.Connection.CapabilitiesSet {
 Mysqlx.Ok {
 }
 
-Got expected error: Invalid user or password (code 1045)
+Got expected error: Access denied for user 'xuser_native'@'localhost' (using password: YES) (code 1045)
 Login OK
 closing session seq
 Mysqlx.Ok {
@@ -63,8 +78,8 @@ send Mysqlx.Connection.CapabilitiesSet {
 Mysqlx.Ok {
 }
 
-Got expected error: Invalid user or password (code 1045)
-Got expected error: Invalid user or password (code 1045)
+Got expected error: Access denied for user 'xuser_sha256'@'localhost' (using password: YES) (code 1045)
+Got expected error: Access denied for user 'xuser_sha256'@'localhost' (using password: YES) (code 1045)
 Login OK
 closing session seq
 Mysqlx.Ok {
@@ -99,9 +114,9 @@ send Mysqlx.Connection.CapabilitiesSet {
 Mysqlx.Ok {
 }
 
-Got expected error: Invalid user or password (code 1045)
-Got expected error: Invalid user or password (code 1045)
-Got expected error: Invalid user or password (code 1045)
+Got expected error: Access denied for user 'xuser_cache2'@'localhost' (using password: YES) (code 1045)
+Got expected error: Access denied for user 'xuser_cache2'@'localhost' (using password: YES) (code 1045)
+Got expected error: Access denied for user 'xuser_cache2'@'localhost' (using password: YES) (code 1045)
 closing session seq
 switched to session default
 
@@ -144,7 +159,7 @@ send Mysqlx.Session.Reset {
 Mysqlx.Ok {
 }
 
-Got expected error: Invalid user or password (code 1045)
+Got expected error: Access denied for user 'xuser_sha256'@'localhost' (using password: YES) (code 1045)
 Login OK
 closing session seq
 Mysqlx.Ok {
@@ -181,15 +196,16 @@ send Mysqlx.Session.Reset {
 Mysqlx.Ok {
 }
 
-Got expected error: Invalid user or password (code 1045)
-Got expected error: Invalid user or password (code 1045)
-Got expected error: Invalid user or password (code 1045)
+Got expected error: Access denied for user 'xuser_sha256'@'localhost' (using password: YES) (code 1045)
+Got expected error: Access denied for user 'xuser_sha256'@'localhost' (using password: YES) (code 1045)
+Got expected error: Access denied for user 'xuser_sha256'@'localhost' (using password: YES) (code 1045)
 closing session seq
 switched to session default
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+DROP USER user_to_lock@localhost;
 DROP USER xuser_native@'localhost';
 DROP USER xuser_sha256@'localhost';
 DROP USER xuser_cache2@'localhost';

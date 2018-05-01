@@ -1599,13 +1599,6 @@ bool write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update) {
         and we shouldn't try to locate key info.
       */
       else if (key_nr < MAX_KEY) {
-        if (table->file->extra(
-                HA_EXTRA_FLUSH_CACHE)) /* Not needed with NISAM */
-        {
-          error = my_errno();
-          goto err;
-        }
-
         if (!key) {
           if (!(key = (char *)my_safe_alloca(table->s->max_unique_length,
                                              MAX_KEY_LENGTH))) {
@@ -2626,7 +2619,6 @@ bool Query_result_create::start_execution() {
   thd->check_for_truncated_fields = save_check_for_truncated_fields;
 
   table->mark_columns_needed_for_insert(thd);
-  table->file->extra(HA_EXTRA_WRITE_CACHE);
   DBUG_RETURN(false);
 }
 
@@ -2783,7 +2775,8 @@ bool Query_result_create::send_eof() {
     if ((!dd::get_dictionary()->is_dd_table_name(create_table->db,
                                                  create_table->table_name) &&
          collect_fk_children(thd, create_table->db, create_table->table_name,
-                             create_info->db_type, &mdl_requests)) ||
+                             create_info->db_type, MDL_EXCLUSIVE,
+                             &mdl_requests)) ||
         collect_fk_parents_for_new_fks(thd, create_table->db,
                                        create_table->table_name, alter_info,
                                        MDL_EXCLUSIVE, create_info->db_type,
@@ -2995,4 +2988,34 @@ void Query_result_create::abort_result_set() {
   }
 
   DBUG_VOID_RETURN;
+}
+
+bool Sql_cmd_insert_base::accept(THD *thd, Select_lex_visitor *visitor) {
+  // Columns
+  if (insert_field_list.elements) {
+    List_iterator<Item> it_field(insert_field_list);
+    while (Item *field = it_field++)
+      if (walk_item(field, visitor)) return true;
+  }
+
+  if (insert_many_values.elements > 0) {
+    // INSERT...VALUES statement
+    List_iterator<List_item> it_row(insert_many_values);
+    while (List_item *row = it_row++) {
+      List_iterator<Item> it_col(*row);
+      while (Item *item = it_col++)
+        if (walk_item(item, visitor)) return true;
+    }
+  } else {
+    // INSERT...SELECT statement
+    if (thd->lex->select_lex->accept(visitor)) return true;
+  }
+
+  // Update list (on duplicate update)
+  List_iterator<Item> it_value(update_value_list), it_column(update_field_list);
+  Item *value, *column;
+  while ((column = it_column++) && (value = it_value++))
+    if (walk_item(column, visitor) || walk_item(value, visitor)) return true;
+
+  return visitor->visit(thd->lex->select_lex);
 }

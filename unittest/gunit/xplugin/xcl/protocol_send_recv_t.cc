@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -53,22 +53,16 @@ TYPED_TEST(Xcl_protocol_impl_tests_with_msg,
                                      Ref(*this->m_message.get())))
         .WillOnce(Return(Handler_result::Consumed));
 
-    EXPECT_CALL(*this->m_mock_connection, write(_, 5))
+    EXPECT_CALL(*this->m_mock_connection, write(_, _))
         .WillOnce(
             Invoke([this](const uchar *data, const std::size_t size) -> XError {
-              return this->assert_write_header(data, size);
-            }));
-    EXPECT_CALL(*this->m_mock_connection, write(_, _))
-        .WillRepeatedly(
-            Invoke([this](const uchar *data, const std::size_t size) -> XError {
-              return this->assert_write_payload(data, size);
+              return this->assert_write_size(data, size);
             }));
   }
 
   auto error = this->m_sut->send(*this->m_message.get());
 
   ASSERT_FALSE(error);
-  ASSERT_EQ(0, this->m_packet_length);
 
   this->m_sut->remove_send_message_handler(id);
 }
@@ -87,22 +81,16 @@ TYPED_TEST(Xcl_protocol_impl_tests_with_msg,
                                      Ref(*this->m_message.get())))
         .WillOnce(Return(Handler_result::Continue));
 
-    EXPECT_CALL(*this->m_mock_connection, write(_, 5))
+    EXPECT_CALL(*this->m_mock_connection, write(_, _))
         .WillOnce(
             Invoke([this](const uchar *data, const std::size_t size) -> XError {
-              return this->assert_write_header(data, size);
-            }));
-    EXPECT_CALL(*this->m_mock_connection, write(_, _))
-        .WillRepeatedly(
-            Invoke([this](const uchar *data, const std::size_t size) -> XError {
-              return this->assert_write_payload(data, size);
+              return this->assert_write_size(data, size);
             }));
   }
 
   auto error = this->m_sut->send(*this->m_message.get());
 
   ASSERT_FALSE(error);
-  ASSERT_EQ(0, this->m_packet_length);
 
   this->m_sut->remove_send_message_handler(id);
 }
@@ -127,34 +115,16 @@ TYPED_TEST(Xcl_protocol_impl_tests_with_msg, connection_send_successful) {
   {
     InSequence s;
 
-    EXPECT_CALL(*this->m_mock_connection, write(_, 5))
+    EXPECT_CALL(*this->m_mock_connection, write(_, _))
         .WillOnce(
             Invoke([this](const uchar *data, const std::size_t size) -> XError {
-              return this->assert_write_header(data, size);
-            }));
-    EXPECT_CALL(*this->m_mock_connection, write(_, _))
-        .WillRepeatedly(
-            Invoke([this](const uchar *data, const std::size_t size) -> XError {
-              return this->assert_write_payload(data, size);
+              return this->assert_write_size(data, size);
             }));
   }
 
   auto error = this->m_sut->send(*this->m_message.get());
 
   ASSERT_FALSE(error);
-  ASSERT_EQ(0, this->m_packet_length);
-}
-
-TYPED_TEST(Xcl_protocol_impl_tests_with_msg, connection_send_header_fails) {
-  const int expected_error_code = 23303;
-
-  this->setup_required_fields_in_message();
-
-  EXPECT_CALL(*this->m_mock_connection, write(_, 5))
-      .WillOnce(Return(XError{expected_error_code, ""}));
-
-  auto error = this->m_sut->send(*this->m_message.get());
-  ASSERT_EQ(expected_error_code, error.error());
 }
 
 TEST_F(Xcl_protocol_impl_tests, recv_fails_at_header) {
@@ -183,6 +153,25 @@ TEST_F(Xcl_protocol_impl_tests, recv_fails_at_payload) {
   auto result = m_sut->recv_single_message(&out_id, &out_error);
   ASSERT_FALSE(result.get());
   ASSERT_EQ(expected_error_code, out_error.error());
+}
+
+TEST_F(Xcl_protocol_impl_tests, recv_large_message) {
+  std::string message_payload(1024 * 64, 'x');
+  expect_read_header(::Mysqlx::ServerMessages::OK,
+                     static_cast<int32>(message_payload.size()));
+
+  EXPECT_CALL(*m_mock_connection, read(_, message_payload.size()))
+      .WillOnce(Invoke([message_payload](uchar *data,
+                                         const std::size_t data_length
+                                             MY_ATTRIBUTE((unused))) -> XError {
+        std::copy(message_payload.begin(), message_payload.end(), data);
+        return {};
+      }));
+  XProtocol::Server_message_type_id out_id;
+  XError out_error;
+  auto result = m_sut->recv_single_message(&out_id, &out_error);
+  ASSERT_TRUE(result.get());
+  ASSERT_EQ(0, out_error.error());
 }
 
 TEST_F(Xcl_protocol_impl_tests, recv_unknown_msg_type) {

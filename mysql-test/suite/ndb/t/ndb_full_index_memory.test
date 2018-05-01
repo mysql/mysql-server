@@ -1,3 +1,5 @@
+--source include/have_ndb.inc
+
 call mtr.add_suppression("The table 't1' is full");
 
 create table t1(x int primary key) engine=ndbcluster;

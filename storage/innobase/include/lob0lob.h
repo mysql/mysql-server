@@ -178,6 +178,12 @@ struct ref_t {
   static const ulint LOB_BIG_THRESHOLD_SIZE = 2;
 
  public:
+  /** If the total number of bytes modified in an LOB, in an update
+  operation, is less than or equal to this threshold LOB_SMALL_CHANGE_THRESHOLD,
+  then it is considered as a small change.  For small changes to LOB,
+  the changes are undo logged like any other update operation. */
+  static const ulint LOB_SMALL_CHANGE_THRESHOLD = 100;
+
   /** Constructor.
   @param[in]	ptr	Pointer to the external field reference. */
   explicit ref_t(byte *ptr) : m_ref(ptr) {}
@@ -484,29 +490,28 @@ dberr_t btr_store_big_rec_extern_fields(trx_t *trx, btr_pcur_t *pcur,
 @param[in]	page_size	BLOB page size
 @param[in]	no		field number
 @param[out]	len		length of the field
+@param[out]	lob_version	version of lob that has been copied
 @param[in]	is_sdi		true for SDI Indexes
 @param[in,out]	heap		mem heap
 @return the field copied to heap, or NULL if the field is incomplete */
-byte *btr_rec_copy_externally_stored_field_func(const dict_index_t *index,
-                                                const rec_t *rec,
-                                                const ulint *offsets,
-                                                const page_size_t &page_size,
-                                                ulint no, ulint *len,
+byte *btr_rec_copy_externally_stored_field_func(
+    const dict_index_t *index, const rec_t *rec, const ulint *offsets,
+    const page_size_t &page_size, ulint no, ulint *len, size_t *lob_version,
 #ifdef UNIV_DEBUG
-                                                bool is_sdi,
+    bool is_sdi,
 #endif /* UNIV_DEBUG */
-                                                mem_heap_t *heap);
+    mem_heap_t *heap);
 
 #ifdef UNIV_DEBUG
 #define btr_rec_copy_externally_stored_field(index, rec, offsets, page_size, \
-                                             no, len, is_sdi, heap)          \
+                                             no, len, ver, is_sdi, heap)     \
   btr_rec_copy_externally_stored_field_func(index, rec, offsets, page_size,  \
-                                            no, len, is_sdi, heap)
+                                            no, len, ver, is_sdi, heap)
 #else /* UNIV_DEBUG */
 #define btr_rec_copy_externally_stored_field(index, rec, offsets, page_size, \
-                                             no, len, is_sdi, heap)          \
+                                             no, len, ver, is_sdi, heap)     \
   btr_rec_copy_externally_stored_field_func(index, rec, offsets, page_size,  \
-                                            no, len, heap)
+                                            no, len, ver, heap)
 #endif /* UNIV_DEBUG */
 
 /** Gets the offset of the pointer to the externally stored part of a field.
@@ -603,7 +608,8 @@ class BtrContext {
     byte *data;
     ulint local_len;
 
-    data = rec_get_nth_field(m_rec, m_offsets, i, &local_len);
+    data =
+        const_cast<byte *>(rec_get_nth_field(m_rec, m_offsets, i, &local_len));
     ut_ad(rec_offs_nth_extern(m_offsets, i));
     ut_a(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
 
@@ -1070,7 +1076,8 @@ struct ReadContext {
         m_blobref(const_cast<byte *>(data) + prefix_len -
                   BTR_EXTERN_FIELD_REF_SIZE),
         m_buf(buf),
-        m_len(len)
+        m_len(len),
+        m_lob_version(0)
 #ifdef UNIV_DEBUG
         ,
         m_is_sdi(is_sdi)
@@ -1126,6 +1133,9 @@ struct ReadContext {
   ulint m_offset;
 
   dict_index_t *m_index;
+
+  ulint m_lob_version;
+
 #ifdef UNIV_DEBUG
   /** Is it a space dictionary index (SDI)?
   @return true if SDI, false otherwise. */
@@ -1312,9 +1322,9 @@ inline bool btr_lob_op_is_update(opcode op) {
   btr_copy_externally_stored_field_prefix_func(index, buf, len, page_size,  \
                                                data, is_sdi, local_len)
 
-#define btr_copy_externally_stored_field(index, len, data, page_size, \
-                                         local_len, is_sdi, heap)     \
-  btr_copy_externally_stored_field_func(index, len, data, page_size,  \
+#define btr_copy_externally_stored_field(index, len, ver, data, page_size, \
+                                         local_len, is_sdi, heap)          \
+  btr_copy_externally_stored_field_func(index, len, ver, data, page_size,  \
                                         local_len, is_sdi, heap)
 
 #else /* UNIV_DEBUG */
@@ -1323,9 +1333,9 @@ inline bool btr_lob_op_is_update(opcode op) {
   btr_copy_externally_stored_field_prefix_func(index, buf, len, page_size,  \
                                                data, local_len)
 
-#define btr_copy_externally_stored_field(index, len, data, page_size, \
-                                         local_len, is_sdi, heap)     \
-  btr_copy_externally_stored_field_func(index, len, data, page_size,  \
+#define btr_copy_externally_stored_field(index, len, ver, data, page_size, \
+                                         local_len, is_sdi, heap)          \
+  btr_copy_externally_stored_field_func(index, len, ver, data, page_size,  \
                                         local_len, heap)
 #endif /* UNIV_DEBUG */
 
@@ -1356,6 +1366,7 @@ ulint btr_copy_externally_stored_field_prefix_func(const dict_index_t *index,
 The clustered index record must be protected by a lock or a page latch.
 @param[in]	index		the clust index in which lob is read.
 @param[out]	len		length of the whole field
+@param[out]	lob_version	lob version that has been read.
 @param[in]	data		'internally' stored part of the field
                                 containing also the reference to the external
                                 part; must be protected by a lock or a page
@@ -1366,7 +1377,8 @@ The clustered index record must be protected by a lock or a page latch.
 @param[in,out]	heap		mem heap
 @return the whole field copied to heap */
 byte *btr_copy_externally_stored_field_func(const dict_index_t *index,
-                                            ulint *len, const byte *data,
+                                            ulint *len, size_t *lob_version,
+                                            const byte *data,
                                             const page_size_t &page_size,
                                             ulint local_len,
 #ifdef UNIV_DEBUG
@@ -1399,7 +1411,8 @@ ulint btr_rec_get_externally_stored_len(const rec_t *rec, const ulint *offsets);
 @param[in]	ref		reference to LOB that is purged.
 @param[in]	rec_type	undo record type.*/
 void purge(lob::DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
-           undo_no_t undo_no, lob::ref_t ref, ulint rec_type);
+           undo_no_t undo_no, lob::ref_t ref, ulint rec_type,
+           const upd_field_t *uf);
 
 /** Update a portion of the given LOB.
 @param[in]	ctx		update operation context information.

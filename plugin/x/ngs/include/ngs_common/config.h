@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef MYSQLX_XPL_CONFIG_H
-#define MYSQLX_XPL_CONFIG_H
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_COMMON_CONFIG_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_COMMON_CONFIG_H_
 
 #ifdef HAVE_WOLFSSL
 #define IS_WOLFSSL_OR_OPENSSL(Y, O) Y
@@ -37,4 +37,4 @@
 #define HAVE_UNIX_SOCKET(YES, NO) NO
 #endif  // defined(HAVE_SYS_UN_H)
 
-#endif  // MYSQLX_XPL_CONFIG_H
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_COMMON_CONFIG_H_

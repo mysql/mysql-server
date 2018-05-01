@@ -97,12 +97,10 @@
 #     according to GTID_MODE.
 #
 #     Third, we drop group of 4 tables, where 2 tables are in SE which
-#     do not support atomic DDL and 2 in SE which support it and the
-#     last table from the latter group can't be dropped. This triggers
-#     different code path in DROP TABLE implementation. Again this is
-#     done for both GTID_MODE='AUTOMATIC' and GTID_MODE='UUID:NUMBER'
-#     to see difference in splitting/combining. Notice that with GTID
-#     assigned even such failed DROP TABLE will consume GTID.
+#     do not support atomic DDL and 2 in SE which support it and then
+#     fail. This triggers code path in DROP TABLE implementation
+#     which differs from case when there is no failure. This test has
+#     been moved into rpl_split_statements_debug.test.
 #
 #     Note that two last tests also provide coverage for changes to binary
 #     logging and GTID handling for normal and failed DROP TABLES, which
@@ -332,93 +330,11 @@ if (!$gtid_mode_on)
 --source include/gtid_step_assert.inc
 }
 
+--source include/rpl_sync.inc
+
 --echo ==== Case 2D: Failing DROP TABLES for base tables with and without atomic DDL support ====
 
-CREATE TABLE base_1_n (a INT) ENGINE = MyISAM;
-CREATE TABLE base_2_n (a INT) ENGINE = MyISAM;
-CREATE TABLE base_3_a (a INT) ENGINE = InnoDB;
-CREATE TABLE base_4_a (pk INT PRIMARY KEY) ENGINE = InnoDB;
-CREATE TABLE base_5_a (fk INT, FOREIGN KEY (fk) REFERENCES base_4_a(pk)) ENGINE = InnoDB;
-
---source include/rpl_sync.inc
-
---echo ---- GTID_MODE=AUTOMATIC ----
-
---source include/gtid_step_reset.inc
-
---error ER_ROW_IS_REFERENCED
-DROP TABLES base_1_n, base_2_n, base_3_a, base_4_a;
-
---echo # In AUTOMATIC mode the above statement should be split into
---echo # two statements for each of MyISAM tables.
---echo # There should be no statement for dropping base_3_a as its
---echo # removal is rolled back.
---let $gtid_step_count= 2.
---source include/gtid_step_assert.inc
-
---echo # base_3_a and base_4_a should still be there on master
-SHOW CREATE TABLE base_3_a;
-SHOW CREATE TABLE base_4_a;
-
---source include/rpl_sync.inc
-
---connection slave
-
---echo # base_3_a and base_4_a should still be there on master
-SHOW CREATE TABLE base_3_a;
-SHOW CREATE TABLE base_4_a;
-
---connection master
-
-CREATE TABLE base_1_n (a INT) ENGINE = MyISAM;
-CREATE TABLE base_2_n (a INT) ENGINE = MyISAM;
-
---source include/rpl_sync.inc
-
---echo ---- GTID_NEXT=non-automatic ----
-
---source include/gtid_step_reset.inc
-
---source include/set_gtid_next_gtid_mode_agnostic.inc
-
---error ER_ROW_IS_REFERENCED
-DROP TABLES base_1_n, base_2_n, base_3_a, base_4_a;
-
-SET GTID_NEXT= 'AUTOMATIC';
-
-if ($gtid_mode_on)
-{
---echo # With GTID assigned the above statement should not be split.
---let $gtid_step_count= 1
---source include/gtid_step_assert.inc
-}
-if (!$gtid_mode_on)
-{
---echo # Without GTID assigned the above statement should be split into
---echo # two as in AUTOMATIC mode.
---let $gtid_step_count= 2
---source include/gtid_step_assert.inc
-}
-
---echo # base_3_a and base_4_a should still be there on master
-SHOW CREATE TABLE base_3_a;
-SHOW CREATE TABLE base_4_a;
-
---source include/rpl_sync.inc
-
---connection slave
-
---echo # base_3_a and base_4_a should still be there on master
-SHOW CREATE TABLE base_3_a;
-SHOW CREATE TABLE base_4_a;
-
---connection master
-
---echo ---- Clean up ----
-
-DROP TABLE base_5_a, base_4_a, base_3_a;
-
---source include/rpl_sync.inc
+--echo See rpl_split_statements_debug.test
 
 --echo ==== Case 3: DROP DATABASE ====
 

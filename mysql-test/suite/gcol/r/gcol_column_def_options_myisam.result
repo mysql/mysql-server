@@ -206,7 +206,7 @@ drop table t1;
 drop table t2;
 FK options
 create table t1(a int,  b int as (a % 2), c int as (a) stored);
-create table t2 (a int);
+create table t2 (a int primary key);
 alter table t1 add constraint foreign key fk(d) references t2(a);
 ERROR 42000: Key column 'd' doesn't exist in table
 alter table t1 add constraint foreign key fk(c) references t2(a) on delete set null;
@@ -427,7 +427,7 @@ DROP TABLE t1;
 # Check for a valid syntax:
 CREATE TABLE t1 (c CHAR(10) CHARACTER SET utf8 COLLATE utf8_bin GENERATED ALWAYS AS ("foo bar"));
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -437,7 +437,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (i INT);
 ALTER TABLE t1 ADD COLUMN c CHAR(10) CHARACTER SET utf8 COLLATE utf8_bin GENERATED ALWAYS AS ("foo bar");
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -649,10 +649,6 @@ CREATE TABLE t1(a INT PRIMARY KEY DEFAULT 5);
 INSERT INTO t1 VALUES();
 ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 7,
 ADD COLUMN b INT AS (1 + DEFAULT(a)) STORED,
-ALGORITHM = INPLACE;
-Got one of the listed errors
-ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 7,
-ADD COLUMN c INT AS (1 + DEFAULT(a)) VIRTUAL,
 ALGORITHM = INPLACE;
 Got one of the listed errors
 ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 7,

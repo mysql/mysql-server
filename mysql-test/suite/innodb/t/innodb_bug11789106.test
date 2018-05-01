@@ -2,8 +2,7 @@
 # templ->mysql_col_len == len
 
 
-create table table_11789106(`a` point,`b` int,`c` char(2),
-			   primary key (`a`(1),`c`(1)), key (`b`))
+create table table_11789106(`a` point,`b` int,`c` char(2))
 character set latin2 engine=innodb;
 
 insert ignore into table_11789106 values (ST_geomfromtext('point(1 1)'),'','');

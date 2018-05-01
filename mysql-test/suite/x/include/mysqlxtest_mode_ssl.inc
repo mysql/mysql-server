@@ -8,17 +8,11 @@
 
 --exec $MYSQLXTEST_SSLCA_TEST $USE_SOCKET -v%EXPECT%=OFF --ssl-mode=preferred  2>&1
 
---let $expected_error_msg= .* \(code 5001\)
---source mysqlxtest_expected_error.inc
---exec $MYSQLXTEST_SSLCA_TEST $USE_SOCKET -v%EXPECT%=OFF --ssl-mode=required  2>&1
+--exec $MYSQLXTEST_SSLCA_TEST --expect-error ER_X_CAPABILITIES_PREPARE_FAILED $USE_SOCKET -v%EXPECT%=OFF --ssl-mode=required  2>&1
 
---let $expected_error_msg= .* \(code 5001\)
---source mysqlxtest_expected_error.inc
---exec $MYSQLXTEST_SSLCA_TEST $USE_SOCKET -v%EXPECT%=OFF --ssl-mode=verify_ca  2>&1
+--exec $MYSQLXTEST_SSLCA_TEST --expect-error ER_X_CAPABILITIES_PREPARE_FAILED $USE_SOCKET -v%EXPECT%=OFF --ssl-mode=verify_ca  2>&1
 
---let $expected_error_msg= .* \(code 5001\)
---source mysqlxtest_expected_error.inc
---exec $MYSQLXTEST_SSLCA_TEST $USE_SOCKET -v%EXPECT%=OFF --ssl-mode=verify_identity  2>&1
+--exec $MYSQLXTEST_SSLCA_TEST --expect-error ER_X_CAPABILITIES_PREPARE_FAILED $USE_SOCKET -v%EXPECT%=OFF --ssl-mode=verify_identity  2>&1
 
 --echo
 --echo ############################################################
@@ -46,9 +40,8 @@ let $restart_parameters=restart:
 
 --exec $MYSQLXTEST_TEST $USE_SOCKET -v%EXPECT%=ON --ssl-mode=required  2>&1
 
---let $expected_error_msg= TLS was marked that requires "CA", but it was not configured \(code 2503\)
---source mysqlxtest_expected_error.inc
---exec $MYSQLXTEST_TEST $USE_SOCKET -v%EXPECT%=ON --ssl-mode=verify_ca  2>&1
+# Expect CR_X_TLS_WRONG_CONFIGURATION error
+--exec $MYSQLXTEST_TEST --expect-error 2503 $USE_SOCKET -v%EXPECT%=ON --ssl-mode=verify_ca  2>&1
 
 --echo
 --echo ############################################################
@@ -72,14 +65,9 @@ let $restart_parameters=restart:
 
 --exec $MYSQLXTEST_SSLCA_TEST $USE_SOCKET -v%EXPECT%=ON --ssl-mode=verify_ca  2>&1
 
---let $expected_error_msg= SSL certificate validation failure \(code 2026\)
---source mysqlxtest_expected_error.inc
---exec $MYSQLXTEST_SSLCA_TEST $USE_SOCKET -v%EXPECT%=ON --ssl-mode=verify_identity  2>&1
+--exec $MYSQLXTEST_SSLCA_TEST --expect-error CR_SSL_CONNECTION_ERROR $USE_SOCKET -v%EXPECT%=ON --ssl-mode=verify_identity  2>&1
 
 --exec $MYSQLXTEST_TEST $USE_SOCKET -v%EXPECT%=ON --ssl-mode=required  2>&1
 
---let $expected_error_msg= TLS was marked that requires "CA", but it was not configured \(code 2503\)
---source mysqlxtest_expected_error.inc
---exec $MYSQLXTEST_TEST $USE_SOCKET -v%EXPECT%=ON --ssl-mode=verify_ca  2>&1
-
---let $expected_error_msg=
+# Expect CR_X_TLS_WRONG_CONFIGURATION error
+--exec $MYSQLXTEST_TEST --expect-error 2503 $USE_SOCKET -v%EXPECT%=ON --ssl-mode=verify_ca  2>&1

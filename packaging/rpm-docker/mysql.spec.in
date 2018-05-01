@@ -23,8 +23,6 @@
 %global mysql_vendor Oracle and/or its affiliates
 %global mysqldatadir /var/lib/mysql
 
-%global milestone    tr
-
 # Pass path to mecab lib
 %{?with_mecab: %global mecab_option -DWITH_MECAB=%{with_mecab}}
 %{?with_mecab: %global mecab 1}
@@ -38,7 +36,7 @@
 %{!?compilation_comment_debug:   %global compilation_comment_debug MySQL Community Server - GPL - Debug}
 %{!?src_base:                    %global src_base mysql%{?cluster:-cluster-gpl}}
 
-%global src_dir               %{src_base}-%{version}%{?milestone:-%{milestone}}
+%global src_dir               %{src_base}-@VERSION@
 
 %global license_files_server  %{src_dir}/LICENSE %{src_dir}/README
 
@@ -52,7 +50,7 @@ Name:           mysql%{?cluster:-cluster}-%{product_suffix}-minimal
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
 Version:        @MYSQL_NO_DASH_VERSION@
-Release:        0.1%{?milestone:.%{milestone}}%{?commercial:.1}%{?dist}
+Release:        0.1@MYSQL_VERSION_EXTRA_DOT@%{?commercial:.1}%{?dist}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field.
 URL:            http://www.mysql.com/
 Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com>
@@ -60,6 +58,13 @@ Vendor:         %{mysql_vendor}
 Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
 Source1:        https://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
 BuildRequires:  cmake >= 2.8.2
+%ifarch aarch64
+BuildRequires:  gcc7
+BuildRequires:  gcc7-c++
+%else
+BuildRequires:  devtoolset-7-gcc
+BuildRequires:  devtoolset-7-gcc-c++
+%endif
 BuildRequires:  perl
 BuildRequires:  perl(Time::HiRes)
 BuildRequires:  perl(Env)
@@ -143,6 +148,7 @@ mkdir release
   cd release
   cmake ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \
+           -DREPRODUCIBLE_BUILD=OFF \
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
 	   -DWITH_BOOST=.. \
@@ -290,7 +296,7 @@ rm -r $(readlink var) var
 
 %files -n mysql%{?cluster:-cluster}-%{product_suffix}-server-minimal
 %defattr(-, root, root, -)
-%doc %{?license_files_server} %{src_dir}/Docs/ChangeLog
+%doc %{?license_files_server}
 %doc %{src_dir}/Docs/INFO_SRC*
 %doc release/Docs/INFO_BIN*
 %config(noreplace) %{_sysconfdir}/my.cnf
@@ -376,6 +382,7 @@ rm -r $(readlink var) var
 %attr(644, root, root) %{_datadir}/mysql-*/fill_help_tables.sql
 %attr(644, root, root) %{_datadir}/mysql-*/mysql_system_tables.sql
 %attr(644, root, root) %{_datadir}/mysql-*/mysql_system_tables_data.sql
+%attr(644, root, root) %{_datadir}/mysql-*/mysql_system_users.sql
 %attr(644, root, root) %{_datadir}/mysql-*/mysql_sys_schema.sql
 %attr(644, root, root) %{_datadir}/mysql-*/mysql_test_data_timezone.sql
 %attr(644, root, root) %{_datadir}/mysql-*/dictionary.txt
@@ -404,7 +411,7 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
-* Thu Dec 07 2017 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.6-0.1
+* Mon Mar 12 2018 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.12-0.1
 - Change the global milestone to 'dmr'
 - Move mysqlx to default plugin
 - Add mysqlbackup

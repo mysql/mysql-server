@@ -752,6 +752,8 @@ explain DELETE FROM t1 USING v1,t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	delete `test`.`t1` from `test`.`t1` join `test`.`t1`
 DELETE FROM t1 USING v1,t1;
 DROP VIEW v1;
 DROP TABLE t1;

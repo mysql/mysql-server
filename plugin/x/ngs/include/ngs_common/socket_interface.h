@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,11 +22,11 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef NGS_SOCKET_INTERFACE_H_
-#define NGS_SOCKET_INTERFACE_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SOCKET_INTERFACE_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SOCKET_INTERFACE_H_
 
-#include "mysql/components/services/psi_socket_bits.h"
 #include "mysql/psi/mysql_socket.h"
+#include "mysql/psi/psi_socket.h"
 #include "plugin/x/ngs/include/ngs/memory.h"
 #include "violite.h"
 
@@ -54,4 +54,4 @@ class Socket_interface {
 
 }  // namespace ngs
 
-#endif  // NGS_SOCKET_INTERFACE_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SOCKET_INTERFACE_H_

@@ -129,7 +129,7 @@ while ($_rpl_diff_servers)
   --let $_rpl_diff_first= 0
 }
 --remove_file $_rpl_diff_prev_file
-
+--remove_file $_rpl_diff_statement_file
 
 --let $include_filename= rpl_diff.inc
 --source include/end_include_file.inc

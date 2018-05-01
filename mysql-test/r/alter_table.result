@@ -967,13 +967,13 @@ t1	CREATE TABLE `t1` (
   SPATIAL KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD KEY(b(50));
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(500) DEFAULT NULL,
   `b` geometry NOT NULL /*!80003 SRID 0 */,
-  SPATIAL KEY `b` (`b`),
-  KEY `b_2` (`b`(50))
+  SPATIAL KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD c POINT;
 SHOW CREATE TABLE t1;
@@ -982,8 +982,7 @@ t1	CREATE TABLE `t1` (
   `a` varchar(500) DEFAULT NULL,
   `b` geometry NOT NULL /*!80003 SRID 0 */,
   `c` point DEFAULT NULL,
-  SPATIAL KEY `b` (`b`),
-  KEY `b_2` (`b`(50))
+  SPATIAL KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE t2 (a INT, KEY (a(20)));
 ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
@@ -1032,7 +1031,7 @@ DROP TABLE t1;
 create table t1 (a tinytext character set latin1);
 alter table t1 convert to character set utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1042,7 +1041,7 @@ drop table t1;
 create table t1 (a mediumtext character set latin1);
 alter table t1 convert to character set utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1266,7 +1265,7 @@ DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (id int, c int) character set utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES (1,1);
 ALTER TABLE t1 CHANGE c d int;
 affected rows: 0
@@ -1379,7 +1378,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (f1 TIMESTAMP NULL DEFAULT NULL,
 f2 INT(11) DEFAULT NULL) ENGINE=MYISAM DEFAULT CHARSET=utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES (NULL, NULL), ("2009-10-09 11:46:19", 2);
 this should affect no rows as there is no real change
 ALTER TABLE t1 CHANGE COLUMN f1 f1_no_real_change TIMESTAMP NULL DEFAULT NULL;
@@ -1466,7 +1465,7 @@ DROP TABLE t1;
 DROP DATABASE IF EXISTS db1;
 CREATE DATABASE db1 CHARACTER SET utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE db1.t1 (bar TINYTEXT, KEY (bar(100)));
 ERROR 42000: Specified key was too long; max key length is 255 bytes
 CREATE TABLE db1.t1 (bar TINYTEXT, KEY (bar(85)));
@@ -1898,12 +1897,12 @@ ALTER TABLE ti1 DEFAULT CHARACTER SET utf8;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 1
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ALTER TABLE tm1 DEFAULT CHARACTER SET utf8;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 1
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ALTER TABLE ti1 FORCE;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
@@ -2644,6 +2643,7 @@ t1	CREATE TABLE `t1` (
   `b` point NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD UNIQUE INDEX (b);
+ERROR HY000: Spatial indexes can't be primary or unique indexes.
 # Note that SHOW CREATE TABLE does not list b as a primary key,
 # even though it was promoted. This appears to be the case also
 # for other column types.
@@ -2651,8 +2651,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
-  `b` point NOT NULL,
-  UNIQUE KEY `b` (`b`(25))
+  `b` point NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD UNIQUE INDEX (a);
 SHOW CREATE TABLE t1;
@@ -2660,7 +2659,6 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` point NOT NULL,
-  UNIQUE KEY `b` (`b`(25)),
   UNIQUE KEY `a` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Verify that the expected indices have been created by Innodb
@@ -2681,8 +2679,7 @@ INFORMATION_SCHEMA.INNODB_FIELDS AS F
 ON I.INDEX_ID = F.INDEX_ID AND I.TABLE_ID = T.TABLE_ID
 WHERE T.NAME = 'test/t1' ORDER BY I.NAME, F.NAME;
 TABLE_NAME	INDEX_NAME	INDEX_TYPE	FIELD_NAME	FIELD_POS
-test/t1	a	Unique	a	0
-test/t1	b	Primary	b	0
+test/t1	a	Primary	a	0
 DROP TABLE t1;
 #
 # BUG#16886196 - ALTER TABLE FAILS TO CONVERT TO PREFIX INDEX IN
@@ -2846,26 +2843,26 @@ CREATE TABLE t1 (f1 INT);
 #         ALTER table operation should pass.
 ALTER TABLE t1 CHARACTER SET utf8, CHARACTER SET utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Case 2: Alter table with CHARACTER SET X, CONVERT TO CHARACTER SET X
 #         ALTER table operation should pass.
 ALTER TABLE t1 CHARACTER SET utf8, CONVERT TO CHARACTER SET utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Case 3: Alter table with CONVERT TO CHARACTER SET X, CHARACTER SET X
 #         ALTER table operation should pass.
 ALTER TABLE t1 CONVERT TO CHARACTER SET utf8, CHARACTER SET utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Case 4: Alter table with CONVERT TO CHARACTER SET X, CONVERT TO CHARACTER SET X
 #         ALTER table operation should pass.
 ALTER TABLE t1 CONVERT TO CHARACTER SET utf8, CONVERT TO CHARACTER SET utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Case 5: Alter table with CHARACTER SET X, CONVERT TO CHARACTER SET Y
 #         Alter table operations should fail with an error "ER_CONFLICTING_DECLARATIONS".
 ALTER TABLE t1 CHARACTER SET utf8, CONVERT TO CHARACTER SET latin1;
@@ -2957,16 +2954,16 @@ CREATE TABLE t0(a INT NOT NULL) ENGINE=INNODB;
 ALTER TABLE t0 ADD UNIQUE INDEX (a);
 # Case a: Create table with virtual unique not null column
 CREATE TABLE t1(a POINT GENERATED ALWAYS AS (POINT(1,1)) VIRTUAL UNIQUE NOT NULL) ENGINE=INNODB;
-SELECT * FROM t1;
-a
+ERROR HY000: 'Spatial index on virtual generated column' is not supported for generated columns.
 # Case b: Create table with index on virtual point column
 CREATE TABLE t2(a POINT GENERATED ALWAYS AS (POINT(1,1)) VIRTUAL NOT NULL, UNIQUE INDEX no_pk(a(1))) ENGINE=INNODB;
-SELECT * FROM t2;
-a
+ERROR HY000: 'Spatial index on virtual generated column' is not supported for generated columns.
 # Case c: Add unique index on virtual point column
 CREATE TABLE t3(a POINT GENERATED ALWAYS AS (POINT(1,1)) VIRTUAL NOT NULL)
 ENGINE=INNODB;
+# Case c: Add unique index on virtual point column
 ALTER TABLE t3 ADD UNIQUE INDEX (a(1));
+ERROR HY000: 'Spatial index on virtual generated column' is not supported for generated columns.
 SELECT * FROM t3;
 a
 # Case d: Add unique index on virtual blob column
@@ -2988,13 +2985,8 @@ ON I.INDEX_ID = F.INDEX_ID AND I.TABLE_ID = T.TABLE_ID
 WHERE T.NAME LIKE 'test/%' ORDER BY T.NAME, I.NAME, F.POS;
 TABLE_NAME	INDEX_NAME	IS_PRIMARY_KEY	FIELD_NAME	FIELD_POS
 test/t0	a	yes	a	0
-test/t1	a	no	a	0
-test/t2	no_pk	no	a	0
-test/t3	a	no	a	0
 test/t4	b	no	b	0
 DROP TABLE t0;
-DROP TABLE t1;
-DROP TABLE t2;
 DROP TABLE t3;
 DROP TABLE t4;
 #
@@ -3013,7 +3005,7 @@ DROP TABLE t;
 CREATE TABLE t1 (fld1 INT PRIMARY KEY) ENGINE = INNODB CHARACTER SET gbk;
 ALTER TABLE t1 CONVERT TO CHARACTER SET UTF8, ALGORITHM = INPLACE;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Without fix, the CHARSET SET for table remains gbk.
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -3035,7 +3027,7 @@ CREATE TABLE t1 (fld1 INT PRIMARY KEY, fld2 CHAR(10)) ENGINE = INNODB
 CHARACTER SET gbk;
 ALTER TABLE t1 CHARACTER SET UTF8, ALGORITHM = INPLACE;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -3598,3 +3590,214 @@ SELECT * FROM t;
 a	b	c	d
 NULL	1999-09-09	1999-09-09	0000-00-00
 DROP TABLE t;
+#
+# Basic test coverage for ALGORITHM=INSTANT support on SQL-layer.
+#
+#
+# 1) Syntax.
+#
+CREATE TABLE t1 (i INT) ENGINE=InnoDB;
+ALTER TABLE t1 ALTER COLUMN i SET DEFAULT 10, ALGORITHM=INSTANT;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT '10'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# ALGORITHM=INSTANT doesn't make sense with LOCK clause.
+ALTER TABLE t1 ALTER COLUMN i SET DEFAULT 11, ALGORITHM=INSTANT, LOCK=NONE;
+ERROR HY000: Incorrect usage of ALGORITHM=INSTANT and LOCK=NONE/SHARED/EXCLUSIVE
+ALTER TABLE t1 ALTER COLUMN i SET DEFAULT 12, ALGORITHM=INSTANT, LOCK=SHARED;
+ERROR HY000: Incorrect usage of ALGORITHM=INSTANT and LOCK=NONE/SHARED/EXCLUSIVE
+ALTER TABLE t1 ALTER COLUMN i SET DEFAULT 13, ALGORITHM=INSTANT, LOCK=EXCLUSIVE;
+ERROR HY000: Incorrect usage of ALGORITHM=INSTANT and LOCK=NONE/SHARED/EXCLUSIVE
+# ALGORITHM=INSTANT and LOCK=DEFAULT are OK though.
+ALTER TABLE t1 ALTER COLUMN i SET DEFAULT 13, ALGORITHM=INSTANT, LOCK=DEFAULT;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT '13'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#
+# 2) We support INSTANT algorithm for a few trivial metadata-only
+#    changes for InnoDB.
+#
+ALTER TABLE t1 ALTER COLUMN i SET DEFAULT 14, ALGORITHM=INSTANT;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT '14'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ALTER COLUMN i DROP DEFAULT, ALGORITHM=INSTANT;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ADD COLUMN j ENUM('a', 'b', 'c');
+ALTER TABLE t1 MODIFY COLUMN j ENUM('a', 'b', 'c', 'd', 'e'), ALGORITHM=INSTANT;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11),
+  `j` enum('a','b','c','d','e') DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INSTANT;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` int(11),
+  `j` enum('a','b','c','d','e') DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#
+# 3) You can still use ALGORITHM=INPLACE for these operations
+#    (even though INSTANT algorithm will be used internally).
+#
+ALTER TABLE t2 RENAME TO t1, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11),
+  `j` enum('a','b','c','d','e') DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ALTER COLUMN i SET DEFAULT 15, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT '15',
+  `j` enum('a','b','c','d','e') DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ALTER COLUMN i DROP DEFAULT, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11),
+  `j` enum('a','b','c','d','e') DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 MODIFY COLUMN j ENUM('a', 'b', 'c', 'd', 'e', 'f', 'g'), ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11),
+  `j` enum('a','b','c','d','e','f','g') DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#
+# 4) However, some operations are not supported as INSTANT.
+#
+ALTER TABLE t1 ADD KEY(j), ALGORITHM=INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
+ALTER TABLE t1 ALTER COLUMN i SET DEFAULT 15, DROP COLUMN j, ALGORITHM=INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
+#
+# 5) For MyISAM tables we support INSTANT algorithm for metadata-only
+#    changes as well.
+#
+DROP TABLE t1;
+CREATE TABLE t1 (i INT, j ENUM('a', 'b'), KEY(i)) ENGINE=MyISAM;
+ALTER TABLE t1 ALTER COLUMN i SET DEFAULT 10, ALGORITHM=INSTANT;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT '10',
+  `j` enum('a','b') DEFAULT NULL,
+  KEY `i` (`i`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ALTER COLUMN i DROP DEFAULT, ALGORITHM=INSTANT;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11),
+  `j` enum('a','b') DEFAULT NULL,
+  KEY `i` (`i`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 MODIFY COLUMN j ENUM('a', 'b', 'c', 'd', 'e'), ALGORITHM=INSTANT;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11),
+  `j` enum('a','b','c','d','e') DEFAULT NULL,
+  KEY `i` (`i`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 CHANGE COLUMN i k INT, ALGORITHM=INSTANT;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11) DEFAULT NULL,
+  `j` enum('a','b','c','d','e') DEFAULT NULL,
+  KEY `i` (`k`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 RENAME INDEX i TO k, ALGORITHM=INSTANT;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11) DEFAULT NULL,
+  `j` enum('a','b','c','d','e') DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INSTANT;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `k` int(11) DEFAULT NULL,
+  `j` enum('a','b','c','d','e') DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#
+# 6) And you can still use ALGORITHM=INPLACE for the same operations
+#    for MyISAM tables too.
+#
+ALTER TABLE t2 RENAME TO t1, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11) DEFAULT NULL,
+  `j` enum('a','b','c','d','e') DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ALTER COLUMN k SET DEFAULT 11, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11) DEFAULT '11',
+  `j` enum('a','b','c','d','e') DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ALTER COLUMN k DROP DEFAULT, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11),
+  `j` enum('a','b','c','d','e') DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 MODIFY COLUMN j ENUM('a', 'b', 'c', 'd', 'e', 'f', 'g'), ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11),
+  `j` enum('a','b','c','d','e','f','g') DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 CHANGE COLUMN k i INT, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL,
+  `j` enum('a','b','c','d','e','f','g') DEFAULT NULL,
+  KEY `k` (`i`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 RENAME INDEX k TO i, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL,
+  `j` enum('a','b','c','d','e','f','g') DEFAULT NULL,
+  KEY `i` (`i`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#
+# 7) Indeed, some options are not supported as INSTANT
+#
+ALTER TABLE t1 ADD COLUMN l INT, ALGORITHM=INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
+ALTER TABLE t1 ALTER COLUMN i SET DEFAULT 12, DROP COLUMN j, ALGORITHM=INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
+DROP TABLE t1;

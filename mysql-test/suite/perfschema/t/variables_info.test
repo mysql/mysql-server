@@ -2,6 +2,8 @@
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
+CALL mtr.add_suppression("Plugin mysqlx reported: 'All I/O interfaces are disabled");
+
 --disable_warnings
 drop table if exists test.marker;
 --enable_warnings

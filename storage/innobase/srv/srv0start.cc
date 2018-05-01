@@ -1678,11 +1678,12 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
 #endif /* IA32 or AMD64 */
 #endif /* HAVE_MEMORY_BARRIER */
 
-  ib::info(ER_IB_MSG_1123, ZLIB_VERSION);
 #ifdef UNIV_ZIP_DEBUG
-  " with validation"
+  ib::info(ER_IB_MSG_1123, ZLIB_VERSION) << " with validation";
+#else
+  ib::info(ER_IB_MSG_1123, ZLIB_VERSION);
 #endif /* UNIV_ZIP_DEBUG */
-      ;
+
 #ifdef UNIV_ZIP_COPY
   ib::info(ER_IB_MSG_1124) << "and extra copying";
 #endif /* UNIV_ZIP_COPY */

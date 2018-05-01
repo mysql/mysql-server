@@ -29,7 +29,7 @@
 --source include/have_myisam.inc
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 call mtr.add_suppression("Option binlog_cache_size ");
-call mtr.add_suppression("Slave SQL for channel '': The incident LOST_EVENTS occured on the master.");
+call mtr.add_suppression("Slave SQL for channel '': The incident LOST_EVENTS occurred on the master.");
 call mtr.add_suppression("The content of the statement cache is corrupted "
                          "while writing a rollback record of the transaction "
                          "to the binary log. An incident event has been "
@@ -79,8 +79,8 @@ eval INSERT INTO t2 (a, data) VALUES (2,
 --enable_query_log
 
 # Incident event
-# 1590=ER_SLAVE_INCIDENT
---let $slave_sql_errno= 1590
+# 13119=ER_SLAVE_INCIDENT
+--let $slave_sql_errno= 13119
 --source include/wait_for_slave_sql_error_and_skip.inc
 
 --disable_query_log
@@ -99,8 +99,8 @@ eval UPDATE t2, t1 SET t2.data = CONCAT($data, $data, $data, $data),
                        t1.data = CONCAT($data, $data, $data, $data);
 --enable_query_log
 
-# 1590=ER_SLAVE_INCIDENT
---let $slave_sql_errno= 1590
+# 13119=ER_SLAVE_INCIDENT
+--let $slave_sql_errno= 13119
 --let $slave_skip_counter= `SELECT IF(@@binlog_format = 'ROW', 2, 1)`
 --source include/wait_for_slave_sql_error_and_skip.inc
 
@@ -371,7 +371,54 @@ COMMIT;
 --let $diff_tables= master:t1,slave:t1
 --source include/diff_tables.inc
 
---echo ######### 8 - Bug#55375(Regression Bug) Transaction bigger than  ##########
+--echo ####### 8 - LOAD DATA INFILE INTO TABLE #######
+
+#
+# This scenario verifies that load data infile fails when
+# binlog cache exceeds max_binlog_cache_size
+#
+--source include/rpl_connection_master.inc
+CREATE TABLE t6 (a varchar(20)) ENGINE=Innodb;
+
+# Save the current binary log position
+--let $pos_before= query_get_value(show master status,Position,1)
+
+--disable_query_log
+--let $write_var =`SELECT REPEAT('Testing\n', 1000)`
+--let $write_to_file = GENERATE
+--source include/write_var_to_file.inc
+--enable_query_log
+
+# Below transaction generates transaction cache more than
+# the max_binlog_cache_size i.e 4096. Hence results in error.
+--replace_result $write_to_file temp_file
+--error ER_TRANS_CACHE_FULL
+eval LOAD DATA INFILE '$write_to_file' INTO TABLE t6;
+
+--exec rm $write_to_file
+
+# Check that the above transaction has not been logged in the binary log
+--let $assert_text= assert that the above Event has not been added to binlog
+--let $assert_cond= [SHOW MASTER STATUS, Position,1] = $pos_before
+--source include/assert.inc
+
+# Check that the table is empty on master
+--let $assert_text = Check that the LOAD DATA didn't add any data into the table
+--let $assert_cond = [SELECT COUNT(*) FROM t6] = 0
+--source include/assert.inc
+
+--source include/sync_slave_sql_with_master.inc
+
+# Check that the table is empty on slave
+--let $assert_text = Check that the LOAD DATA didn't add any data into the table
+--let $assert_cond = [SELECT COUNT(*) FROM t6] = 0
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t6;
+--source include/sync_slave_sql_with_master.inc
+
+--echo ######### 9 - Bug#55375(Regression Bug) Transaction bigger than  ##########
 --echo #########     max_binlog_cache_size crashes slave                ##########
 
 --echo # [ On Slave ]
@@ -385,7 +432,7 @@ source include/start_slave.inc;
 CALL mtr.add_suppression("Multi-statement transaction required more than 'max_binlog_cache_size' bytes of storage.*");
 CALL mtr.add_suppression("Multi-statement transaction required more than 'max_binlog_stmt_cache_size' bytes of storage.*");
 CALL mtr.add_suppression("Writing one row to the row-based binary log failed.*");
-CALL mtr.add_suppression("Slave SQL.*The incident LOST_EVENTS occured on the master. Message: error writing to the binary log");
+CALL mtr.add_suppression("Slave SQL.*The incident LOST_EVENTS occurred on the master. Message: error writing to the binary log");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 connection master;

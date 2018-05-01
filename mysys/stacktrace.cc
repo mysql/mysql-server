@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -238,7 +238,9 @@ static bool my_demangle_symbol(char *line) {
   }
   if (demangled) my_safe_printf_stderr("%s(%s+%s\n", line, demangled, end);
 #endif            // !__APPLE__
-  return (demangled == NULL);
+  bool ret = (demangled == NULL);
+  free(demangled);
+  return (ret);
 }
 
 static void my_demangle_symbols(char **addrs, int n) {
@@ -483,9 +485,9 @@ void my_write_core(int unused) {
     // representation of DWORD value + 4 bytes for .dmp suffix +
     // 1 byte for termitated \0. Such size of output buffer guarantees
     // that there is enough space to place a result of string formatting
-    // performed by _snprintf().
-    _snprintf(dump_fname, sizeof(dump_fname), "%s.%u.dmp", module_name,
-              GetCurrentProcessId());
+    // performed by snprintf().
+    snprintf(dump_fname, sizeof(dump_fname), "%s.%u.dmp", module_name,
+             GetCurrentProcessId());
   }
   my_create_minidump(dump_fname, 0, 0);
 }

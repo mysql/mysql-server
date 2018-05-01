@@ -313,7 +313,7 @@ SET(SQL_SHARED_SOURCES
   histograms/value_map.cc
   hostname.cc
   init.cc
-  instance_log_resource.cc
+  log_resource.cc
   item.cc
   item_buff.cc
   item_cmpfunc.cc 
@@ -337,6 +337,7 @@ SET(SQL_SHARED_SOURCES
   key_spec.cc
   keycaches.cc
   lock.cc
+  locked_tables_list.cc
   locking_service.cc
   log.cc
   mdl.cc
@@ -616,6 +617,15 @@ IF(WIN32)
     item_geofunc_relchecks.cc
     item_geofunc_setops.cc
     COMPILE_FLAGS "/bigobj")
+ENDIF()
+
+# Force optimization of (large) MYSQLparse function in MSVC
+IF(WIN32)
+  IF (MSVC_VERSION GREATER_EQUAL 1910)
+    ADD_COMPILE_FLAGS(
+      ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+      COMPILE_FLAGS "/d2OptimizeHugeFunctions")
+  ENDIF()
 ENDIF()
 
 # Common for all versions of GCC/Clang

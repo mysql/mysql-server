@@ -1,6 +1,6 @@
 # -*- cperl -*-
-# Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
-# 
+# Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -21,7 +21,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-
 #
 # One test
 #
@@ -30,61 +29,52 @@ package My::Test;
 use strict;
 use warnings;
 use Carp;
+
 use mtr_results;
 
+my %result_names = ('MTR_RES_PASSED'  => 'pass',
+                    'MTR_RES_FAILED'  => 'fail',
+                    'MTR_RES_SKIPPED' => 'skipped',);
 
 sub new {
-  my $class= shift;
-  my $self= bless {
-		   @_,
-		  }, $class;
+  my $class = shift;
+  my $self = bless { @_, }, $class;
   return $self;
 }
 
-
-#
 # Return a unique key that can be used to
-# identify this test in a hash
-#
+# identify this test in a hash.
 sub key {
-  my ($self)= @_;
+  my ($self) = @_;
   return $self->{key};
 }
 
-
 sub _encode {
-  my ($value)= @_;
+  my ($value) = @_;
   $value =~ s/([|\\\x{0a}\x{0d}])/sprintf('\%02X', ord($1))/eg;
   return $value;
 }
 
 sub _decode {
-  my ($value)= @_;
+  my ($value) = @_;
   $value =~ s/\\([0-9a-fA-F]{2})/chr(hex($1))/ge;
   return $value;
 }
 
 sub is_failed {
-  my ($self)= @_;
-  my $result= $self->{result};
+  my ($self) = @_;
+  my $result = $self->{result};
   croak "'is_failed' can't be called until test has been run!"
     unless defined $result;
 
   return ($result eq 'MTR_RES_FAILED');
 }
 
-
-my %result_names= (
-		   'MTR_RES_PASSED'   =>  'pass',
-		   'MTR_RES_FAILED'   =>  'fail',
-		   'MTR_RES_SKIPPED'  =>  'skipped',
-		  );
-
 sub write_test {
-  my ($test, $sock, $header)= @_;
+  my ($test, $sock, $header) = @_;
 
   if ($::opt_resfile && defined $test->{'result'}) {
-    resfile_test_info("result", $result_names{$test->{'result'}});
+    resfile_test_info("result", $result_names{ $test->{'result'} });
     if ($test->{'timeout'}) {
       resfile_test_info("comment", "Timeout");
     } elsif (defined $test->{'comment'}) {
@@ -95,11 +85,11 @@ sub write_test {
   }
 
   # Give the test a unique key before serializing it
-  $test->{key}= "$test" unless defined $test->{key};
+  $test->{key} = "$test" unless defined $test->{key};
 
   print $sock $header, "\n";
   while ((my ($key, $value)) = each(%$test)) {
-    print $sock  $key, "= ";
+    print $sock $key, "= ";
     if (ref $value eq "ARRAY") {
       print $sock "[", _encode(join(", ", @$value)), "]";
     } else {
@@ -110,41 +100,37 @@ sub write_test {
   print $sock "\n";
 }
 
-
 sub read_test {
-  my ($sock)= @_;
-  my $test= My::Test->new();
-  # Read the : separated key value pairs until a
-  # single newline on it's own line
+  my ($sock) = @_;
+  my $test = My::Test->new();
+
+  # Read the ':' separated key value pairs until a single newline
+  # on it's own line
   my $line;
-  while (defined($line= <$sock>)) {
+  while (defined($line = <$sock>)) {
     # List is terminated by newline on it's own
     if ($line eq "\n") {
-      # Correctly terminated reply
-      # print "Got newline\n";
+      # Correctly terminated reply print "Got newline\n"
       last;
     }
     chomp($line);
 
     # Split key/value on the first "="
-    my ($key, $value)= split("= ", $line, 2);
+    my ($key, $value) = split("= ", $line, 2);
 
-    if ($value =~ /^\[(.*)\]/){
-      my @values= split(", ", _decode($1));
-      push(@{$test->{$key}}, @values);
-    }
-    else
-    {
-      $test->{$key}= _decode($value);
+    if ($value =~ /^\[(.*)\]/) {
+      my @values = split(", ", _decode($1));
+      push(@{ $test->{$key} }, @values);
+    } else {
+      $test->{$key} = _decode($value);
     }
   }
   resfile_from_test($test) if $::opt_resfile;
   return $test;
 }
 
-
 sub print_test {
-  my ($self)= @_;
+  my ($self) = @_;
 
   print "[", $self->{name}, "]", "\n";
   while ((my ($key, $value)) = each(%$self)) {
@@ -158,6 +144,5 @@ sub print_test {
   }
   print "\n";
 }
-
 
 1;

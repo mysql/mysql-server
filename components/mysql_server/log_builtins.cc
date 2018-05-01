@@ -27,6 +27,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
       someone's going out of their way to break to API)". :)
 */
 
+#define LOG_SUBSYSTEM_TAG "Server"
+
 #include "log_builtins_filter_imp.h"
 #include "log_builtins_imp.h"  // internal structs
                                // connection_events_loop_aborted()
@@ -1079,12 +1081,13 @@ const char *log_label_from_prio(int prio) {
 static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll) {
   const char *label = "", *msg = "";
   int c, out_fields = 0;
-  size_t msg_len = 0, ts_len = 0, label_len = 0;
+  size_t msg_len = 0, ts_len = 0, label_len = 0, subsys_len = 0;
   enum loglevel prio = ERROR_LEVEL;
   unsigned int errcode = 0;
   log_item_type item_type = LOG_ITEM_END;
   log_item_type_mask out_types = 0;
-  const char *iso_timestamp = "";
+  const char *iso_timestamp = "", *subsys = "";
+  ;
   my_thread_id thread_id = 0;
 
   if (ll->count > 0) {
@@ -1109,6 +1112,11 @@ static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll) {
         case LOG_ITEM_LOG_LABEL:
           label = ll->item[c].data.data_string.str;
           label_len = ll->item[c].data.data_string.length;
+          break;
+        case LOG_ITEM_SRV_SUBSYS:
+          subsys = ll->item[c].data.data_string.str;
+          if ((subsys_len = ll->item[c].data.data_string.length) > 12)
+            subsys_len = 12;
           break;
         case LOG_ITEM_LOG_TIMESTAMP:
           iso_timestamp = ll->item[c].data.data_string.str;
@@ -1161,20 +1169,19 @@ static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll) {
         message; this should therefore not affect log aggregation.
         Tools reacting to the contents of the message may wish to
         use the new field instead as it's simpler to parse.
-        While for the time being, this field contains a numerical
-        value, the rules are like so:
+        The rules are like so:
 
           '[' [ <namespace> ':' ] <identifier> ']'
 
         That is, an error identifier may be namespaced by a
         subsystem/component name and a ':'; the identifier
         itself should be considered opaque; in particular, it
-        may be non-numerical: [ <alpha> | <digit> | '_' | '.' ]
+        may be non-numerical: [ <alpha> | <digit> | '_' | '.' | '-' ]
       */
       len = snprintf(buff_line, sizeof(buff_line),
-                     "%.*s %u [%.*s] [MY-%06u] %.*s", (int)ts_len,
+                     "%.*s %u [%.*s] [MY-%06u] [%.*s] %.*s", (int)ts_len,
                      iso_timestamp, thread_id, (int)label_len, label, errcode,
-                     (int)msg_len, msg);
+                     (int)subsys_len, subsys, (int)msg_len, msg);
 
       log_write_errstream(buff_line, len);
 
@@ -1471,6 +1478,13 @@ int log_line_submit(log_line *ll) {
       }
     }
 
+    /* add the default sub-system if none is set */
+    if (!(ll->seen & LOG_ITEM_SRV_SUBSYS) && !log_line_full(ll)) {
+      log_item_data *d = log_line_item_set(ll, LOG_ITEM_SRV_SUBSYS);
+      d->data_string.str = LOG_SUBSYSTEM_TAG;
+      d->data_string.length = strlen(d->data_string.str);
+    }
+
     /* normalize source line if needed */
     DBUG_EXECUTE_IF("log_error_normalize", {
       if (ll->seen & LOG_ITEM_SRC_LINE) {
@@ -1521,6 +1535,22 @@ int log_line_submit(log_line *ll) {
     // release any memory that might need it
 
     mysql_rwlock_unlock(&THR_LOCK_log_stack);
+
+#if !defined(DBUG_OFF)
+    /*
+      Assert that we're not given anything but server error-log codes.
+      If your code bombs out here, check whether you're trying to log
+      using an error-code in the range intended for messages that are
+      sent to the client, not the error-log, (< ER_SERVER_RANGE_START).
+    */
+    if (ll->seen & LOG_ITEM_SQL_ERRCODE) {
+      int n = log_line_index_by_type(ll, LOG_ITEM_SQL_ERRCODE);
+      if (n >= 0) {
+        int ec = (int)ll->item[n].data.data_integer;
+        DBUG_ASSERT((ec < 1) || (ec >= ER_SERVER_RANGE_START));
+      }
+    }
+#endif
 
     log_line_item_free_all(ll);
   }
@@ -1589,24 +1619,42 @@ int make_iso8601_timestamp(char *buf, ulonglong utime, int mode) {
 /**
   Helper: get token from error stack configuration string
 
-  @param[in,out]  s  start of the token (may be positioned on whitespace
-                     on call; this will be adjusted to the first non-white
-                     character)
-  @param[out]     e  end of the token
+  @param[in,out]  s   start of the token (may be positioned on whitespace
+                      on call; this will be adjusted to the first non-white
+                      character)
+  @param[out]     e   end of the token
+  @param[in,out]  d   delimiter (in: last used, \0 if none; out: detected here)
 
+  @retval         <0  an error occur
   @retval            the length in bytes of the token
 */
 static size_t log_builtins_stack_get_service_from_var(const char **s,
-                                                      const char **e) {
+                                                      const char **e, char *d) {
   DBUG_ASSERT(s != nullptr);
   DBUG_ASSERT(e != nullptr);
 
-  while (isspace(**s) || (**s == ';')) (*s)++;
+  // proceed to next service (skip whitespace, and the delimiter once defined)
+  while (isspace(**s) || ((*d != '\0') && (**s == *d))) (*s)++;
 
   *e = *s;
 
-  while ((**e != '\0') && (**e != ';') && !isspace(**e)) (*e)++;
+  // find end of service
+  while ((**e != '\0') && !isspace(**e)) {
+    if ((**e == ';') || (**e == ',')) {
+      if (*d == '\0')  // no delimiter determined yet
+      {
+        if (*e == *s)  // token may not start with a delimiter
+          return -1;
+        *d = **e;            // save the delimiter we found
+      } else if (**e != *d)  // different delimiter than last time: error
+        return -2;
+    }
+    if (**e == *d)  // found a valid delimiter; end scan
+      goto done;
+    (*e)++;  // valid part of token found, go on!
+  }
 
+done:
   return (size_t)(*e - *s);
 }
 
@@ -1831,9 +1879,11 @@ int log_builtins_error_stack_flush() {
 int log_builtins_error_stack(const char *conf, bool check_only) {
   char buf[128];
   const char *start = conf, *end;
-  size_t len;
+  char delim = '\0';
+  long len;
   my_h_service service;
   int rr = 0;
+  int count = 0;
   log_service_cache_entry *sce;
   log_service_instance *lsi;
 
@@ -1851,8 +1901,15 @@ int log_builtins_error_stack(const char *conf, bool check_only) {
   }
 
   lsi = nullptr;
-  while ((len = log_builtins_stack_get_service_from_var(&start, &end)) > 0) {
+  while ((len = log_builtins_stack_get_service_from_var(&start, &end, &delim)) >
+         0) {
     log_service_builtin_type srvtype = LOG_SERVICE_BUILTIN_TYPE_NONE;
+
+    // more than one services listed, but no delimiter used (only space)
+    if ((++count > 1) && (delim == '\0')) {
+      rr = (int)-(start - conf + 1);  // at least one service not found => fail
+      goto done;
+    }
 
     // find current service name in service-cache
     auto it = log_service_cache->find(string(start, len));
@@ -1876,7 +1933,8 @@ int log_builtins_error_stack(const char *conf, bool check_only) {
       if ((sce = log_service_cache_entry_new(start, len, service)) == nullptr) {
         // failed to make cache-entry. if we hold a service handle, release it!
         if (service != nullptr) imp_mysql_server_registry.release(service);
-        rr = -2;
+        rr =
+            (int)-(start - conf + 1);  // at least one service not found => fail
         goto done;
       }
 
@@ -1946,7 +2004,7 @@ int log_builtins_error_stack(const char *conf, bool check_only) {
     start = end;
   }
 
-  rr = 0;
+  rr = (len < 0) ? ((int)-(start - conf + 1)) : 0;
 
 done:
   // remove stale entries from cache

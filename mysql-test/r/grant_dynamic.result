@@ -12,6 +12,8 @@ GRANT USAGE ON *.* TO `u1`@`localhost`
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost`
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
+mysql.session	localhost	SYSTEM_VARIABLES_ADMIN	N
 root	localhost	BACKUP_ADMIN	Y
 root	localhost	BINLOG_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
@@ -35,6 +37,8 @@ GRANT USAGE ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
+mysql.session	localhost	SYSTEM_VARIABLES_ADMIN	N
 root	localhost	BACKUP_ADMIN	Y
 root	localhost	BINLOG_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
@@ -57,6 +61,8 @@ GRANT USAGE ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
+mysql.session	localhost	SYSTEM_VARIABLES_ADMIN	N
 root	localhost	BACKUP_ADMIN	Y
 root	localhost	BINLOG_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
@@ -92,6 +98,8 @@ GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 ** Only one dynamic entry
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
+mysql.session	localhost	SYSTEM_VARIABLES_ADMIN	N
 root	localhost	BACKUP_ADMIN	Y
 root	localhost	BINLOG_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
@@ -119,6 +127,8 @@ GRANT USAGE ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
+mysql.session	localhost	SYSTEM_VARIABLES_ADMIN	N
 root	localhost	BACKUP_ADMIN	Y
 root	localhost	BINLOG_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
@@ -141,6 +151,8 @@ GRANT USAGE ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
+mysql.session	localhost	SYSTEM_VARIABLES_ADMIN	N
 root	localhost	BACKUP_ADMIN	Y
 root	localhost	BINLOG_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
@@ -186,6 +198,8 @@ GRANT RUBBISH ON *.* TO `u1`@`localhost`
 DROP USER u1@localhost;
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
+mysql.session	localhost	SYSTEM_VARIABLES_ADMIN	N
 root	localhost	BACKUP_ADMIN	Y
 root	localhost	BINLOG_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
@@ -222,6 +236,8 @@ ERROR 42000: There is no such grant defined for user 'u1' on host 'localhost'
 ** privileges are affected by RENAME
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
+mysql.session	localhost	SYSTEM_VARIABLES_ADMIN	N
 root	localhost	BACKUP_ADMIN	Y
 root	localhost	BINLOG_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
@@ -266,6 +282,8 @@ GRANT SELECT ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
+mysql.session	localhost	SYSTEM_VARIABLES_ADMIN	N
 root	localhost	BACKUP_ADMIN	Y
 root	localhost	BINLOG_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
@@ -719,7 +737,7 @@ DROP DATABASE db1_protected;
 ERROR 42000: Access denied for user 'u1'@'localhost' to database 'db1_protected'
 DROP DATABASE db1;
 DROP DATABASE db1_protected;
-# Restore missing system table and restart the erver.
+# Restore missing system table and restart the server.
 CREATE TABLE IF NOT EXISTS mysql.global_grants
 (
 USER CHAR(32) BINARY DEFAULT '' NOT NULL,
@@ -729,7 +747,10 @@ WITH_GRANT_OPTION ENUM('N','Y') COLLATE UTF8_GENERAL_CI DEFAULT 'N' NOT NULL,
 PRIMARY KEY (USER,HOST,PRIV)
 ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin TABLESPACE=mysql;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+# restore mysql.session privileges
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
 # restart
 DROP USER u1@localhost;
 # restore root privileges

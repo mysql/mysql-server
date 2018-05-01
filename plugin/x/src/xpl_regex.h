@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -20,22 +20,22 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef XPL_REGEX_H_
-#define XPL_REGEX_H_
+#ifndef PLUGIN_X_SRC_XPL_REGEX_H_
+#define PLUGIN_X_SRC_XPL_REGEX_H_
 
-#include "extra/regex/my_regex.h"
+#include "unicode/regex.h"
 
 namespace xpl {
 
 class Regex {
  public:
   explicit Regex(const char *const pattern);
-  ~Regex();
   bool match(const char *value) const;
 
  private:
-  my_regex_t m_re;
+  mutable UErrorCode m_status;
+  mutable icu::RegexMatcher m_re;
 };
 }  // namespace xpl
 
-#endif  // XPL_REGEX_H_
+#endif  // PLUGIN_X_SRC_XPL_REGEX_H_

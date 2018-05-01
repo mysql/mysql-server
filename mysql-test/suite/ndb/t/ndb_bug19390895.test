@@ -1,3 +1,4 @@
+--source include/have_ndb.inc
 ##############
 # Bug#19390895  CRASH: DBSPJ (LINE: 1299); SIMULATEDBLOCK.CPP
 #   

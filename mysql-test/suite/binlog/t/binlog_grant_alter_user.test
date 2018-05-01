@@ -1,4 +1,3 @@
-
 ################### suite/binlog/t/binlog_grant_alter_user.test ###################
 # Replication Testing CREATE/ALTER/GRANT USER new syntax with New variable        #
 # "log-builtin-as-identified-by-password" default value "OFF"                     #

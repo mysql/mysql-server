@@ -318,6 +318,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t3	NULL	range	PRIMARY,f2_idx	PRIMARY	4	const	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	ref	f1	f1	8	func,func	2	10.00	Using index condition; Using where
 2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	update `test`.`t3` set `test`.`t3`.`f3` = 'mnbv' where ((`test`.`t3`.`f1` > 30) and (`test`.`t3`.`f1` < 33) and <in_optimizer>((`test`.`t3`.`f1`,`test`.`t3`.`f2`,`test`.`t3`.`f3`),<exists>(/* select#2 */ select 1,1,1 from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`f1` = `test`.`t2`.`f1`) and (`test`.`t2`.`f2` between `test`.`t2`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t2`.`f1` + 1)) and (<cache>(`test`.`t3`.`f1`) = `test`.`t2`.`f1`) and (<cache>(`test`.`t3`.`f2`) = `test`.`t2`.`f2`) and (<cache>(`test`.`t3`.`f3`) = `test`.`t2`.`f3`)))))
 # Turn off range access for PRIMARY key.
 # Range access should be used for f2_idx key.
 EXPLAIN UPDATE /*+ NO_RANGE_OPTIMIZATION(t3 PRIMARY) */ t3
@@ -328,6 +330,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t3	NULL	range	f2_idx	f2_idx	4	const	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	ref	f1	f1	8	func,func	2	10.00	Using index condition; Using where
 2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	update /*+ BKA(`t2`@`select#2`) NO_BNL(`t1`@`select#2`) NO_RANGE_OPTIMIZATION(`t3`@`select#1` `PRIMARY`) */ `test`.`t3` set `test`.`t3`.`f3` = 'mnbv' where ((`test`.`t3`.`f1` > 30) and (`test`.`t3`.`f1` < 33) and <in_optimizer>((`test`.`t3`.`f1`,`test`.`t3`.`f2`,`test`.`t3`.`f3`),<exists>(/* select#2 */ select 1,1,1 from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`f1` = `test`.`t2`.`f1`) and (`test`.`t2`.`f2` between `test`.`t2`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t2`.`f1` + 1)) and (<cache>(`test`.`t3`.`f1`) = `test`.`t2`.`f1`) and (<cache>(`test`.`t3`.`f2`) = `test`.`t2`.`f2`) and (<cache>(`test`.`t3`.`f3`) = `test`.`t2`.`f3`)))))
 EXPLAIN DELETE FROM t3
 WHERE f1 > 30 AND f1 < 33 AND (t3.f1, t3.f2, t3.f3) IN
 (SELECT /*+ QB_NAME(qb1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
@@ -336,6 +340,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t3	NULL	range	PRIMARY,f2_idx	PRIMARY	4	const	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	ref	f1	f1	8	func,func	2	10.00	Using index condition; Using where
 2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	delete from `test`.`t3` where ((`test`.`t3`.`f1` > 30) and (`test`.`t3`.`f1` < 33) and <in_optimizer>((`test`.`t3`.`f1`,`test`.`t3`.`f2`,`test`.`t3`.`f3`),<exists>(/* select#2 */ select /*+ QB_NAME(`qb1`) */ 1,1,1 from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`f1` = `test`.`t2`.`f1`) and (`test`.`t2`.`f2` between `test`.`t2`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t2`.`f1` + 1)) and (<cache>(`test`.`t3`.`f1`) = `test`.`t2`.`f1`) and (<cache>(`test`.`t3`.`f2`) = `test`.`t2`.`f2`) and (<cache>(`test`.`t3`.`f3`) = `test`.`t2`.`f3`)))))
 # Turn off range access. Range access should not be used.
 # Turn off BNL. BNL should not be used.
 EXPLAIN DELETE /*+ NO_RANGE_OPTIMIZATION(t3 PRIMARY, f2_idx) NO_BNL(t1@QB1) */ FROM t3
@@ -346,6 +352,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t3	NULL	ALL	NULL	NULL	NULL	NULL	56	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	ref	f1	f1	8	func,func	2	10.00	Using index condition; Using where
 2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	delete /*+ NO_BNL(`t1`@`qb1`) NO_RANGE_OPTIMIZATION(`t3`@`select#1` `PRIMARY`) NO_RANGE_OPTIMIZATION(`t3`@`select#1` `f2_idx`) */ from `test`.`t3` where ((`test`.`t3`.`f1` > 30) and (`test`.`t3`.`f1` < 33) and <in_optimizer>((`test`.`t3`.`f1`,`test`.`t3`.`f2`,`test`.`t3`.`f3`),<exists>(/* select#2 */ select /*+ QB_NAME(`qb1`) */ 1,1,1 from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`f1` = `test`.`t2`.`f1`) and (`test`.`t2`.`f2` between `test`.`t2`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t2`.`f1` + 1)) and (<cache>(`test`.`t3`.`f1`) = `test`.`t2`.`f1`) and (<cache>(`test`.`t3`.`f2`) = `test`.`t2`.`f2`) and (<cache>(`test`.`t3`.`f3`) = `test`.`t2`.`f3`)))))
 EXPLAIN INSERT INTO t3(f1, f2, f3)
 (SELECT t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
 t2.f2 BETWEEN t1.f1 AND t1.f2 AND t2.f2 + 1 >= t1.f1 + 1);
@@ -353,6 +361,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using index condition
+Warnings:
+Note	1003	insert into `test`.`t3` (`test`.`t3`.`f1`,`test`.`t3`.`f2`,`test`.`t3`.`f3`) /* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f1` = `test`.`t1`.`f1`) and (`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)))
 # Turn off ICP. ICP should not be used.
 EXPLAIN INSERT INTO t3(f1, f2, f3)
 (SELECT /*+ NO_ICP(t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
@@ -361,6 +371,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using where
+Warnings:
+Note	1003	insert /*+ NO_ICP(`t2`@`select#1`) */ into `test`.`t3` (`test`.`t3`.`f1`,`test`.`t3`.`f2`,`test`.`t3`.`f3`) /* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f1` = `test`.`t1`.`f1`) and (`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)))
 # Turn off ICP. ICP should not be used.
 EXPLAIN INSERT /*+ NO_ICP(t2@QB1 f1) */ INTO t3(f1, f2, f3)
 (SELECT /*+ QB_NAME(qb1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
@@ -369,6 +381,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using where
+Warnings:
+Note	1003	insert /*+ NO_ICP(`t2`@`qb1` `f1`) */ into `test`.`t3` (`test`.`t3`.`f1`,`test`.`t3`.`f2`,`test`.`t3`.`f3`) /* select#1 */ select /*+ QB_NAME(`qb1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f1` = `test`.`t1`.`f1`) and (`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)))
 EXPLAIN REPLACE INTO t3(f1, f2, f3)
 (SELECT t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
 t2.f2 BETWEEN t1.f1 AND t1.f2 AND t2.f2 + 1 >= t1.f1 + 1);
@@ -376,6 +390,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	REPLACE	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using index condition
+Warnings:
+Note	1003	replace into `test`.`t3` (`test`.`t3`.`f1`,`test`.`t3`.`f2`,`test`.`t3`.`f3`) /* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f1` = `test`.`t1`.`f1`) and (`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)))
 # Turn off ICP. ICP should not be used.
 EXPLAIN REPLACE INTO t3(f1, f2, f3)
 (SELECT /*+ NO_ICP(t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
@@ -384,6 +400,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	REPLACE	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using where
+Warnings:
+Note	1003	replace /*+ NO_ICP(`t2`@`select#1`) */ into `test`.`t3` (`test`.`t3`.`f1`,`test`.`t3`.`f2`,`test`.`t3`.`f3`) /* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f1` = `test`.`t1`.`f1`) and (`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)))
 # Turn off ICP for nonexistent table. ICP should be used.
 EXPLAIN REPLACE /*+ NO_ICP(t2@qb1) */ INTO t3(f1, f2, f3)
 SELECT /*+ QB_NAME(qb2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
@@ -394,6 +412,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using index condition
 Warnings:
 Warning	3127	Query block name `qb1` is not found for NO_ICP hint
+Note	1003	replace into `test`.`t3` (`test`.`t3`.`f1`,`test`.`t3`.`f2`,`test`.`t3`.`f3`) /* select#1 */ select /*+ QB_NAME(`qb2`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f1` = `test`.`t1`.`f1`) and (`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)))
 # Turn off ICP. ICP should not be used.
 EXPLAIN REPLACE /*+ NO_ICP(t2@qb1) */ INTO t3(f1, f2, f3)
 SELECT /*+ QB_NAME(qb1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
@@ -402,6 +421,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	REPLACE	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using where
+Warnings:
+Note	1003	replace /*+ NO_ICP(`t2`@`qb1`) */ into `test`.`t3` (`test`.`t3`.`f1`,`test`.`t3`.`f2`,`test`.`t3`.`f3`) /* select#1 */ select /*+ QB_NAME(`qb1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f1` = `test`.`t1`.`f1`) and (`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)))
 # Misc tests
 # Should issue warning
 EXPLAIN SELECT /*+ QB_NAME(qb1) QB_NAME(qb1 ) */ * FROM t2;
@@ -1478,21 +1499,25 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 Warnings:
 Warning	1064	Optimizer hint syntax error near 'test */ INTO t1 VALUES (10, 10)' at line 1
+Note	1003	insert into `test`.`t1` values (10,10)
 EXPLAIN REPLACE /*+ test */ INTO t1 VALUES (10, 10);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	REPLACE	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 Warnings:
 Warning	1064	Optimizer hint syntax error near 'test */ INTO t1 VALUES (10, 10)' at line 1
+Note	1003	replace into `test`.`t1` values (10,10)
 EXPLAIN UPDATE /*+ test */ t1 SET i = 10 WHERE j = 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	range	i2	i2	5	const	1	100.00	Using where
 Warnings:
 Warning	1064	Optimizer hint syntax error near 'test */ t1 SET i = 10 WHERE j = 10' at line 1
+Note	1003	update `test`.`t1` set `test`.`t1`.`i` = 10 where (`test`.`t1`.`j` = 10)
 EXPLAIN DELETE /*+ test */ FROM t1 WHERE i = 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	range	i1	i1	5	const	1	100.00	Using where
 Warnings:
 Warning	1064	Optimizer hint syntax error near 'test */ FROM t1 WHERE i = 10' at line 1
+Note	1003	delete from `test`.`t1` where (`test`.`t1`.`i` = 10)
 
 # non-alphabetic and non-ASCII identifiers:
 
@@ -1576,7 +1601,7 @@ Warning	1064	Optimizer hint syntax error near '``) */ 1' at line 1
 Note	1003	/* select#1 */ select 1 AS `1`
 SET NAMES utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 EXPLAIN SELECT /*+ QB_NAME(`¿``¿`) */ 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -2000,6 +2025,8 @@ explain update t3, v1 set t3.a=v1.a+10 where t3.a-v1.a=0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 1	UPDATE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	update `test`.`t3` join `test`.`t1` set `test`.`t3`.`a` = (`test`.`t1`.`a` + 10) where (((`test`.`t3`.`a` - `test`.`t1`.`a`) = 0) and (`test`.`t1`.`a` <> 0))
 update t3, v1 set t3.a=v1.a+10 where t3.a-v1.a=0;
 select * from t3;
 a	b
@@ -2012,6 +2039,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1003	update /*+ NO_MERGE(`v1`@`select#1`) */ `test`.`t3` join `test`.`v1` set `test`.`t3`.`a` = (`v1`.`a` + 10) where ((`test`.`t3`.`a` - `v1`.`a`) = 0)
 update /*+ no_merge(v1) */ t3, v1 set t3.a=v1.a+10 where t3.a-v1.a=0;
 select * from t3;
 a	b
@@ -2026,6 +2055,8 @@ explain update t3, v1 set v1.a=t3.a+10 where t3.a-v1.a=0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	update `test`.`t3` join `test`.`t1` set `test`.`t1`.`a` = (`test`.`t3`.`a` + 10) where (((`test`.`t3`.`a` - `test`.`t1`.`a`) = 0) and (`test`.`t1`.`a` <> 0))
 update t3, v1 set v1.a=t3.a+10 where t3.a-v1.a=0;
 select * from t1;
 a
@@ -2048,6 +2079,8 @@ explain update t3, (select * from t1) dt set t3.a=dt.a+10 where t3.a-dt.a=0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	update `test`.`t3` join `test`.`t1` set `test`.`t3`.`a` = (`test`.`t1`.`a` + 10) where ((`test`.`t3`.`a` - `test`.`t1`.`a`) = 0)
 update t3, (select * from t1) dt set t3.a=dt.a+10 where t3.a-dt.a=0;
 select * from t3;
 a	b
@@ -2060,6 +2093,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	update /*+ NO_MERGE(`dt`@`select#1`) */ `test`.`t3` join (/* select#2 */ select straight_join `test`.`t1`.`a` AS `a` from `test`.`t1`) `dt` set `test`.`t3`.`a` = (`dt`.`a` + 10) where ((`test`.`t3`.`a` - `dt`.`a`) = 0)
 update /*+ no_merge(dt) */ t3, (select * from t1) dt set t3.a=dt.a+10 where t3.a-dt.a=0;
 select * from t3;
 a	b
@@ -2080,6 +2115,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	<derived3>	NULL	index_subquery	<auto_key0>	<auto_key0>	5	func	2	100.00	Using index
 3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1003	update `test`.`t3` set `test`.`t3`.`b` = NULL where <in_optimizer>(`test`.`t3`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t3`.`a`) in dt on <auto_key0>)))
 update t3 set b=NULL
 where a in (select /*+ qb_name(sub) */ a
 from (select * from t1 where a>1) dt);
@@ -2095,6 +2132,8 @@ from (select * from t1 where a>1) dt);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1003	update /*+ MERGE(`dt`@`sub`) */ `test`.`t3` set `test`.`t3`.`b` = NULL where <in_optimizer>(`test`.`t3`.`a`,<exists>(/* select#2 */ select /*+ QB_NAME(`sub`) */ 1 from `test`.`t1` where ((<cache>(`test`.`t3`.`a`) = `test`.`t1`.`a`) and (`test`.`t1`.`a` > 1))))
 update /*+ merge(dt@sub) */ t3 set b=NULL
 where a in (select /*+ qb_name(sub) */ a
 from (select * from t1 where a>1) dt);
@@ -2113,6 +2152,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	<derived3>	NULL	index_subquery	<auto_key0>	<auto_key0>	5	func	2	100.00	NULL
 3	DERIVED	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1003	update `test`.`t3` set `test`.`t3`.`b` = NULL where <in_optimizer>(`test`.`t3`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t3`.`a`) in dt on <auto_key0>)))
 update t3 set b=NULL
 where a in (select /*+ qb_name(sub) */ a
 from (select * from t3 where b>1) dt);
@@ -2139,6 +2180,8 @@ explain delete t3.* from t3, v1 where t3.a-v1.a=0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 1	DELETE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	delete `test`.`t3` from `test`.`t3` join `test`.`t1` where (((`test`.`t3`.`a` - `test`.`t1`.`a`) = 0) and (`test`.`t1`.`a` <> 0))
 delete t3.* from t3, v1 where t3.a-v1.a=0;
 select * from t3;
 a	b
@@ -2149,6 +2192,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1003	delete /*+ NO_MERGE(`v1`@`select#1`) */ `test`.`t3` from `test`.`t3` join `test`.`v1` where ((`test`.`t3`.`a` - `v1`.`a`) = 0)
 delete /*+ no_merge(v1) */ t3.* from t3, v1 where t3.a-v1.a=0;
 select * from t3;
 a	b

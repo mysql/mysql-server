@@ -80,7 +80,7 @@ EOF
 
 
 --let $restart_parameters = restart: --loose-mysqlx-bind-address=::
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
+--source include/restart_mysqld.inc
 
 --echo #
 --echo #

@@ -70,8 +70,8 @@ save_master_pos;
 connection slave;
 # 1062 = ER_DUP_ENTRY
 --let $er_inconsistent_error= convert_error(ER_INCONSISTENT_ERROR)
-call mtr.add_suppression("Slave SQL.*Error .Duplicate entry .10. for key .b.. on query.* Error_code: 1062");
---eval call mtr.add_suppression("Slave SQL.*Query caused different errors on master and slave.*Error on master:.*error code=1062.*Error on slave:.*Error_code: $er_inconsistent_error")
+call mtr.add_suppression("Slave SQL.*Error .Duplicate entry .10. for key .b.. on query.* Error_code: MY-001062");
+--eval call mtr.add_suppression("Slave SQL.*Query caused different errors on master and slave.*Error on master:.*error code=1062.*Error on slave:.*Error_code: MY-0$er_inconsistent_error")
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 --let $slave_sql_errno= 1062
 --source include/wait_for_slave_sql_error_and_skip.inc

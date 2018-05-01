@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -164,13 +164,25 @@ void Slave_reporting_capability::va_report(loglevel level, int err_code,
   /* If the msg string ends with '.', do not add a ',' it would be ugly */
   LogEvent()
       .type(LOG_TYPE_ERROR)
+      .subsys(LOG_SUBSYSTEM_TAG)
       .prio(level)
-      .errcode(err_code)
-      .subsys("replication")
-      .message("Slave %s%s: %s%s Error_code: %d", m_thread_name,
+      // if it's a client err-code, flag it as from diagnostics area
+      .errcode((err_code < ER_SERVER_RANGE_START)
+                   ? ER_RPL_SLAVE_ERROR_INFO_FROM_DA
+                   : err_code)
+      .subsys("Repl")
+      /*
+        We'll use the original error-code in the actual message,
+        even if it's out of range. That should make it easier
+        to find, debug, and fix.
+      */
+      .message("Slave %s%s: %s%s Error_code: MY-%06d", m_thread_name,
                get_for_channel_str(false), pbuff,
                (curr_buff[0] && *(strend(curr_buff) - 1) == '.') ? "" : ",",
                err_code);
+
+  // we shouldn't really use client error codes here, so bomb out in debug mode
+  // DBUG_ASSERT(err_code >= ER_SERVER_RANGE_START);
 }
 
 Slave_reporting_capability::~Slave_reporting_capability() {

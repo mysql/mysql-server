@@ -35,6 +35,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/services/psi_socket.h>
 #include <mysql/components/services/psi_stage.h>
 #include <mysql/components/services/psi_statement.h>
+#include <mysql/components/services/psi_system.h>
 #include <mysql/components/services/psi_table.h>
 #include <mysql/components/services/psi_thread.h>
 #include <mysql/components/services/psi_transaction.h>

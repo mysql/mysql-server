@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef X_TESTS_DRIVER_CONNECTOR_SESSION_HOLDER_H_
-#define X_TESTS_DRIVER_CONNECTOR_SESSION_HOLDER_H_
+#ifndef PLUGIN_X_TESTS_DRIVER_CONNECTOR_SESSION_HOLDER_H_
+#define PLUGIN_X_TESTS_DRIVER_CONNECTOR_SESSION_HOLDER_H_
 
 #include <cassert>
 #include <cstdint>
@@ -115,4 +115,4 @@ class Session_holder {
   const Console &m_console;
 };
 
-#endif  // X_TESTS_DRIVER_CONNECTOR_SESSION_HOLDER_H_
+#endif  // PLUGIN_X_TESTS_DRIVER_CONNECTOR_SESSION_HOLDER_H_

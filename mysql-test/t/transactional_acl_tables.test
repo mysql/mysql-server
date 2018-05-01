@@ -2125,7 +2125,7 @@ CREATE TABLE IF NOT EXISTS mysql.user (   Host char(60) binary DEFAULT '' NOT NU
  max_updates int(11) unsigned DEFAULT 0  NOT NULL,
  max_connections int(11) unsigned DEFAULT 0  NOT NULL,
  max_user_connections int(11) unsigned DEFAULT 0  NOT NULL,
- plugin char(64) DEFAULT 'mysql_native_password', authentication_string TEXT,
+ plugin char(64) DEFAULT 'caching_sha2_password', authentication_string TEXT,
  password_expired ENUM('N', 'Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
  PRIMARY KEY Host (Host,User) ) engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin
  comment='Users and global privileges';
@@ -2322,7 +2322,7 @@ RENAME TABLE mysql.tables_priv_bak TO mysql.tables_priv;
 INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session',
   'N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y','N','N','N',
   'N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,
-  'mysql_native_password','*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE',
+  'caching_sha2_password','$A$005$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED',
   'N',CURRENT_TIMESTAMP,NULL,'Y', 'N', 'N', NULL, NULL);
 INSERT IGNORE INTO mysql.tables_priv VALUES ('localhost', 'mysql',
  'mysql.session', 'user', 'root\@localhost',

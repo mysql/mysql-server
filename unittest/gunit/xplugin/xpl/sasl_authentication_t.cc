@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -41,19 +41,12 @@ using namespace ::testing;
 template <typename Auth_type>
 class AuthenticationTestSuite : public Test {
  public:
-  static void dont_delete_ptr(ngs::IOptions_session *) {}
-
   void SetUp() {
-    mock_options_session.reset(
-        new StrictMock<ngs::test::Mock_options_session>());
     sut = Auth_type::create(&mock_session, nullptr);
 
     ON_CALL(mock_data_context, authenticate(_, _, _, _, _, _, _))
         .WillByDefault(Return(default_error));
-    EXPECT_CALL(mock_connection, options())
-        .WillRepeatedly(Return(ngs::IOptions_session_ptr(
-            mock_options_session.get(), &dont_delete_ptr)));
-    EXPECT_CALL(mock_connection, connection_type())
+    EXPECT_CALL(mock_connection, get_type())
         .WillRepeatedly(Return(ngs::Connection_tls));
     EXPECT_CALL(mock_client, connection())
         .WillRepeatedly(ReturnRef(mock_connection));
@@ -77,9 +70,8 @@ class AuthenticationTestSuite : public Test {
 
   StrictMock<ngs::test::Mock_sql_data_context> mock_data_context;
   StrictMock<xpl::test::Mock_client> mock_client;
-  StrictMock<ngs::test::Mock_connection> mock_connection;
+  StrictMock<ngs::test::Mock_vio> mock_connection;
   StrictMock<ngs::test::Mock_session> mock_session;
-  ngs::shared_ptr<ngs::test::Mock_options_session> mock_options_session;
   ngs::Authentication_interface_ptr sut;
 };
 
@@ -137,7 +129,8 @@ TEST_F(ExpectedValuesSaslAuthenticationTestSuite,
       sut->handle_start("", sasl_login_string, "");
 
   assert_responce(result, "Invalid user or password",
-                  ngs::Authentication_interface::Failed, ER_NO_SUCH_USER);
+                  ngs::Authentication_interface::Failed,
+                  ER_ACCESS_DENIED_ERROR);
 }
 
 TEST_F(ExpectedValuesSaslAuthenticationTestSuite,
@@ -148,7 +141,8 @@ TEST_F(ExpectedValuesSaslAuthenticationTestSuite,
       sut->handle_start("", sasl_login_string, "");
 
   assert_responce(result, "Invalid user or password",
-                  ngs::Authentication_interface::Failed, ER_NO_SUCH_USER);
+                  ngs::Authentication_interface::Failed,
+                  ER_ACCESS_DENIED_ERROR);
 }
 
 TEST_F(
@@ -162,7 +156,8 @@ TEST_F(
       sut->handle_start("", sasl_login_string, "");
 
   assert_responce(result, "Invalid user or password",
-                  ngs::Authentication_interface::Failed, ER_NO_SUCH_USER);
+                  ngs::Authentication_interface::Failed,
+                  ER_ACCESS_DENIED_ERROR);
 }
 
 TEST_F(ExpectedValuesSaslAuthenticationTestSuite,

@@ -856,6 +856,34 @@ class Dictionary_client {
       MY_ATTRIBUTE((warn_unused_result));
 
   /**
+    Fetch all global component ids of the given type.
+
+    @tparam        T              Type of components to get.
+    @param   [out] ids            An std::vector containing all component ids.
+
+    @return      true   Failure (error is reported).
+    @return      false  Success.
+  */
+
+  template <typename T>
+  bool fetch_global_component_ids(std::vector<Object_id> *ids) const
+      MY_ATTRIBUTE((warn_unused_result));
+
+  /**
+    Fetch all global component names of the given type.
+
+    @tparam        T              Type of components to get.
+    @param   [out] names          An std::vector containing all component names.
+
+    @return      true   Failure (error is reported).
+    @return      false  Success.
+  */
+
+  template <typename T>
+  bool fetch_global_component_names(std::vector<String_type> *names) const
+      MY_ATTRIBUTE((warn_unused_result));
+
+  /**
     Fetch all components in the schema.
 
     @tparam        T              Type of components to get.

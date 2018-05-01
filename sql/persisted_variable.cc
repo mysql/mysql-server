@@ -59,6 +59,7 @@
 #include "mysql_version.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
+#include "sql/auth/auth_internal.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
@@ -158,14 +159,14 @@ Persisted_variables_cache *Persisted_variables_cache::m_instance = NULL;
 
 st_persist_var::st_persist_var() {
   if (current_thd) {
-    timeval tv = current_thd->query_start_timeval_trunc(0);
+    timeval tv = current_thd->query_start_timeval_trunc(DATETIME_MAX_DECIMALS);
     timestamp = tv.tv_sec * 1000000ULL + tv.tv_usec;
   } else
     timestamp = my_micro_time();
 }
 
 st_persist_var::st_persist_var(THD *thd) {
-  timeval tv = thd->query_start_timeval_trunc(0);
+  timeval tv = thd->query_start_timeval_trunc(DATETIME_MAX_DECIMALS);
   timestamp = tv.tv_sec * 1000000ULL + tv.tv_usec;
   user = thd->security_context()->user().str;
   host = thd->security_context()->host().str;
@@ -292,17 +293,25 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
   const char *var_name =
       Persisted_variables_cache::get_variable_name(system_var);
   const char *var_value = val_buf;
-  if (setvar->type == OPT_PERSIST_ONLY && setvar->value) {
-    res = setvar->value->val_str(&str);
-    if (res && res->length()) {
-      /*
-        value held by Item class can be of different charset,
-        so convert to utf8mb4
-      */
-      const CHARSET_INFO *tocs = &my_charset_utf8mb4_bin;
-      uint dummy_err;
-      utf8_str.copy(res->ptr(), res->length(), res->charset(), tocs,
-                    &dummy_err);
+  if (setvar->type == OPT_PERSIST_ONLY) {
+    const CHARSET_INFO *tocs = &my_charset_utf8mb4_bin;
+    uint dummy_err;
+    if (setvar->value) {
+      res = setvar->value->val_str(&str);
+      if (res && res->length()) {
+        /*
+          value held by Item class can be of different charset,
+          so convert to utf8mb4
+        */
+        utf8_str.copy(res->ptr(), res->length(), res->charset(), tocs,
+                      &dummy_err);
+        var_value = utf8_str.c_ptr_quick();
+      }
+    } else {
+      /* persist default value */
+      setvar->var->save_default(thd, setvar);
+      setvar->var->saved_value_to_string(thd, setvar, (char *)str.ptr());
+      utf8_str.copy(str.ptr(), str.length(), str.charset(), tocs, &dummy_err);
       var_value = utf8_str.c_ptr_quick();
     }
   } else {
@@ -590,13 +599,14 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
   vector<st_persist_var> *persist_variables = NULL;
   ulong access = 0;
   bool result = 0, new_thd = 0;
-
+  const std::vector<std::string> priv_list = {
+      "ENCRYPTION_KEY_ADMIN", "ROLE_ADMIN", "SYSTEM_VARIABLES_ADMIN"};
+  Sctx_ptr<Security_context> ctx;
   /*
     if persisted_globals_load is set to false or --no-defaults is set
     then do not set persistent options
   */
   if (no_defaults || !persisted_globals_load) return 0;
-
   /*
     This function is called in only 2 places
       1. During server startup.
@@ -622,6 +632,14 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
     /* save access privileges */
     access = thd->security_context()->master_access();
     thd->security_context()->set_master_access(~(ulong)0);
+    /* create security context for bootstrap auth id */
+    Security_context_factory default_factory(
+        thd, "bootstrap", "localhost", Default_local_authid(thd),
+        Grant_temporary_dynamic_privileges(thd, priv_list),
+        Drop_temporary_dynamic_privileges(priv_list));
+    ctx = default_factory.create();
+    /* attach this auth id to current security_context */
+    thd->set_security_context(ctx.get());
     thd->real_id = my_thread_self();
     new_thd = 1;
   }
@@ -745,6 +763,7 @@ err:
     thd->security_context()->set_master_access(access);
     lex_end(thd->lex);
     thd->release_resources();
+    ctx.reset(nullptr);
     delete thd;
   } else {
     thd->lex = sav_lex;

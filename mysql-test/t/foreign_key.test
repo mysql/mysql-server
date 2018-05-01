@@ -122,18 +122,18 @@ DROP TABLE t1;
 DROP TABLE t2;
 
 SET @@foreign_key_checks= 1;
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_CANNOT_OPEN_PARENT
 CREATE TABLE t1(a INT PRIMARY KEY, b INT, FOREIGN KEY (b) REFERENCES non(a));
 # Works, but no FK created
 CREATE TABLE t1(a INT PRIMARY KEY, b INT REFERENCES non(a));
 SHOW CREATE TABLE t1;
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_CANNOT_OPEN_PARENT
 ALTER TABLE t1 ADD FOREIGN KEY (b) REFERENCES non(a);
 DROP TABLE t1;
 
 CREATE TABLE t1(a INT PRIMARY KEY);
 CREATE TABLE t2(a INT PRIMARY KEY, b INT, FOREIGN KEY (b) REFERENCES t1(a));
---error ER_ROW_IS_REFERENCED
+--error ER_FK_CANNOT_DROP_PARENT
 DROP TABLE t1;
 DROP TABLE t2, t1;
 
@@ -393,10 +393,10 @@ DROP TABLE t1;
 --echo # FK Referencing virtual column
 CREATE TABLE t1(a INT PRIMARY KEY,
                 b INT GENERATED ALWAYS AS (a+1) VIRTUAL UNIQUE);
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 CREATE TABLE t2(a INT, FOREIGN KEY (a) REFERENCES t1(b));
 CREATE TABLE t2(a INT);
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 ALTER TABLE t2 ADD FOREIGN KEY(a) REFERENCES t1(b);
 DROP TABLE t1, t2;
 
@@ -1157,7 +1157,7 @@ COMMIT;
 
 connection default;
 --echo # Reap DROP TABLES
---error ER_ROW_IS_REFERENCED
+--error ER_FK_CANNOT_DROP_PARENT
 --reap
 
 --echo # 4.4) DROP TABLES which acquires lock on child table and fails
@@ -2333,7 +2333,7 @@ CREATE TABLE child(pk INTEGER PRIMARY KEY, fk_i INTEGER,
 SET @@session.foreign_key_checks= 1;
 --echo # Drop only parent with FKC == 0.
 LOCK TABLE parent WRITE;
---error ER_ROW_IS_REFERENCED
+--error ER_FK_CANNOT_DROP_PARENT
 DROP TABLES parent;
 UNLOCK TABLE;
 
@@ -2847,15 +2847,15 @@ ALTER TABLE t3 ADD FOREIGN KEY (fk) REFERENCES t1 (pk),
 --echo # application of RENAME clause early.
 DROP TABLE t4;
 --error ER_FK_DUP_NAME
-ALTER TABLE t3 ADD CONSTRAINT d FOREIGN KEY (fk) REFERENCES t1 (pk),
+ALTER TABLE t3 ADD CONSTRAINT d FOREIGN KEY (fk) REFERENCES test.t1 (pk),
                ADD UNIQUE KEY (u), RENAME TO mysqltest.t3,
                ALGORITHM=COPY;
 --error ER_FK_DUP_NAME
-ALTER TABLE t3 ADD FOREIGN KEY (fk) REFERENCES t1 (pk),
+ALTER TABLE t3 ADD FOREIGN KEY (fk) REFERENCES test.t1 (pk),
                ADD UNIQUE KEY (u), RENAME TO t8,
                ALGORITHM=COPY;
 --error ER_FK_DUP_NAME
-ALTER TABLE t3 ADD FOREIGN KEY (fk) REFERENCES t1 (pk),
+ALTER TABLE t3 ADD FOREIGN KEY (fk) REFERENCES test.t1 (pk),
                ADD UNIQUE KEY (u), RENAME TO mysqltest.t8,
                ALGORITHM=COPY;
 
@@ -2870,3 +2870,287 @@ CREATE TABLE T2 (fk INT);
 ALTER TABLE T2 ADD FOREIGN KEY (fk) REFERENCES t1 (pk);
 RENAME TABLE T2 TO T3;
 DROP TABLES T3, t1;
+
+
+--echo #
+--echo # Bug #27821060 "NEWDD FK: DROP TABLES/DATABASE SHOULD CHECK FOR FKS".
+--echo #
+
+--echo #
+--echo # 1) Attempt to DROP TABLE which serves as parent in FK without dropping
+--echo #    child should fail with nice error message.
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+CREATE TABLE t2 (fk INT, FOREIGN KEY (fk) REFERENCES t1 (pk));
+--error ER_FK_CANNOT_DROP_PARENT
+DROP TABLE t1;
+
+--echo #
+--echo # 2) However, same should be allowed in FOREIGN_KEY_CHECKS=0 mode.
+SET FOREIGN_KEY_CHECKS=0;
+DROP TABLE t1;
+SET FOREIGN_KEY_CHECKS=1;
+
+--echo #
+--echo # 3) Dropping of parent table along with child table should be allowed.
+--echo #    Even if parent precedes child in table list.
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+DROP TABLES t1, t2;
+
+--echo #
+--echo # 4) Even if FKs form circular dependencies.
+CREATE TABLE t1 (pk INT PRIMARY KEY, fk INT);
+CREATE TABLE t2 (pk INT PRIMARY KEY, fk INT,
+                 FOREIGN KEY(fk) REFERENCES t1 (pk));
+ALTER TABLE t1 ADD FOREIGN KEY (fk) REFERENCES t2 (pk);
+DROP TABLES t1, t2;
+
+--echo #
+--echo # 5) Attempt to DROP SCHEMA which will remove parent without
+--echo #    removing child should fail with nice error message.
+CREATE SCHEMA mysqltest;
+CREATE TABLE mysqltest.t1 (pk INT PRIMARY KEY);
+CREATE TABLE t2 (fk INT, FOREIGN KEY(fk) REFERENCES mysqltest.t1 (pk));
+--error ER_FK_CANNOT_DROP_PARENT
+DROP SCHEMA mysqltest;
+
+--echo #
+--echo # 6) But the same should be allowed in FOREIGN_KEY_CHECKS=0 mode.
+SET FOREIGN_KEY_CHECKS=0;
+DROP SCHEMA mysqltest;
+SET FOREIGN_KEY_CHECKS=1;
+DROP TABLE t2;
+
+--echo #
+--echo # 7) Also dropping schema which drops both parent and child
+--echo #    should be OK.
+CREATE SCHEMA mysqltest;
+USE mysqltest;
+CREATE TABLE t1 (pk INT PRIMARY KEY, fk INT);
+CREATE TABLE t2 (pk INT PRIMARY KEY, fk INT,
+                 FOREIGN KEY(fk) REFERENCES t1 (pk));
+ALTER TABLE t1 ADD FOREIGN KEY (fk) REFERENCES t2 (pk);
+USE test;
+DROP SCHEMA mysqltest;
+
+
+--echo #
+--echo # Bug#27506922 "DROPPING OF PARENT KEY FOR FOREIGN KEY IS ALLOWED".
+--echo #
+
+--echo #
+--echo # 1) CREATE TABLE with FK and no parent key.
+--echo #
+CREATE TABLE parent(pk INT PRIMARY KEY, a INT);
+--error ER_FK_NO_INDEX_PARENT
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(a));
+SET FOREIGN_KEY_CHECKS = 0;
+--error ER_FK_NO_INDEX_PARENT
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(a));
+SET FOREIGN_KEY_CHECKS = 1;
+--error ER_FK_NO_INDEX_PARENT
+CREATE TABLE self (pk INT PRIMARY KEY, a INT, fk INT,
+                   FOREIGN KEY (fk) REFERENCES self(a));
+SET FOREIGN_KEY_CHECKS = 0;
+--error ER_FK_NO_INDEX_PARENT
+CREATE TABLE self (pk INT PRIMARY KEY, a INT, fk INT,
+                   FOREIGN KEY (fk) REFERENCES self(a));
+--echo # Missing parent table case.
+SET FOREIGN_KEY_CHECKS = 1;
+--error ER_FK_CANNOT_OPEN_PARENT,
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES no_such_parent(pk));
+--echo # We allow creation of orphan FKs in FOREIGN_KEY_CHECKS = 0 mode.
+SET FOREIGN_KEY_CHECKS = 0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES no_such_parent(pk));
+SET FOREIGN_KEY_CHECKS = 1;
+DROP TABLE child;
+
+--echo #
+--echo # 2) ALTER TABLE which adds FK without parent key.
+--echo #
+CREATE TABLE child (fk INT, fk2 INT);
+--error ER_FK_NO_INDEX_PARENT
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(a), ALGORITHM=COPY;
+--error ER_FK_NO_INDEX_PARENT
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(a), ALGORITHM=INPLACE;
+SET FOREIGN_KEY_CHECKS = 0;
+--error ER_FK_NO_INDEX_PARENT
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(a), ALGORITHM=COPY;
+--error ER_FK_NO_INDEX_PARENT
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(a), ALGORITHM=INPLACE;
+SET FOREIGN_KEY_CHECKS = 1;
+CREATE TABLE self (pk INT PRIMARY KEY, a INT, fk INT);
+--error ER_FK_NO_INDEX_PARENT
+ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(a), ALGORITHM=COPY;
+--error ER_FK_NO_INDEX_PARENT
+ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(a), ALGORITHM=INPLACE;
+SET FOREIGN_KEY_CHECKS = 0;
+--error ER_FK_NO_INDEX_PARENT
+ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(a), ALGORITHM=COPY;
+--error ER_FK_NO_INDEX_PARENT
+ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(a), ALGORITHM=INPLACE;
+--echo # Missing parent table case.
+SET FOREIGN_KEY_CHECKS = 1;
+--error ER_FK_CANNOT_OPEN_PARENT,
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES no_such_parent(pk), ALGORITHM=COPY;
+--error ER_FK_CANNOT_OPEN_PARENT,
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES no_such_parent(pk), ALGORITHM=INPLACE;
+--echo # We allow creation of orphan FKs in FOREIGN_KEY_CHECKS = 0 mode.
+SET FOREIGN_KEY_CHECKS = 0;
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES no_such_parent(pk), ALGORITHM=COPY;
+ALTER TABLE child ADD FOREIGN KEY (fk2) REFERENCES no_such_parent(pk), ALGORITHM=INPLACE;
+SET FOREIGN_KEY_CHECKS = 1;
+DROP TABLE child, self, parent;
+
+--echo #
+--echo # 3) ALTER TABLE which drops parent key.
+--echo #
+CREATE TABLE parent (pk INT PRIMARY KEY, u INT NOT NULL, UNIQUE(u));
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(u));
+--error ER_DROP_INDEX_FK
+ALTER TABLE parent DROP KEY u, ALGORITHM=COPY;
+--error ER_DROP_INDEX_FK
+ALTER TABLE parent DROP KEY u, ALGORITHM=INPLACE;
+SET FOREIGN_KEY_CHECKS = 0;
+--error ER_DROP_INDEX_FK
+ALTER TABLE parent DROP KEY u, ALGORITHM=COPY;
+--error ER_DROP_INDEX_FK
+ALTER TABLE parent DROP KEY u, ALGORITHM=INPLACE;
+SET FOREIGN_KEY_CHECKS = 1;
+CREATE TABLE self (pk INT PRIMARY KEY, u INT NOT NULL, fk INT, UNIQUE(u),
+                   FOREIGN KEY (fk) REFERENCES self(u));
+--error ER_DROP_INDEX_FK
+ALTER TABLE self DROP KEY u, ALGORITHM=COPY;
+--error ER_DROP_INDEX_FK
+ALTER TABLE self DROP KEY u, ALGORITHM=INPLACE;
+SET FOREIGN_KEY_CHECKS = 0;
+--error ER_DROP_INDEX_FK
+ALTER TABLE self DROP KEY u, ALGORITHM=COPY;
+--error ER_DROP_INDEX_FK
+ALTER TABLE self DROP KEY u, ALGORITHM=INPLACE;
+SET FOREIGN_KEY_CHECKS = 1;
+--echo # Check case which requires additional handling during error-reporting.
+--echo # Attempt to drop non-unique parent key.
+ALTER TABLE parent DROP KEY u, ADD KEY nu(u);
+--error ER_DROP_INDEX_FK
+ALTER TABLE parent DROP KEY nu, ALGORITHM=COPY;
+--error ER_DROP_INDEX_FK
+ALTER TABLE parent DROP KEY nu, ALGORITHM=INPLACE;
+SET FOREIGN_KEY_CHECKS = 0;
+--error ER_DROP_INDEX_FK
+ALTER TABLE parent DROP KEY nu, ALGORITHM=COPY;
+--error ER_DROP_INDEX_FK
+ALTER TABLE parent DROP KEY nu, ALGORITHM=INPLACE;
+SET FOREIGN_KEY_CHECKS = 1;
+ALTER TABLE self DROP KEY u, ADD KEY nu(u);
+--error ER_DROP_INDEX_FK
+ALTER TABLE self DROP KEY nu, ALGORITHM=COPY;
+--error ER_DROP_INDEX_FK
+ALTER TABLE self DROP KEY nu, ALGORITHM=INPLACE;
+SET FOREIGN_KEY_CHECKS = 0;
+--error ER_DROP_INDEX_FK
+ALTER TABLE self DROP KEY nu, ALGORITHM=COPY;
+--error ER_DROP_INDEX_FK
+ALTER TABLE self DROP KEY nu, ALGORITHM=INPLACE;
+SET FOREIGN_KEY_CHECKS = 1;
+DROP TABLES self, child, parent;
+
+--echo #
+--echo # 4) CREATE, RENAME and ALTER TABLE RENAME which create new
+--echo #    parent for previously orphan child table.
+--echo #
+SET FOREIGN_KEY_CHECKS = 0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(a));
+SET FOREIGN_KEY_CHECKS = 1;
+# We get more generic error message here because SE check kicks in
+# before SQL-layer check.
+--error ER_CANNOT_ADD_FOREIGN
+CREATE TABLE parent (pk INT PRIMARY KEY, a INT);
+SET FOREIGN_KEY_CHECKS = 0;
+--error ER_FK_NO_INDEX_PARENT
+CREATE TABLE parent (pk INT PRIMARY KEY, a INT);
+SET FOREIGN_KEY_CHECKS = 1;
+CREATE TABLE parent1 (pk INT PRIMARY KEY, a INT);
+--error ER_FK_NO_INDEX_PARENT
+RENAME TABLE parent1 TO parent;
+SET FOREIGN_KEY_CHECKS = 0;
+--error ER_FK_NO_INDEX_PARENT
+RENAME TABLE parent1 TO parent;
+SET FOREIGN_KEY_CHECKS = 1;
+--error ER_FK_NO_INDEX_PARENT
+ALTER TABLE parent1 RENAME TO parent;
+SET FOREIGN_KEY_CHECKS = 0;
+--error ER_FK_NO_INDEX_PARENT
+ALTER TABLE parent1 RENAME TO parent;
+SET FOREIGN_KEY_CHECKS = 1;
+--error ER_FK_NO_INDEX_PARENT
+ALTER TABLE parent1 ADD COLUMN b INT, RENAME TO parent, ALGORITHM=INPLACE;
+SET FOREIGN_KEY_CHECKS = 0;
+--error ER_FK_NO_INDEX_PARENT
+ALTER TABLE parent1 RENAME TO parent;
+SET FOREIGN_KEY_CHECKS = 1;
+--error ER_FK_NO_INDEX_PARENT
+ALTER TABLE parent1 ADD COLUMN b INT, RENAME TO parent, ALGORITHM=COPY;
+SET FOREIGN_KEY_CHECKS = 0;
+--error ER_FK_NO_INDEX_PARENT
+ALTER TABLE parent1 RENAME TO parent;
+SET FOREIGN_KEY_CHECKS = 1;
+DROP TABLE parent1, child;
+
+--echo #
+--echo # 5) Special case. ALTER TABLE which replaces parent key with another
+--echo #    one due to new key creation. Old key is generated so it is
+--echo #    automagically replaced with a new explicit key or more universal
+--echo #    generated key.
+--echo #
+CREATE TABLE grandparent (pk INT PRIMARY KEY);
+CREATE TABLE parent (pkfk INT, FOREIGN KEY (pkfk) REFERENCES grandparent(pk));
+SHOW CREATE TABLE parent;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pkfk));
+SELECT referenced_table_name, unique_constraint_name FROM
+  information_schema.referential_constraints WHERE table_name = 'child';
+ALTER TABLE parent ADD UNIQUE KEY u (pkfk);
+SHOW CREATE TABLE parent;
+SELECT referenced_table_name, unique_constraint_name FROM
+  information_schema.referential_constraints WHERE table_name = 'child';
+DROP TABLE child, parent;
+
+CREATE TABLE self (fk INT, pkfk INT,
+                   FOREIGN KEY (fk) REFERENCES self (pkfk),
+                   FOREIGN KEY (pkfk) REFERENCES grandparent(pk));
+SHOW CREATE TABLE self;
+SELECT referenced_table_name, unique_constraint_name FROM
+  information_schema.referential_constraints WHERE table_name = 'self'
+  ORDER BY referenced_table_name;
+ALTER TABLE self ADD UNIQUE KEY u (pkfk);
+SHOW CREATE TABLE self;
+SELECT referenced_table_name, unique_constraint_name FROM
+  information_schema.referential_constraints WHERE table_name = 'self'
+  ORDER BY referenced_table_name;
+DROP TABLE self, grandparent;
+
+CREATE TABLE grandparent1 (pk INT PRIMARY KEY);
+CREATE TABLE grandparent2 (pk1 INT , pk2 INT, PRIMARY KEY(pk1, pk2));
+CREATE TABLE parent (pkfk1 INT, pkfk2 INT, FOREIGN KEY (pkfk1) REFERENCES grandparent1(pk));
+SHOW CREATE TABLE parent;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pkfk1));
+SELECT referenced_table_name, unique_constraint_name FROM
+  information_schema.referential_constraints WHERE table_name = 'child';
+ALTER TABLE parent ADD FOREIGN KEY (pkfk1, pkfk2) REFERENCES grandparent2(pk1, pk2);
+SHOW CREATE TABLE parent;
+SELECT referenced_table_name, unique_constraint_name FROM
+  information_schema.referential_constraints WHERE table_name = 'child';
+DROP TABLE child, parent;
+
+CREATE TABLE self (fk INT, pkfk1 INT, pkfk2 INT,
+                   FOREIGN KEY (fk) REFERENCES self (pkfk1),
+                   FOREIGN KEY (pkfk1) REFERENCES grandparent1(pk));
+SHOW CREATE TABLE self;
+SELECT referenced_table_name, unique_constraint_name FROM
+  information_schema.referential_constraints WHERE table_name = 'self'
+  ORDER BY referenced_table_name;
+ALTER TABLE self ADD FOREIGN KEY (pkfk1, pkfk2) REFERENCES grandparent2(pk1, pk2);
+SHOW CREATE TABLE self;
+SELECT referenced_table_name, unique_constraint_name FROM
+  information_schema.referential_constraints WHERE table_name = 'self'
+  ORDER BY referenced_table_name;
+DROP TABLE self, grandparent1, grandparent2;

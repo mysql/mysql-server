@@ -16,7 +16,7 @@ def	information_schema	COLLATIONS	ID	3	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL
 def	information_schema	COLLATIONS	IS_DEFAULT	4		NO	varchar	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select			NULL
 def	information_schema	COLLATIONS	IS_COMPILED	5		NO	varchar	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select			NULL
 def	information_schema	COLLATIONS	SORTLEN	6	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select			NULL
-def	information_schema	COLLATIONS	PAD_ATTRIBUTE	7	NULL	NO	varchar	9	27	NULL	NULL	NULL	utf8	utf8_bin	varchar(9)			select			NULL
+def	information_schema	COLLATIONS	PAD_ATTRIBUTE	7	NULL	NO	enum	9	27	NULL	NULL	NULL	utf8	utf8_bin	enum('PAD SPACE','NO PAD')			select			NULL
 def	information_schema	COLLATION_CHARACTER_SET_APPLICABILITY	COLLATION_NAME	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	COLLATION_CHARACTER_SET_APPLICABILITY	CHARACTER_SET_NAME	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	COLUMNS	TABLE_CATALOG	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
@@ -74,8 +74,8 @@ def	information_schema	EVENTS	STARTS	13	NULL	YES	datetime	NULL	NULL	NULL	NULL	0	
 def	information_schema	EVENTS	ENDS	14	NULL	YES	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			select			NULL
 def	information_schema	EVENTS	STATUS	15	NULL	NO	enum	18	54	NULL	NULL	NULL	utf8	utf8_bin	enum('ENABLED','DISABLED','SLAVESIDE_DISABLED')			select			NULL
 def	information_schema	EVENTS	ON_COMPLETION	16		NO	varchar	12	36	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(12)			select			NULL
-def	information_schema	EVENTS	CREATED	17	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select			NULL
-def	information_schema	EVENTS	LAST_ALTERED	18	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select			NULL
+def	information_schema	EVENTS	CREATED	17	NULL	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select			NULL
+def	information_schema	EVENTS	LAST_ALTERED	18	NULL	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select			NULL
 def	information_schema	EVENTS	LAST_EXECUTED	19	NULL	YES	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			select			NULL
 def	information_schema	EVENTS	EVENT_COMMENT	20	NULL	NO	varchar	2048	6144	NULL	NULL	NULL	utf8	utf8_bin	varchar(2048)			select			NULL
 def	information_schema	EVENTS	ORIGINATOR	21	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select			NULL
@@ -91,7 +91,7 @@ def	information_schema	FILES	TABLE_SCHEMA	6	NULL	YES	binary	0	0	NULL	NULL	NULL	N
 def	information_schema	FILES	TABLE_NAME	7	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	LOGFILE_GROUP_NAME	8	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
 def	information_schema	FILES	LOGFILE_GROUP_NUMBER	9	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
-def	information_schema	FILES	ENGINE	10	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	FILES	ENGINE	10	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	FILES	FULLTEXT_KEYS	11	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	DELETED_ROWS	12	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	UPDATE_COUNT	13	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
@@ -172,7 +172,7 @@ def	information_schema	PARTITIONS	DATA_LENGTH	15	NULL	YES	bigint	NULL	NULL	20	0	
 def	information_schema	PARTITIONS	MAX_DATA_LENGTH	16	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
 def	information_schema	PARTITIONS	INDEX_LENGTH	17	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
 def	information_schema	PARTITIONS	DATA_FREE	18	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
-def	information_schema	PARTITIONS	CREATE_TIME	19	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select			NULL
+def	information_schema	PARTITIONS	CREATE_TIME	19	NULL	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select			NULL
 def	information_schema	PARTITIONS	UPDATE_TIME	20	NULL	YES	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			select			NULL
 def	information_schema	PARTITIONS	CHECK_TIME	21	NULL	YES	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			select			NULL
 def	information_schema	PARTITIONS	CHECKSUM	22	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
@@ -231,14 +231,14 @@ def	information_schema	ROUTINES	DTD_IDENTIFIER	14	NULL	YES	longtext	4294967295	4
 def	information_schema	ROUTINES	ROUTINE_BODY	15		NO	varchar	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select			NULL
 def	information_schema	ROUTINES	ROUTINE_DEFINITION	16	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_bin	longtext			select			NULL
 def	information_schema	ROUTINES	EXTERNAL_NAME	17	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
-def	information_schema	ROUTINES	EXTERNAL_LANGUAGE	18	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
+def	information_schema	ROUTINES	EXTERNAL_LANGUAGE	18	SQL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	ROUTINES	PARAMETER_STYLE	19		NO	varchar	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select			NULL
 def	information_schema	ROUTINES	IS_DETERMINISTIC	20		NO	varchar	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select			NULL
 def	information_schema	ROUTINES	SQL_DATA_ACCESS	21	NULL	NO	enum	17	51	NULL	NULL	NULL	utf8	utf8_bin	enum('CONTAINS SQL','NO SQL','READS SQL DATA','MODIFIES SQL DATA')			select			NULL
 def	information_schema	ROUTINES	SQL_PATH	22	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	ROUTINES	SECURITY_TYPE	23	NULL	NO	enum	7	21	NULL	NULL	NULL	utf8	utf8_bin	enum('DEFAULT','INVOKER','DEFINER')			select			NULL
-def	information_schema	ROUTINES	CREATED	24	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select			NULL
-def	information_schema	ROUTINES	LAST_ALTERED	25	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select			NULL
+def	information_schema	ROUTINES	CREATED	24	NULL	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select			NULL
+def	information_schema	ROUTINES	LAST_ALTERED	25	NULL	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select			NULL
 def	information_schema	ROUTINES	SQL_MODE	26	NULL	NO	set	514	1542	NULL	NULL	NULL	utf8	utf8_bin	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','NOT_USED_9','NOT_USED_10','NOT_USED_11','NOT_USED_12','NOT_USED_13','NOT_USED_14','NOT_USED_15','NOT_USED_16','NOT_USED_17','NOT_USED_18','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NOT_USED_29','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH','TIME_TRUNCATE_FRACTIONAL')			select			NULL
 def	information_schema	ROUTINES	ROUTINE_COMMENT	27	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select			NULL
 def	information_schema	ROUTINES	DEFINER	28	NULL	NO	varchar	93	279	NULL	NULL	NULL	utf8	utf8_bin	varchar(93)			select			NULL
@@ -258,7 +258,7 @@ def	information_schema	SCHEMA_PRIVILEGES	IS_GRANTABLE	5		NO	varchar	1	3	NULL	NUL
 def	information_schema	STATISTICS	TABLE_CATALOG	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	STATISTICS	TABLE_SCHEMA	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	STATISTICS	TABLE_NAME	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
-def	information_schema	STATISTICS	NON_UNIQUE	4		NO	varchar	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1)			select			NULL
+def	information_schema	STATISTICS	NON_UNIQUE	4	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(1)			select			NULL
 def	information_schema	STATISTICS	INDEX_SCHEMA	5	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	STATISTICS	INDEX_NAME	6	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	STATISTICS	SEQ_IN_INDEX	7	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select			NULL
@@ -299,7 +299,7 @@ def	information_schema	TABLES	MAX_DATA_LENGTH	11	NULL	YES	bigint	NULL	NULL	20	0	
 def	information_schema	TABLES	INDEX_LENGTH	12	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
 def	information_schema	TABLES	DATA_FREE	13	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
 def	information_schema	TABLES	AUTO_INCREMENT	14	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
-def	information_schema	TABLES	CREATE_TIME	15	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select			NULL
+def	information_schema	TABLES	CREATE_TIME	15	NULL	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select			NULL
 def	information_schema	TABLES	UPDATE_TIME	16	NULL	YES	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			select			NULL
 def	information_schema	TABLES	CHECK_TIME	17	NULL	YES	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			select			NULL
 def	information_schema	TABLES	TABLE_COLLATION	18	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
@@ -343,7 +343,7 @@ def	information_schema	TRIGGERS	ACTION_REFERENCE_OLD_TABLE	13	NULL	YES	binary	0	
 def	information_schema	TRIGGERS	ACTION_REFERENCE_NEW_TABLE	14	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	TRIGGERS	ACTION_REFERENCE_OLD_ROW	15		NO	varchar	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select			NULL
 def	information_schema	TRIGGERS	ACTION_REFERENCE_NEW_ROW	16		NO	varchar	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select			NULL
-def	information_schema	TRIGGERS	CREATED	17	CURRENT_TIMESTAMP(2)	NO	timestamp	NULL	NULL	NULL	NULL	2	NULL	NULL	timestamp(2)		on update CURRENT_TIMESTAMP(2)	select			NULL
+def	information_schema	TRIGGERS	CREATED	17	NULL	NO	timestamp	NULL	NULL	NULL	NULL	2	NULL	NULL	timestamp(2)			select			NULL
 def	information_schema	TRIGGERS	SQL_MODE	18	NULL	NO	set	489	1467	NULL	NULL	NULL	utf8	utf8_bin	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','NOT_USED_9','NOT_USED_10','NOT_USED_11','NOT_USED_12','NOT_USED_13','NOT_USED_14','NOT_USED_15','NOT_USED_16','NOT_USED_17','NOT_USED_18','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NOT_USED_29','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH')			select			NULL
 def	information_schema	TRIGGERS	DEFINER	19	NULL	NO	varchar	93	279	NULL	NULL	NULL	utf8	utf8_bin	varchar(93)			select			NULL
 def	information_schema	TRIGGERS	CHARACTER_SET_CLIENT	20	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
@@ -451,7 +451,7 @@ NULL	information_schema	COLLATIONS	ID	bigint	NULL	NULL	NULL	NULL	bigint(20) unsi
 3.0000	information_schema	COLLATIONS	IS_DEFAULT	varchar	3	9	utf8	utf8_general_ci	varchar(3)
 3.0000	information_schema	COLLATIONS	IS_COMPILED	varchar	3	9	utf8	utf8_general_ci	varchar(3)
 NULL	information_schema	COLLATIONS	SORTLEN	int	NULL	NULL	NULL	NULL	int(10) unsigned
-3.0000	information_schema	COLLATIONS	PAD_ATTRIBUTE	varchar	9	27	utf8	utf8_bin	varchar(9)
+3.0000	information_schema	COLLATIONS	PAD_ATTRIBUTE	enum	9	27	utf8	utf8_bin	enum('PAD SPACE','NO PAD')
 3.0000	information_schema	COLLATION_CHARACTER_SET_APPLICABILITY	COLLATION_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	COLLATION_CHARACTER_SET_APPLICABILITY	CHARACTER_SET_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	COLUMNS	TABLE_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
@@ -526,7 +526,7 @@ NULL	information_schema	FILES	TABLE_SCHEMA	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	TABLE_NAME	binary	0	0	NULL	NULL	binary(0)
 3.0000	information_schema	FILES	LOGFILE_GROUP_NAME	varchar	256	768	utf8	utf8_general_ci	varchar(256)
 NULL	information_schema	FILES	LOGFILE_GROUP_NUMBER	bigint	NULL	NULL	NULL	NULL	bigint(21)
-3.0000	information_schema	FILES	ENGINE	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	FILES	ENGINE	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 NULL	information_schema	FILES	FULLTEXT_KEYS	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	DELETED_ROWS	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	UPDATE_COUNT	binary	0	0	NULL	NULL	binary(0)
@@ -666,7 +666,7 @@ NULL	information_schema	ROUTINES	DATETIME_PRECISION	int	NULL	NULL	NULL	NULL	int(
 3.0000	information_schema	ROUTINES	ROUTINE_BODY	varchar	3	9	utf8	utf8_general_ci	varchar(3)
 1.0000	information_schema	ROUTINES	ROUTINE_DEFINITION	longtext	4294967295	4294967295	utf8	utf8_bin	longtext
 NULL	information_schema	ROUTINES	EXTERNAL_NAME	binary	0	0	NULL	NULL	binary(0)
-NULL	information_schema	ROUTINES	EXTERNAL_LANGUAGE	binary	0	0	NULL	NULL	binary(0)
+3.0000	information_schema	ROUTINES	EXTERNAL_LANGUAGE	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	ROUTINES	PARAMETER_STYLE	varchar	3	9	utf8	utf8_general_ci	varchar(3)
 3.0000	information_schema	ROUTINES	IS_DETERMINISTIC	varchar	3	9	utf8	utf8_general_ci	varchar(3)
 3.0000	information_schema	ROUTINES	SQL_DATA_ACCESS	enum	17	51	utf8	utf8_bin	enum('CONTAINS SQL','NO SQL','READS SQL DATA','MODIFIES SQL DATA')
@@ -693,7 +693,7 @@ NULL	information_schema	SCHEMATA	SQL_PATH	binary	0	0	NULL	NULL	binary(0)
 3.0000	information_schema	STATISTICS	TABLE_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	STATISTICS	TABLE_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	STATISTICS	TABLE_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
-3.0000	information_schema	STATISTICS	NON_UNIQUE	varchar	1	3	utf8	utf8_general_ci	varchar(1)
+NULL	information_schema	STATISTICS	NON_UNIQUE	int	NULL	NULL	NULL	NULL	int(1)
 3.0000	information_schema	STATISTICS	INDEX_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	STATISTICS	INDEX_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
 NULL	information_schema	STATISTICS	SEQ_IN_INDEX	int	NULL	NULL	NULL	NULL	int(10) unsigned

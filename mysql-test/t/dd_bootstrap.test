@@ -12,7 +12,6 @@ let DDIR=       $MYSQL_TMP_DIR/dd_bootstrap_test;
 let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
 let extra_args= --no-defaults --innodb_dedicated_server=OFF --log-error=$MYSQLD_LOG --log-syslog=0 --secure-file-priv="" --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --skip-ssl --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
 let BOOTSTRAP_SQL= $MYSQL_TMP_DIR/tiny_bootstrap.sql;
-let PASSWD_FILE=   $MYSQL_TMP_DIR/password_file.txt;
 
 --echo # Preparation: Shut server down.
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -47,7 +46,7 @@ perl;
   use strict;
   my $log= $ENV{'MYSQLD_LOG'} or die;
   open(FILE, "$log") or die;
-  my $c_e= grep(/\[Warning\] \[[^]]*\] Can\'t open and lock time zone table/gi,<FILE>);
+  my $c_e= grep(/\[Warning\] \[[^]]*\] \[[^]]*\] Can\'t open and lock time zone table/gi,<FILE>);
   print "#     Time zone table warning found $c_e times.\n";
   close(FILE);
 EOF
@@ -58,8 +57,8 @@ remove_file $MYSQLD_LOG;
 --force-rmdir $DDIR
 
 --echo #
---echo # 2. Try restart after deleting the mysql dd tablespace.
---echo # -----------------------------------------------------
+--echo # 2. Try restart after deleting the mysql dd tablespace file.
+--echo # -----------------------------------------------------------
 
 --echo # 2.1 First start the server with --initialize.
 --exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR
@@ -76,7 +75,7 @@ perl;
   use strict;
   my $log= $ENV{'MYSQLD_LOG'} or die;
   open(FILE, "$log") or die;
-  my $c_e= grep(/Data Dictionary initialization failed/gi,<FILE>);
+  my $c_e= grep(/Failed to find valid data directory./gi,<FILE>);
   print "#     DD initialization error found $c_e times.\n";
   close(FILE);
 EOF
@@ -100,7 +99,7 @@ perl;
   use strict;
   my $log= $ENV{'MYSQLD_LOG'} or die;
   open(FILE, "$log") or die;
-  my $c_e= grep(/\[ERROR\] \[[^]]*\] failed to set datadir/gi,<FILE>);
+  my $c_e= grep(/\[ERROR\] \[[^]]*\] \[[^]]*\] failed to set datadir/gi,<FILE>);
   print "#     Datadir error found $c_e times.\n";
   close(FILE);
 EOF
@@ -124,7 +123,7 @@ perl;
   use strict;
   my $log= $ENV{'MYSQLD_LOG'} or die;
   open(FILE, "$log") or die;
-    my $c_e= grep(/Data Dictionary initialization failed/gi,<FILE>);
+  my $c_e= grep(/Failed to find valid data directory/gi,<FILE>);
   print "#     DD initialization error found $c_e times.\n";
   close(FILE);
 EOF
@@ -149,7 +148,7 @@ perl;
   use strict;
   my $log= $ENV{'MYSQLD_LOG'} or die;
   open(FILE, "$log") or die;
-  my $c_e= grep(/Data Dictionary initialization failed/gi,<FILE>);
+  my $c_e= grep(/Failed to find valid data directory/gi,<FILE>);
   print "#     DD initialization error found $c_e times.\n";
   close(FILE);
 EOF

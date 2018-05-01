@@ -1,7 +1,7 @@
 #ifndef HISTOGRAMS_SINGLETON_INCLUDED
 #define HISTOGRAMS_SINGLETON_INCLUDED
 
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -167,6 +167,12 @@ class Singleton : public Histogram {
     @return number of values/buckets in this histogram
   */
   size_t get_num_buckets() const override { return m_buckets.size(); }
+
+  /**
+    Get the estimated number of distinct non-NULL values.
+    @return number of distinct non-NULL values
+  */
+  size_t get_num_distinct_values() const override { return get_num_buckets(); }
 
   /**
     Returns the histogram type as a readable string.

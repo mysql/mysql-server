@@ -827,6 +827,8 @@ explain with qn as (select a+2 as a, b from t1) update t1, qn set t1.a=qn.a+10 w
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	update `test`.`t1` join `test`.`t1` set `test`.`t1`.`a` = ((`test`.`t1`.`a` + 2) + 10) where ((`test`.`t1`.`a` - (`test`.`t1`.`a` + 2)) = 0)
 with qn as (select a+2 as a, b from t1) update t1, qn set t1.a=qn.a+10 where t1.a-qn.a=0;
 select * from t1;
 a	b
@@ -837,6 +839,8 @@ explain with qn as (select a+2 as a, b from t2) update t1, qn set t1.a=qn.a+10 w
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	update `test`.`t1` join `test`.`t2` set `test`.`t1`.`a` = ((`test`.`t2`.`a` + 2) + 10) where ((`test`.`t1`.`a` - (`test`.`t2`.`a` + 2)) = 0)
 with qn as (select a+2 as a, b from t2) update t1, qn set t1.a=qn.a+10 where t1.a-qn.a=0;
 select * from t1;
 a	b
@@ -848,6 +852,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	with `qn` as (/* select#2 */ select straight_join (`test`.`t2`.`a` + 2) AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`) update /*+ NO_MERGE(`qn`@`select#1`) */ `test`.`t1` join `qn` set `test`.`t1`.`a` = (`qn`.`a` + 10) where ((`test`.`t1`.`a` - `qn`.`a`) = 0)
 with qn as (select a+2 as a, b from t2) update /*+ no_merge(qn) */ t1, qn set t1.a=qn.a+10 where t1.a-qn.a=0;
 select * from t1;
 a	b
@@ -861,6 +867,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1003	update `test`.`t1` join `test`.`t2` join `test`.`t2` set `test`.`t1`.`a` = ((`test`.`t2`.`a` + 2) + 10) where ((`test`.`t2`.`b` = `test`.`t2`.`b`) and ((`test`.`t1`.`a` - (`test`.`t2`.`a` + 2)) = 0))
 with qn as (select a+2 as a, b from t2)
 update t1, qn, qn as qn2 set t1.a=qn.a+10 where t1.a-qn.a=0 and qn.b=qn2.b;
 select * from t1;
@@ -877,6 +885,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	with `qn` as (/* select#3 */ select (`test`.`t2`.`a` + 2) AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`) update `test`.`t1` set `test`.`t1`.`a` = (/* select#2 */ select (`qn`.`a` + 10) from `qn` where ((`test`.`t1`.`a` - `qn`.`a`) = 0) limit 1)
 with qn as (select a+2 as a, b from t2) update t1
 set t1.a=(select qn.a+10 from qn where t1.a-qn.a=0 limit 1);
 select * from t1;
@@ -891,6 +900,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	update /*+ MERGE(`qn`@`select#2`) */ `test`.`t1` set `test`.`t1`.`a` = (/* select#2 */ select ((`test`.`t2`.`a` + 2) + 10) from `test`.`t2` where ((`test`.`t1`.`a` - (`test`.`t2`.`a` + 2)) = 0) limit 1)
 with qn as (select a+2 as a, b from t2) update t1
 set t1.a=(select /*+ merge(qn) */ qn.a+10 from qn where t1.a-qn.a=0 limit 1);
 select * from t1;
@@ -911,6 +921,8 @@ explain with qn as (select a+2 as a, b from t1) delete t1 from t1, qn where t1.a
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	delete `test`.`t1` from `test`.`t1` join `test`.`t1` where ((`test`.`t1`.`a` - (`test`.`t1`.`a` + 2)) = 0)
 with qn as (select a+2 as a, b from t1) delete t1 from t1, qn where t1.a-qn.a=0;
 select * from t1;
 a	b
@@ -920,6 +932,8 @@ explain with qn as (select a+2 as a, b from t2) delete t1 from t1, qn where t1.a
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	delete `test`.`t1` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a` - (`test`.`t2`.`a` + 2)) = 0)
 with qn as (select a+2 as a, b from t2) delete t1 from t1, qn where t1.a-qn.a=0;
 select * from t1;
 a	b
@@ -930,6 +944,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	with `qn` as (/* select#2 */ select (`test`.`t2`.`a` + 2) AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`) delete /*+ NO_MERGE(`qn`@`select#1`) */ `test`.`t1` from `test`.`t1` join `qn` where ((`test`.`t1`.`a` - `qn`.`a`) = 0)
 with qn as (select a+2 as a, b from t2) delete /*+ no_merge(qn) */ t1 from t1, qn where t1.a-qn.a=0;
 select * from t1;
 a	b
@@ -941,6 +957,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1003	delete `test`.`t1` from `test`.`t1` join `test`.`t2` join `test`.`t2` where ((`test`.`t2`.`b` = `test`.`t2`.`b`) and ((`test`.`t1`.`a` - (`test`.`t2`.`a` + 2)) = 0))
 with qn as (select a+2 as a, b from t2)
 delete t1 from t1, qn, qn as qn2 where t1.a-qn.a=0 and qn.b=qn2.b;
 select * from t1;
@@ -956,6 +974,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	with `qn` as (/* select#3 */ select (`test`.`t2`.`a` + 2) AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`) delete from `test`.`t1` where (`test`.`t1`.`a` = (/* select#2 */ select `qn`.`a` from `qn` where ((`test`.`t1`.`a` - `qn`.`a`) = 0) limit 1))
 with qn as (select a+2 as a, b from t2)
 delete from t1 where t1.a=(select qn.a from qn where t1.a-qn.a=0 limit 1);
 select * from t1;
@@ -969,6 +988,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	delete /*+ MERGE(`qn`@`select#2`) */ from `test`.`t1` where (`test`.`t1`.`a` = (/* select#2 */ select (`test`.`t2`.`a` + 2) from `test`.`t2` where ((`test`.`t1`.`a` - (`test`.`t2`.`a` + 2)) = 0) limit 1))
 with qn as (select a+2 as a, b from t2)
 delete from t1 where t1.a=(select /*+ merge(qn) */ qn.a from qn where t1.a-qn.a=0 limit 1);
 select * from t1;
@@ -1824,6 +1844,8 @@ explain with qn as (select a+2 as a, b from t1) update t1, qn set t1.a=qn.a+10 w
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	update `test`.`t1` join `test`.`t1` set `test`.`t1`.`a` = ((`test`.`t1`.`a` + 2) + 10) where ((`test`.`t1`.`a` - (`test`.`t1`.`a` + 2)) = 0)
 with qn as (select a+2 as a, b from t1) update t1, qn set t1.a=qn.a+10 where t1.a-qn.a=0;
 select * from t1;
 a	b
@@ -1834,6 +1856,8 @@ explain with qn as (select a+2 as a, b from t2) update t1, qn set t1.a=qn.a+10 w
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	update `test`.`t1` join `test`.`t2` set `test`.`t1`.`a` = ((`test`.`t2`.`a` + 2) + 10) where ((`test`.`t1`.`a` - (`test`.`t2`.`a` + 2)) = 0)
 with qn as (select a+2 as a, b from t2) update t1, qn set t1.a=qn.a+10 where t1.a-qn.a=0;
 select * from t1;
 a	b
@@ -1845,6 +1869,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	with `qn` as (/* select#2 */ select straight_join (`test`.`t2`.`a` + 2) AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`) update /*+ NO_MERGE(`qn`@`select#1`) */ `test`.`t1` join `qn` set `test`.`t1`.`a` = (`qn`.`a` + 10) where ((`test`.`t1`.`a` - `qn`.`a`) = 0)
 with qn as (select a+2 as a, b from t2) update /*+ no_merge(qn) */ t1, qn set t1.a=qn.a+10 where t1.a-qn.a=0;
 select * from t1;
 a	b
@@ -1858,6 +1884,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1003	update `test`.`t1` join `test`.`t2` join `test`.`t2` set `test`.`t1`.`a` = ((`test`.`t2`.`a` + 2) + 10) where ((`test`.`t2`.`b` = `test`.`t2`.`b`) and ((`test`.`t1`.`a` - (`test`.`t2`.`a` + 2)) = 0))
 with qn as (select a+2 as a, b from t2)
 update t1, qn, qn as qn2 set t1.a=qn.a+10 where t1.a-qn.a=0 and qn.b=qn2.b;
 select * from t1;
@@ -1874,6 +1902,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	with `qn` as (/* select#3 */ select (`test`.`t2`.`a` + 2) AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`) update `test`.`t1` set `test`.`t1`.`a` = (/* select#2 */ select (`qn`.`a` + 10) from `qn` where ((`test`.`t1`.`a` - `qn`.`a`) = 0) limit 1)
 with qn as (select a+2 as a, b from t2) update t1
 set t1.a=(select qn.a+10 from qn where t1.a-qn.a=0 limit 1);
 select * from t1;
@@ -1888,6 +1917,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	update /*+ MERGE(`qn`@`select#2`) */ `test`.`t1` set `test`.`t1`.`a` = (/* select#2 */ select ((`test`.`t2`.`a` + 2) + 10) from `test`.`t2` where ((`test`.`t1`.`a` - (`test`.`t2`.`a` + 2)) = 0) limit 1)
 with qn as (select a+2 as a, b from t2) update t1
 set t1.a=(select /*+ merge(qn) */ qn.a+10 from qn where t1.a-qn.a=0 limit 1);
 select * from t1;
@@ -1908,6 +1938,8 @@ explain with qn as (select a+2 as a, b from t1) delete t1 from t1, qn where t1.a
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	delete `test`.`t1` from `test`.`t1` join `test`.`t1` where ((`test`.`t1`.`a` - (`test`.`t1`.`a` + 2)) = 0)
 with qn as (select a+2 as a, b from t1) delete t1 from t1, qn where t1.a-qn.a=0;
 select * from t1;
 a	b
@@ -1917,6 +1949,8 @@ explain with qn as (select a+2 as a, b from t2) delete t1 from t1, qn where t1.a
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	delete `test`.`t1` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a` - (`test`.`t2`.`a` + 2)) = 0)
 with qn as (select a+2 as a, b from t2) delete t1 from t1, qn where t1.a-qn.a=0;
 select * from t1;
 a	b
@@ -1927,6 +1961,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	with `qn` as (/* select#2 */ select (`test`.`t2`.`a` + 2) AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`) delete /*+ NO_MERGE(`qn`@`select#1`) */ `test`.`t1` from `test`.`t1` join `qn` where ((`test`.`t1`.`a` - `qn`.`a`) = 0)
 with qn as (select a+2 as a, b from t2) delete /*+ no_merge(qn) */ t1 from t1, qn where t1.a-qn.a=0;
 select * from t1;
 a	b
@@ -1938,6 +1974,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1003	delete `test`.`t1` from `test`.`t1` join `test`.`t2` join `test`.`t2` where ((`test`.`t2`.`b` = `test`.`t2`.`b`) and ((`test`.`t1`.`a` - (`test`.`t2`.`a` + 2)) = 0))
 with qn as (select a+2 as a, b from t2)
 delete t1 from t1, qn, qn as qn2 where t1.a-qn.a=0 and qn.b=qn2.b;
 select * from t1;
@@ -1953,6 +1991,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	with `qn` as (/* select#3 */ select (`test`.`t2`.`a` + 2) AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`) delete from `test`.`t1` where (`test`.`t1`.`a` = (/* select#2 */ select `qn`.`a` from `qn` where ((`test`.`t1`.`a` - `qn`.`a`) = 0) limit 1))
 with qn as (select a+2 as a, b from t2)
 delete from t1 where t1.a=(select qn.a from qn where t1.a-qn.a=0 limit 1);
 select * from t1;
@@ -1966,6 +2005,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	delete /*+ MERGE(`qn`@`select#2`) */ from `test`.`t1` where (`test`.`t1`.`a` = (/* select#2 */ select (`test`.`t2`.`a` + 2) from `test`.`t2` where ((`test`.`t1`.`a` - (`test`.`t2`.`a` + 2)) = 0) limit 1))
 with qn as (select a+2 as a, b from t2)
 delete from t1 where t1.a=(select /*+ merge(qn) */ qn.a from qn where t1.a-qn.a=0 limit 1);
 select * from t1;

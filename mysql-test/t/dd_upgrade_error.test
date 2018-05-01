@@ -31,7 +31,7 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57;
 --echo # tables with non native partitioning.
 let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
 --error 1
---exec $MYSQLD $extra_args --innodb_dedicated_server=OFF --secure-file-priv="" --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR1
+--exec $MYSQLD --no-defaults $extra_args --innodb_dedicated_server=OFF --secure-file-priv="" --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR1
 
 let SEARCH_FILE= $MYSQLD_LOG;
 --let SEARCH_PATTERN= Table upgrade required for `test`.`41_decimal`. Please dump/reload table to fix it!
@@ -123,7 +123,7 @@ EOF
 --echo # a table and a stored program with a too long enum literals.
 let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
 --error 1
---exec $MYSQLD $extra_args --innodb_dedicated_server=OFF --secure-file-priv="" --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR1
+--exec $MYSQLD --no-defaults $extra_args --innodb_dedicated_server=OFF --secure-file-priv="" --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR1
 
 --let SEARCH_PATTERN= Error in Creating DD entry for test.t_long_enum
 --source include/search_pattern.inc

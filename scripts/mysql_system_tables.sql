@@ -32,11 +32,6 @@ SET FOREIGN_KEY_CHECKS= 1;
 
 # Added sql_mode elements and making it as SET, instead of ENUM
 
---
--- New DD schema end
---
-
-set sql_mode='';
 set default_storage_engine=InnoDB;
 
 CREATE TABLE IF NOT EXISTS db

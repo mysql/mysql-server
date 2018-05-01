@@ -2,7 +2,7 @@
       xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
 
 <!--
-   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@
        Languages='1033'
        Compressed='yes'
        SummaryCodepage='1252'
-       Platform='@Platform@'
+       Platform='x64'
        InstallScope="perMachine"/>
   
     <Media Id='1' Cabinet='product.cab' EmbedCab='yes' />
@@ -72,7 +72,7 @@
     </InstallExecuteSequence>
 
 
-    <?if "@LINK_STATIC_RUNTIME_LIBRARIES@"="OFF" ?>
+    <?if "@LINK_STATIC_RUNTIME_LIBRARIES@"="OFF" AND "@BUNDLE_RUNTIME_LIBRARIES@"="OFF" ?>
       <Property Id="VS14REDIST">
         <RegistrySearch Id="FindRedistVS14"
             Root="HKLM"
@@ -102,7 +102,7 @@
     <Property Id="GETINSTALLDIR">
       <RegistrySearch Id="FindInstallLocation"
           Root="HKLM"
-          @Win64@
+          Win64="yes"
           Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\[OLDERVERSIONBEINGUPGRADED]"
           Name="InstallLocation"
           Type="raw" />
@@ -114,7 +114,7 @@
     <Property Id="OLDERVERSION"> 
       <RegistrySearch Id="FindOlderVersion"
         Root="HKLM"
-        @Win64@
+        Win64="yes"
         Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\[OLDERVERSIONBEINGUPGRADED]"
         Name="DisplayVersion"
         Type="raw" />
@@ -157,41 +157,9 @@
       Id="WixUILicenseRtf"
       Value="@LICENSE_RTF@"/>
 
-    <!-- How to remove the service on uninstall -->
-    <Binary Id='wixca.dll' SourceFile='@WIXCA_LOCATION@' />
-    <CustomAction Id="UnregisterProperty" Property="UnregisterService" Value="[INSTALLDIR]" Return="check" />
-    <CustomAction Id="RunPostInstallProperty" Property="RunPostInstall" Value="[INSTALLDIR]" Return="check" />
-    <CustomAction Id="UnregisterPropertySilent" Property="UnregisterServiceSilently" Value="[INSTALLDIR]" Return="check" />
-    <CustomAction Id="UnregisterService"
-                  BinaryKey="wixca.dll"
-                  DllEntry="RemoveService"
-                  Execute="deferred"
-                  Impersonate="no"
-                  Return="check" />
-    <CustomAction Id="UnregisterServiceSilently"
-                  BinaryKey="wixca.dll"
-                  DllEntry="RemoveServiceNoninteractive"
-                  Execute="deferred"
-                  Impersonate="no"
-                  Return="check" />
-    <CustomAction Id="RunPostInstall" 
-                  BinaryKey="wixca.dll"
-                  DllEntry="RunPostInstall" 
-                  Execute="deferred" 
-                  Impersonate="no" 
-                  Return="asyncWait" />
-    <InstallExecuteSequence>
-      <Custom Action="UnregisterProperty" After="InstallInitialize">Installed And Not UPGRADINGPRODUCTCODE And REMOVE="ALL"</Custom>
-      <Custom Action="UnregisterPropertySilent" After="InstallInitialize">Installed And Not UPGRADINGPRODUCTCODE And REMOVE="ALL"</Custom>
-      <Custom Action="UnregisterService" After="UnregisterProperty">Installed And Not UPGRADINGPRODUCTCODE And REMOVE="ALL" And UILevel&gt;4</Custom>
-      <Custom Action="UnregisterServiceSilently" After="UnregisterPropertySilent">Installed And Not UPGRADINGPRODUCTCODE And REMOVE="ALL" And UILevel&lt;=4</Custom>
-      <Custom Action="RunPostInstallProperty" After="InstallFiles">NOT(REMOVE="ALL")</Custom>
-      <Custom Action="RunPostInstall" After="RunPostInstallProperty">NOT(REMOVE="ALL")</Custom>
-    </InstallExecuteSequence>
-
     <!-- Installation root-->
     <Directory Id='TARGETDIR' Name='SourceDir'>
-      <Directory Id='@PlatformProgramFilesFolder@'>
+      <Directory Id='ProgramFiles64Folder'>
         <Directory Id='directory.MySQL' Name='MySQL'>
           <Directory Id='INSTALLDIR' Name='@PRODUCT_NAME@ @MAJOR_VERSION@.@MINOR_VERSION@'>
           </Directory>

@@ -15,7 +15,7 @@ SET @save_debug= @@global.debug;
 SET GLOBAL debug="+d,inject_tblmap_same_id_maps_diff_table";
 include/start_slave.inc
 UPDATE t1_11753004, t2_11753004 SET t1_11753004.c1=3, t2_11753004.c1=4 WHERE t1_11753004.c1=1 OR t2_11753004.c1=2;
-include/wait_for_slave_sql_error.inc [errno=1593 ]
+include/wait_for_slave_sql_error.inc [errno=13117]
 include/stop_slave_io.inc
 SET GLOBAL debug="-d,inject_tblmap_same_id_maps_diff_table";
 include/start_slave.inc

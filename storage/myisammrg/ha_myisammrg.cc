@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1210,7 +1210,6 @@ int ha_myisammrg::extra(enum ha_extra_function operation) {
   if (operation == HA_EXTRA_FORCE_REOPEN ||
       operation == HA_EXTRA_PREPARE_FOR_DROP)
     return 0;
-  if (operation == HA_EXTRA_MMAP && !opt_myisam_use_mmap) return 0;
   return myrg_extra(file, operation, 0);
 }
 

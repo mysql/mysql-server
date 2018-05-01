@@ -482,8 +482,6 @@ ulint dtype_get_fixed_size_low(
     default:
       ut_error;
   }
-
-  return (0);
 }
 
 /** Returns the minimum size of a data type.
@@ -550,8 +548,6 @@ ulint dtype_get_min_size_low(
     default:
       ut_error;
   }
-
-  return (0);
 }
 
 /** Returns the maximum size of a data type. Note: types in system tables may
@@ -584,7 +580,6 @@ ulint dtype_get_max_size_low(ulint mtype, /*!< in: main type */
     default:
       ut_error;
   }
-
   return (ULINT_MAX);
 }
 

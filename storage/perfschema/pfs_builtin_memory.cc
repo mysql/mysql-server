@@ -130,7 +130,8 @@ static void init_builtin_memory_class(PFS_builtin_memory_class *klass,
   klass->m_class.m_volatility = PSI_VOLATILITY_PERMANENT;
   klass->m_class.m_documentation = (char *)documentation;
   klass->m_class.m_event_name_index = 0;
-  strncpy(klass->m_class.m_name, name, sizeof(klass->m_class.m_name));
+  snprintf(klass->m_class.m_name, sizeof(klass->m_class.m_name), "%.*s",
+           PFS_MAX_INFO_NAME_LENGTH - 1, name);
   klass->m_class.m_name_length = (uint)strlen(name);
   DBUG_ASSERT(klass->m_class.m_name_length < sizeof(klass->m_class.m_name));
 

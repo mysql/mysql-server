@@ -45,7 +45,7 @@ Table	Create Table
 spatial1	CREATE TABLE `spatial1` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
-  `$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B` geometry GENERATED ALWAYS AS (st_geomfromgeojson(json_extract(`doc`,_utf8mb4'$.first'),1,4326)) STORED NOT NULL,
+  `$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B` geometry GENERATED ALWAYS AS (st_geomfromgeojson(json_extract(`doc`,_utf8mb4'$.first'),1,4326)) STORED NOT NULL /*!80003 SRID 4326 */,
   PRIMARY KEY (`_id`),
   SPATIAL KEY `one` (`$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -154,6 +154,12 @@ doc	_id	ST_ASGEOJSON($ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B)
 {"_id": "three", "first": {"type": "Polygon", "coordinates": [[[30, 10], [40, 40], [20, 40], [10, 20], [30, 10]]]}}	three	{"type": "Polygon", "coordinates": [[[30.0, 10.0], [40.0, 40.0], [20.0, 40.0], [10.0, 20.0], [30.0, 10.0]]]}
 {"_id": "two", "first": {"type": "LineString", "coordinates": [[0, 0], [0, 10], [10, 10], [10, 0]]}}	two	{"type": "LineString", "coordinates": [[0.0, 0.0], [0.0, 10.0], [10.0, 10.0], [10.0, 0.0]]}
 0 rows affected
+Using of index give an unexpected result and it caused by another bug
+### Show use of index for MBRContains(st_geomfromgeojson(doc->'$.first',1,4326),st_geomfromtext('point(10 11)',4326))
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	spatial1	null	ALL	null	null	null	null	7	100.00	Using where
+0 rows affected
+############################
 
 command ok
 
@@ -256,15 +262,15 @@ Got expected error: GEOJSON index requires 'constraint.required: TRUE (code 5117
 
 Try to create "regular" index on geometry member
 ================================================
-Got expected error: BLOB/TEXT column '$ix_gj_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B' used in key specification without a key length (code 1170)
+Got expected error: GEOJSON index requires 'constraint.required: TRUE (code 5117)
 
 Try to create spatial index with negative options
 =================================================
-Got expected error: Invalid type of value for argument 'options' (code 5016)
+Got expected error: Invalid value for argument 'fields.options' (code 5017)
 
 Try to create spatial index with negative srid
 ==============================================
-Got expected error: Invalid type of value for argument 'srid' (code 5016)
+Got expected error: Invalid value for argument 'fields.srid' (code 5017)
 
 Try to insert invalid value to collection with spatial index
 ============================================================

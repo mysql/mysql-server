@@ -1926,3 +1926,53 @@ DROP TABLE t1, t2, t3, t4;
 DROP TABLE t1, t2, t3, t4;
 SET GLOBAL innodb_default_row_format= @saved_innodb_default_row_format;
 SET SESSION show_create_table_verbosity= @saved_show_create_table_verbosity;
+
+
+--echo #
+--echo # Bug#27592803: ASSERTION FAILED: RC == TYPE_OK,
+--echo #
+--echo # Make sure that it is possible to create enums using binary string
+--echo # values that are not valid utf8
+
+CREATE TABLE t0(a ENUM('aaa', 'bbb', 'ccc') BYTE);
+SHOW CREATE TABLE t0;
+SHOW COLUMNS FROM t0;
+
+--echo # Tables t1 and t2 uses a binary value that is legal as utf8, so they
+--echo # would not trigger an assert.
+CREATE TABLE t1(a ENUM( b'1001001'));
+SHOW CREATE TABLE t1;
+SHOW COLUMNS FROM t1;
+
+CREATE TABLE t2(a ENUM( b'1001001') BYTE);
+SHOW CREATE TABLE t2;
+SHOW COLUMNS FROM t2;
+
+--echo # Tables t3 - t6 contains binary values that are not valid utf8
+--echo # which would previously result in assert. With the fix we get the hex
+--echo # representation of the binary value instead.
+CREATE TABLE t3(a ENUM( b'10010010') BYTE);
+SHOW CREATE TABLE t3;
+SHOW COLUMNS FROM t3;
+
+CREATE TABLE t4(a ENUM( b'1001001101101111') BYTE);
+SHOW CREATE TABLE t4;
+SHOW COLUMNS FROM t4;
+
+CREATE TABLE t5(a ENUM( b'10010011011011111111011000011') BYTE);
+SHOW CREATE TABLE t5;
+SHOW COLUMNS FROM t5;
+
+CREATE TABLE t6 (a INT);
+ALTER TABLE t6
+MODIFY COLUMN a ENUM( b'10010011011011111111011000011') BYTE UNIQUE FIRST;
+SHOW CREATE TABLE t6;
+SHOW COLUMNS FROM t6;
+
+DROP TABLE t6;
+DROP TABLE t5;
+DROP TABLE t4;
+DROP TABLE t3;
+DROP TABLE t2;
+DROP TABLE t1;
+DROP TABLE t0;

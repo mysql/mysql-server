@@ -20,8 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#define LOG_SUBSYSTEM_TAG "parser"
-
 #include "sql/sql_parse.h"
 
 #include "my_config.h"
@@ -154,8 +152,7 @@
 #include "sql/sql_test.h"           // mysql_print_status
 #include "sql/sql_trigger.h"        // add_table_for_trigger
 #include "sql/sql_udf.h"
-#include "sql/sql_view.h"  // mysql_create_view
-#include "sql/srs_fetcher.h"
+#include "sql/sql_view.h"          // mysql_create_view
 #include "sql/system_variables.h"  // System_status_var
 #include "sql/table.h"
 #include "sql/table_cache.h"  // table_cache_manager
@@ -261,33 +258,53 @@ bool all_tables_not_ok(THD *thd, TABLE_LIST *tables) {
   @param thd  Thread handle.
   @param db   Database name used while evaluating the filtering
               rules.
+  @param sql_cmd Represents the current query that needs to be
+                 verified against the database filter rules.
+  @return true Query should not be filtered out from the execution.
+          false Query should be filtered out from the execution.
 
 */
-inline bool db_stmt_db_ok(THD *thd, char *db) {
-  DBUG_ENTER("db_stmt_db_ok");
-
-  if (!thd->slave_thread) DBUG_RETURN(true);
-
+inline bool check_database_filters(THD *thd, const char *db,
+                                   enum_sql_command sql_cmd) {
+  DBUG_ENTER("check_database_filters");
+  DBUG_ASSERT(thd->slave_thread);
+  if (!db) DBUG_RETURN(true);
   Rpl_filter *rpl_filter = thd->rli_slave->rpl_filter;
 
+  bool need_increase_counter = true;
+  switch (sql_cmd) {
+    case SQLCOM_BEGIN:
+    case SQLCOM_COMMIT:
+    case SQLCOM_SAVEPOINT:
+    case SQLCOM_ROLLBACK:
+    case SQLCOM_ROLLBACK_TO_SAVEPOINT:
+      DBUG_RETURN(true);
+    case SQLCOM_XA_START:
+    case SQLCOM_XA_END:
+    case SQLCOM_XA_COMMIT:
+    case SQLCOM_XA_ROLLBACK:
+      need_increase_counter = false;
+    default:
+      break;
+  }
+
+  bool db_ok = rpl_filter->db_ok(db, need_increase_counter);
   /*
     No filters exist in ignore/do_db ? Then, just check
-    wild_do_table filtering. Otherwise, check the do_db
-    rules.
+    wild_do_table filtering for 'DATABASE' related
+    statements (CREATE/DROP/ATLER DATABASE)
   */
-  bool db_ok = (rpl_filter->get_do_db()->is_empty() &&
-                rpl_filter->get_ignore_db()->is_empty())
-                   ? rpl_filter->db_ok_with_wild_table(db)
-                   :
-                   /*
-                     We already increased do_db/ignore_db counter by calling
-                     db_ok(...) in mysql_execute_command(...) when applying
-                     relay log event for CREATE DATABASE ..., DROP DATABASE
-                     ... and ALTER DATABASE .... So we do not increase
-                     do_db/ignore_db counter when calling the db_ok(...) again.
-                   */
-                   rpl_filter->db_ok(db, false);
-
+  if (db_ok && (rpl_filter->get_do_db()->is_empty() &&
+                rpl_filter->get_ignore_db()->is_empty())) {
+    switch (sql_cmd) {
+      case SQLCOM_CREATE_DB:
+      case SQLCOM_ALTER_DB:
+      case SQLCOM_DROP_DB:
+        db_ok = rpl_filter->db_ok_with_wild_table(db);
+      default:
+        break;
+    }
+  }
   DBUG_RETURN(db_ok);
 }
 
@@ -593,8 +610,7 @@ void init_sql_command_flags(void) {
       CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_RESOURCE_GROUP] =
       CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_SET_RESOURCE_GROUP] =
-      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_SET_RESOURCE_GROUP] = CF_CHANGES_DATA;
 
   sql_command_flags[SQLCOM_CLONE] =
       CF_AUTO_COMMIT_TRANS | CF_ALLOW_PROTOCOL_PLUGIN;
@@ -2031,6 +2047,10 @@ bool shutdown(THD *thd, enum mysql_enum_shutdown_level level) {
 
   my_ok(thd);
 
+  LogErr(SYSTEM_LEVEL, ER_SERVER_SHUTDOWN_INFO,
+         thd->security_context()->user().str, server_version,
+         MYSQL_COMPILATION_COMMENT);
+
   DBUG_PRINT("quit", ("Got shutdown command for level %u", level));
   query_logger.general_log_print(thd, COM_QUERY, NullS);
   kill_mysql();
@@ -2516,17 +2536,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
   }
 
   if (unlikely(thd->slave_thread)) {
-    bool need_increase_counter = !(lex->sql_command == SQLCOM_XA_START ||
-                                   lex->sql_command == SQLCOM_XA_END ||
-                                   lex->sql_command == SQLCOM_XA_COMMIT ||
-                                   lex->sql_command == SQLCOM_XA_ROLLBACK);
-    // Database filters.
-    if (lex->sql_command != SQLCOM_BEGIN && lex->sql_command != SQLCOM_COMMIT &&
-        lex->sql_command != SQLCOM_SAVEPOINT &&
-        lex->sql_command != SQLCOM_ROLLBACK &&
-        lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT &&
-        !thd->rli_slave->rpl_filter->db_ok(thd->db().str,
-                                           need_increase_counter)) {
+    if (!check_database_filters(thd, thd->db().str, lex->sql_command)) {
       binlog_gtid_end_transaction(thd);
       DBUG_RETURN(0);
     }
@@ -3279,6 +3289,15 @@ int mysql_execute_command(THD *thd, bool first_level) {
         goto error;
       }
 
+#ifndef DBUG_OFF
+      /*
+        Makes server crash when executing SET SESSION debug = 'd,crash_now';
+        See mysql-test/include/dbug_crash[_all].inc
+      */
+      const bool force_server_crash_dbug = false;
+      DBUG_EXECUTE_IF("crash_now", DBUG_ASSERT(force_server_crash_dbug););
+#endif
+
       break;
     }
     case SQLCOM_SET_PASSWORD: {
@@ -3369,17 +3388,6 @@ int mysql_execute_command(THD *thd, bool first_level) {
           (check_and_convert_db_name(&lex->name, false) !=
            Ident_name_check::OK))
         break;
-      /*
-        If in a slave thread :
-        CREATE DATABASE DB was certainly not preceded by USE DB.
-        For that reason, db_ok() in sql/slave.cc did not check the
-        do_db/ignore_db. And as this query involves no tables, tables_ok()
-        above was not called. So we have to check rules again here.
-      */
-      if (!db_stmt_db_ok(thd, lex->name.str)) {
-        my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
-        break;
-      }
       if (check_access(thd, CREATE_ACL, lex->name.str, NULL, NULL, 1, 0)) break;
       /*
         As mysql_create_db() may modify HA_CREATE_INFO structure passed to
@@ -3395,17 +3403,6 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_DROP_DB: {
       if (check_and_convert_db_name(&lex->name, false) != Ident_name_check::OK)
         break;
-      /*
-        If in a slave thread :
-        DROP DATABASE DB may not be preceded by USE DB.
-        For that reason, maybe db_ok() in sql/slave.cc did not check the
-        do_db/ignore_db. And as this query involves no tables, tables_ok()
-        above was not called. So we have to check rules again here.
-      */
-      if (!db_stmt_db_ok(thd, lex->name.str)) {
-        my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
-        break;
-      }
       if (check_access(thd, DROP_ACL, lex->name.str, NULL, NULL, 1, 0)) break;
       res = mysql_rm_db(thd, to_lex_cstring(lex->name), lex->drop_if_exists);
       break;
@@ -3413,17 +3410,6 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_ALTER_DB: {
       if (check_and_convert_db_name(&lex->name, false) != Ident_name_check::OK)
         break;
-      /*
-        If in a slave thread :
-        ALTER DATABASE DB may not be preceded by USE DB.
-        For that reason, maybe db_ok() in sql/slave.cc did not check the
-        do_db/ignore_db. And as this query involves no tables, tables_ok()
-        above was not called. So we have to check rules again here.
-      */
-      if (!db_stmt_db_ok(thd, lex->name.str)) {
-        my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
-        break;
-      }
       if (check_access(thd, ALTER_ACL, lex->name.str, NULL, NULL, 1, 0)) break;
       /*
         As mysql_alter_db() may modify HA_CREATE_INFO structure passed to
@@ -3770,12 +3756,14 @@ int mysql_execute_command(THD *thd, bool first_level) {
     }
     case SQLCOM_SHOW_CREATE_USER: {
       LEX_USER *show_user = get_current_user(thd, lex->grant_user);
-      if (!(strcmp(thd->security_context()->priv_user().str,
-                   show_user->user.str) ||
-            my_strcasecmp(system_charset_info, show_user->host.str,
-                          thd->security_context()->priv_host().str)) ||
+      Security_context *sctx = thd->security_context();
+      bool are_both_users_same =
+          !strcmp(sctx->priv_user().str, show_user->user.str) &&
+          !my_strcasecmp(system_charset_info, show_user->host.str,
+                         sctx->priv_host().str);
+      if (are_both_users_same ||
           !check_access(thd, SELECT_ACL, "mysql", NULL, NULL, 1, 0))
-        res = mysql_show_create_user(thd, show_user);
+        res = mysql_show_create_user(thd, show_user, are_both_users_same);
       break;
     }
     case SQLCOM_BEGIN:
@@ -5016,12 +5004,7 @@ bool mysql_test_parse_for_slave(THD *thd) {
     if (parse_sql(thd, &parser_state, NULL) == 0) {
       if (all_tables_not_ok(thd, lex->select_lex->table_list.first))
         ignorable = true;
-      else if (lex->sql_command != SQLCOM_BEGIN &&
-               lex->sql_command != SQLCOM_COMMIT &&
-               lex->sql_command != SQLCOM_SAVEPOINT &&
-               lex->sql_command != SQLCOM_ROLLBACK &&
-               lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT &&
-               !thd->rli_slave->rpl_filter->db_ok(thd->db().str))
+      else if (!check_database_filters(thd, thd->db().str, lex->sql_command))
         ignorable = true;
     }
     thd->m_digest = parent_digest;
@@ -5141,22 +5124,6 @@ bool Alter_info::add_field(THD *thd, const LEX_STRING *field_name,
   if (type != MYSQL_TYPE_GEOMETRY && srid.has_value()) {
     my_error(ER_WRONG_USAGE, MYF(0), "SRID", "non-geometry column");
     DBUG_RETURN(true);
-  }
-
-  // Check if the spatial reference system exists
-  if (srid.has_value() && srid.value() != 0) {
-    Srs_fetcher fetcher(thd);
-    const dd::Spatial_reference_system *srs = nullptr;
-    dd::cache::Dictionary_client::Auto_releaser m_releaser(thd->dd_client());
-    if (fetcher.acquire(srid.value(), &srs)) {
-      // An error has already been raised
-      DBUG_RETURN(true); /* purecov: deadcode */
-    }
-
-    if (srs == nullptr) {
-      my_error(ER_SRS_NOT_FOUND, MYF(0), srid.value());
-      DBUG_RETURN(true);
-    }
   }
 
   if (!(new_field = new (*THR_MALLOC) Create_field()) ||

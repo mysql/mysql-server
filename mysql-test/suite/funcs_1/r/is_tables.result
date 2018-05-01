@@ -42,7 +42,7 @@ MAX_DATA_LENGTH	bigint(21) unsigned	YES		NULL
 INDEX_LENGTH	bigint(21) unsigned	YES		NULL	
 DATA_FREE	bigint(21) unsigned	YES		NULL	
 AUTO_INCREMENT	bigint(21) unsigned	YES		NULL	
-CREATE_TIME	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
+CREATE_TIME	timestamp	NO		NULL	
 UPDATE_TIME	datetime	YES		NULL	
 CHECK_TIME	datetime	YES		NULL	
 TABLE_COLLATION	varchar(64)	YES		NULL	
@@ -68,7 +68,7 @@ MAX_DATA_LENGTH	bigint(21) unsigned	YES		NULL
 INDEX_LENGTH	bigint(21) unsigned	YES		NULL	
 DATA_FREE	bigint(21) unsigned	YES		NULL	
 AUTO_INCREMENT	bigint(21) unsigned	YES		NULL	
-CREATE_TIME	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
+CREATE_TIME	timestamp	NO		NULL	
 UPDATE_TIME	datetime	YES		NULL	
 CHECK_TIME	datetime	YES		NULL	
 TABLE_COLLATION	varchar(64)	YES		NULL	
@@ -255,7 +255,7 @@ TABLE_NAME	TABLE_COLLATION
 t1_my_tablex	latin1_swedish_ci
 ALTER TABLE db_datadict.t1_my_tablex DEFAULT CHARACTER SET utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT table_name, table_collation FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
 TABLE_NAME	TABLE_COLLATION

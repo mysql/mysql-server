@@ -186,6 +186,10 @@ void Recovery_module::leave_group_on_recovery_failure() {
   /* Single state update. Notify right away. */
   notify_and_reset_ctx(ctx);
 
+  if (view_change_notifier != NULL &&
+      !view_change_notifier->is_view_modification_ongoing()) {
+    view_change_notifier->start_view_modification();
+  }
   Gcs_operations::enum_leave_state state = gcs_module->leave();
 
   char **error_message = NULL;
@@ -219,9 +223,21 @@ void Recovery_module::leave_group_on_recovery_failure() {
       break;
       /* purecov: end */
     case Gcs_operations::NOW_LEAVING:
-      return;
+      break;
   }
-  LogPluginErr(log_severity, errcode);
+  if (errcode) LogPluginErr(log_severity, errcode);
+
+  if (view_change_notifier != NULL) {
+    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_WAITING_FOR_VIEW_UPDATE);
+    if (view_change_notifier->wait_for_view_modification()) {
+      LogPluginErr(WARNING_LEVEL,
+                   ER_GRP_RPL_TIMEOUT_RECEIVING_VIEW_CHANGE_ON_SHUTDOWN);
+    }
+  }
+
+  if (exit_state_action_var == EXIT_STATE_ACTION_ABORT_SERVER) {
+    abort_plugin_process("Fatal error during execution of Group Replication");
+  }
 }
 
 /*

@@ -71,6 +71,7 @@ SET GLOBAL max_binlog_cache_size= DEFAULT;
 --echo #
 
 # default value
+--replace_column 6 ###
 SELECT @@global.optimizer_trace_offset, @@global.activate_all_roles_on_login,
        @@global.auto_increment_increment, @@global.auto_increment_offset,
        @@global.binlog_error_action, @@global.binlog_format,
@@ -99,6 +100,7 @@ SET PERSIST init_connect='SET autocommit=0';
 SET PERSIST max_join_size= 18446744073709551615;
 
 # persisted value
+--replace_column 6 ###
 SELECT @@global.optimizer_trace_offset, @@global.activate_all_roles_on_login,
        @@global.auto_increment_increment, @@global.auto_increment_offset,
        @@global.binlog_error_action, @@global.binlog_format,
@@ -108,11 +110,11 @@ SELECT @@global.optimizer_trace_offset, @@global.activate_all_roles_on_login,
        @@global.max_join_size;
 
 SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
-SELECT @@global.optimizer_trace_offset;
 --echo # Restart server
 --source include/restart_mysqld.inc
 
 # persisted value after restart
+--replace_column 6 ###
 SELECT @@global.optimizer_trace_offset, @@global.activate_all_roles_on_login,
        @@global.auto_increment_increment, @@global.auto_increment_offset,
        @@global.binlog_error_action, @@global.binlog_format,
@@ -132,6 +134,90 @@ SET GLOBAL optimizer_trace_offset = default, activate_all_roles_on_login = defau
        innodb_monitor_disable = default,
        innodb_max_dirty_pages_pct = default, init_connect = default,
        max_join_size = default;
+
+--echo #
+--echo # Bug #27629719: SET PERSIST STORES TRUNCATED TIMESTAMPS
+--echo #
+
+--echo # Set one variable in the mysqld-auto.cnf
+SET PERSIST max_join_size= 10000000;
+--echo # Set another variable in the mysqld-auto.cnf
+SET PERSIST init_connect='';
+
+--echo # Restart the server so it sets the variable time from mysqld-auto.cnf
+--source include/restart_mysqld.inc
+
+--echo # Check the microseconds of set_time: must be 2 (i.e. different for the two vars)
+SELECT COUNT(DISTINCT MICROSECOND(set_time)) FROM performance_schema.variables_info
+  WHERE variable_name IN ('max_join_size', 'init_connect');
+
+--echo # Cleanup
+SET GLOBAL max_join_size=DEFAULT, init_connect=DEFAULT;
+RESET PERSIST;
+
+--echo #
+--echo # Bug #27489026: PERSIST_ONLY DOESN'T RESPECT DEFAULT INSTEAD COPIES GLOBAL VALUE
+--echo #
+
+SELECT @@global.binlog_cache_size;
+SELECT @@global.disabled_storage_engines;
+SELECT @@global.collation_database;
+SELECT @@global.innodb_open_files;
+# test SIGNED long value
+SELECT @@global.optimizer_trace_offset;
+# test Sys_var_flagset type
+SELECT @@global.optimizer_switch;
+# test Sys_var_multi_enum type
+SELECT @@global.enforce_gtid_consistency;
+# test Sys_var_set type
+SELECT @@global.sql_mode;
+# set value different from default
+SET @@global.binlog_cache_size= 4096;
+
+# persist default values
+SET @@persist_only.binlog_cache_size= default,
+    @@persist_only.collation_database= default,
+    @@persist_only.disabled_storage_engines= default,
+    @@persist_only.innodb_open_files= default,
+    @@persist_only.optimizer_trace_offset= default,
+    @@persist_only.optimizer_switch= default,
+    @@persist_only.enforce_gtid_consistency= default,
+    @@persist_only.sql_mode= default;
+
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+
+--echo # Restart server
+--source include/restart_mysqld.inc
+
+# must have default values.
+SELECT @@global.binlog_cache_size;
+SELECT @@global.disabled_storage_engines;
+SELECT @@global.collation_database;
+SELECT @@global.innodb_open_files;
+SELECT @@global.optimizer_trace_offset;
+SELECT @@global.optimizer_switch;
+SELECT @@global.enforce_gtid_consistency;
+SELECT @@global.sql_mode;
+
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+
+--echo # Cleanup
+RESET PERSIST;
+
+--echo #
+--echo # Bug #27523095: SET PERSIST MANDATORY_ROLES FAILS TO START THE SERVER
+--echo #
+
+SET PERSIST mandatory_roles= default;
+--echo # Restart server and check if server starts
+--source include/restart_mysqld.inc
+SET PERSIST keyring_operations= default;
+--echo # Restart server and check if server starts
+--source include/restart_mysqld.inc
+
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+# Cleanup
+RESET PERSIST;
 
 --echo # End of the 8.0 tests
 

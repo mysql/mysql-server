@@ -267,7 +267,7 @@ Mysqlx.Crud.Insert {
         name: "cast"
         param {
           type : LITERAL
-          literal { type: V_FLOAT v_float: 3.141593 }
+          literal { type: V_FLOAT v_float: 3.14159 }
         }
         param {
           type : LITERAL
@@ -282,7 +282,7 @@ Mysqlx.Crud.Insert {
         name: "cast"
         param {
           type : LITERAL
-          literal { type: V_FLOAT v_float: 3.141593 }
+          literal { type: V_FLOAT v_float: 3.14159 }
         }
         param {
           type : LITERAL
@@ -297,7 +297,7 @@ Mysqlx.Crud.Insert {
         name: "cast"
         param {
           type : LITERAL
-          literal { type: V_FLOAT v_float: 3.141593 }
+          literal { type: V_FLOAT v_float: 3.14159 }
         }
         param {
           type : LITERAL
@@ -312,7 +312,7 @@ Mysqlx.Crud.Insert {
         name: "cast"
         param {
           type : LITERAL
-          literal { type: V_OCTETS v_octets {value:"3.141593"} }
+          literal { type: V_OCTETS v_octets {value:"3.14159"} }
         }
         param {
           type : LITERAL

@@ -348,8 +348,6 @@
   See also worklog entry WL#4259 - Test Synchronization Facility
 */
 
-#define LOG_SUBSYSTEM_TAG "debug_sync"
-
 #include "sql/debug_sync.h"
 
 #include <stdio.h>

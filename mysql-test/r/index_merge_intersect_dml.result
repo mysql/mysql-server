@@ -17,6 +17,8 @@ test.t1	analyze	status	OK
 EXPLAIN UPDATE t1 SET a=2 WHERE b=6 AND c=6 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	index_merge	idx_b,idx_c	idx_b,idx_c	4,4	NULL	#	100.00	Using intersect(idx_b,idx_c); Using where
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 2 where ((`test`.`t1`.`c` = 6) and (`test`.`t1`.`b` = 6))
 SELECT COUNT(*), SUM(a) FROM t1 WHERE b=6 AND c=6  ;
 COUNT(*)	SUM(a)
 15	90
@@ -27,6 +29,8 @@ COUNT(*)	SUM(a)
 EXPLAIN UPDATE t1 SET a=2 WHERE b=6 AND c=6 AND d=6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	index_merge	idx_x,idx_x,idx_x	idx_x,idx_x	4,4	NULL	#	100.00	Using intersect(idx_x,idx_x); Using where
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 2 where ((`test`.`t1`.`d` = 6) and (`test`.`t1`.`c` = 6) and (`test`.`t1`.`b` = 6))
 SELECT COUNT(*), SUM(a) FROM t1 WHERE b=6 AND c=6 AND d=6;
 COUNT(*)	SUM(a)
 15	30
@@ -37,6 +41,8 @@ COUNT(*)	SUM(a)
 EXPLAIN UPDATE t1 SET c=6 WHERE d=6 AND a IS NOT NULL AND b=6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	index_merge	idx_b,idx_d	idx_b,idx_d	4,4	NULL	#	100.00	Using intersect(idx_b,idx_d); Using where
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`c` = 6 where ((`test`.`t1`.`b` = 6) and (`test`.`t1`.`d` = 6) and (`test`.`t1`.`a` is not null))
 SELECT COUNT(*), SUM(c) FROM t1 WHERE d=6 AND a IS NOT NULL AND b=6;
 COUNT(*)	SUM(c)
 15	90
@@ -47,6 +53,8 @@ COUNT(*)	SUM(c)
 EXPLAIN UPDATE t1 SET b=0 WHERE d=6 AND a=6  AND c <> 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	index_merge	idx_a,idx_c,idx_d	idx_a,idx_d	4,4	NULL	#	100.00	Using intersect(idx_a,idx_d); Using where
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`b` = 0 where ((`test`.`t1`.`a` = 6) and (`test`.`t1`.`d` = 6) and (`test`.`t1`.`c` <> 6))
 SELECT COUNT(*), SUM(b) FROM t1 WHERE d=6 AND a=6  AND c <> 6;
 COUNT(*)	SUM(b)
 0	NULL
@@ -57,6 +65,8 @@ COUNT(*)	SUM(b)
 EXPLAIN UPDATE t1 SET a=100 WHERE d=6 AND a=6 AND c IN (1,2,3,4,5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	index_merge	idx_a,idx_c,idx_d	idx_a,idx_d	4,4	NULL	#	100.00	Using intersect(idx_a,idx_d); Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 100 where ((`test`.`t1`.`a` = 6) and (`test`.`t1`.`d` = 6) and (`test`.`t1`.`c` in (1,2,3,4,5)))
 SELECT COUNT(*), SUM(a) FROM t1 WHERE d=6 AND a=6 AND c IN (1,2,3,4,5);
 COUNT(*)	SUM(a)
 0	NULL
@@ -67,6 +77,8 @@ COUNT(*)	SUM(a)
 EXPLAIN UPDATE t1 SET a=2 WHERE a=5 AND b=4 AND d<3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	index_merge	idx_a,idx_b,idx_d	idx_a,idx_b	4,4	NULL	#	100.00	Using intersect(idx_a,idx_b); Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 2 where ((`test`.`t1`.`b` = 4) and (`test`.`t1`.`a` = 5) and (`test`.`t1`.`d` < 3))
 UPDATE t1 SET a=2 WHERE a=5 AND b=4 AND d<3;
 create table t2 (
 pk MEDIUMINT NOT NULL AUTO_INCREMENT,
@@ -87,6 +99,8 @@ test.t2	analyze	status	OK
 EXPLAIN UPDATE t2 SET a=2 WHERE pk<2492 AND d<=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	NULL	range	PRIMARY,idx_d	PRIMARY	3	const	#	100.00	Using where
+Warnings:
+Note	1003	update `test`.`t2` set `test`.`t2`.`a` = 2 where ((`test`.`t2`.`pk` < 2492) and (`test`.`t2`.`d` <= 1))
 UPDATE t2 SET a=2 WHERE pk<2492 AND d<=1;
 CREATE TABLE t3(
 a INT NOT NULL,
@@ -101,6 +115,8 @@ EXPLAIN REPLACE INTO t3 SELECT * FROM t1 WHERE b=6 AND c=6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	REPLACE	t3	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t1	NULL	index_merge	idx_b,idx_c	idx_b,idx_c	4,4	NULL	#	100.00	Using intersect(idx_b,idx_c); Using where
+Warnings:
+Note	1003	replace into `test`.`t3` /* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where ((`test`.`t1`.`c` = 6) and (`test`.`t1`.`b` = 6))
 SELECT COUNT(*) FROM t3;
 COUNT(*)
 2
@@ -112,6 +128,8 @@ EXPLAIN INSERT INTO t3 SELECT * FROM t1 WHERE d=6 AND a IS NOT NULL AND b=6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t1	NULL	index_merge	idx_a,idx_b,idx_d	idx_b,idx_d	4,4	NULL	#	90.00	Using intersect(idx_b,idx_d); Using where
+Warnings:
+Note	1003	insert into `test`.`t3` /* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where ((`test`.`t1`.`b` = 6) and (`test`.`t1`.`d` = 6) and (`test`.`t1`.`a` is not null))
 SELECT COUNT(*) FROM t3;
 COUNT(*)
 17
@@ -136,6 +154,8 @@ test.t4	analyze	status	OK
 EXPLAIN UPDATE t4 SET a=2 WHERE b=6 AND c=6 AND d=6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t4	NULL	index_merge	idx_xd,idx_xd	idx_xd,idx_xd	8,8	NULL	#	100.00	Using intersect(idx_xd,idx_xd); Using where
+Warnings:
+Note	1003	update `test`.`t4` set `test`.`t4`.`a` = 2 where ((`test`.`t4`.`d` = 6) and (`test`.`t4`.`c` = 6) and (`test`.`t4`.`b` = 6))
 SELECT COUNT(*), SUM(a) FROM t4 WHERE b=6 AND c=6 AND d=6;
 COUNT(*)	SUM(a)
 15	30

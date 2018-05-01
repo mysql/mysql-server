@@ -39,8 +39,8 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "session_variables"
   schema: ""
   catalog: "def"
-  collation: 33
-  length: 192
+  collation: 255
+  length: 256
   flags: 16
 }
 
@@ -52,8 +52,8 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "session_variables"
   schema: ""
   catalog: "def"
-  collation: 33
-  length: 3072
+  collation: 255
+  length: 4096
 }
 
 Mysqlx.Resultset.FetchDone {
@@ -564,7 +564,7 @@ Mysqlx.Sql.StmtExecuteOk {
 Mysqlx.Notice.Frame {
   type: 1
   scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 11265\nmsg: \"\\\'utf8\\\' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.\"\n }"
+  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 3719\nmsg: \"\\\'utf8\\\' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.\"\n }"
 }
 
 Mysqlx.Notice.Frame {
@@ -660,8 +660,8 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "session_variables"
   schema: ""
   catalog: "def"
-  collation: 33
-  length: 192
+  collation: 255
+  length: 256
   flags: 16
 }
 
@@ -673,8 +673,8 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "session_variables"
   schema: ""
   catalog: "def"
-  collation: 33
-  length: 3072
+  collation: 255
+  length: 4096
 }
 
 Mysqlx.Resultset.Row {
@@ -702,8 +702,8 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "session_variables"
   schema: ""
   catalog: "def"
-  collation: 33
-  length: 192
+  collation: 255
+  length: 256
   flags: 16
 }
 
@@ -715,8 +715,8 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "session_variables"
   schema: ""
   catalog: "def"
-  collation: 33
-  length: 3072
+  collation: 255
+  length: 4096
 }
 
 Mysqlx.Resultset.Row {
@@ -744,8 +744,8 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "session_variables"
   schema: ""
   catalog: "def"
-  collation: 33
-  length: 192
+  collation: 255
+  length: 256
   flags: 16
 }
 
@@ -757,8 +757,8 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "session_variables"
   schema: ""
   catalog: "def"
-  collation: 33
-  length: 3072
+  collation: 255
+  length: 4096
 }
 
 Mysqlx.Resultset.Row {
@@ -985,8 +985,8 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "session_status"
   schema: ""
   catalog: "def"
-  collation: 33
-  length: 192
+  collation: 255
+  length: 256
   flags: 16
 }
 
@@ -998,8 +998,8 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "session_status"
   schema: ""
   catalog: "def"
-  collation: 33
-  length: 3072
+  collation: 255
+  length: 4096
 }
 
 Mysqlx.Resultset.Row {
@@ -2956,8 +2956,8 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "session_variables"
   schema: ""
   catalog: "def"
-  collation: 33
-  length: 192
+  collation: 255
+  length: 256
   flags: 16
 }
 
@@ -2969,8 +2969,8 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "session_variables"
   schema: ""
   catalog: "def"
-  collation: 33
-  length: 3072
+  collation: 255
+  length: 4096
 }
 
 Mysqlx.Resultset.Row {
@@ -7337,8 +7337,8 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "session_variables"
   schema: ""
   catalog: "def"
-  collation: 33
-  length: 192
+  collation: 255
+  length: 256
   flags: 16
 }
 
@@ -7350,8 +7350,8 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "session_variables"
   schema: ""
   catalog: "def"
-  collation: 33
-  length: 3072
+  collation: 255
+  length: 4096
 }
 
 Mysqlx.Resultset.FetchDone {
@@ -7375,8 +7375,8 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "session_variables"
   schema: ""
   catalog: "def"
-  collation: 33
-  length: 192
+  collation: 255
+  length: 256
   flags: 16
 }
 
@@ -7388,8 +7388,8 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "session_variables"
   schema: ""
   catalog: "def"
-  collation: 33
-  length: 3072
+  collation: 255
+  length: 4096
 }
 
 Mysqlx.Resultset.Row {
@@ -7417,8 +7417,8 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "session_variables"
   schema: ""
   catalog: "def"
-  collation: 33
-  length: 192
+  collation: 255
+  length: 256
   flags: 16
 }
 
@@ -7430,8 +7430,8 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "session_variables"
   schema: ""
   catalog: "def"
-  collation: 33
-  length: 3072
+  collation: 255
+  length: 4096
 }
 
 Mysqlx.Resultset.Row {
@@ -7459,8 +7459,8 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "session_variables"
   schema: ""
   catalog: "def"
-  collation: 33
-  length: 192
+  collation: 255
+  length: 256
   flags: 16
 }
 
@@ -7472,8 +7472,8 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "session_variables"
   schema: ""
   catalog: "def"
-  collation: 33
-  length: 3072
+  collation: 255
+  length: 4096
 }
 
 Mysqlx.Resultset.Row {

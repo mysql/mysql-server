@@ -44,9 +44,30 @@ namespace info_schema {
   of the first MySQL version that published a given database schema.
   The format is Mmmdd with M=Major, m=minor, d=dot,
   so that MySQL 8.0.4 is encoded as 80004.
+
+  Historical I_S version number published:
+
+  1: Published in 8.0.3-RC.
+  ------------------------
+  Introduced in MySQL 8.0.0 by WL#6599. Never published in a GA version.
+
+  80011: Current. Published in 8.0 GA.
+  ------------------------------------
+  Changes from version 1:
+
+  - Bug#27309116: Add a new column `external_language` to `mysql`.`routines`
+    and update `information_schema`.`routines` to reflect this column.
+
+  - Bug#27593348: INFORMATION_SCHEMA.STATISTICS FIELD TYPE CHANGE.
+    Changes the column I_S.STATISTICS.NON_UNIQUE type from VARCHAR
+    to INT.
+
+  80012: Next I_S version number to use when there is change.
+  -----------------------------------------------------------
+  No changes yet, hence this number is not used yet.
 */
 
-static const uint IS_DD_VERSION = 80005;
+static const uint IS_DD_VERSION = 80011;
 
 /**
   Initialize INFORMATION_SCHEMA system views.

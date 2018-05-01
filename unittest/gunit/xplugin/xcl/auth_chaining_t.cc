@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,7 @@
 namespace xcl {
 namespace test {
 
-class Auth_chaining_test_suite : public Xcl_session_impl_tests {
+class Auth_chaining_test_suite_base : public Xcl_session_impl_tests {
  public:
   void SetUp() {
     m_sut = prepare_session();
@@ -76,8 +76,12 @@ class Auth_chaining_test_suite : public Xcl_session_impl_tests {
   }
 
   XError m_ok_auth{ngs::Authentication_interface::Status::Succeeded, ""};
-  XError m_failed_auth{ngs::Authentication_interface::Status::Failed, ""};
+  XError m_failed_auth{ER_ACCESS_DENIED_ERROR, "Invalid user or password"};
 };
+
+class Auth_chaining_test_suite
+    : public Auth_chaining_test_suite_base,
+      public ::testing::WithParamInterface<std::vector<std::string>> {};
 
 TEST_F(Auth_chaining_test_suite, cap_auth_method_server_supports_nothing) {
   set_ssl_state(true);
@@ -426,7 +430,7 @@ TEST_F(Auth_chaining_test_suite, only_plain_method_ssl_disabled) {
   m_sut->set_mysql_option(XSession::Mysqlx_option::Authentication_method,
                           std::vector<std::string>{"PLAIN"});
   EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "PLAIN"))
-      .WillOnce(Return(m_ok_auth));
+      .Times(0);
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
   m_sut->connect("host", 1290, "user", "pass", "schema");
@@ -488,23 +492,17 @@ TEST_F(Auth_chaining_test_suite, duplicate_auth_methods) {
 TEST_F(Auth_chaining_test_suite, sequence_with_plain_and_no_ssl) {
   set_ssl_state(false);
 
-  // SSL is disables still force PLAIN authentication
-  m_sut->set_mysql_option(
-      XSession::Mysqlx_option::Authentication_method,
-      std::vector<std::string>{"MYSQL41", "PLAIN", "SHA256_MEMORY"});
+  m_sut->set_mysql_option(XSession::Mysqlx_option::Authentication_method,
+                          std::vector<std::string>{"MYSQL41", "PLAIN"});
 
   EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "MYSQL41"))
       .WillOnce(Return(m_failed_auth));
-  EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "SHA256_MEMORY"))
-      .WillOnce(Return(m_failed_auth));
-  // If client specified PLAIN, lets execute it
   EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "PLAIN"))
-      .WillOnce(Return(m_failed_auth));
+      .Times(0);
 
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
 
-  // PLAIN & NON SSL must result in following error
   ASSERT_EQ(CR_X_INVALID_AUTH_METHOD,
             m_sut->connect("host", 1290, "user", "pass", "schema").error());
 }
@@ -522,6 +520,84 @@ TEST_F(Auth_chaining_test_suite, sequence_successfull_auth_attempt) {
       .WillOnce(Return(Connection_type::Tcp));
   m_sut->connect("host", 1290, "user", "pass", "schema");
 }
+
+TEST_P(Auth_chaining_test_suite, custom_error_handling) {
+  set_ssl_state(true);
+  auto custom_error_code = 1;
+  ASSERT_EQ(GetParam().size(), 2);
+  m_sut->set_mysql_option(XSession::Mysqlx_option::Authentication_method,
+                          GetParam());
+
+  EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, GetParam()[0]))
+      .WillOnce(Return(
+          XError{custom_error_code, "Error other than invalid user/password"}));
+  EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, GetParam()[1]))
+      .WillOnce(Return(m_failed_auth));
+  EXPECT_CALL(m_mock_connection_state, get_connection_type())
+      .WillOnce(Return(Connection_type::Tcp));
+  ASSERT_EQ(custom_error_code,
+            m_sut->connect("host", 1290, "user", "pass", "schema").error());
+}
+
+INSTANTIATE_TEST_CASE_P(
+    Instantiation_custom_error_handling, Auth_chaining_test_suite,
+    ::testing::Values(std::vector<std::string>{"PLAIN", "MYSQL41"},
+                      std::vector<std::string>{"MYSQL41", "PLAIN"},
+                      std::vector<std::string>{"SHA256_MEMORY", "MYSQL41"}));
+
+class Auth_chaining_test_suite_sha256_fail_no_ssl
+    : public Auth_chaining_test_suite {};
+
+TEST_P(Auth_chaining_test_suite_sha256_fail_no_ssl, sha256_fail_with_no_ssl) {
+  set_ssl_state(false);
+
+  m_sut->set_mysql_option(XSession::Mysqlx_option::Authentication_method,
+                          GetParam());
+
+  for (const auto &auth : GetParam())
+    EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, auth))
+        .WillOnce(Return(m_failed_auth));
+
+  EXPECT_CALL(m_mock_connection_state, get_connection_type())
+      .WillOnce(Return(Connection_type::Tcp));
+
+  ASSERT_EQ(CR_X_AUTH_PLUGIN_ERROR,
+            m_sut->connect("host", 1290, "user", "pass", "schema").error());
+}
+
+INSTANTIATE_TEST_CASE_P(
+    Instantiation_sha256_fail, Auth_chaining_test_suite_sha256_fail_no_ssl,
+    ::testing::Values(std::vector<std::string>{"SHA256_MEMORY"},
+                      std::vector<std::string>{"MYSQL41", "SHA256_MEMORY"},
+                      std::vector<std::string>{"SHA256_MEMORY", "MYSQL41"}));
+
+class Auth_chaining_fatal_errors
+    : public Auth_chaining_test_suite_base,
+      public ::testing::WithParamInterface<xcl::XError> {};
+
+TEST_P(Auth_chaining_fatal_errors, break_chain_on_fatal_errors) {
+  set_ssl_state(true);
+  m_sut->set_mysql_option(
+      XSession::Mysqlx_option::Authentication_method,
+      std::vector<std::string>{"PLAIN", "SHA256_MEMORY", "MYSQL41"});
+  EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "PLAIN"))
+      .WillOnce(Return(GetParam()));
+  EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "SHA256_MEMORY"))
+      .Times(0);
+  EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "MYSQL41"))
+      .Times(0);
+  EXPECT_CALL(m_mock_connection_state, get_connection_type())
+      .WillOnce(Return(Connection_type::Tcp));
+  ASSERT_EQ(GetParam().error(),
+            m_sut->connect("host", 1290, "user", "pass", "schema").error());
+}
+
+INSTANTIATE_TEST_CASE_P(Instantiation_auth_chaining_fatal_errors,
+                        Auth_chaining_fatal_errors,
+                        ::testing::Values(xcl::XError{CR_X_READ_TIMEOUT, ""},
+                                          xcl::XError{CR_X_WRITE_TIMEOUT, ""},
+                                          xcl::XError{CR_SERVER_GONE_ERROR,
+                                                      ""}));
 
 }  // namespace test
 }  // namespace xcl

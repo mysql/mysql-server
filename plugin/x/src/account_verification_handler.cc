@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,10 @@
 
 #include "plugin/x/src/account_verification_handler.h"
 
+#include "my_sys.h"
+
 #include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
+#include "plugin/x/ngs/include/ngs_common/ssl_session_options.h"
 #include "plugin/x/src/query_string_builder.h"
 #include "plugin/x/src/sql_data_result.h"
 #include "plugin/x/src/xpl_client.h"
@@ -34,17 +37,22 @@ namespace xpl {
 
 ngs::Error_code Account_verification_handler::authenticate(
     const ngs::Authentication_interface &account_verificator,
+    ngs::Authentication_info *authenication_info,
     const std::string &sasl_message) const {
   std::size_t message_position = 0;
-  std::string schema, account, passwd;
+  std::string schema = "";
+  std::string account = "";
+  std::string passwd = "";
   if (sasl_message.empty() ||
       !extract_sub_message(sasl_message, message_position, schema) ||
       !extract_sub_message(sasl_message, message_position, account) ||
       !extract_last_sub_message(sasl_message, message_position, passwd))
-    return ngs::Error_code(ER_NO_SUCH_USER, "Invalid user or password");
+    return ngs::SQLError_access_denied();
 
-  if (account.empty())
-    return ngs::Error_code(ER_NO_SUCH_USER, "Invalid user or password");
+  authenication_info->m_tried_account_name = account;
+  authenication_info->m_was_using_password = !passwd.empty();
+
+  if (account.empty()) return ngs::SQLError_access_denied();
 
   return m_session->data_context().authenticate(
       account.c_str(), m_session->client().client_hostname(),
@@ -55,7 +63,7 @@ ngs::Error_code Account_verification_handler::authenticate(
 bool Account_verification_handler::extract_last_sub_message(
     const std::string &message, std::size_t &element_position,
     std::string &sub_message) const {
-  if (std::string::npos == element_position) return false;
+  if (element_position >= message.size()) return true;
 
   sub_message = message.substr(element_position);
   element_position = std::string::npos;
@@ -66,7 +74,7 @@ bool Account_verification_handler::extract_last_sub_message(
 bool Account_verification_handler::extract_sub_message(
     const std::string &message, std::size_t &element_position,
     std::string &sub_message) const {
-  if (std::string::npos == element_position) return false;
+  if (element_position >= message.size()) return true;
 
   if (message[element_position] == '\0') {
     ++element_position;
@@ -78,7 +86,10 @@ bool Account_verification_handler::extract_sub_message(
       message.find('\0', element_position);
   sub_message = message.substr(element_position, last_character_of_element);
   element_position = last_character_of_element;
-  if (element_position != std::string::npos) ++element_position;
+  if (element_position != std::string::npos)
+    ++element_position;
+  else
+    return false;
   return true;
 }
 
@@ -104,8 +115,8 @@ Account_verification_handler::get_account_verificator_id(
 }
 
 ngs::Error_code Account_verification_handler::verify_account(
-    const std::string &user, const std::string &host,
-    const std::string &passwd) const {
+    const std::string &user, const std::string &host, const std::string &passwd,
+    const ngs::Authentication_info *authenication_info) const {
   Account_record record;
   if (ngs::Error_code error = get_account_record(user, host, record))
     return error;
@@ -126,15 +137,17 @@ ngs::Error_code Account_verification_handler::verify_account(
   // password check
   if (!p || !p->verify_authentication_string(user, host, passwd,
                                              record.db_password_hash))
-    return ngs::Error_code(ER_NO_SUCH_USER, "Invalid user or password");
+    return ngs::SQLError_access_denied();
 
   // password check succeeded but...
-  if (record.is_account_locked)
-    return ngs::Error_code(ER_ACCOUNT_HAS_BEEN_LOCKED, "Account is locked.");
+  if (record.is_account_locked) {
+    return ngs::SQLError(ER_ACCOUNT_HAS_BEEN_LOCKED,
+                         authenication_info->m_tried_account_name.c_str(),
+                         m_session->client().client_hostname_or_address());
+  }
 
   if (record.is_offline_mode_and_not_super_user)
-    return ngs::Error_code(ER_SERVER_OFFLINE_MODE,
-                           "Server works in offline mode.");
+    return ngs::SQLError(ER_SERVER_OFFLINE_MODE);
 
   // password expiration check must come last, because password expiration
   // is not a fatal error, a client that supports expired password state,
@@ -146,24 +159,17 @@ ngs::Error_code Account_verification_handler::verify_account(
     // expired passwords (this check is done by the caller of this)
     // if it's NOT enabled, then the user will be allowed to login in
     // sandbox mode, even if the client doesn't support expired passwords
-    return record.disconnect_on_expired_password
-               ? ngs::Fatal(ER_MUST_CHANGE_PASSWORD_LOGIN,
-                            "Your password has expired. To log in you must "
-                            "change it using a client that supports expired "
-                            "passwords.")
-               : ngs::Error(ER_MUST_CHANGE_PASSWORD_LOGIN,
-                            "Your password has expired.");
+    auto result = ngs::SQLError(ER_MUST_CHANGE_PASSWORD_LOGIN);
+    return record.disconnect_on_expired_password ? ngs::Fatal(result) : result;
   }
 
   if (record.require_secure_transport &&
       !ngs::Connection_type_helper::is_secure_type(
-          m_session->client().connection().connection_type()))
-    return ngs::Error(ER_SECURE_TRANSPORT_REQUIRED,
-                      "Secure transport required. To log in you must use "
-                      "TCP+SSL or UNIX socket connection.");
+          m_session->client().connection().get_type()))
+    return ngs::SQLError(ER_SECURE_TRANSPORT_REQUIRED);
 
   return record.user_required.validate(
-      m_session->client().connection().options());
+      ngs::Ssl_session_options(&m_session->client().connection()));
 }
 
 ngs::Error_code Account_verification_handler::get_account_record(

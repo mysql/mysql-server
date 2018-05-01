@@ -2,3 +2,8 @@
 --ssl-cert=
 --ssl-ca=
 --ssl-cipher=
+--loose-mysqlx-ssl=system
+--loose-mysqlx-ssl-key=
+--loose-mysqlx-ssl-cert=
+--loose-mysqlx-ssl-ca=
+--loose-mysqlx-ssl-cipher=

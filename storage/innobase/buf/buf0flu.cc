@@ -73,10 +73,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 static const int buf_flush_page_cleaner_priority = -20;
 #endif /* UNIV_LINUX */
 
-/** Sleep time in microseconds for loop waiting for the oldest
-modification lsn */
-static const ulint buf_flush_wait_flushed_sleep_time = 10000;
-
 /** Number of pages flushed through non flush_list flushes. */
 static ulint buf_lru_flush_page_count = 0;
 #endif /* !UNIV_HOTBACKUP */
@@ -253,6 +249,8 @@ static ibool buf_flush_validate_skip(
   /** The buf_flush_validate_low() call skip counter.
   Use a signed type because of the race condition below. */
   static int buf_flush_validate_count = BUF_FLUSH_VALIDATE_SKIP;
+
+  DBUG_EXECUTE_IF("buf_flush_list_validate", buf_flush_validate_count = 1;);
 
   /* There is a race condition below, but it does not matter,
   because this call is only for heuristic purposes. We want to
@@ -442,6 +440,52 @@ static inline bool buf_flush_list_order_validate(lsn_t earlier_added_lsn,
           new_added_lsn + log_buffer_flush_order_lag(*log_sys));
 }
 
+/** Borrows LSN from the recent added dirty page to the flush list.
+
+This should be the lsn which we may use to mark pages dirtied without
+underlying redo records, when we add them to the flush list.
+
+The lsn should be chosen in a way which will guarantee that we will
+not destroy checkpoint calculations if we inserted a new dirty page
+with such lsn to the flush list. This is strictly related to the
+limitations we put on the relaxed order in flush lists, which have
+direct impact on computation of lsn available for next checkpoint.
+
+Therefore when the flush list is empty, the lsn is chosen as the
+maximum lsn up to which we know, that all dirty pages with smaller
+oldest_modification were added to the flush list.
+
+This guarantees that the limitations put on the relaxed order are
+hold and lsn available for next checkpoint is not miscalculated.
+
+@param[in]  buf_pool  buffer pool instance
+@return     the borrowed newest_modification of the page or lsn up
+            to which all dirty pages were added to the flush list
+            if the flush list is empty */
+static inline lsn_t buf_flush_borrow_lsn(const buf_pool_t *buf_pool) {
+  ut_ad(buf_flush_list_mutex_own(buf_pool));
+
+  const auto page = UT_LIST_GET_FIRST(buf_pool->flush_list);
+
+  if (page == nullptr) {
+    /* Flush list is empty - use lsn up to which we know that all
+    dirty pages with smaller oldest_modification were added to
+    the flush list (they were flushed as the flush list is empty). */
+    const lsn_t lsn = log_buffer_dirty_pages_added_up_to_lsn(*log_sys);
+
+    if (lsn < LOG_START_LSN) {
+      ut_ad(srv_read_only_mode);
+      return LOG_START_LSN + LOG_BLOCK_HDR_SIZE;
+    }
+    return lsn;
+  }
+
+  ut_ad(page->oldest_modification != 0);
+  ut_ad(page->newest_modification >= page->oldest_modification);
+
+  return page->oldest_modification;
+}
+
 /** Inserts a modified block into the flush list. */
 void buf_flush_insert_into_flush_list(
     buf_pool_t *buf_pool, /*!< buffer pool instance */
@@ -449,16 +493,15 @@ void buf_flush_insert_into_flush_list(
     lsn_t lsn)            /*!< in: oldest modification */
 {
   ut_ad(mutex_own(buf_page_get_mutex(&block->page)));
+  ut_ad(log_sys != nullptr);
 
   buf_flush_list_mutex_enter(buf_pool);
-
-  ut_ad(UT_LIST_GET_FIRST(buf_pool->flush_list) == NULL ||
-        buf_flush_list_order_validate(
-            UT_LIST_GET_FIRST(buf_pool->flush_list)->oldest_modification, lsn));
 
   /* If we are in the recovery then we need to update the flush
   red-black tree as well. */
   if (buf_pool->flush_rbt != NULL) {
+    ut_ad(lsn != 0);
+    ut_ad(block->page.newest_modification != 0);
     buf_flush_list_mutex_exit(buf_pool);
     buf_flush_insert_sorted_into_flush_list(buf_pool, block, lsn);
     return;
@@ -468,6 +511,49 @@ void buf_flush_insert_into_flush_list(
   ut_ad(!block->page.in_flush_list);
 
   ut_d(block->page.in_flush_list = TRUE);
+
+  if (lsn == 0) {
+    /* This is no-redo dirtied page. Borrow the lsn. */
+    lsn = buf_flush_borrow_lsn(buf_pool);
+
+    ut_ad(log_lsn_validate(lsn));
+
+    /* This page could already be no-redo dirtied before,
+    and flushed since then. Also the page from which we
+    borrowed lsn last time could be flushed by LRU and
+    we would end up borrowing smaller LSN.
+
+    Another risk is that this page was flushed earlier
+    and freed. We should not re-flush it to disk with
+    smaller FIL_PAGE_LSN.
+
+    The best way to go is to use flushed_to_disk_lsn,
+    unless we borrowed even higher value.
+
+    This way we are sure that no page has ever been
+    flushed with higher newest_modification - it would
+    first need to wait until redo is flushed up to
+    such point and it would ensure that by checking
+    the log_sys->flushed_to_disk_lsn's value too.
+
+    Because we keep the page latched, after we read
+    flushed_to_disk_lsn this page cannot be flushed
+    in background with higher lsn (hence we are safe
+    even if the flushed_to_disk_lsn advanced after
+    we read it). */
+
+    block->page.newest_modification =
+        std::max(lsn, log_sys->flushed_to_disk_lsn.load());
+  }
+
+  ut_ad(log_lsn_validate(lsn));
+  ut_ad(block->page.oldest_modification == 0);
+  ut_ad(block->page.newest_modification >= lsn);
+
+  ut_ad(UT_LIST_GET_FIRST(buf_pool->flush_list) == NULL ||
+        buf_flush_list_order_validate(
+            UT_LIST_GET_FIRST(buf_pool->flush_list)->oldest_modification, lsn));
+
   block->page.oldest_modification = lsn;
 
   UT_LIST_ADD_FIRST(buf_pool->flush_list, &block->page);
@@ -641,7 +727,6 @@ bool buf_flush_ready_for_flush(buf_page_t *bpage, buf_flush_t flush_type) {
   }
 
   ut_error;
-  return (false);
 }
 
 /** Remove a block from the flush list of modified blocks.
@@ -808,10 +893,12 @@ void buf_flush_write_complete(buf_page_t *bpage) {
 
 /** Calculate the checksum of a page from compressed table and update
 the page.
-@param[in,out]	page	page to update
-@param[in]	size	compressed page size
-@param[in]	lsn	LSN to stamp on the page */
-void buf_flush_update_zip_checksum(buf_frame_t *page, ulint size, lsn_t lsn) {
+@param[in,out]  page            page to update
+@param[in]      size            compressed page size
+@param[in]      lsn             LSN to stamp on the page
+@param[in]      skip_lsn_check  true to skip check for lsn (in DEBUG) */
+void buf_flush_update_zip_checksum(buf_frame_t *page, ulint size, lsn_t lsn,
+                                   bool skip_lsn_check) {
   ut_a(size > 0);
 
   BlockReporter reporter = BlockReporter(false, NULL, univ_page_size, false);
@@ -820,19 +907,22 @@ void buf_flush_update_zip_checksum(buf_frame_t *page, ulint size, lsn_t lsn) {
       page, size,
       static_cast<srv_checksum_algorithm_t>(srv_checksum_algorithm));
 
+  ut_ad(skip_lsn_check || mach_read_from_8(page + FIL_PAGE_LSN) <= lsn);
+
   mach_write_to_8(page + FIL_PAGE_LSN, lsn);
   mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
 }
 
 /** Initialize a page for writing to the tablespace.
-@param[in]	block		buffer block; NULL if bypassing the buffer pool
-@param[in,out]	page		page frame
-@param[in,out]	page_zip_	compressed page, or NULL if uncompressed
-@param[in]	newest_lsn	newest modification LSN to the page
-@param[in]	skip_checksum	whether to disable the page checksum */
+@param[in]      block           buffer block; NULL if bypassing the buffer pool
+@param[in,out]  page            page frame
+@param[in,out]  page_zip_       compressed page, or NULL if uncompressed
+@param[in]      newest_lsn      newest modification LSN to the page
+@param[in]      skip_checksum   whether to disable the page checksum
+@param[in]      skip_lsn_check  true to skip check for LSN (in DEBUG) */
 void buf_flush_init_for_writing(const buf_block_t *block, byte *page,
                                 void *page_zip_, lsn_t newest_lsn,
-                                bool skip_checksum) {
+                                bool skip_checksum, bool skip_lsn_check) {
   ib_uint32_t checksum = BUF_NO_CHECKSUM_MAGIC;
 
   ut_ad(block == NULL || block->frame == page);
@@ -871,7 +961,8 @@ void buf_flush_init_for_writing(const buf_block_t *block, byte *page,
       case FIL_PAGE_SDI:
       case FIL_PAGE_RTREE:
 
-        buf_flush_update_zip_checksum(page_zip->data, size, newest_lsn);
+        buf_flush_update_zip_checksum(page_zip->data, size, newest_lsn,
+                                      skip_lsn_check);
 
         return;
     }
@@ -886,6 +977,8 @@ void buf_flush_init_for_writing(const buf_block_t *block, byte *page,
   }
 
   /* Write the newest modification lsn to the page header and trailer */
+  ut_ad(skip_lsn_check || mach_read_from_8(page + FIL_PAGE_LSN) <= newest_lsn);
+
   mach_write_to_8(page + FIL_PAGE_LSN, newest_lsn);
 
   mach_write_to_8(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
@@ -1069,7 +1162,8 @@ static void buf_flush_write_block_low(buf_page_t *bpage, buf_flush_t flush_type,
           reinterpret_cast<const buf_block_t *>(bpage),
           reinterpret_cast<const buf_block_t *>(bpage)->frame,
           bpage->zip.data ? &bpage->zip : NULL, bpage->newest_modification,
-          fsp_is_checksum_disabled(bpage->id.space()));
+          fsp_is_checksum_disabled(bpage->id.space()),
+          false /* do not skip lsn check */);
       break;
   }
 
@@ -1955,54 +2049,6 @@ bool buf_flush_do_batch(buf_pool_t *buf_pool, buf_flush_t type, ulint min_n,
   }
 
   return (true);
-}
-
-/**
-Waits until a flush batch of the given lsn ends
-@param[in]	new_oldest	target oldest_modified_lsn to wait for */
-
-void buf_flush_wait_flushed(lsn_t new_oldest) {
-  for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
-    buf_pool_t *buf_pool;
-    lsn_t oldest;
-
-    buf_pool = buf_pool_from_array(i);
-
-    for (;;) {
-      /* We don't need to wait for fsync of the flushed
-      blocks, because anyway we need fsync to make chekpoint.
-      So, we don't need to wait for the batch end here. */
-
-      buf_flush_list_mutex_enter(buf_pool);
-
-      buf_page_t *bpage;
-
-      /* We don't need to wait for system temporary pages */
-      for (bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
-           bpage != NULL && fsp_is_system_temporary(bpage->id.space());
-           bpage = UT_LIST_GET_PREV(list, bpage)) {
-        /* Do nothing. */
-      }
-
-      if (bpage != NULL) {
-        ut_ad(bpage->in_flush_list);
-        oldest = bpage->oldest_modification;
-      } else {
-        oldest = 0;
-      }
-
-      buf_flush_list_mutex_exit(buf_pool);
-
-      if (oldest == 0 || oldest >= new_oldest) {
-        break;
-      }
-
-      /* sleep and retry */
-      os_thread_sleep(buf_flush_wait_flushed_sleep_time);
-
-      MONITOR_INC(MONITOR_FLUSH_SYNC_WAITS);
-    }
-  }
 }
 
 /** This utility flushes dirty blocks from the end of the flush list of all

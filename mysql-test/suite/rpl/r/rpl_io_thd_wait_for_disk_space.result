@@ -28,7 +28,7 @@ SET DEBUG_SYNC="now WAIT_FOR reached_stopping_io_thread";
 KILL IO_THREAD;
 [connection slave1]
 [connection slave]
-include/wait_for_slave_io_error.inc [errno=1595]
+include/wait_for_slave_io_error.inc [errno=13122]
 # Removing debug point 'simulate_io_thd_wait_for_disk_space' from @@GLOBAL.debug
 include/assert_grep.inc [Found the disk full error message on the slave]
 include/assert_grep.inc [Found the relay log truncate message on the slave]

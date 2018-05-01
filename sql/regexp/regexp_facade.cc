@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,55 +31,62 @@
 
 namespace regexp {
 
-String *EvalExprToCharset(Item *expr, String *out) {
-  uint dummy_errors;
-  if (expr->collation.collation != regexp_lib_charset) {
-    // Character set conversion is called for.
-    StringBuffer<MAX_FIELD_WIDTH> pre_conversion_buffer;
-    String *s = expr->val_str(&pre_conversion_buffer);
-    if (s == nullptr) return nullptr;
-    if (out->copy(s->ptr(), s->length(), s->charset(), regexp_lib_charset,
-                  &dummy_errors))
-      return nullptr;
-    return out;
-  }
-  String *result = expr->val_str(out);
-  if (result != nullptr && !is_aligned_to(result->ptr(), alignof(UChar))) {
-    if (out->copy(result->ptr(), result->length(), result->charset(),
-                  regexp_lib_charset, &dummy_errors))
-      return nullptr;
-    DBUG_ASSERT(is_aligned_to(out->ptr(), alignof(UChar)));
-    return out;
-  }
-  return result;
-}
+bool EvalExprToCharset(Item *expr, std::u16string *out) {
+  alignas(sizeof(UChar)) char aligned_buff[MAX_FIELD_WIDTH];
+  String aligned_str(aligned_buff, sizeof(aligned_buff), &my_charset_bin);
+  String *s = expr->val_str(&aligned_str);
+  if (s == nullptr) return true;
 
-bool Regexp_facade::SetPattern(Item *pattern_expr) {
-  /*
-    The pattern is NULL, but that's fine. Since it's the facade's job to
-    handle NULL values, we leverage the fact that any matching against NULL
-    will have the result NULL and don't involve the Regexp_engine class at
-    all.
-  */
-  if (pattern_expr == nullptr) {
-    m_engine = nullptr;
+  if (s->length() == 0) {
+    out->clear();
     return false;
   }
-  if (!pattern_expr->const_item() ||  // Non-constant pattern, see above.
-      m_engine == nullptr) {          // Called for the first time.
-    if (SetupEngine(pattern_expr, m_flags)) return true;
+  if (expr->collation.collation != regexp_lib_charset) {
+    // Character set conversion is called for.
+    out->resize(s->length() * regexp_lib_charset->mbmaxlen / sizeof(UChar));
+    uint errors;
+    size_t converted_size = my_convert(
+        pointer_cast<char *>(&(*out)[0]), out->size() * sizeof(UChar),
+        regexp_lib_charset, s->ptr(), s->length(), s->charset(), &errors);
+
+    if (errors > 0) return true;
+    DBUG_ASSERT(converted_size % sizeof(UChar) == 0);
+    out->resize(converted_size / sizeof(UChar));
+    return false;
   }
+  // No conversion needed; just copy into the u16string.
+  out->clear();
+  out->insert(out->end(), pointer_cast<const UChar *>(s->ptr()),
+              pointer_cast<const UChar *>(s->ptr() + s->length()));
+
   return false;
+}
+
+bool Regexp_facade::SetPattern(Item *pattern_expr, uint32_t flags) {
+  if (pattern_expr == nullptr) {
+    m_engine = nullptr;
+    return true;
+  }
+  if (m_engine == nullptr)
+    // Called for the first time.
+    return SetupEngine(pattern_expr, flags);
+
+  /*
+    We don't need to recompile the regular expression if the pattern is
+    a constant in the query and the flags are the same.
+  */
+  if (pattern_expr->const_item() && flags == m_engine->flags()) return false;
+  return SetupEngine(pattern_expr, flags);
 }
 
 bool Regexp_facade::Reset(Item *subject_expr) {
   DBUG_ENTER("Regexp_facade::Reset");
 
-  if (m_engine == nullptr) DBUG_RETURN(true);
-  String *subject = EvalExprToCharset(subject_expr, &m_current_subject);
-  if (subject == nullptr) DBUG_RETURN(true);
+  if (m_engine == nullptr ||
+      EvalExprToCharset(subject_expr, &m_current_subject))
+    DBUG_RETURN(true);
 
-  m_engine->Reset(subject);
+  m_engine->Reset(m_current_subject);
   DBUG_RETURN(false);
 }
 
@@ -104,20 +111,23 @@ String *Regexp_facade::Replace(Item *subject_expr, Item *replacement_expr,
                                int64_t start, int occurrence, String *result) {
   DBUG_ENTER("Regexp_facade::Replace");
   String replacement_buf;
+  std::u16string replacement(MAX_FIELD_WIDTH, '\0');
 
-  String *replacement = EvalExprToCharset(replacement_expr, &replacement_buf);
-
-  if (replacement == nullptr) DBUG_RETURN(nullptr);
+  if (EvalExprToCharset(replacement_expr, &replacement)) DBUG_RETURN(nullptr);
 
   if (Reset(subject_expr)) DBUG_RETURN(nullptr);
 
-  DBUG_RETURN(m_engine->Replace(replacement->ptr(), replacement->length(),
-                                start - 1, occurrence, result));
+  const std::u16string &result_buffer =
+      m_engine->Replace(replacement, start - 1, occurrence);
+  result->set(pointer_cast<const char *>(result_buffer.data()),
+              result_buffer.size() * sizeof(UChar), regexp_lib_charset);
+  DBUG_RETURN(result);
 }
 
 String *Regexp_facade::Substr(Item *subject_expr, int start, int occurrence,
                               String *result) {
-  if (Reset(subject_expr) || !m_engine->Matches(start - 1, occurrence)) {
+  if (Reset(subject_expr)) return nullptr;
+  if (!m_engine->Matches(start - 1, occurrence)) {
     m_engine->CheckError();
     return nullptr;
   }
@@ -129,15 +139,11 @@ String *Regexp_facade::Substr(Item *subject_expr, int start, int occurrence,
 bool Regexp_facade::SetupEngine(Item *pattern_expr, uint flags) {
   DBUG_ENTER("Regexp_facade::SetupEngine");
 
-  String pattern_buffer;
-  String *pattern = EvalExprToCharset(pattern_expr, &pattern_buffer);
-
-  if (pattern == nullptr) {
+  std::u16string pattern;
+  if (EvalExprToCharset(pattern_expr, &pattern)) {
     m_engine = nullptr;
     DBUG_RETURN(false);
   }
-
-  DBUG_ASSERT(is_aligned_to(pattern->ptr(), alignof(UChar)));
 
   // Actually compile the regular expression.
   m_engine = make_unique_destroy_only<Regexp_engine>(

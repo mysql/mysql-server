@@ -168,9 +168,9 @@ Plugin_table table_replication_group_member_stats::m_table_def(
     /* Name */
     "replication_group_member_stats",
     /* Definition */
-    "  CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,\n"
-    "  VIEW_ID CHAR(60) collate utf8_bin not null,\n"
-    "  MEMBER_ID CHAR(36) collate utf8_bin not null,\n"
+    "  CHANNEL_NAME CHAR(64) not null,\n"
+    "  VIEW_ID CHAR(60) collate utf8mb4_bin not null,\n"
+    "  MEMBER_ID CHAR(36) collate utf8mb4_bin not null,\n"
     "  COUNT_TRANSACTIONS_IN_QUEUE BIGINT unsigned not null,\n"
     "  COUNT_TRANSACTIONS_CHECKED BIGINT unsigned not null,\n"
     "  COUNT_CONFLICTS_DETECTED BIGINT unsigned not null,\n"

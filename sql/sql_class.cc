@@ -141,7 +141,7 @@ THD::Attachable_trx::Attachable_trx(THD *thd, Attachable_trx *prev_trx)
     : m_thd(thd),
       m_reset_lex(RESET_LEX),
       m_prev_attachable_trx(prev_trx),
-      m_trx_state(&thd->main_mem_root) {
+      m_trx_state() {
   init();
 }
 
@@ -150,7 +150,7 @@ THD::Attachable_trx::Attachable_trx(THD *thd, Attachable_trx *prev_trx,
     : m_thd(thd),
       m_reset_lex(reset_lex),
       m_prev_attachable_trx(prev_trx),
-      m_trx_state(&thd->main_mem_root) {
+      m_trx_state() {
   init();
 }
 
@@ -2653,6 +2653,16 @@ void THD::rpl_detach_engine_ha_data() {
   if (rli) rli->detach_engine_ha_data(this);
 };
 
+void THD::rpl_reattach_engine_ha_data() {
+  Relay_log_info *rli =
+      is_binlog_applier() ? rli_fake : (slave_thread ? rli_slave : NULL);
+
+  DBUG_ASSERT(!rli_fake || !rli_fake->is_engine_ha_data_detached);
+  DBUG_ASSERT(!rli_slave || !rli_slave->is_engine_ha_data_detached);
+
+  if (rli) rli->reattach_engine_ha_data(this);
+};
+
 bool THD::rpl_unflag_detached_engine_ha_data() {
   Relay_log_info *rli =
       is_binlog_applier() ? rli_fake : (slave_thread ? rli_slave : NULL);
@@ -2704,9 +2714,11 @@ void add_order_to_list(THD *thd, ORDER *order) {
   thd->lex->select_lex->add_order_to_list(order);
 }
 
-THD::Transaction_state::Transaction_state(MEM_ROOT *root)
-    : m_query_tables_list(new (root) Query_tables_list),
+THD::Transaction_state::Transaction_state()
+    : m_query_tables_list(new Query_tables_list()),
       m_ha_data(PSI_NOT_INSTRUMENTED, m_ha_data.initial_capacity) {}
+
+THD::Transaction_state::~Transaction_state() { delete m_query_tables_list; }
 
 void THD::change_item_tree(Item **place, Item *new_value) {
   /* TODO: check for OOM condition here */
@@ -2732,6 +2744,7 @@ void THD::notify_hton_post_release_exclusive(const MDL_key *mdl_key) {
 }
 
 void reattach_engine_ha_data_to_thd(THD *thd, const struct handlerton *hton) {
+  DBUG_ENTER("reattach_engine_ha_data_to_thd");
   if (hton->replace_native_transaction_in_thd) {
     /* restore the saved original engine transaction's link with thd */
     void **trx_backup = &thd->get_ha_data(hton->slot)->ha_ptr_backup;
@@ -2739,6 +2752,7 @@ void reattach_engine_ha_data_to_thd(THD *thd, const struct handlerton *hton) {
     hton->replace_native_transaction_in_thd(thd, *trx_backup, NULL);
     *trx_backup = NULL;
   }
+  DBUG_VOID_RETURN;
 }
 
 /**

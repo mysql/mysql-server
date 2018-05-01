@@ -653,6 +653,10 @@ void Applier_module::leave_group_on_failure() {
   notify_and_reset_ctx(ctx);
 
   bool set_read_mode = false;
+  if (view_change_notifier != NULL &&
+      !view_change_notifier->is_view_modification_ongoing()) {
+    view_change_notifier->start_view_modification();
+  }
   Gcs_operations::enum_leave_state state = gcs_module->leave();
 
   char **error_message = NULL;
@@ -723,6 +727,26 @@ void Applier_module::kill_pending_transactions(bool set_read_mode,
       enable_server_read_mode(PSESSION_INIT_THREAD);
     else
       enable_server_read_mode(PSESSION_USE_THREAD);
+  }
+
+  if (view_change_notifier != NULL) {
+    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_WAITING_FOR_VIEW_UPDATE);
+    if (view_change_notifier->wait_for_view_modification()) {
+      LogPluginErr(WARNING_LEVEL,
+                   ER_GRP_RPL_TIMEOUT_RECEIVING_VIEW_CHANGE_ON_SHUTDOWN);
+    }
+  }
+
+  /*
+    Only execute abort if we were already inside a group. We may happen to come
+    across an applier error during the startup of GR (i.e. during the execution
+    of the START GROUP_REPLICATION command). We must not abort if the command
+    fails. set_read_mode indicates that we were part of a group and as such our
+    START GROUP_REPLICATION command already executed in the past.
+  */
+  if (set_read_mode &&
+      exit_state_action_var == EXIT_STATE_ACTION_ABORT_SERVER) {
+    abort_plugin_process("Fatal error during execution of Group Replication");
   }
 
   DBUG_VOID_RETURN;

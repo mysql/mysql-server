@@ -1,6 +1,6 @@
 --echo # Test of SQL window functions.
 --echo # ----------------------------------------------------------------------
-
+--source include/have_innodb_16k.inc
 SET NAMES utf8;
 
 --echo
@@ -15,15 +15,6 @@ select json_arrayagg('3') over ();
 
 --error ER_NOT_SUPPORTED_YET
 select group_concat('3') over ();
-
---error ER_NOT_SUPPORTED_YET
-select bit_or(3) over ();
-
---error ER_NOT_SUPPORTED_YET
-select bit_and(3) over ();
-
---error ER_NOT_SUPPORTED_YET
-select bit_xor(3) over ();
 
 --echo Single window function (plus ORDER BY).
 CREATE TABLE t(i INT, j INT);
@@ -238,8 +229,7 @@ SELECT k, MIN(i), SUM(j), SUM(k) OVER (ROWS UNBOUNDED PRECEDING) wf FROM t
   GROUP BY (k) WITH ROLLUP;
 SELECT    MIN(i), SUM(j), SUM(k) OVER (ROWS UNBOUNDED PRECEDING) wf FROM t
   GROUP BY (k) WITH ROLLUP;
-
---error ER_WRONG_USAGE
+--sorted_result
 SELECT k, MIN(i), SUM(j), SUM(k) OVER (ROWS UNBOUNDED PRECEDING) wf FROM t
 GROUP BY (k) WITH ROLLUP ORDER BY wf DESC;
 
@@ -1245,7 +1235,6 @@ SELECT p, t, FIRST_VALUE(t) OVER w FROM t_time2 WINDOW w AS (PARTITION by p ORDE
 
 DROP TABLE t_time, t_time2;
 
-
 --echo ----------------------------------------------------------------------
 --echo -    Aggregates with RANGE frame specification
 --echo ----------------------------------------------------------------------
@@ -1536,6 +1525,32 @@ SELECT id, count(id) over w, count(*) over w, FIRST_VALUE(id) OVER w FROM t1
 
 
 DROP TABLE t1, t11, t2, t22, t3, t4, t5, t6, tj;
+DROP TABLE t;
+
+--echo ----------------------------------------------------------------------
+--echo -    Test NULL handling with RANGE
+--echo ----------------------------------------------------------------------
+CREATE TABLE t(i INT);
+INSERT INTO t VALUES (NULL), (NULL), (1), (2), (3), (4), (5);
+#V...
+SELECT COUNT(*) OVER (ORDER BY i RANGE BETWEEN 1 FOLLOWING AND UNBOUNDED FOLLOWING) FROM t;
+SELECT COUNT(*) OVER (ORDER BY i RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING) FROM t;
+SELECT COUNT(*) OVER (ORDER BY i RANGE BETWEEN 1 PRECEDING AND 2 FOLLOWING) FROM t;
+SELECT COUNT(*) OVER (ORDER BY i RANGE BETWEEN 1 PRECEDING AND UNBOUNDED FOLLOWING) FROM  t;
+SELECT COUNT(*) OVER (ORDER BY i RANGE BETWEEN 2 PRECEDING AND 1 PRECEDING) FROM  t;
+SELECT COUNT(*) OVER (ORDER BY i RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) FROM  t;
+SELECT COUNT(*) OVER (ORDER BY i RANGE BETWEEN UNBOUNDED PRECEDING AND 2 PRECEDING) FROM  t;
+SELECT COUNT(*) OVER (ORDER BY i RANGE BETWEEN UNBOUNDED PRECEDING AND 2 FOLLOWING) FROM  t;
+
+SELECT COUNT(*) OVER (ORDER BY i DESC RANGE BETWEEN 1 FOLLOWING AND UNBOUNDED FOLLOWING) FROM t;
+SELECT COUNT(*) OVER (ORDER BY i DESC RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING) FROM t;
+SELECT COUNT(*) OVER (ORDER BY i DESC RANGE BETWEEN 1 PRECEDING AND 2 FOLLOWING) FROM t;
+SELECT COUNT(*) OVER (ORDER BY i DESC RANGE BETWEEN 1 PRECEDING AND UNBOUNDED FOLLOWING) FROM  t;
+SELECT COUNT(*) OVER (ORDER BY i DESC RANGE BETWEEN 2 PRECEDING AND 1 PRECEDING) FROM  t;
+SELECT COUNT(*) OVER (ORDER BY i DESC RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) FROM  t;
+SELECT COUNT(*) OVER (ORDER BY i DESC RANGE BETWEEN UNBOUNDED PRECEDING AND 2 PRECEDING) FROM  t;
+SELECT COUNT(*) OVER (ORDER BY i DESC RANGE BETWEEN UNBOUNDED PRECEDING AND 2 FOLLOWING) FROM  t;
+#...V
 DROP TABLE t;
 
 --echo ----------------------------------------------------------------------

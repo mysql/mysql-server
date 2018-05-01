@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef X_CLIENT_XPROTOCOL_IMPL_H_
-#define X_CLIENT_XPROTOCOL_IMPL_H_
+#ifndef PLUGIN_X_CLIENT_XPROTOCOL_IMPL_H_
+#define PLUGIN_X_CLIENT_XPROTOCOL_IMPL_H_
 
 #include <sys/types.h>
 #include <functional>
@@ -212,6 +212,8 @@ class Protocol_impl : public XProtocol,
   XError recv_id(const XProtocol::Server_message_type_id id);
   Message *recv_id(const XProtocol::Server_message_type_id id,
                    XError *out_error);
+  XError recv_header(Header_message_type_id *out_mid,
+                     std::size_t *out_buffer_size);
   Message *recv_payload(const Server_message_type_id mid,
                         const std::size_t msglen, XError *out_error);
   Message *recv_message_with_header(Server_message_type_id *out_mid,
@@ -284,6 +286,7 @@ class Protocol_impl : public XProtocol,
   std::unique_ptr<XConnection> m_sync_connection;
   std::unique_ptr<Query_instances> m_query_instances;
   std::shared_ptr<Context> m_context;
+  std::vector<std::uint8_t> m_static_recv_buffer;
 };
 
 template <typename Auth_continue_handler>
@@ -329,4 +332,4 @@ XError Protocol_impl::authenticate_challenge_response(const std::string &user,
 
 }  // namespace xcl
 
-#endif  // X_CLIENT_PROTOCOL_IMPL_H_
+#endif  // PLUGIN_X_CLIENT_XPROTOCOL_IMPL_H_

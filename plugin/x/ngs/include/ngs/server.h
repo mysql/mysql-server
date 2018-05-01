@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _NGS_SERVER_H_
-#define _NGS_SERVER_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_SERVER_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_SERVER_H_
 
 #include <stdint.h>
 #include <list>
@@ -44,7 +44,6 @@
 #include "plugin/x/ngs/include/ngs/thread.h"
 #include "plugin/x/ngs/include/ngs_common/bind.h"
 #include "plugin/x/ngs/include/ngs_common/chrono.h"
-#include "plugin/x/ngs/include/ngs_common/connection_vio.h"
 
 namespace ngs {
 
@@ -71,12 +70,13 @@ class Server : public Server_interface {
          ngs::shared_ptr<Scheduler_dynamic> work_scheduler,
          Server_delegate *delegate, ngs::shared_ptr<Protocol_config> config);
 
-  virtual Ssl_context *ssl_context() const override {
+  virtual Ssl_context_interface *ssl_context() const override {
     return m_ssl_context.get();
   }
 
-  bool prepare(Ssl_context_unique_ptr ssl_context, const bool skip_networking,
-               const bool skip_name_resolve, const bool use_unix_sockets);
+  bool prepare(std::unique_ptr<Ssl_context_interface> ssl_context,
+               const bool skip_networking, const bool skip_name_resolve,
+               const bool use_unix_sockets);
 
   void start();
   void start_failed();
@@ -171,7 +171,7 @@ class Server : public Server_interface {
   ngs::shared_ptr<Protocol_config> m_config;
   ngs::unique_ptr<Document_id_generator_interface> m_id_generator;
 
-  Ssl_context_unique_ptr m_ssl_context;
+  std::unique_ptr<Ssl_context_interface> m_ssl_context;
   Sync_variable<State> m_state;
   Auth_handler_map m_auth_handlers;
   Client_list m_client_list;
@@ -181,4 +181,4 @@ class Server : public Server_interface {
 
 }  // namespace ngs
 
-#endif  // _NGS_SERVER_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_SERVER_H_

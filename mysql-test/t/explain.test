@@ -2,7 +2,7 @@
 #be ported to run with InnoDB,
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
-
+CALL mtr.add_suppression("==[0-9]*== Warning: set address range perms: large range");
 #
 # Test of different EXPLAINs
 
@@ -158,7 +158,7 @@ INSERT INTO t1 VALUES (repeat('b',@@global.max_allowed_packet));
 EXPLAIN SELECT DISTINCT 1 FROM t1,
         (SELECT a AS away FROM t1 GROUP BY a WITH ROLLUP) as d1
          WHERE t1.a = d1.a;
---error ER_WRONG_USAGE
+--error ER_BAD_FIELD_ERROR
 EXPLAIN SELECT DISTINCT 1 FROM t1,
         (SELECT DISTINCTROW a AS away FROM t1 GROUP BY a WITH ROLLUP) as d1
          WHERE t1.a = d1.a;

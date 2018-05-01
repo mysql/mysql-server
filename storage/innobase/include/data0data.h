@@ -423,6 +423,10 @@ struct dfield_t {
 
   byte *blobref() const;
 
+  /** Obtain the LOB version number, if this is an externally
+  stored field. */
+  ulint lob_version() const;
+
   dfield_t()
       : data(nullptr), ext(0), spatial_status(0), len(0), type({0, 0, 0, 0}) {}
 
@@ -486,6 +490,11 @@ struct dtuple_t {
   /* Read the trx id from the tuple (DB_TRX_ID)
   @return transaction id of the tuple. */
   trx_id_t get_trx_id() const;
+
+  /** Ignore at most n trailing default fields if this is a tuple
+  from instant index
+  @param[in]	index	clustered index object for this tuple */
+  void ignore_trailing_default(const dict_index_t *index);
 };
 
 /** A slot for a field in a big rec vector */

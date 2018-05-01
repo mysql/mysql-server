@@ -1,0 +1,230 @@
+################################################################################
+#
+# Creation Date: 19-Feb-2018
+# Test Author: Mohit Joshi
+#
+# The aim of this testcase is to test persisted behavior of all system
+# variables with SET PERSIST and RESET PERSIST IF EXISTS clauses.
+#
+# Test:
+# 0. SET PERSIST is applicable on GLOBAL,dynamic variables only. Hence, verify
+#    that variables in performance_schema.global_variables are actually
+#    settable with SET GLOBAL.
+# 1. Check that there are no persisted variable settings due to improper
+#    cleanup by other testcases.
+# 2. Test SET PERSIST. Verify persisted variables.
+# 3. Restart server, it must preserve the persisted variable settings.
+#    Verify persisted configuration.
+# 4. Test RESET PERSIST IF EXISTS. Verify persisted variable settings are
+#    removed.
+# 5. Clean up.
+
+# Note - Currently there are 558 global variables
+#      -> SELECT COUNT(*) FROM performance_schema.global_variables
+# In future, if a new global variable is added, it will be automatically
+# picked up from performance_schema.global_variables table.
+#
+# Out of all, 355 are global persistent variable. In future, if a new global
+# persistent variable is added, it is the responsibility of the Dev to
+# edit this variable.
+#      -> $total_persistent_var=355
+################################################################################
+
+--echo ***********************************************************************
+--echo * Run only on debug build,non-windows as few server variables are not
+--echo * available on all platforms.
+--echo ***********************************************************************
+--source include/have_debug.inc
+--source include/not_windows.inc
+--source include/have_binlog_format_row.inc
+
+let $total_global_vars=`SELECT COUNT(*) FROM performance_schema.global_variables where variable_name NOT LIKE 'ndb_%'`;
+let $total_persistent_vars=355;
+
+--echo ***************************************************************
+--echo * 0. Verify that variables present in performance_schema.global
+--echo * variables are actually global variables and can be set using
+--echo * SET GLOBAL
+--echo ***************************************************************
+
+CREATE TABLE global_vars (id INT PRIMARY KEY AUTO_INCREMENT, var_name VARCHAR(64), var_value VARCHAR(1024));
+
+# Following variables cannot be set in this format:
+# -> SET GLOBAL innodb_monitor_enable = @@global.innodb_monitor_enable
+# ERROR 1231 (42000): Variable 'innodb_monitor_enable' can't be set to the value of 'NULL'
+# -> SET GLOBAL innodb_monitor_disable = @@global.innodb_monitor_disable;
+# ERROR 1231 (42000): Variable 'innodb_monitor_disable' can't be set to the value of 'NULL'
+# -> SET GLOBAL innodb_monitor_reset = @@global.innodb_monitor_reset;
+# ERROR 1231 (42000): Variable 'innodb_monitor_reset' can't be set to the value of 'NULL'
+# -> SET GLOBAL innodb_monitor_reset_all = @@global.innodb_monitor_reset_all;
+# ERROR 1231 (42000): Variable 'innodb_monitor_reset_all' can't be set to the value of 'NULL'
+
+# Bug#27534122 - RBR_EXEC_MODE DOES NOT SUPPORT GLOBAL SCOPE
+INSERT INTO global_vars (var_name, var_value) SELECT * FROM
+performance_schema.global_variables WHERE variable_name NOT IN
+('innodb_monitor_enable',
+'innodb_monitor_disable',
+'innodb_monitor_reset',
+'innodb_monitor_reset_all',
+'rbr_exec_mode');
+
+--let $count_vars= `SELECT COUNT(*) FROM global_vars;`
+--let $var_id=1
+--disable_query_log
+--disable_warnings
+
+while($var_id <= $count_vars)
+{
+--let $var_name= `SELECT var_name FROM global_vars WHERE id=$var_id;`
+--error 0,ER_INCORRECT_GLOBAL_LOCAL_VAR,ER_WRONG_ARGUMENTS
+--eval SET GLOBAL $var_name = @@global.$var_name
+--inc $var_id
+}
+
+--enable_warnings
+--enable_query_log
+
+--echo ************************************************************
+--echo * 1. Check that there are no persisted variable settings.
+--echo ************************************************************
+
+--let $assert_text= 'Expect 0 persisted variables.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 0
+--source include/assert.inc
+
+--echo
+--echo ************************************************************
+--echo * 2. Initialization. Test SET PERSIST. Verify persisted
+--echo *    variables.
+--echo ************************************************************
+
+--let $MYSQLD_DATADIR= `select @@datadir;`
+
+CREATE TABLE all_vars (id INT PRIMARY KEY AUTO_INCREMENT, var_name VARCHAR(64), var_value VARCHAR(1024));
+
+# Currently we are not able to test the below 11 global variables because of
+# open bugs (listed below). Once the bugs are fixed,
+# below query must be modified.
+#
+# Bug#27512616 - SET PERSIST COMMAND FAILS TO MAP DEFAULT(NULL) VALUES IN MYSQLD-AUTO.CNF
+# Bug#27523095 - SET PERSIST MANDATORY_ROLES FAILS TO START THE SERVER
+# Bug#27534122 - RBR_EXEC_MODE DOES NOT SUPPORT GLOBAL SCOPE
+# Bug#27534041 - SET GLOBAL INNODB_MONITOR_ENABLE CAUSES SERVER TO CRASH
+# Bug#27534089 - LOG_SYS_* GLOBAL VARIABLES DO NOT WORK WITH SET GLOBAL/PERSIST
+
+INSERT INTO all_vars (var_name, var_value)
+SELECT * FROM performance_schema.global_variables
+WHERE variable_name NOT IN
+('keyring_operations',
+'mandatory_roles',
+'innodb_ft_aux_table',
+'innodb_ft_user_stopword_table',
+'innodb_tmpdir',
+'innodb_ft_server_stopword_table',
+'rbr_exec_mode',
+'log_syslog',
+'log_syslog_facility',
+'log_syslog_include_pid',
+'log_syslog_tag')
+AND variable_name NOT LIKE 'ndb_%'
+ORDER BY variable_name;
+
+--let $count_vars= `SELECT COUNT(*) FROM all_vars;`
+--echo
+--let $assert_text= 'Expect 558 variables in the table. Due to open Bugs, we are checking for 547'
+--let $assert_cond= [SELECT COUNT(*) as count FROM all_vars, count, 1] = $total_global_vars-11
+--source include/assert.inc
+
+--echo
+--echo # Test SET PERSIST
+--let $var_id=1
+--disable_query_log
+--disable_warnings
+while($var_id <= $count_vars)
+{
+  --let $var_names= `SELECT var_name FROM all_vars WHERE id=$var_id;`
+  --error 0,ER_INCORRECT_GLOBAL_LOCAL_VAR,ER_WRONG_VALUE_FOR_VAR
+  --eval SET PERSIST $var_names = @@GLOBAL.$var_names
+  --inc $var_id
+}
+# Below 4 tests have default value as "" and these variables can't be set to
+# empty value. Hence, setting them seperately.
+SET PERSIST innodb_monitor_enable= "latch";
+SET PERSIST innodb_monitor_disable="latch";
+SET PERSIST innodb_monitor_reset="latch";
+SET PERSIST innodb_monitor_reset_all="latch";
+
+--enable_warnings
+--enable_query_log
+--echo
+--let $assert_text= 'Expect 355 persisted variables in the table. Due to open Bugs, we are checking for 350'
+
+# Below are the persisted variables we are unable to test at the moment due to
+# existing Bugs.
+# 1. keyring_operations              (Bug#27523095)
+# 2. mandatory_roles                 (Bug#27523095)
+# 3. innodb_ft_aux_table             (Bug#27512616)
+# 4. innodb_ft_user_stopword_table   (Bug#27512616)
+# 5. innodb_ft_server_stopword_table (Bug#27512616)
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = $total_persistent_vars-5
+--source include/assert.inc
+
+--echo
+--echo ************************************************************
+--echo * 3. Restart server, it must preserve the persisted variable
+--echo *    settings. Verify persisted configuration.
+--echo ************************************************************
+
+--source include/restart_mysqld.inc
+--source include/wait_until_connected_again.inc
+
+--echo
+--let $assert_text= 'Expect 350 persisted variables in persisted_variables table.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = $total_persistent_vars-5
+--source include/assert.inc
+
+--let $assert_text= 'Expect 350 persisted variables shown as PERSISTED in variables_info table.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info WHERE variable_source="PERSISTED", count, 1] = $total_persistent_vars-5
+--source include/assert.inc
+
+ --let $assert_text= 'Expect 350 persisted variables with matching peristed and global values.'
+ --let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info vi JOIN performance_schema.persisted_variables pv JOIN performance_schema.global_variables gv ON vi.variable_name=pv.variable_name AND vi.variable_name=gv.variable_name AND pv.variable_value=gv.variable_value WHERE vi.variable_source="PERSISTED", count, 1] = $total_persistent_vars-5
+--source include/assert.inc
+
+--echo
+--echo ************************************************************
+--echo * 4. Test RESET PERSIST IF EXISTS. Verify persisted variable
+--echo *    settings are removed.
+--echo ************************************************************
+
+--disable_query_log
+--disable_warnings
+--let $var_id=1
+while ( $var_id <= $count_vars )
+{
+  --let $var_names= `SELECT var_name FROM all_vars WHERE id=$var_id`
+  --eval RESET PERSIST IF EXISTS $var_names
+  --inc $var_id
+}
+--enable_query_log
+--enable_warnings
+
+--echo
+--let $assert_text= 'Expect 0 persisted variables.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 0
+--source include/assert.inc
+
+--echo
+--echo ************************************************************
+--echo * 5. Clean up.
+--echo ************************************************************
+
+--let $count_vars=
+--let $var_id=
+--let $var_names=
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+DROP TABLE all_vars;
+DROP TABLE global_vars;
+# Restart
+--let restart_parameters=
+--source include/restart_mysqld.inc

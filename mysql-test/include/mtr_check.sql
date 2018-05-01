@@ -1,4 +1,4 @@
--- Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
@@ -52,6 +52,12 @@ BEGIN
     -- Leave the objects setup in the same state
     SELECT * from performance_schema.setup_objects
       order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
+
+    -- Leave the prepared statement instances in the same state
+    SELECT * from performance_schema.prepared_statements_instances;
+
+    -- Leave the user defined functions in the same state
+    SELECT * from performance_schema.user_defined_functions;
   END;
   END IF;
 END||
@@ -70,7 +76,12 @@ BEGIN
   SELECT * FROM performance_schema.global_variables
     WHERE variable_name NOT IN ('timestamp', 'server_uuid',
                                 'gtid_executed', 'gtid_purged',
-                                'group_replication_group_name')
+                                'group_replication_group_name',
+                                'keyring_file_data')
+  ORDER BY VARIABLE_NAME;
+
+  -- Dump all persisted variables, those that may change.
+  SELECT * FROM performance_schema.persisted_variables
     ORDER BY VARIABLE_NAME;
 
   -- Dump all databases, there should be none
@@ -78,13 +89,13 @@ BEGIN
   SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
 
   -- Dump all tablespaces, there should be none
-  SELECT * FROM INFORMATION_SCHEMA.FILES WHERE 
-    FILE_TYPE !='TEMPORARY' AND TABLE_SCHEMA='test' ORDER BY FILE_ID;
+  SELECT FILE_NAME, FILE_TYPE, TABLESPACE_NAME, ENGINE FROM INFORMATION_SCHEMA.FILES
+    WHERE FILE_TYPE !='TEMPORARY' ORDER BY FILE_NAME;
 
   -- The test database should not contain any tables
   SELECT table_name AS tables_in_test FROM INFORMATION_SCHEMA.TABLES
     WHERE table_schema='test'
-    ORDER BY TABLE_NAME;
+      ORDER BY TABLE_NAME;
 
   -- Show "mysql" database, tables and columns
   SELECT CONCAT(table_schema, '.', table_name) AS tables_in_mysql
@@ -92,10 +103,10 @@ BEGIN
       WHERE table_schema='mysql' AND table_name != 'ndb_apply_status'
         ORDER BY tables_in_mysql;
   SELECT CONCAT(table_schema, '.', table_name) AS columns_in_mysql,
-         column_name, ordinal_position, column_default, is_nullable,
-         data_type, character_maximum_length, character_octet_length,
-         numeric_precision, numeric_scale, character_set_name,
-         collation_name, column_type, column_key, extra, column_comment
+       column_name, ordinal_position, column_default, is_nullable,
+       data_type, character_maximum_length, character_octet_length,
+       numeric_precision, numeric_scale, character_set_name,
+       collation_name, column_type, column_key, extra, column_comment
     FROM INFORMATION_SCHEMA.COLUMNS
       WHERE table_schema='mysql' AND table_name != 'ndb_apply_status'
         ORDER BY columns_in_mysql, column_name;
@@ -110,7 +121,7 @@ BEGIN
          ACTION_REFERENCE_OLD_ROW, ACTION_REFERENCE_NEW_ROW, SQL_MODE, DEFINER CHARACTER_SET_CLIENT,
          COLLATION_CONNECTION, DATABASE_COLLATION
     FROM INFORMATION_SCHEMA.TRIGGERS
-   WHERE TRIGGER_NAME NOT IN ('gs_insert', 'ts_insert');
+      WHERE TRIGGER_NAME NOT IN ('gs_insert', 'ts_insert');
   -- Dump all created procedures, only those in the sys schema should exist
   -- do not select the CREATED or LAST_ALTERED columns however, as tests like mysqldump.test / mysql_ugprade.test update this
   SELECT SPECIFIC_NAME,ROUTINE_CATALOG,ROUTINE_SCHEMA,ROUTINE_NAME,ROUTINE_TYPE,DATA_TYPE,CHARACTER_MAXIMUM_LENGTH,
@@ -122,30 +133,61 @@ BEGIN
   -- Dump all views, only those in the sys schema should exist
   SELECT * FROM INFORMATION_SCHEMA.VIEWS
     ORDER BY TABLE_SCHEMA, TABLE_NAME;
+  -- Dump all plugins, loaded with plugin-loading options or through
+  -- INSTALL/UNINSTALL command
+  SELECT * FROM INFORMATION_SCHEMA.PLUGINS;
 
   SHOW GLOBAL STATUS LIKE 'slave_open_temp_tables';
 
+  -- Check for number of active connections before & after the test run.
+  -- It is observed that several rpl tests fails due to mismatch in Threads
+  -- count when we use SHOW GLOBAL STATUS LIKE 'Threads_Connected':
+  --  Variable_name Value
+  -- -Threads_connected    1
+  -- +Threads_connected    2
+  -- This is due to the default value of MASTER_HEARTBEAT_PERIOD which is equal
+  -- to slave_net_timeout/2 = 60secs.
+  -- Due to this, even after the slave is stopped, the master will not close
+  -- the client session until MASTER_HEARTBEAT_PERIOD is reached.
+  -- Hence, excluding the 'Binlog Dump' thread.
+
+  -- mysql.session is used internally by plugins to access the server. We may
+  -- not find consistent result in information_schema.processlist, hence
+  -- excluding it from check-testcase.
+  SELECT USER, HOST, DB, COMMAND, INFO FROM INFORMATION_SCHEMA.PROCESSLIST
+    WHERE COMMAND NOT IN ('Binlog Dump','Binlog Dump GTID','Sleep')
+      AND USER <> 'mysql.session'
+        ORDER BY COMMAND;
+
   -- Checksum system tables to make sure they have been properly
-  -- restored after test
-  -- skip mysql.proc however, as created timestamps may have been updated by mysqldump.test / mysql_ugprade.test
-  -- the above SELECT on I_S.ROUTINES ensures consistency across runs instead
+  -- restored after test.
+  -- skip mysql.proc however, as created timestamps may have been updated by
+  -- mysqldump.test / mysql_ugprade.test the above SELECT on I_S.ROUTINES
+  -- ensures consistency across runs instead
+  -- We are skipping mysql.plugin from the checksum table list, as it does not
+  -- register plugin-loading options like (--plugin-load,--plugin-load-add ..)
+  -- instead we will use I_S.PLUGINS to ensure consistency across runs.
   checksum table
     mysql.columns_priv,
+    mysql.component,
+    mysql.default_roles,
     mysql.db,
     mysql.func,
+    mysql.global_grants,
     mysql.help_category,
     mysql.help_keyword,
     mysql.help_relation,
-    mysql.host,
+    mysql.help_topic,
     mysql.procs_priv,
+    mysql.proxies_priv,
+    mysql.role_edges,
     mysql.tables_priv,
     mysql.time_zone,
     mysql.time_zone_leap_second,
     mysql.time_zone_name,
     mysql.time_zone_transition,
     mysql.time_zone_transition_type,
-    mysql.user,
-    mysql.global_grants;
+    mysql.user;
 
 END||
 

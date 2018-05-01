@@ -126,7 +126,7 @@ INSERT INTO global_suppressions VALUES
  ("Slave: Query caused different errors on master and slave"),
  ("Slave: Table .* doesn't exist"),
  ("Slave: Table width mismatch"),
- ("Slave: The incident LOST_EVENTS occured on the master"),
+ ("Slave: The incident LOST_EVENTS occurred on the master"),
  ("Slave: Unknown error.* 1105"),
  ("Slave: Can't drop database.* database doesn't exist"),
  ("Sort aborted"),

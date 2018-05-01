@@ -36,7 +36,7 @@ include/assert.inc [The value of auto_increment_offset is set to 2]
 #    the auto_increment_increment value, an error is logged.
 ############################################################
 Matching lines are:
-DATE_TIME [ERROR] Plugin group_replication reported: 'Group contains 4 members which is greater than group_replication_auto_increment_increment value of 3. This can lead to an higher rate of transactional aborts.'
+DATE_TIME [ERROR] [Repl] Plugin group_replication reported: 'Group contains 4 members which is greater than group_replication_auto_increment_increment value of 3. This can lead to an higher rate of transactional aborts.'
 Occurrences of 'Group contains 4 members which is greater than group_replication_auto_increment_increment value of 3. This can lead to an higher rate of transactional aborts.' in the input file: 1
 ############################################################
 # 5. When auto_increment_increment and auto_increment_offset

@@ -6,8 +6,93 @@ Note	####	Storing MySQL user name or password information in the master info rep
 CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
 CALL mtr.add_suppression("Error dropping database");
 CALL mtr.add_suppression("Can't drop database '.*'; database doesn't exist");
-CALL mtr.add_suppression("Slave SQL for channel '': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state. .* Error_code: 1756");
-CALL mtr.add_suppression("Slave SQL for channel '': .* Error_code: 1105");
+CALL mtr.add_suppression("Slave SQL for channel '': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state. .* Error_code: MY-001756");
+CALL mtr.add_suppression("Slave SQL for channel '': .* Error_code: MY-001105");
+==== Case 2: DROP TABLES ====
+==== Case 2D: Failing DROP TABLES for base tables with and without atomic DDL support ====
+CREATE TABLE base_1_n (a INT) ENGINE = MyISAM;
+CREATE TABLE base_2_n (a INT) ENGINE = MyISAM;
+CREATE TABLE base_3_a (a INT) ENGINE = InnoDB;
+CREATE TABLE base_4_a (pk INT PRIMARY KEY) ENGINE = InnoDB;
+include/rpl_sync.inc
+---- GTID_MODE=AUTOMATIC ----
+include/gtid_step_reset.inc
+SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
+DROP TABLES base_1_n, base_2_n, base_3_a, base_4_a;
+ERROR HY000: Unknown error
+SET SESSION DEBUG='-d,rm_table_no_locks_abort_after_atomic_tables';
+# In AUTOMATIC mode the above statement should be split into
+# two statements for each of MyISAM tables.
+# There should be no statement for dropping base_3_a or
+# base_4_a as their removal is rolled back.
+include/gtid_step_assert.inc [count=2., only_count=0]
+# base_3_a and base_4_a should still be there on master
+SHOW CREATE TABLE base_3_a;
+Table	Create Table
+base_3_a	CREATE TABLE `base_3_a` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE base_4_a;
+Table	Create Table
+base_4_a	CREATE TABLE `base_4_a` (
+  `pk` int(11) NOT NULL,
+  PRIMARY KEY (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/rpl_sync.inc
+# base_3_a and base_4_a should still be there on slave
+SHOW CREATE TABLE base_3_a;
+Table	Create Table
+base_3_a	CREATE TABLE `base_3_a` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE base_4_a;
+Table	Create Table
+base_4_a	CREATE TABLE `base_4_a` (
+  `pk` int(11) NOT NULL,
+  PRIMARY KEY (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE base_1_n (a INT) ENGINE = MyISAM;
+CREATE TABLE base_2_n (a INT) ENGINE = MyISAM;
+include/rpl_sync.inc
+---- GTID_NEXT=non-automatic ----
+include/gtid_step_reset.inc
+SET GTID_NEXT = '#';
+SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
+DROP TABLES base_1_n, base_2_n, base_3_a, base_4_a;
+ERROR HY000: Unknown error
+SET SESSION DEBUG='-d,rm_table_no_locks_abort_after_atomic_tables';
+SET GTID_NEXT= 'AUTOMATIC';
+# Without GTID assigned the above statement should be split into
+# two as in AUTOMATIC mode.
+include/gtid_step_assert.inc [count=2, only_count=0]
+# base_3_a and base_4_a should still be there on master
+SHOW CREATE TABLE base_3_a;
+Table	Create Table
+base_3_a	CREATE TABLE `base_3_a` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE base_4_a;
+Table	Create Table
+base_4_a	CREATE TABLE `base_4_a` (
+  `pk` int(11) NOT NULL,
+  PRIMARY KEY (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/rpl_sync.inc
+# base_3_a and base_4_a should still be there on slave
+SHOW CREATE TABLE base_3_a;
+Table	Create Table
+base_3_a	CREATE TABLE `base_3_a` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE base_4_a;
+Table	Create Table
+base_4_a	CREATE TABLE `base_4_a` (
+  `pk` int(11) NOT NULL,
+  PRIMARY KEY (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+---- Clean up ----
+DROP TABLE base_4_a, base_3_a;
+include/rpl_sync.inc
 ==== Case 3: DROP DATABASE ====
 ---- Initialize ----
 # db1, db2, db3: no tables.

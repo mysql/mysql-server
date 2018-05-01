@@ -251,16 +251,27 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
   my_parameter_handler
 
   Invalid parameter handler we will use instead of the one "baked"
-  into the CRT for MSC v8.  This one just prints out what invalid
-  parameter was encountered.  By providing this routine, routines like
-  lseek will return -1 when we expect them to instead of crash.
+  into the CRT for Visual Studio.
+  The DBUG_ASSERT will catch things typically *not* caught by sanitizers,
+  e.g. iterator out-of-range, but pointing to valid memory.
 */
 
 void my_parameter_handler(const wchar_t *expression, const wchar_t *function,
                           const wchar_t *file, unsigned int line,
                           uintptr_t pReserved) {
-  DBUG_PRINT("my", ("Expression: %s  function: %s  file: %s, line: %d",
-                    expression, function, file, line));
+#ifndef DBUG_OFF
+  fprintf(stderr,
+          "my_parameter_handler errno %d "
+          "expression: %ws  function: %ws  file: %ws, line: %d\n",
+          errno, expression, function, file, line);
+  fflush(stderr);
+  // We have tests which do this kind of failure injection:
+  //   DBUG_EXECUTE_IF("ib_export_io_write_failure_1", close(fileno(file)););
+  // So ignore EBADF
+  if (errno != EBADF) {
+    DBUG_ASSERT(false);
+  }
+#endif
 }
 
 #ifdef __MSVC_RUNTIME_CHECKS
@@ -544,22 +555,32 @@ static PSI_memory_info all_mysys_memory[] = {
      PSI_DOCUMENT_ME},
 #endif
 
-    {&key_memory_max_alloca, "max_alloca", 0, 0, PSI_DOCUMENT_ME},
-    {&key_memory_charset_file, "charset_file", 0, 0, PSI_DOCUMENT_ME},
-    {&key_memory_charset_loader, "charset_loader", 0, 0, PSI_DOCUMENT_ME},
-    {&key_memory_lf_node, "lf_node", 0, 0, PSI_DOCUMENT_ME},
-    {&key_memory_lf_dynarray, "lf_dynarray", 0, 0, PSI_DOCUMENT_ME},
-    {&key_memory_lf_slist, "lf_slist", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_max_alloca, "max_alloca", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
+     PSI_DOCUMENT_ME},
+    {&key_memory_charset_file, "charset_file", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
+     PSI_DOCUMENT_ME},
+    {&key_memory_charset_loader, "charset_loader", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
+     PSI_DOCUMENT_ME},
+    {&key_memory_lf_node, "lf_node", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
+     PSI_DOCUMENT_ME},
+    {&key_memory_lf_dynarray, "lf_dynarray", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
+     PSI_DOCUMENT_ME},
+    {&key_memory_lf_slist, "lf_slist", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
+     PSI_DOCUMENT_ME},
     {&key_memory_LIST, "LIST", 0, 0, PSI_DOCUMENT_ME},
-    {&key_memory_IO_CACHE, "IO_CACHE", 0, 0, PSI_DOCUMENT_ME},
-    {&key_memory_KEY_CACHE, "KEY_CACHE", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_IO_CACHE, "IO_CACHE", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
+     PSI_DOCUMENT_ME},
+    {&key_memory_KEY_CACHE, "KEY_CACHE", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
+     PSI_DOCUMENT_ME},
     {&key_memory_SAFE_HASH_ENTRY, "SAFE_HASH_ENTRY", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_MY_TMPDIR_full_list, "MY_TMPDIR::full_list", 0, 0,
      PSI_DOCUMENT_ME},
     {&key_memory_MY_BITMAP_bitmap, "MY_BITMAP::bitmap", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_my_compress_alloc, "my_compress_alloc", 0, 0, PSI_DOCUMENT_ME},
-    {&key_memory_my_err_head, "my_err_head", 0, 0, PSI_DOCUMENT_ME},
-    {&key_memory_my_file_info, "my_file_info", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_my_err_head, "my_err_head", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
+     PSI_DOCUMENT_ME},
+    {&key_memory_my_file_info, "my_file_info", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
+     PSI_DOCUMENT_ME},
     {&key_memory_MY_DIR, "MY_DIR", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_DYNAMIC_STRING, "DYNAMIC_STRING", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_TREE, "TREE", 0, 0, PSI_DOCUMENT_ME}};

@@ -77,7 +77,7 @@ SELECT ST_AsText(p), ST_AsText(p1) FROM t1 WHERE p = p2;
 ALTER TABLE t1 DROP COLUMN p2;
 
 --echo # NULLABLE POINT will use NULL
-ALTER TABLE t1 ADD COLUMN p2 POINT, ADD KEY(p2);
+ALTER TABLE t1 ADD COLUMN p2 POINT;
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_COLUMNS WHERE name = 'p' OR name = 'g' OR name = 'p1' OR name = 'p2';
 
 SELECT count(*) AS `Expect 4` FROM t1 WHERE p2 IS NULL;
@@ -160,7 +160,7 @@ DROP TABLE t1;
 --echo #
 --echo # Test when the POINT is on B-TREE
 --echo #
-CREATE TABLE gis_point(fid INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT, p POINT, KEY(p)) ENGINE=InnoDB;
+CREATE TABLE gis_point(fid INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT, p POINT NOT NULL, KEY(p)) ENGINE=InnoDB;
 
 INSERT INTO gis_point VALUES
 (101, ST_PointFromText('POINT(10 10)')),
@@ -194,8 +194,7 @@ INSERT INTO gis_point VALUES
 (103, ST_PointFromText('POINT(20 20)')),
 (104, ST_PointFromWKB(ST_AsWKB(ST_PointFromText('POINT(10 20)'))));
 
---echo # Check if we can create prefix index on POINT
-ALTER TABLE gis_point ADD COLUMN g POINT, ADD KEY(g(8));
+ALTER TABLE gis_point ADD COLUMN g POINT;
 
 INSERT INTO gis_point VALUES
 (105, ST_PointFromText('POINT(25 15)'), ST_PointFromText('POINT(100 100)')),
@@ -227,8 +226,7 @@ INSERT INTO gis_point VALUES
 (103, ST_PointFromText('POINT(20 20)')),
 (104, ST_PointFromWKB(ST_AsWKB(ST_PointFromText('POINT(10 20)'))));
 
---echo # Check if we can create prefix index on POINT
-ALTER TABLE gis_point ADD COLUMN g POINT, ADD KEY(g(8));
+ALTER TABLE gis_point ADD COLUMN g POINT;
 
 INSERT INTO gis_point VALUES
 (105, ST_PointFromText('POINT(25 15)'), ST_PointFromText('POINT(100 100)')),
@@ -700,7 +698,6 @@ CREATE TABLE t1 (
   p POINT NOT NULL SRID 0,
   l LINESTRING NOT NULL SRID 0,
   g GEOMETRY NOT NULL SRID 0,
-  PRIMARY KEY(p),
   SPATIAL KEY `idx2` (p),
   SPATIAL KEY `idx3` (l),
   SPATIAL KEY `idx4` (g)
@@ -735,12 +732,12 @@ UPDATE t1 SET p = ST_GeomFromText('POINT(30 30)') WHERE p = ST_GeomFromText('POI
 
 SELECT a, ST_AsText(p), ST_AsText(l), ST_AsText(g) FROM t1;
 
-ALTER TABLE t1 DROP PRIMARY KEY;
 ALTER TABLE t1 ADD PRIMARY KEY(a);
 
 SELECT a, ST_AsText(p), ST_AsText(l), ST_AsText(g) FROM t1;
 
 ALTER TABLE t1 DROP PRIMARY KEY;
+--error ER_SPATIAL_UNIQUE_INDEX
 ALTER TABLE t1 ADD PRIMARY KEY(p);
 
 SELECT a, ST_AsText(p), ST_AsText(l), ST_AsText(g) FROM t1;
@@ -756,9 +753,6 @@ SHOW CREATE TABLE t1;
 
 SELECT a, ST_AsText(p), ST_AsText(l), ST_AsText(g) FROM t1;
 
-ALTER TABLE t1 DROP PRIMARY KEY;
-ALTER TABLE t1 ADD PRIMARY KEY(p);
-
 --replace_column 10 #
 EXPLAIN SELECT a, ST_AsText(p) FROM t1 WHERE a = 2 AND p = ST_GeomFromText('POINT(30 30)');
 SELECT a, ST_AsText(p) FROM t1 WHERE a = 2 AND p = ST_GeomFromText('POINT(30 30)');
@@ -772,22 +766,22 @@ DROP TABLE t1;
 --echo #
 --echo # Test for foreign keys.
 --echo #
-CREATE TABLE parent(p POINT SRID 0, PRIMARY KEY(p)) ENGINE=InnoDB;
+CREATE TABLE parent(p POINT NOT NULL SRID 0) ENGINE=InnoDB;
 CREATE TABLE child(p POINT NOT NULL SRID 0) ENGINE=InnoDB;
 ALTER TABLE parent ADD SPATIAL INDEX idx1(p);
 ALTER TABLE child ADD SPATIAL INDEX idx2(p);
 SHOW CREATE TABLE parent;
 SHOW CREATE TABLE child;
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 ALTER TABLE child ADD FOREIGN KEY(p) REFERENCES parent(p);
 
 ALTER TABLE parent DROP INDEX idx1;
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 ALTER TABLE child ADD FOREIGN KEY(p) REFERENCES parent(p);
 
 ALTER TABLE child DROP INDEX idx2;
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 ALTER TABLE child ADD FOREIGN KEY(p) REFERENCES parent(p);
 
 DROP TABLE child, parent;

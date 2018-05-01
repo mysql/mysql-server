@@ -4690,7 +4690,7 @@ ER_NOT_SUPPORTED_YET 42000
         rus "Эта версия MySQL пока еще не поддерживает '%s'"
         spa "Esta versión de MySQL no soporta todavia '%s'"
         swe "Denna version av MySQL kan ännu inte utföra '%s'"
-ER_MASTER_FATAL_ERROR_READING_BINLOG  
+ER_MASTER_FATAL_ERROR_READING_BINLOG
         nla "Kreeg fatale fout %d: '%-.320s' van master tijdens lezen van data uit binaire log"
         eng "Got fatal error %d from master when reading data from binary log: '%-.320s'"
         ger "Schwerer Fehler %d: '%-.320s vom Master beim Lesen des binären Logs"
@@ -4700,6 +4700,7 @@ ER_MASTER_FATAL_ERROR_READING_BINLOG
         rus "Получена неисправимая ошибка %d: '%-.320s' от головного сервера в процессе выборки данных из двоичного журнала"
         spa "Recibió fatal error %d: '%-.320s' del master cuando leyendo datos del binary log"
         swe "Fick fatalt fel %d: '%-.320s' från master vid läsning av binärloggen"
+
 ER_SLAVE_IGNORED_TABLE  
         eng "Slave SQL thread ignored the query because of replicate-*-table rules"
         ger "Slave-SQL-Thread hat die Abfrage aufgrund von replicate-*-table-Regeln ignoriert"
@@ -6128,7 +6129,7 @@ ER_EVENT_CANNOT_CREATE_IN_THE_PAST
 ER_EVENT_CANNOT_ALTER_IN_THE_PAST
   eng "Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was not changed. Specify a time in the future."
   ger "Execution Zeitpunkt des Ereignisses in der Vergangenheit liegt, und es war NACH ABSCHLUSS Set nicht erhalten. Die Veranstaltung wurde nicht verändert. Geben Sie einen Zeitpunkt in der Zukunft."
-ER_SLAVE_INCIDENT
+OBSOLETE_ER_SLAVE_INCIDENT
   eng "The incident %s occured on the master. Message: %s"
   ger "Der Vorfall %s passierte auf dem Master. Meldung: %s"
 ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT
@@ -6138,19 +6139,19 @@ ER_BINLOG_UNSAFE_STATEMENT
   eng "Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. %s"
   swe "Detta är inte säkert att logga i statement-format, för BINLOG_FORMAT = STATEMENT. %s"
   ger "Unsichere Anweisung ins Binärlog geschrieben, weil Anweisungsformat BINLOG_FORMAT = STATEMENT. %s"
-ER_SLAVE_FATAL_ERROR
+ER_BINLOG_FATAL_ERROR
   eng "Fatal error: %s"
   ger "Fataler Fehler: %s"
-ER_SLAVE_RELAY_LOG_READ_FAILURE
+OBSOLETE_ER_SLAVE_RELAY_LOG_READ_FAILURE
   eng "Relay log read failure: %s"
   ger "Relaylog-Lesefehler: %s"
-ER_SLAVE_RELAY_LOG_WRITE_FAILURE
+OBSOLETE_ER_SLAVE_RELAY_LOG_WRITE_FAILURE
   eng "Relay log write failure: %s"
   ger "Relaylog-Schreibfehler: %s"
-ER_SLAVE_CREATE_EVENT_FAILURE
+OBSOLETE_ER_SLAVE_CREATE_EVENT_FAILURE
   eng "Failed to create %s"
   ger "Erzeugen von %s fehlgeschlagen"
-ER_SLAVE_MASTER_COM_FAILURE
+OBSOLETE_ER_SLAVE_MASTER_COM_FAILURE
   eng "Master command %s failed: %s"
   ger "Master-Befehl %s fehlgeschlagen: %s"
 ER_BINLOG_LOGGING_IMPOSSIBLE
@@ -6228,7 +6229,7 @@ ER_VARIABLE_IS_READONLY
 ER_WARN_ENGINE_TRANSACTION_ROLLBACK
   eng "Storage engine %s does not support rollback for this statement. Transaction rolled back and must be restarted"
   ger "Speicher-Engine %s unterstützt für diese Anweisung kein Rollback. Transaktion wurde zurückgerollt und muss neu gestartet werden"
-ER_SLAVE_HEARTBEAT_FAILURE
+OBSOLETE_ER_SLAVE_HEARTBEAT_FAILURE
   eng "Unexpected master's heartbeat data: %s"
   ger "Unerwartete Daten vom Heartbeat des Masters: %s"
 ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE
@@ -6387,7 +6388,7 @@ ER_BINLOG_UNSAFE_NONTRANS_AFTER_TRANS
 ER_MESSAGE_AND_STATEMENT
   eng "%s Statement: %s"
 
-ER_SLAVE_CONVERSION_FAILED
+OBSOLETE_ER_SLAVE_CONVERSION_FAILED
   eng "Column %d of table '%-.192s.%-.192s' cannot be converted from type '%-.32s' to type '%-.32s'"
 ER_SLAVE_CANT_CREATE_CONVERSION
   eng "Can't create conversion table for table '%-.192s.%-.192s'"
@@ -6605,7 +6606,7 @@ OBSOLETE_ER_NO_SUCH_KEY_VALUE
   eng "Key value '%-.192s' was not found in table '%-.192s.%-.192s'"
 ER_RPL_INFO_DATA_TOO_LONG
   eng "Data for column '%s' too long"
-ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE
+OBSOLETE_ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE
   eng "Replication event checksum verification failed while reading from network."
 OBSOLETE_ER_BINLOG_READ_EVENT_CHECKSUM_FAILURE
   eng "Replication event checksum verification failed while reading from a log file."
@@ -6865,10 +6866,10 @@ ER_MUST_CHANGE_PASSWORD
   bgn "Трябва първо да си смените паролата със SET PASSWORD за да можете да изпълните тази команда"
 
 ER_FK_NO_INDEX_CHILD
-        eng "Failed to add the foreign key constaint. Missing index for constraint '%s' in the foreign table '%s'"
+        eng "Failed to add the foreign key constraint. Missing index for constraint '%s' in the foreign table '%s'"
 
 ER_FK_NO_INDEX_PARENT
-        eng "Failed to add the foreign key constaint. Missing index for constraint '%s' in the referenced table '%s'"
+        eng "Failed to add the foreign key constraint. Missing index for constraint '%s' in the referenced table '%s'"
 
 ER_FK_FAIL_ADD_SYSTEM
         eng "Failed to add the foreign key constraint '%s' to system tables"
@@ -7104,7 +7105,7 @@ ER_FILE_CORRUPT
 ER_ERROR_ON_MASTER
   eng "Query partially completed on the master (error on master: %d) and was aborted. There is a chance that your master is inconsistent at this point. If you are sure that your master is ok, run this query manually on the slave and then restart the slave with SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1; START SLAVE;. Query:'%s'" 
 
-ER_INCONSISTENT_ERROR
+OBSOLETE_ER_INCONSISTENT_ERROR
   eng "Query caused different errors on master and slave. Error on master: message (format)='%s' error code=%d; Error on slave:actual message='%s', error code=%d. Default database:'%s'. Query:'%s'"
 
 ER_STORAGE_ENGINE_NOT_LOADED
@@ -7204,7 +7205,7 @@ ER_GIS_UNSUPPORTED_ARGUMENT
   eng "Calling geometry function %s with unsupported types of arguments."
 
 ER_GIS_UNKNOWN_ERROR
-  eng "Unknown GIS error occured in function %s."
+  eng "Unknown GIS error occurred in function %s."
 
 ER_GIS_UNKNOWN_EXCEPTION
   eng "Unknown exception caught in GIS function %s."
@@ -7443,13 +7444,13 @@ ER_CANT_SET_GTID_MODE
 ER_CANT_USE_AUTO_POSITION_WITH_GTID_MODE_OFF
   eng "The replication receiver thread%-.192s cannot start in AUTO_POSITION mode: this server uses @@GLOBAL.GTID_MODE = OFF."
 
-ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION
+OBSOLETE_ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION
   eng "Cannot replicate anonymous transaction when AUTO_POSITION = 1, at file %.512s, position %lld."
 
-ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON
+OBSOLETE_ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON
   eng "Cannot replicate anonymous transaction when @@GLOBAL.GTID_MODE = ON, at file %.512s, position %lld."
 
-ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF
+OBSOLETE_ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF
   eng "Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF, at file %.512s, position %lld."
 
 ER_CANT_ENFORCE_GTID_CONSISTENCY_WITH_ONGOING_GTID_VIOLATING_TX
@@ -7725,34 +7726,34 @@ ER_KEYRING_ACCESS_DENIED_ERROR 42000
 ER_KEYRING_MIGRATION_STATUS
   eng "Keyring migration %s."
 
-ER_PLUGIN_FAILED_TO_OPEN_TABLES
+OBSOLETE_ER_PLUGIN_FAILED_TO_OPEN_TABLES
   eng "Failed to open the %s filter tables."
 
-ER_PLUGIN_FAILED_TO_OPEN_TABLE
+OBSOLETE_ER_PLUGIN_FAILED_TO_OPEN_TABLE
   eng "Failed to open '%s.%s' %s table."
 
-ER_AUDIT_LOG_NO_KEYRING_PLUGIN_INSTALLED
+OBSOLETE_ER_AUDIT_LOG_NO_KEYRING_PLUGIN_INSTALLED
   eng "No keyring plugin installed."
 
-ER_AUDIT_LOG_ENCRYPTION_PASSWORD_HAS_NOT_BEEN_SET
+OBSOLETE_ER_AUDIT_LOG_ENCRYPTION_PASSWORD_HAS_NOT_BEEN_SET
   eng "Audit log encryption password has not been set; it will be generated automatically. Use audit_log_encryption_password_get to obtain the password or audit_log_encryption_password_set to set a new one."
 
-ER_AUDIT_LOG_COULD_NOT_CREATE_AES_KEY
+OBSOLETE_ER_AUDIT_LOG_COULD_NOT_CREATE_AES_KEY
   eng "Could not create AES key. OpenSSL's EVP_BytesToKey function failed."
 
-ER_AUDIT_LOG_ENCRYPTION_PASSWORD_CANNOT_BE_FETCHED
+OBSOLETE_ER_AUDIT_LOG_ENCRYPTION_PASSWORD_CANNOT_BE_FETCHED
   eng "Audit log encryption password cannot be fetched from the keyring. Password used so far is used for encryption."
 
-ER_AUDIT_LOG_JSON_FILTERING_NOT_ENABLED
+OBSOLETE_ER_AUDIT_LOG_JSON_FILTERING_NOT_ENABLED
   eng "Audit Log filtering has not been installed."
 
-ER_AUDIT_LOG_UDF_INSUFFICIENT_PRIVILEGE
+OBSOLETE_ER_AUDIT_LOG_UDF_INSUFFICIENT_PRIVILEGE
   eng "Request ignored for '%s'@'%s'. SUPER or AUDIT_ADMIN needed to perform operation"
 
 ER_AUDIT_LOG_SUPER_PRIVILEGE_REQUIRED
   eng "SUPER privilege required for '%s'@'%s' user."
 
-ER_COULD_NOT_REINITIALIZE_AUDIT_LOG_FILTERS
+OBSOLETE_ER_COULD_NOT_REINITIALIZE_AUDIT_LOG_FILTERS
   eng "Could not reinitialize audit log filters."
 
 ER_AUDIT_LOG_UDF_INVALID_ARGUMENT_TYPE
@@ -7770,25 +7771,25 @@ ER_AUDIT_LOG_UDF_READ_INVALID_MAX_ARRAY_LENGTH_ARG_TYPE
 ER_AUDIT_LOG_UDF_READ_INVALID_MAX_ARRAY_LENGTH_ARG_VALUE
   eng "Invalid \"max_array_length\" argument value."
 
-ER_AUDIT_LOG_JSON_FILTER_PARSING_ERROR
+OBSOLETE_ER_AUDIT_LOG_JSON_FILTER_PARSING_ERROR
   eng "%s"
 
-ER_AUDIT_LOG_JSON_FILTER_NAME_CANNOT_BE_EMPTY
+OBSOLETE_ER_AUDIT_LOG_JSON_FILTER_NAME_CANNOT_BE_EMPTY
   eng "Filter name cannot be empty."
 
-ER_AUDIT_LOG_JSON_USER_NAME_CANNOT_BE_EMPTY
+OBSOLETE_ER_AUDIT_LOG_JSON_USER_NAME_CANNOT_BE_EMPTY
   eng "User cannot be empty."
 
-ER_AUDIT_LOG_JSON_FILTER_DOES_NOT_EXISTS
+OBSOLETE_ER_AUDIT_LOG_JSON_FILTER_DOES_NOT_EXISTS
   eng "Specified filter has not been found."
 
-ER_AUDIT_LOG_USER_FIRST_CHARACTER_MUST_BE_ALPHANUMERIC
+OBSOLETE_ER_AUDIT_LOG_USER_FIRST_CHARACTER_MUST_BE_ALPHANUMERIC
   eng "First character of the user name must be alphanumeric."
 
-ER_AUDIT_LOG_USER_NAME_INVALID_CHARACTER
+OBSOLETE_ER_AUDIT_LOG_USER_NAME_INVALID_CHARACTER
   eng "Invalid character in the user name."
 
-ER_AUDIT_LOG_HOST_NAME_INVALID_CHARACTER
+OBSOLETE_ER_AUDIT_LOG_HOST_NAME_INVALID_CHARACTER
   eng "Invalid character in the host name."
 
 OBSOLETE_WARN_DEPRECATED_MAXDB_SQL_MODE_FOR_TIMESTAMP
@@ -8479,16 +8480,51 @@ ER_SRS_INVALID_CHARACTER_IN_ATTRIBUTE SR006
 ER_SRS_ATTRIBUTE_STRING_TOO_LONG SR006
   eng "Attribute %s is too long. The maximum length is %u characters."
 
+ER_DEPRECATED_UTF8_ALIAS
+  eng "'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous."
+
+ER_DEPRECATED_NATIONAL
+  eng "NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous."
+
+ER_INVALID_DEFAULT_UTF8MB4_COLLATION
+  eng "Invalid default collation %s: utf8mb4_0900_ai_ci or utf8mb4_general_ci expected"
+
+ER_UNABLE_TO_COLLECT_LOG_STATUS
+  eng "Unable to collect information for column '%-.192s': %-.192s."
+
+ER_RESERVED_TABLESPACE_NAME
+  eng "The table '%-.192s' may not be created in the reserved tablespace '%-.192s'."
+
+ER_UNABLE_TO_SET_OPTION
+  eng "This option cannot be set %s."
+
+ER_SLAVE_POSSIBLY_DIVERGED_AFTER_DDL
+  eng "A commit for an atomic DDL statement was unsuccessful on the master and the slave. The slave supports atomic DDL statements but the master does not, so the action taken by the slave and master might differ. Check that their states have not diverged before proceeding."
+
 ER_SRS_NOT_GEOGRAPHIC 22S00
   eng "Function %s is only defined for geographic spatial reference systems, but one of its arguments is in SRID %u, which is not geographic."
 
 ER_POLYGON_TOO_LARGE 22023
   eng "Function %s encountered a polygon that was too large. Polygons must cover less than half the planet."
 
+ER_SPATIAL_UNIQUE_INDEX
+  eng "Spatial indexes can't be primary or unique indexes."
+
+ER_INDEX_TYPE_NOT_SUPPORTED_FOR_SPATIAL_INDEX
+  eng "The index type %.20s is not supported for spatial indexes."
+
+ER_FK_CANNOT_DROP_PARENT
+  eng "Cannot drop table '%s' referenced by a foreign key constraint '%s' on table '%s'."
+
+ER_GEOMETRY_PARAM_LONGITUDE_OUT_OF_RANGE 22S02
+  eng "A parameter of function %.192s contains a geometry with longitude %f, which is out of range. It must be within (%f, %f]."
+
+ER_GEOMETRY_PARAM_LATITUDE_OUT_OF_RANGE 22S03
+  eng "A parameter of function %.192s contains a geometry with latitude %f, which is out of range. It must be within [%f, %f]."
+
 #
 #  End of 8.0 error messages.
 #
-
 
 #
 # Start of 8.0 Server error messages
@@ -9209,13 +9245,13 @@ ER_TRX_GTID_COLLECT_REJECT
   eng "Failed to collect GTID to send in the response packet!"
 
 ER_SQL_AUTHOR_DEFAULT_ROLES_FAIL
-  eng "MYSQL.DEFAULT_ROLES couldn't be updated for authorizationidentifier %s"
+  eng "MYSQL.DEFAULT_ROLES couldn't be updated for authorization identifier %s"
 
 ER_SQL_USER_TABLE_CREATE_WARNING
-  eng "Following users were specified in CREATE USER IF NOT EXISTS but they already exist. Corresponding entry in binary log used default authentication plugin '%s' to rewrite authentication information(if any) for them: %s"
+  eng "Following users were specified in CREATE USER IF NOT EXISTS but they already exist. Corresponding entry in binary log used default authentication plugin '%s' to rewrite authentication information (if any) for them: %s"
 
 ER_SQL_USER_TABLE_ALTER_WARNING
-  eng "Following users were specified in ALTER USER IF EXISTS but they do not exist. Corresponding entry in binary log used default authentication plugin '%s' to rewrite authentication information(if any) for them: %s"
+  eng "Following users were specified in ALTER USER IF EXISTS but they do not exist. Corresponding entry in binary log used default authentication plugin '%s' to rewrite authentication information (if any) for them: %s"
 
 ER_ROW_IN_WRONG_PARTITION_PLEASE_REPAIR
   eng "Table '%-192s' corrupted: row in wrong partition: %s -- Please REPAIR the table!"
@@ -9292,7 +9328,7 @@ ER_CONN_TCP_CANT_RESET_V6ONLY
 ER_CONN_TCP_BIND_RETRY
   eng "Retrying bind on TCP/IP port %u"
 
-ER_CONN_TPC_BIND_FAIL
+ER_CONN_TCP_BIND_FAIL
   eng "Can't start server: Bind on TCP/IP port: %s"
 
 ER_CONN_TCP_IP_NOT_LOGGED
@@ -10256,10 +10292,10 @@ ER_RPL_SLAVE_SKIP_COUNTER_EXECUTED
   eng "'SQL_SLAVE_SKIP_COUNTER=%ld' executed at relay_log_file='%s', relay_log_pos='%ld', master_log_name='%s', master_log_pos='%ld' and new position at relay_log_file='%s', relay_log_pos='%ld', master_log_name='%s', master_log_pos='%ld' "
 
 ER_RPL_SLAVE_ADDITIONAL_ERROR_INFO_FROM_DA
-  eng "Slave (additional info): %s Error_code: %d"
+  eng "Slave (additional info): %s Error_code: MY-%06d"
 
 ER_RPL_SLAVE_ERROR_INFO_FROM_DA
-  eng "Slave: %s Error_code: %d"
+  eng "Slave: %s Error_code: MY-%06d"
 
 ER_RPL_SLAVE_ERROR_LOADING_USER_DEFINED_LIBRARY
   eng "Error loading user-defined library, slave SQL thread aborted. Install the missing library, and restart the slave SQL thread with \"SLAVE START\". We stopped at log '%s' position %s"
@@ -10592,7 +10628,7 @@ ER_NDB_BINLOG_CLUSTER_RESTARTED_RESET_MASTER_SUGGESTED
   eng "NDB Binlog: cluster has been restarted --initial or with older filesystem. ndb_latest_handled_binlog_epoch: %u/%u, while current epoch: %u/%u. RESET MASTER should be issued. Resetting ndb_latest_handled_binlog_epoch."
 
 ER_NDB_BINLOG_CLUSTER_HAS_RECONNECTED
-  eng "NDB Binlog: cluster has reconnected. Changes to the database that occured while disconnected will not be in the binlog"
+  eng "NDB Binlog: cluster has reconnected. Changes to the database that occurred while disconnected will not be in the binlog"
 
 ER_NDB_BINLOG_STARTING_LOG_AT_EPOCH
   eng "NDB Binlog: starting log at epoch %u/%u"
@@ -11327,7 +11363,7 @@ ER_FAILED_TO_GET_ABSOLUTE_PATH
   eng "Failed to get absolute path of program executable %s"
 
 ER_PERFSCHEMA_COMPONENTS_INFRASTRUCTURE_BOOTSTRAP
-  eng "Failed to bootstrap performace schema components infrastructure."
+  eng "Failed to bootstrap performance schema components infrastructure."
 
 ER_PERFSCHEMA_COMPONENTS_INFRASTRUCTURE_SHUTDOWN
   eng "Failed to deinit performance schema components infrastructure."
@@ -12298,28 +12334,28 @@ ER_STOP_SLAVE_IO_THREAD_DISK_SPACE
 ER_LOG_FILE_CANNOT_OPEN
   eng "Could not use %s for logging (error %d - %s). Turning logging off for the server process. To turn it on again: fix the cause, then%s restart the MySQL server."
 
-ER_UNABLE_TO_COLLECT_INSTANCE_LOG_STATUS
+OBSOLETE_ER_UNABLE_TO_COLLECT_LOG_STATUS
   eng "Unable to collect information for column '%-.192s': %-.192s."
 
-ER_DEPRECATED_UTF8_ALIAS
+OBSOLETE_ER_DEPRECATED_UTF8_ALIAS
   eng "'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous."
 
-ER_DEPRECATED_NATIONAL
+OBSOLETE_ER_DEPRECATED_NATIONAL
   eng "NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous."
 
-ER_SLAVE_POSSIBLY_DIVERGED_AFTER_DDL
+OBSOLETE_ER_SLAVE_POSSIBLY_DIVERGED_AFTER_DDL
   eng "A commit for an atomic DDL statement was unsuccessful on the master and the slave. The slave supports atomic DDL statements but the master does not, so the action taken by the slave and master might differ. Check that their states have not diverged before proceeding."
 
 ER_PERSIST_OPTION_STATUS
   eng "Configuring persisted options failed: \"%s\"."
 
-ER_NOT_IMPLEMENTED_GET_TABLESPACE_STATISTICS 22S00
+ER_NOT_IMPLEMENTED_GET_TABLESPACE_STATISTICS
   eng "The storage engine '%-.192s' does not provide dynamic table statistics"
 
-ER_UNABLE_TO_SET_OPTION
+OBSOLETE_ER_UNABLE_TO_SET_OPTION
   eng "This option cannot be set %s."
 
-ER_RESERVED_TABLESPACE_NAME
+OBSOLETE_ER_RESERVED_TABLESPACE_NAME
   eng "The table '%-.192s' may not be created in the reserved tablespace '%-.192s'."
 
 ER_SSL_FIPS_MODE_ERROR
@@ -12848,7 +12884,7 @@ ER_GRP_RPL_ERROR_GTID_EXECUTION_INFO
   eng "Error when extracting group GTID execution information, some recovery operations may face future issues."
 
 ER_GRP_RPL_CERTIFICATE_SIZE_ERROR
-  eng "An error occured when trying to reduce the Certification information size for transmission."
+  eng "An error occurred when trying to reduce the Certification information size for transmission."
 
 ER_GRP_RPL_CREATE_APPLIER_CACHE_ERROR
   eng "Failed to create group replication pipeline applier cache!"
@@ -12959,7 +12995,7 @@ ER_GRP_RPL_CANT_READ_WRITE_SET_ITEM
   eng "Error reading the write set item '%s' from the View_change_log_event."
 
 ER_GRP_RPL_INIT_CERTIFICATION_INFO_FAILURE
-  eng "Error during certfication_info initialization."
+  eng "Error during certification_info initialization."
 
 ER_GRP_RPL_CONFLICT_DETECTION_DISABLED
   eng "Primary had applied all relay logs, disabled conflict detection."
@@ -13214,7 +13250,7 @@ ER_GRP_RPL_KILLED_FAILED_ID
   eng "killed failed id: %d failed: %d"
 
 ER_GRP_RPL_INTERNAL_QUERY
-  eng "Internal query: %s result in error. Error number: %s"
+  eng "Internal query: %s result in error. Error number: %ld"
 
 ER_GRP_RPL_COPY_FROM_EMPTY_STRING
   eng "Error copying from empty string "
@@ -13978,7 +14014,7 @@ ER_VALIDATE_PWD_VARIABLE_UNREGISTRATION_FAILED
 ER_KEYRING_MIGRATION_EXTRA_OPTIONS
   eng "Please specify options specific to keyring migration. Any additional options can be ignored. NOTE: Although some options are valid, migration tool can still report error example: plugin variables for which plugin is not loaded yet."
 
-ER_INVALID_DEFAULT_UTF8MB4_COLLATION
+OBSOLETE_ER_INVALID_DEFAULT_UTF8MB4_COLLATION
   eng "Invalid default collation %s: utf8mb4_0900_ai_ci or utf8mb4_general_ci expected"
 
 ER_IB_MSG_0
@@ -16151,7 +16187,7 @@ ER_IB_MSG_722
   eng "Log scan progressed past the checkpoint LSN %llu."
 
 ER_IB_MSG_723
-  eng "Log parsing buffer overflow. Recovery may have failed!"
+  eng "Log parsing buffer overflow. Recovery may have failed! Please set log_buffer_size to a value higher than %lu."
 
 ER_IB_MSG_724
   eng "Set innodb_force_recovery to ignore this error.";
@@ -16199,10 +16235,10 @@ ER_IB_MSG_738
   eng "Waiting for recv_writer to finish flushing of buffer pool"
 
 ER_IB_MSG_739
-  eng "%s"
+  eng "Recovery parsing buffer extended to %lu."
 
 ER_IB_MSG_740
-  eng "%s"
+  eng "Out of memory while resizing recovery parsing buffer."
 
 ER_IB_MSG_741
   eng "%s"
@@ -17429,7 +17465,7 @@ ER_IB_MSG_1148
   eng "Cannot start InnoDB. The tail of the system tablespace is missing. Have you edited innodb_data_file_path in my.cnf in an inappropriate way, removing ibdata files from there? You can set innodb_force_recovery=1 in my.cnf to force a startup if you are trying to recover a badly corrupt database."
 
 ER_IB_MSG_1149
-  eng "ablespace size stored in header is %lu pages, but the sum of data file sizes is only %lu pages"
+  eng "Tablespace size stored in header is %lu pages, but the sum of data file sizes is only %lu pages"
 
 ER_IB_MSG_1150
   eng "Cannot start InnoDB. The tail of the system tablespace is missing. Have you edited innodb_data_file_path in my.cnf in an InnoDB: inappropriate way, removing ibdata files from there? You can set innodb_force_recovery=1 in my.cnf to force InnoDB: a startup if you are trying to recover a badly corrupt database."
@@ -17831,10 +17867,212 @@ ER_GRP_RPL_LOWER_CASE_TABLE_NAMES_DIFF_FROM_GRP
   eng "The member is configured with a lower_case_table_names option value '%u' different from the group '%u'. The member will now exit the group. If there is existing data on member, it may be incompatible with group if it was created with a lower_case_table_names value different from the group."
 
 ER_OOM_SAVE_GTIDS
-  eng "An out-of-memory error occured while saving the set of GTIDs from the last binary log into the mysql.gtid_executed table"
+  eng "An out-of-memory error occurred while saving the set of GTIDs from the last binary log into the mysql.gtid_executed table"
 
 ER_LCTN_NOT_FOUND
   eng "The lower_case_table_names setting for the data dictionary was not found. Starting the server using lower_case_table_names = '%u'."
+
+ER_REGEXP_INVALID_CAPTURE_GROUP_NAME
+  eng "A capture group has an invalid name."
+
+ER_COMPONENT_FILTER_WRONG_VALUE
+  eng "Variable '%-.64s' can't be set to the value of '%-.200s'"
+
+ER_XPLUGIN_FAILED_TO_STOP_SERVICES
+  eng "Stopping services failed with error \"%s\""
+
+ER_INCONSISTENT_ERROR
+  eng "Query caused different errors on master and slave. Error on master: message (format)='%s' error code=%d; Error on slave:actual message='%s', error code=%d. Default database:'%s'. Query:'%s'"
+
+ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG
+  eng "Got fatal error %d from master when reading data from binary log: '%-.320s'"
+
+ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE
+  eng "Replication event checksum verification failed while reading from network."
+
+ER_SLAVE_CREATE_EVENT_FAILURE
+  eng "Failed to create %s"
+
+ER_SLAVE_FATAL_ERROR
+  eng "Fatal error: %s"
+
+ER_SLAVE_HEARTBEAT_FAILURE
+  eng "Unexpected master's heartbeat data: %s"
+
+ER_SLAVE_INCIDENT
+  eng "The incident %s occurred on the master. Message: %s"
+
+ER_SLAVE_MASTER_COM_FAILURE
+  eng "Master command %s failed: %s"
+
+ER_SLAVE_RELAY_LOG_READ_FAILURE
+  eng "Relay log read failure: %s"
+
+ER_SLAVE_RELAY_LOG_WRITE_FAILURE
+  eng "Relay log write failure: %s"
+
+ER_SERVER_SLAVE_MI_INIT_REPOSITORY
+  eng "Slave failed to initialize master info structure from the repository"
+
+ER_SERVER_SLAVE_RLI_INIT_REPOSITORY
+  eng "Slave failed to initialize relay log info structure from the repository"
+
+ER_SERVER_NET_PACKET_TOO_LARGE
+  eng "Got a packet bigger than 'max_allowed_packet' bytes"
+
+ER_SERVER_NO_SYSTEM_TABLE_ACCESS
+  eng "Access to %.64s '%.64s.%.64s' is rejected."
+
+ER_SERVER_UNKNOWN_ERROR
+  eng "Unknown error"
+
+ER_SERVER_UNKNOWN_SYSTEM_VARIABLE
+  eng "Unknown system variable '%-.64s'"
+
+ER_SERVER_NO_SESSION_TO_SEND_TO
+  eng "A message intended for a client cannot be sent there as no client-session is attached. Therefore, we're sending the information to the error-log instead: MY-%06d - %s"
+
+ER_SERVER_NEW_ABORTING_CONNECTION 08S01
+  eng "Aborted connection %u to db: '%-.192s' user: '%-.48s' host: '%-.64s' (%-.64s; diagnostics area: MY-%06d - %-.64s)"
+
+ER_SERVER_OUT_OF_SORTMEMORY
+  eng "Out of sort memory, consider increasing server sort buffer size!"
+
+ER_SERVER_RECORD_FILE_FULL
+  eng "The table '%-.192s' is full!"
+
+ER_SERVER_DISK_FULL_NOWAIT
+  eng "Create table/tablespace '%-.192s' failed, as disk is full."
+
+ER_SERVER_HANDLER_ERROR
+  eng "Handler reported error %d - %s"
+
+ER_SERVER_NOT_FORM_FILE
+  eng "Incorrect information in file: '%-.200s'"
+
+ER_SERVER_CANT_OPEN_FILE
+  eng "Can't open file: '%-.200s' (OS errno: %d - %s)"
+
+ER_SERVER_FILE_NOT_FOUND
+  eng "Can't find file: '%-.200s' (OS errno: %d - %s)"
+
+ER_SERVER_FILE_USED
+  eng "'%-.192s' is locked against change (OS errno: %d - %s)"
+
+ER_SERVER_CANNOT_LOAD_FROM_TABLE_V2
+  eng "Cannot load from %s.%s. The table is probably corrupted!"
+
+ER_ERROR_INFO_FROM_DA
+  eng "Error in diagnostics area: MY-%06d - %s"
+
+ER_SERVER_TABLE_CHECK_FAILED
+  eng "Incorrect definition of table %s.%s: expected column '%s' at position %d, found '%s'."
+
+ER_SERVER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2
+  eng "Column count of %s.%s is wrong. Expected %d, found %d. Created with MySQL %d, now running %d. Please use mysql_upgrade to fix this error."
+
+ER_SERVER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+  eng "Column count of %s.%s is wrong. Expected %d, found %d. The table is probably corrupted"
+
+ER_SERVER_ACL_TABLE_ERROR
+  eng ""
+
+ER_SERVER_SLAVE_INIT_QUERY_FAILED
+  eng "Slave SQL thread aborted. Can't execute init_slave query, MY-%06d - '%s'"
+
+ER_SERVER_SLAVE_CONVERSION_FAILED
+  eng "Column %d of table '%-.192s.%-.192s' cannot be converted from type '%-.32s' to type '%-.32s'"
+
+ER_SERVER_SLAVE_IGNORED_TABLE  
+  eng "Slave SQL thread ignored the query because of replicate-*-table rules"
+
+ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION
+  eng "Cannot replicate anonymous transaction when AUTO_POSITION = 1, at file %.512s, position %lld."
+
+ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON
+  eng "Cannot replicate anonymous transaction when @@GLOBAL.GTID_MODE = ON, at file %.512s, position %lld."
+
+ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF
+  eng "Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF, at file %.512s, position %lld."
+
+# This entry is intended for testing (for instance, the server-log test
+# component throws this, and has the built-in filtering engine select these)
+# as it is disjunct from all error-codes used in real operation. Message is
+# kept intentionally short to despam resulting output files.
+ER_SERVER_TEST_MESSAGE
+  eng "Simulated error"
+
+ER_AUDIT_LOG_JSON_FILTER_PARSING_ERROR
+  eng "%s"
+
+ER_AUDIT_LOG_JSON_FILTERING_NOT_ENABLED
+  eng "Audit Log filtering has not been installed."
+
+ER_PLUGIN_FAILED_TO_OPEN_TABLES
+  eng "Failed to open the %s filter tables."
+
+ER_PLUGIN_FAILED_TO_OPEN_TABLE
+  eng "Failed to open '%s.%s' %s table."
+
+ER_AUDIT_LOG_JSON_FILTER_NAME_CANNOT_BE_EMPTY
+  eng "Filter name cannot be empty."
+
+ER_AUDIT_LOG_USER_NAME_INVALID_CHARACTER
+  eng "Invalid character in the user name."
+
+ER_AUDIT_LOG_UDF_INSUFFICIENT_PRIVILEGE
+  eng "Request ignored for '%s'@'%s'. SUPER or AUDIT_ADMIN needed to perform operation"
+
+ER_AUDIT_LOG_NO_KEYRING_PLUGIN_INSTALLED
+  eng "No keyring plugin installed."
+
+ER_AUDIT_LOG_HOST_NAME_INVALID_CHARACTER
+  eng "Invalid character in the host name."
+
+ER_AUDIT_LOG_ENCRYPTION_PASSWORD_HAS_NOT_BEEN_SET
+  eng "Audit log encryption password has not been set; it will be generated automatically. Use audit_log_encryption_password_get to obtain the password or audit_log_encryption_password_set to set a new one."
+
+ER_AUDIT_LOG_COULD_NOT_CREATE_AES_KEY
+  eng "Could not create AES key. OpenSSL's EVP_BytesToKey function failed."
+
+ER_AUDIT_LOG_ENCRYPTION_PASSWORD_CANNOT_BE_FETCHED
+  eng "Audit log encryption password cannot be fetched from the keyring. Password used so far is used for encryption."
+
+ER_COULD_NOT_REINITIALIZE_AUDIT_LOG_FILTERS
+  eng "Could not reinitialize audit log filters."
+
+ER_AUDIT_LOG_JSON_USER_NAME_CANNOT_BE_EMPTY
+  eng "User cannot be empty."
+
+ER_AUDIT_LOG_USER_FIRST_CHARACTER_MUST_BE_ALPHANUMERIC
+  eng "First character of the user name must be alphanumeric."
+
+ER_AUDIT_LOG_JSON_FILTER_DOES_NOT_EXIST
+  eng "Specified filter has not been found."
+
+ER_IB_MSG_1271
+  eng "Cannot upgrade server earlier than 5.7 to 8.0"
+
+ER_STARTING_INIT
+  eng "%s (mysqld %s) initializing of server in progress as process %lu"
+
+ER_ENDING_INIT
+  eng "%s (mysqld %s) initializing of server has completed"
+
+ER_IB_MSG_1272
+  eng "Cannot boot server version %lu on data directory built by version %lu. Downgrade is not supported"
+
+ER_SERVER_SHUTDOWN_INFO
+  eng "Received SHUTDOWN from user %s. Shutting down mysqld (Version: %s)."
+
+ER_GRP_RPL_PLUGIN_ABORT
+  eng "The plugin encountered a critical error and will abort: %s"
+
+ER_REGEXP_INVALID_FLAG
+  eng "Invalid match mode flag in regular expression."
+
+ER_XA_REPLICATION_FILTERS
+  eng "The use of replication filters with XA transactions is not supported, and can lead to an undefined state in the replication slave."
 
 #
 # End of 8.0 Server error messages.

@@ -241,18 +241,6 @@ bool is_suitable_for_primary_key(KEY_PART_INFO *key_part, Field *table_field) {
       table_field->field_length == key_part->length)
     return true;
 
-  /*
-    If the key column is of NOT NULL GEOMETRY type, specifically POINT
-    type whose length is known internally (which is 25). And key part
-    prefix size is equal to the POINT column max size, then we can
-    promote it to primary key.
-   */
-  if (!table_field->real_maybe_null() &&
-      table_field->type() == MYSQL_TYPE_GEOMETRY &&
-      table_field->get_geometry_type() == Field::GEOM_POINT &&
-      key_part->length == MAX_LEN_GEOM_POINT_FIELD)
-    return true;
-
   if (table_field->real_maybe_null() ||
       table_field->key_length() != key_part->length)
     return false;

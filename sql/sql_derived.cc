@@ -209,7 +209,7 @@ TABLE *Common_table_expr::clone_tmp_table(THD *thd, TABLE_LIST *tl) {
                             0, t, false, nullptr))
     return nullptr; /* purecov: inspected */
   DBUG_ASSERT(t->s == first->s && t != first && t->file != first->file);
-  t->s->ref_count++;
+  t->s->increment_ref_count();
 
   // In case this clone is used to fill the materialized table:
   bitmap_set_all(t->write_set);
@@ -773,16 +773,6 @@ bool TABLE_LIST::create_materialized_table(THD *thd) {
                             options, thd->variables.big_tables))
     DBUG_RETURN(true); /* purecov: inspected */
 
-  /*
-    HA_EXTRA_WRITE_CACHE has the theoretical effect that written rows may be
-    cached for a while before reaching the output table, which would break the
-    with-recursive algorithm.
-    Note that MEMORY and InnoDB engines ignore HA_EXTRA_WRITE_CACHE and
-    HA_EXTRA_IGNORE_DUP_KEY.
-
-  */
-  if (is_table_function() || !unit->is_recursive())
-    table->file->extra(HA_EXTRA_WRITE_CACHE);
   table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
 
   DBUG_RETURN(false);

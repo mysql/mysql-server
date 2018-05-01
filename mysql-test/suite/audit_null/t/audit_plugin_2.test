@@ -8,6 +8,8 @@ call mtr.add_suppression("Event 'MYSQL_AUDIT_CONNECTION_DISCONNECT' cannot be ab
 call mtr.add_suppression("Event 'MYSQL_AUDIT_GENERAL_RESULT' cannot be aborted.");
 call mtr.add_suppression("Event 'MYSQL_AUDIT_GENERAL_STATUS' cannot be aborted.");
 call mtr.add_suppression("Command 'Ping' cannot be aborted.");
+call mtr.add_suppression("Plugin mysqlx reported.*Unable to use user mysql.session");
+call mtr.add_suppression("Plugin mysqlx reported: 'Internal error");
 
 connection default;
 let $expected_extension= so;

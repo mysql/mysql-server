@@ -1720,8 +1720,9 @@ bool dict_table_is_system(table_id_t table_id);
 
 /** Build the table_id array of SYS_* tables. This
 array is used to determine if a table is InnoDB SYSTEM
-table or not. */
-void dict_sys_table_id_build();
+table or not.
+@return true if successful, false otherwise */
+bool dict_sys_table_id_build();
 
 /** Change the table_id of SYS_* tables if they have been created after
 an earlier upgrade. This will update the table_id by adding DICT_MAX_DD_TABLES

@@ -64,8 +64,3 @@ int log_message(int, ...) {
   /* Do not pollute the unit test output with annoying messages. */
   return 0;
 }
-
-TABLE_SHARE::TABLE_SHARE()
-    : row_type(ROW_TYPE_DEFAULT),
-      real_row_type(ROW_TYPE_DEFAULT),
-      stats_auto_recalc(HA_STATS_AUTO_RECALC_DEFAULT) {}

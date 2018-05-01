@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef X_TESTS_DRIVER_PROCESSOR_SCRIPT_STACK_H_
-#define X_TESTS_DRIVER_PROCESSOR_SCRIPT_STACK_H_
+#ifndef PLUGIN_X_TESTS_DRIVER_PROCESSOR_SCRIPT_STACK_H_
+#define PLUGIN_X_TESTS_DRIVER_PROCESSOR_SCRIPT_STACK_H_
 
 #include <stdio.h>
 #include <list>
@@ -62,4 +62,4 @@ inline std::ostream &operator<<(std::ostream &os, const Script_stack &stack) {
   return os << context << "ERROR: ";
 }
 
-#endif  // X_TESTS_DRIVER_PROCESSOR_SCRIPT_STACK_H_
+#endif  // PLUGIN_X_TESTS_DRIVER_PROCESSOR_SCRIPT_STACK_H_

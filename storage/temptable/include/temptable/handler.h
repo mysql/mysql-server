@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -129,17 +129,18 @@ Also called "key", "field", "subkey", "key part", "key segment" elsewhere.
 #define TEMPTABLE_HANDLER_H
 
 #ifndef DBUG_OFF
-#include <thread> /* std::thread* */
-#endif
+#include <thread>
+#endif /* DBUG_OFF */
 
-#include "sql/handler.h" /* handler */
-#include "sql/table.h"   /* TABLE, TABLE_SHARE */
-#include "storage/temptable/include/temptable/storage.h" /* temptable::Storage::Iterator */
-#include "storage/temptable/include/temptable/table.h" /* temptable::Table */
-#include "storage/temptable/include/temptable/test.h" /* TEMPTABLE_CPP_HOOKED_TESTS */
+#include "sql/handler.h"
+#include "sql/table.h"
+#include "storage/temptable/include/temptable/storage.h"
+#include "storage/temptable/include/temptable/table.h"
+#include "storage/temptable/include/temptable/test.h"
 
 namespace temptable {
 
+/** Temptable engine handler. */
 class Handler : public ::handler {
  public:
   /** Constructor. */
@@ -531,7 +532,7 @@ class Handler : public ::handler {
   ha_rows records_in_range(uint, key_range *, key_range *) override;
 
  private:
-  void assign_table();
+  void opened_table_validate();
 
   bool is_field_type_supported(const Field &mysql_field) const;
 
@@ -585,13 +586,10 @@ class Handler : public ::handler {
 #endif /* DBUG_OFF */
 };
 
-inline void Handler::assign_table() {
+inline void Handler::opened_table_validate() {
   DBUG_ASSERT(m_opened_table != nullptr);
   DBUG_ASSERT(handler::table != nullptr);
-  DBUG_ASSERT(m_opened_table->mysql_table() == nullptr ||
-              m_opened_table->mysql_table()->s == handler::table->s);
-
-  m_opened_table->mysql_table(handler::table);
+  DBUG_ASSERT(m_opened_table->mysql_table_share() == handler::table->s);
 }
 
 inline bool Handler::is_field_type_supported(const Field &mysql_field) const {

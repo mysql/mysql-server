@@ -32,12 +32,13 @@
 #include "plugin/x/ngs/include/ngs/interface/connection_acceptor_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/protocol_monitor_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/server_task_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/ssl_context_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
 #include "plugin/x/ngs/include/ngs/scheduler.h"
 #include "plugin/x/ngs/include/ngs/server_acceptors.h"
 #include "plugin/x/ngs/include/ngs/server_client_timeout.h"
 #include "plugin/x/ngs/include/ngs/vio_wrapper.h"
-#include "plugin/x/ngs/include/ngs_common/connection_vio.h"
 #include "plugin/x/src/xpl_log.h"
 
 using namespace ngs;
@@ -58,7 +59,7 @@ Server::Server(ngs::shared_ptr<Server_acceptors> acceptors,
       m_state(State_initializing),
       m_delegate(delegate) {}
 
-bool Server::prepare(Ssl_context_unique_ptr ssl_context,
+bool Server::prepare(std::unique_ptr<Ssl_context_interface> ssl_context,
                      const bool skip_networking, const bool skip_name_resolve,
                      const bool use_unix_sockets) {
   Listener_interface::On_connection on_connection =
@@ -258,9 +259,8 @@ void Server::on_accept(Connection_acceptor_interface &connection_acceptor) {
     return;
   }
 
-  std::unique_ptr<Vio_interface> vio_wrapper(new Vio_wrapper(vio));
-  Connection_ptr connection(ngs::allocate_shared<ngs::Connection_vio>(
-      ngs::ref(*m_ssl_context), std::move(vio_wrapper)));
+  ngs::shared_ptr<Vio_interface> connection(
+      ngs::allocate_shared<Vio_wrapper>(vio));
   ngs::shared_ptr<Client_interface> client(
       m_delegate->create_client(connection));
 
@@ -329,7 +329,7 @@ void Server::add_sha256_password_cache(SHA256_password_cache_interface *cache) {
 
 Authentication_interface_ptr Server::get_auth_handler(
     const std::string &name, Session_interface *session) {
-  Connection_type type = session->client().connection().connection_type();
+  Connection_type type = session->client().connection().get_type();
 
   Authentication_key key(name, Connection_type_helper::is_secure_type(type));
 
@@ -343,7 +343,7 @@ Authentication_interface_ptr Server::get_auth_handler(
 
 void Server::get_authentication_mechanisms(std::vector<std::string> &auth_mech,
                                            Client_interface &client) {
-  const Connection_type type = client.connection().connection_type();
+  const Connection_type type = client.connection().get_type();
   const bool is_secure = Connection_type_helper::is_secure_type(type);
 
   auth_mech.clear();

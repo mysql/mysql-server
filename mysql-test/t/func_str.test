@@ -2042,3 +2042,28 @@ CREATE TABLE t3 AS SELECT quote('a');
 SHOW CREATE TABLE t3;
 SET NAMES DEFAULT;
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug #27410088: LOWER(CHAR(51386)) NOT EVALUATED CONSISTENTLY IN
+--echo #                STORED PROCEDURE
+--echo #
+DELIMITER |;
+CREATE PROCEDURE proc (ofs INT, count INT)
+BEGIN
+  DECLARE i INT DEFAULT ofs;
+  WHILE i < count DO
+    SELECT i AS i;
+    IF LOWER(CHAR(i USING utf8) COLLATE utf8_tolower_ci) !=
+       LOWER(CHAR(i USING utf8mb4) COLLATE utf8mb4_0900_as_ci) THEN
+      SELECT i AS 'found funny character';
+    END IF;
+    SET i = i + 1;
+  END WHILE;
+END|
+DELIMITER ;|
+# There should be same result for following two calls.
+--disable_warnings
+CALL proc(51390, 51394);
+CALL proc(51390, 51394);
+--enable_warnings
+DROP PROCEDURE proc;

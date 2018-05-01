@@ -243,8 +243,7 @@ struct Add_dirty_blocks_to_flush_list {
 
   /** Add the modified page to the buffer flush list. */
   void add_dirty_page_to_flush_list(mtr_memo_slot_t *slot) const {
-    ut_ad(m_end_lsn > 0);
-    ut_ad(m_start_lsn > 0);
+    ut_ad(m_end_lsn > m_start_lsn || (m_end_lsn == 0 && m_start_lsn == 0));
 
 #ifndef UNIV_HOTBACKUP
     buf_block_t *block;
@@ -649,25 +648,21 @@ void mtr_t::Command::execute() {
     ut_ad(write_log.m_left_to_write == 0);
     ut_ad(write_log.m_lsn == handle.end_lsn);
 
-    log_buffer_write_completed_before_dirty_pages_added(*log_sys, handle);
+    log_wait_for_space_in_log_recent_closed(*log_sys, handle.start_lsn);
+
+    DEBUG_SYNC_C("mtr_redo_before_add_dirty_blocks");
 
     add_dirty_blocks_to_flush_list(handle.start_lsn, handle.end_lsn);
 
-    log_buffer_write_completed_and_dirty_pages_added(*log_sys, handle);
+    log_buffer_close(*log_sys, handle);
 
     m_impl->m_mtr->m_commit_lsn = handle.end_lsn;
 
   } else {
-    lsn_t end_lsn;
+    DEBUG_SYNC_C("mtr_noredo_before_add_dirty_blocks");
 
-    end_lsn = log_get_lsn(*log_sys);
-
-    add_dirty_blocks_to_flush_list(end_lsn, end_lsn);
-
-    m_impl->m_mtr->m_commit_lsn = end_lsn;
+    add_dirty_blocks_to_flush_list(0, 0);
   }
-#else  /* !UNIV_HOTBACKUP */
-  /* XXX: How could that work in trunk !? m_end_lsn was random! */
 #endif /* !UNIV_HOTBACKUP */
 
   release_all();

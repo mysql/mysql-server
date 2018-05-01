@@ -44,7 +44,7 @@ extern PSI_memory_key key_memory_vio_ssl_fd;
 #endif
 
 #ifdef HAVE_WOLFSSL
-#include "wolfssl/openssl/ssl.h"
+
 #ifdef ERROR /* check for conflicting ERROR macro from wingdi.h */
 #undef ERROR
 #endif

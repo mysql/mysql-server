@@ -1,55 +1,74 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+//
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License, version 2.0,
+// as published by the Free Software Foundation.
+//
+// This program is also distributed with certain software (including
+// but not limited to OpenSSL) that is licensed under separate terms,
+// as designated in a particular file or component or in included license
+// documentation.  The authors of MySQL hereby grant you an additional
+// permission to link the program and your derivative works with the
+// separately licensed software that they have included with MySQL.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License, version 2.0, for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License, version 2.0,
-   as published by the Free Software Foundation.
+/// @file
+///
+/// mysqltest client - Tool used for executing a .test file.
+///
+/// See @ref PAGE_MYSQL_TEST_RUN "The MySQL Test Framework" for more
+/// information.
+///
+/// Please keep the test framework tools identical in all versions!
 
-   This program is also distributed with certain software (including
-   but not limited to OpenSSL) that is licensed under separate terms,
-   as designated in a particular file or component or in included license
-   documentation.  The authors of MySQL hereby grant you an additional
-   permission to link the program and your derivative works with the
-   separately licensed software that they have included with MySQL.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License, version 2.0, for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
-/*
-  mysqltest
-
-  Tool used for executing a .test file
-
-  See the "MySQL Test framework manual" for more information
-  http://dev.mysql.com/doc/mysqltest/en/index.html
-
-  Please keep the test framework tools identical in all versions!
-*/
+#include "client/mysqltest/mysqltest_error.h"
 
 #include "my_config.h"
 
-#ifdef MY_MSCRT_DEBUG
+#include <algorithm>
+#include <cmath>  // std::isinf
+#include <functional>
+#include <new>
+#include <string>
+#ifdef _WIN32
+#include <thread>  // std::thread
+#endif
+
+#include <assert.h>
+#if defined MY_MSCRT_DEBUG || defined _WIN32
 #include <crtdbg.h>
 #endif
-#include <assert.h>
+#ifdef _WIN32
+#include <direct.h>
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <mysql_version.h>
 #include <mysqld_error.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
-#include <cmath>  // std::isinf
+#ifndef _WIN32
+#include <sys/wait.h>
+#endif
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
+#include "caching_sha2_passwordopt-vars.h"
 #include "client/client_priv.h"
-#include "extra/regex/my_regex.h" /* Our own version of regex */
+#include "extra/regex/my_regex.h"  // Our own version of regex
 #include "m_ctype.h"
 #include "map_helpers.h"
 #include "mf_wcomp.h"  // wild_compare
@@ -61,37 +80,17 @@
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
-#include "my_thread_local.h"
-#include "sql_common.h"
-#include "typelib.h"
-#include "violite.h"
-#ifndef _WIN32
-#include <sys/wait.h>
-#endif
-#ifdef _WIN32
-#include <direct.h>
-#endif
-#include <signal.h>
-#include <algorithm>
-#include <functional>
-#include <new>
-#include <string>
-
 #include "my_stacktrace.h"
+#include "my_thread_local.h"
 #include "prealloced_array.h"
 #include "print_version.h"
+#include "sql_common.h"
 #include "template_utils.h"
+#include "typelib.h"
+#include "violite.h"
 #include "welcome_copyright_notice.h"  // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
-using std::max;
-using std::min;
-using std::string;
-
-extern CHARSET_INFO my_charset_utf16le_bin;
-
 #ifdef _WIN32
-#include <crtdbg.h>
-
 #define SIGNAL_FMT "exception 0x%x"
 #else
 #define SIGNAL_FMT "signal %d"
@@ -141,28 +140,31 @@ extern CHARSET_INFO my_charset_utf16le_bin;
     }                                                                     \
   }
 
-using std::string;
-using std::unique_ptr;
+extern CHARSET_INFO my_charset_utf16le_bin;
 
 static void signal_handler(int sig);
 static bool get_one_option(int optid, const struct my_option *, char *argument);
 
 enum {
-  OPT_PS_PROTOCOL = OPT_MAX_CLIENT_OPTION,
-  OPT_SP_PROTOCOL,
-  OPT_NO_SKIP,
+  OPT_COLORED_DIFF = OPT_MAX_CLIENT_OPTION,
   OPT_CURSOR_PROTOCOL,
-  OPT_VIEW_PROTOCOL,
-  OPT_MAX_CONNECT_RETRIES,
-  OPT_MAX_CONNECTIONS,
-  OPT_MARK_PROGRESS,
-  OPT_LOG_DIR,
-  OPT_TAIL_LINES,
-  OPT_RESULT_FORMAT_VERSION,
-  OPT_TRACE_PROTOCOL,
   OPT_EXPLAIN_PROTOCOL,
   OPT_JSON_EXPLAIN_PROTOCOL,
-  OPT_TRACE_EXEC
+  OPT_LOG_DIR,
+  OPT_MARK_PROGRESS,
+  OPT_MAX_CONNECT_RETRIES,
+  OPT_MAX_CONNECTIONS,
+  OPT_NO_SKIP,
+  OPT_PS_PROTOCOL,
+  OPT_RESULT_FORMAT_VERSION,
+#ifdef _WIN32
+  OPT_SAFEPROCESS_PID,
+#endif
+  OPT_SP_PROTOCOL,
+  OPT_TAIL_LINES,
+  OPT_TRACE_EXEC,
+  OPT_TRACE_PROTOCOL,
+  OPT_VIEW_PROTOCOL,
 };
 
 static int record = 0, opt_sleep = -1;
@@ -176,6 +178,7 @@ static int opt_port = 0;
 static int opt_max_connect_retries;
 static int opt_result_format_version;
 static int opt_max_connections = DEFAULT_MAX_CONN;
+static bool opt_colored_diff = 0;
 static bool opt_compress = 0, silent = 0, verbose = 0, trace_exec = 0;
 static bool debug_info_flag = 0, debug_check_flag = 0;
 static bool tty_password = 0;
@@ -203,7 +206,14 @@ static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512};
 static const char *load_default_groups[] = {"mysqltest", "client", 0};
 static char line_buffer[MAX_DELIMITER_LENGTH], *line_buffer_pos = line_buffer;
 static bool can_handle_expired_passwords = true;
-#include "caching_sha2_passwordopt-vars.h"
+
+#ifdef _WIN32
+static DWORD opt_safe_process_pid;
+static HANDLE mysqltest_thread;
+// Event handle for stacktrace request event
+static HANDLE stacktrace_request_event = NULL;
+static std::thread wait_for_stacktrace_request_event_thread;
+#endif
 
 /* Info on properties that can be set with --enable_X and --disable_X */
 
@@ -363,7 +373,7 @@ struct var_free {
   void operator()(VAR *var) const;
 };
 
-collation_unordered_map<string, unique_ptr<VAR, var_free>> *var_hash;
+collation_unordered_map<std::string, std::unique_ptr<VAR, var_free>> *var_hash;
 
 struct st_connection {
   MYSQL mysql;
@@ -518,35 +528,14 @@ const char *command_names[] = {
 
     0};
 
-/*
-  The list of error codes to --error are stored in an internal array of
-  structs. This struct can hold numeric SQL error codes, error names or
-  SQLSTATE codes as strings. The element next to the last active element
-  in the list is set to type ERR_EMPTY. When an SQL statement returns an
-  error, we use this list to check if this is an expected error.
-*/
-enum match_err_type { ERR_EMPTY = 0, ERR_ERRNO, ERR_SQLSTATE };
-
-struct st_match_err {
-  enum match_err_type type;
-  union {
-    uint errnum;
-    char sqlstate[SQLSTATE_LENGTH + 1]; /* \0 terminated string */
-  } code;
-};
-
-struct st_expected_errors {
-  struct st_match_err err[20];
-  uint count;
-};
-static struct st_expected_errors saved_expected_errors;
+// Vector to store the list of error codes specified with '--error' command
+Expected_errors *expected_errors = new Expected_errors();
 
 struct st_command {
   char *query, *query_buf, *first_argument, *last_argument, *end;
   DYNAMIC_STRING content;
   size_t first_word_len, query_len;
   bool abort_on_error, used_replace;
-  struct st_expected_errors expected_errors;
   char output_file[FN_REFLEN];
   enum enum_commands type;
   // Line number of the command
@@ -821,13 +810,6 @@ void replace_dynstr_append(DYNAMIC_STRING *ds, const char *val);
 void replace_dynstr_append_uint(DYNAMIC_STRING *ds, uint val);
 void dynstr_append_sorted(DYNAMIC_STRING *ds, DYNAMIC_STRING *ds_input);
 
-static int match_expected_error(struct st_command *command,
-                                unsigned int err_errno,
-                                const char *err_sqlstate);
-void handle_error(struct st_command *, unsigned int err_errno,
-                  const char *err_error, const char *err_sqlstate,
-                  DYNAMIC_STRING *ds);
-void handle_no_error(struct st_command *);
 void revert_properties();
 
 void do_eval(DYNAMIC_STRING *query_eval, const char *query,
@@ -929,7 +911,7 @@ static void show_query(MYSQL *mysql, const char *query) {
                 row[i] ? row[i] : "NULL");
       }
     }
-    for (i = 0; i < strlen(query) + 8; i++) fprintf(stderr, "=");
+    for (i = 0; i < std::strlen(query) + 8; i++) fprintf(stderr, "=");
     fprintf(stderr, "\n\n");
   }
   mysql_free_result(res);
@@ -1084,38 +1066,191 @@ static void check_command_args(struct st_command *command,
   DBUG_VOID_RETURN;
 }
 
-static void handle_command_error(struct st_command *command, uint error) {
+/// Check whether given error is in list of expected errors.
+///
+/// @param command      Pointer to the st_command structure which holds the
+///                     arguments and information for the command.
+/// @param err_errno    Error number of the error that actually occurred.
+/// @param err_sqlstate SQLSTATE that was thrown, or NULL for impossible
+///                     (file-ops, diff, etc.)
+///
+/// @retval -1 if the given error is not in the list, index in the
+///         list of expected errors otherwise.
+///
+/// @note
+/// If caller needs to know whether the list was empty, they should
+/// check the value of expected_errors.count.
+static int match_expected_error(struct st_command *command,
+                                unsigned int err_errno,
+                                const char *err_sqlstate) {
+  std::uint8_t index = 0;
+
+  // Iterator for list/vector of expected errors
+  std::vector<std::unique_ptr<Error>>::iterator error =
+      expected_errors->begin();
+
+  // Iterate over list of expected errors
+  for (; error != expected_errors->end(); error++) {
+    // Check if error type is ERR_ERRNO
+    if ((*error)->error_code() == err_errno && (*error)->type() == ERR_ERRNO)
+      return index;
+
+    // Check if error type is ERR_SQLSTATE
+    if ((*error)->type() == ERR_SQLSTATE) {
+      // NULL is quite likely, but not in conjunction with a SQL-state expect.
+      if (unlikely(err_sqlstate == NULL))
+        die("Expecting a SQLSTATE (%s) from query '%s' which cannot produce "
+            "one.",
+            (*error)->sqlstate(), command->query);
+
+      if (!std::strncmp((*error)->sqlstate(), err_sqlstate, SQLSTATE_LENGTH))
+        return index;
+    }
+
+    index++;
+  }
+
+  return -1;
+}
+
+/// Handle errors which occurred during execution of a query.
+///
+/// @param command      Pointer to the st_command structure which holds the
+///                     arguments and information for the command.
+/// @param err_errno    Error number
+/// @param err_error    Error message
+/// @param err_sqlstate SQLSTATE that was thrown
+/// @param ds           Dynamic string to store the result.
+///
+/// @note
+/// If there is an unexpected error, this function will abort mysqltest
+/// immediately.
+void handle_error(struct st_command *command, unsigned int err_errno,
+                  const char *err_error, const char *err_sqlstate,
+                  DYNAMIC_STRING *ds) {
+  DBUG_ENTER("handle_error");
+
+  if (command->abort_on_error)
+    die("Query '%s' failed.\nERROR %d (%s): %s", command->query, err_errno,
+        err_sqlstate, err_error);
+
+  DBUG_PRINT("info", ("Expected errors count: %d", expected_errors->count()));
+
+  int i = match_expected_error(command, err_errno, err_sqlstate);
+
+  if (i >= 0) {
+    if (!disable_result_log) {
+      if (expected_errors->count() == 1) {
+        // Only log error if there is one possible error
+        dynstr_append_mem(ds, "ERROR ", 6);
+        replace_dynstr_append(ds, err_sqlstate);
+        dynstr_append_mem(ds, ": ", 2);
+        replace_dynstr_append(ds, err_error);
+        dynstr_append_mem(ds, "\n", 1);
+      }
+      // Don't log error if we may not get an error
+      else if (expected_errors->type() == ERR_SQLSTATE ||
+               (expected_errors->type() == ERR_ERRNO &&
+                expected_errors->error_code() != 0))
+        dynstr_append(ds, "Got one of the listed errors\n");
+    }
+
+    revert_properties();
+    DBUG_VOID_RETURN;
+  }
+
+  DBUG_PRINT("info",
+             ("i: %d Expected errors count: %d", i, expected_errors->count()));
+
+  if (!disable_result_log) {
+    dynstr_append_mem(ds, "ERROR ", 6);
+    replace_dynstr_append(ds, err_sqlstate);
+    dynstr_append_mem(ds, ": ", 2);
+    replace_dynstr_append(ds, err_error);
+    dynstr_append_mem(ds, "\n", 1);
+  }
+
+  if (expected_errors->count() > 0) {
+    if (expected_errors->type() == ERR_ERRNO)
+      die("Query '%s' failed with wrong errno %d: '%s', instead of %d.",
+          command->query, err_errno, err_error, expected_errors->error_code());
+    else
+      die("Query '%s' failed with wrong sqlstate %s: '%s', instead of %s.",
+          command->query, err_sqlstate, err_error, expected_errors->sqlstate());
+  }
+
+  revert_properties();
+  DBUG_VOID_RETURN;
+}
+
+/// Handle absence of errors after execution.
+///
+/// Abort test run if the query succeeds and was expected to fail with
+/// an error.
+///
+/// @param command  Pointer to the st_command structure which holds the
+///                 arguments and information for the command.
+void handle_no_error(struct st_command *command) {
+  DBUG_ENTER("handle_no_error");
+
+  if (expected_errors->count()) {
+    if (expected_errors->type() == ERR_ERRNO &&
+        expected_errors->error_code() != 0) {
+      // Error code we wanted was != 0, i.e. not an expected success.
+      die("Query '%s' succeeded, should have failed with errno %d.",
+          command->query, expected_errors->error_code());
+    } else if (expected_errors->type() == ERR_SQLSTATE &&
+               strcmp(expected_errors->sqlstate(), "00000") != 0) {
+      // SQLSTATE we wanted was != "00000", i.e. not an expected success
+      die("Query '%s' succeeded, should have failed with sqlstate %s.",
+          command->query, expected_errors->sqlstate());
+    }
+  }
+
+  DBUG_VOID_RETURN;
+}
+
+/// Handle errors which occurred during execution of mysqltest commands
+/// like 'move_file', 'remove_file' etc which are used to perform file
+/// system operations.
+///
+/// @param command  Pointer to the st_command structure which holds the
+///                 arguments and information for the command.
+/// @param error    Error number
+///
+/// @note
+/// If there is an unexpected error, this function will abort mysqltest
+/// client immediately.
+static void handle_command_error(struct st_command *command,
+                                 unsigned int error) {
   DBUG_ENTER("handle_command_error");
   DBUG_PRINT("enter", ("error: %d", error));
+
   if (error != 0) {
-    int i;
-
     if (command->abort_on_error)
-      die("command \"%.*s\" failed with error %d. my_errno=%d",
-          static_cast<int>(command->first_word_len), command->query, error,
-          my_errno());
+      die("Command \"%s\" failed with error %d. my_errno=%d.",
+          command_names[command->type - 1], error, my_errno());
 
-    i = match_expected_error(command, error, NULL);
+    int i = match_expected_error(command, error, NULL);
 
     if (i >= 0) {
-      DBUG_PRINT("info", ("command \"%.*s\" failed with expected error: %d",
-                          static_cast<int>(command->first_word_len),
-                          command->query, error));
+      DBUG_PRINT("info", ("Command \"%s\" failed with expected error: %u.",
+                          command_names[command->type - 1], error));
       goto end;
     }
-    if (command->expected_errors.count > 0)
-      die("command \"%.*s\" failed with wrong error: %d. my_errno=%d",
-          static_cast<int>(command->first_word_len), command->query, error,
-          my_errno());
-  } else if (command->expected_errors.err[0].type == ERR_ERRNO &&
-             command->expected_errors.err[0].code.errnum != 0) {
-    /* Error code we wanted was != 0, i.e. not an expected success */
-    die("command \"%.*s\" succeeded - should have failed with errno %d...",
-        static_cast<int>(command->first_word_len), command->query,
-        command->expected_errors.err[0].code.errnum);
+
+    if (expected_errors->count() > 0)
+      die("Command \"%s\" failed with wrong error: %d, my_errno=%d.",
+          command_names[command->type - 1], error, my_errno());
+  } else if (expected_errors->count() && expected_errors->type() == ERR_ERRNO &&
+             expected_errors->error_code() != 0) {
+    // Command succeeded, should have failed with an error
+    die("Command \"%s\" succeeded, should have failed with errno %d.",
+        command_names[command->type - 1], expected_errors->error_code());
   }
+
 end:
-  // Save error code
+  // Save the error code
   {
     const char var_name[] = "__error";
     char buf[10];
@@ -1165,8 +1300,8 @@ static void close_files() {
 }
 
 static void free_used_memory() {
-  uint i;
-  // Do not use DBUG_ENTER("free_used_memory"); here, see below.
+  // Delete the exptected errors pointer
+  delete expected_errors;
 
   if (connections) close_connections();
   close_files();
@@ -1179,9 +1314,11 @@ static void free_used_memory() {
     if ((*q)->content.str) dynstr_free(&(*q)->content);
     my_free((*q));
   }
-  for (i = 0; i < 10; i++) {
+
+  for (size_t i = 0; i < 10; i++) {
     if (var_reg[i].alloced_len) my_free(var_reg[i].str_val);
   }
+
   delete q_lines;
   dynstr_free(&ds_res);
   dynstr_free(&ds_result);
@@ -1193,10 +1330,10 @@ static void free_used_memory() {
   free_win_path_patterns();
 #endif
 
-  /* Only call mysql_server_end if mysql_server_init has been called */
+  // Only call mysql_server_end if mysql_server_init has been called.
   if (server_initialized) mysql_server_end();
 
-  /* Don't use DBUG after mysql_server_end() */
+  // Don't use DBUG after mysql_server_end()
   return;
 }
 
@@ -1221,9 +1358,21 @@ static void cleanup_and_exit(int exit_code) {
     }
   }
 
-    /* exit() appears to be not 100% reliable on Windows under some conditions
-     */
+// exit() appears to be not 100% reliable on Windows under some conditions.
 #ifdef _WIN32
+  if (opt_safe_process_pid) {
+    // Close the stack trace request event handle
+    if (stacktrace_request_event != NULL) CloseHandle(stacktrace_request_event);
+
+    // Detach or stop the thread waiting for stack trace event to occur.
+    if (wait_for_stacktrace_request_event_thread.joinable())
+      wait_for_stacktrace_request_event_thread.detach();
+
+    // Close the thread handle
+    if (!CloseHandle(mysqltest_thread))
+      die("CloseHandle failed, err = %d.\n", GetLastError());
+  }
+
   fflush(stdout);
   fflush(stderr);
   _exit(exit_code);
@@ -1233,11 +1382,11 @@ static void cleanup_and_exit(int exit_code) {
 }
 
 static void print_file_stack() {
-  fprintf(stderr, "file %s at line %d:\n", cur_file->file_name,
-          cur_file->lineno);
-  for (struct st_test_file *err_file = cur_file - 1; err_file >= file_stack;
-       err_file--) {
-    fprintf(stderr, "included from %s at line %d:\n", err_file->file_name,
+  fprintf(stderr, "file %s: %d\n", cur_file->file_name, cur_file->lineno);
+
+  struct st_test_file *err_file;
+  for (err_file = cur_file - 1; err_file >= file_stack; err_file--) {
+    fprintf(stderr, "included from %s: %d\n", err_file->file_name,
             err_file->lineno);
   }
 }
@@ -1247,37 +1396,36 @@ void die(const char *fmt, ...) {
   va_list args;
   DBUG_PRINT("enter", ("start_lineno: %d", start_lineno));
 
-  /*
-    Protect against dying twice
-    first time 'die' is called, try to write log files
-    second time, just exit
-  */
+  // Protect against dying twice first time 'die' is called, try to
+  // write log files second time, just exit.
   if (dying) cleanup_and_exit(1);
   dying = 1;
 
-  /* Print the error message */
+  // Print the error message
   fprintf(stderr, "mysqltest: ");
+
+  if (start_lineno > 0) fprintf(stderr, "At line %u: ", start_lineno);
+
+  if (fmt) {
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    fprintf(stderr, "\n");
+    va_end(args);
+  } else
+    fprintf(stderr, "Unknown error");
+
+  // Print the file stack
   if (cur_file && cur_file != file_stack) {
     fprintf(stderr, "In included ");
     print_file_stack();
   }
 
-  if (start_lineno > 0) fprintf(stderr, "At line %u: ", start_lineno);
-  if (fmt) {
-    va_start(args, fmt);
-    vfprintf(stderr, fmt, args);
-    va_end(args);
-  } else
-    fprintf(stderr, "unknown error");
-  fprintf(stderr, "\n");
   fflush(stderr);
 
   log_file.show_tail(opt_tail_lines);
 
-  /*
-    Help debugging by displaying any warnings that might have
-    been produced prior to the error
-  */
+  // Help debugging by displaying any warnings that might have
+  // been produced prior to the error.
   if (cur_con && !cur_con->pending) show_warnings_before_error(&cur_con->mysql);
 
   cleanup_and_exit(1);
@@ -1448,7 +1596,7 @@ static int run_tool(const char *tool_path, DYNAMIC_STRING *ds_res, ...) {
 
   while ((arg = va_arg(args, char *))) {
     /* Options should be os quoted */
-    if (strncmp(arg, "--", 2) == 0)
+    if (std::strncmp(arg, "--", 2) == 0)
       dynstr_append_os_quoted(&ds_cmdline, arg, NullS);
     else
       dynstr_append(&ds_cmdline, arg);
@@ -1500,33 +1648,26 @@ static int diff_check(const char *diff_name) {
 
 #endif
 
-/*
-  Show the diff of two files using the systems builtin diff
-  command. If no such diff command exist, just dump the content
-  of the two files and inform about how to get "diff"
-
-  SYNOPSIS
-  show_diff
-  ds - pointer to dynamic string where to add the diff(may be NULL)
-  filename1 - name of first file
-  filename2 - name of second file
-
-*/
-
+/// Show the diff of two files using the systems builtin diff
+/// command. If no such diff command exist, just dump the content
+/// of the two files and inform about how to get "diff"
+///
+/// @param ds        Pointer to dynamic string where to add the
+///                  diff. If NULL, print the diff to stderr.
+/// @param filename1 Name of the first file
+/// @param filename2 Name of the second file
 static void show_diff(DYNAMIC_STRING *ds, const char *filename1,
                       const char *filename2) {
-  DYNAMIC_STRING ds_tmp;
+  DYNAMIC_STRING ds_diff;
+  if (init_dynamic_string(&ds_diff, "", 256, 256)) die("Out of memory");
+
   const char *diff_name = 0;
 
-  if (init_dynamic_string(&ds_tmp, "", 256, 256)) die("Out of memory");
-
-    /* determine if we have diff on Windows
-       needs special processing due to return values
-       on that OS
-       This test is only done on Windows since it's only needed there
-       in order to correctly detect non-availibility of 'diff', and
-       the way it's implemented does not work with default 'diff' on Solaris.
-    */
+  // Determine if we have diff on Windows. If yes, then needs special
+  // processing due to return values on that OS. This test is only done
+  // on Windows since it's only needed there in order to correctly
+  // detect non-availibility of 'diff', and the way it's implemented
+  // does not work with default 'diff' on Solaris.
 #ifdef _WIN32
   if (diff_check("diff"))
     diff_name = "diff";
@@ -1535,43 +1676,52 @@ static void show_diff(DYNAMIC_STRING *ds, const char *filename1,
   else
     diff_name = 0;
 #else
-  diff_name = "diff"; /* Otherwise always assume it's called diff */
+  // Otherwise always assume it's called diff
+  diff_name = "diff";
 #endif
 
   if (diff_name) {
-    /* First try with unified diff */
-    if (run_tool(diff_name, &ds_tmp, /* Get output from diff in ds_tmp */
-                 "-u", filename1, filename2, "2>&1",
-                 NULL) > 1) /* Most "diff" tools return >1 if error */
-    {
-      dynstr_set(&ds_tmp, "");
+    int exit_code = 0;
+    // Use 'diff --color=always' to print the colored diff if it is enabled
+    if (opt_colored_diff) {
+      // Most "diff" tools return '> 1' if error
+      exit_code = run_tool(diff_name, &ds_diff, "-u --color='always'",
+                           filename1, filename2, "2>&1", NULL);
 
-      /* Fallback to context diff with "diff -c" */
-      if (run_tool(diff_name, &ds_tmp, /* Get output from diff in ds_tmp */
-                   "-c", filename1, filename2, "2>&1",
-                   NULL) > 1) /* Most "diff" tools return >1 if error */
-      {
-        dynstr_set(&ds_tmp, "");
+      if (exit_code > 1)
+        die("Option '--colored-diff' is not supported on this machine. "
+            "To get colored diff output, install GNU diffutils version "
+            "3.4 or higher.");
+    } else {
+      // Colored diff is disabled, clear the diff string and try unified
+      // diff with "diff -u".
+      dynstr_set(&ds_diff, "");
+      exit_code = run_tool(diff_name, &ds_diff, "-u", filename1, filename2,
+                           "2>&1", NULL);
 
-        /* Fallback to simple diff with "diff" */
-        if (run_tool(diff_name, &ds_tmp, /* Get output from diff in ds_tmp */
-                     filename1, filename2, "2>&1",
-                     NULL) > 1) /* Most "diff" tools return >1 if error */
-        {
-          diff_name = 0;
+      if (exit_code > 1) {
+        // Clear the diff string and fallback to context diff with "diff -c"
+        dynstr_set(&ds_diff, "");
+        exit_code = run_tool(diff_name, &ds_diff, "-c", filename1, filename2,
+                             "2>&1", NULL);
+
+        if (exit_code > 1) {
+          // Clear the diff string and fallback to simple diff with "diff"
+          dynstr_set(&ds_diff, "");
+          exit_code =
+              run_tool(diff_name, &ds_diff, filename1, filename2, "2>&1", NULL);
+          if (exit_code > 1) diff_name = 0;
         }
       }
     }
   }
 
   if (!diff_name) {
-    /*
-      Fallback to dump both files to result file and inform
-      about installing "diff"
-    */
-    dynstr_append(&ds_tmp, "\n");
+    // Fallback to dump both files to result file and inform
+    // about installing "diff".
+    dynstr_append(&ds_diff, "\n");
     dynstr_append(
-        &ds_tmp,
+        &ds_diff,
         "\n"
         "The two files differ but it was not possible to execute 'diff' in\n"
         "order to show only the difference. Instead the whole content of the\n"
@@ -1585,26 +1735,25 @@ static void show_diff(DYNAMIC_STRING *ds, const char *filename1,
 #endif
         "\n");
 
-    dynstr_append(&ds_tmp, " --- ");
-    dynstr_append(&ds_tmp, filename1);
-    dynstr_append(&ds_tmp, " >>>\n");
-    cat_file(&ds_tmp, filename1);
-    dynstr_append(&ds_tmp, "<<<\n --- ");
-    dynstr_append(&ds_tmp, filename1);
-    dynstr_append(&ds_tmp, " >>>\n");
-    cat_file(&ds_tmp, filename2);
-    dynstr_append(&ds_tmp, "<<<<\n");
+    dynstr_append(&ds_diff, " --- ");
+    dynstr_append(&ds_diff, filename1);
+    dynstr_append(&ds_diff, " >>>\n");
+    cat_file(&ds_diff, filename1);
+    dynstr_append(&ds_diff, "<<<\n --- ");
+    dynstr_append(&ds_diff, filename1);
+    dynstr_append(&ds_diff, " >>>\n");
+    cat_file(&ds_diff, filename2);
+    dynstr_append(&ds_diff, "<<<<\n");
   }
 
-  if (ds) {
-    /* Add the diff to output */
-    dynstr_append_mem(ds, ds_tmp.str, ds_tmp.length);
-  } else {
-    /* Print diff directly to stdout */
-    fprintf(stderr, "%s\n", ds_tmp.str);
-  }
+  if (ds)
+    // Add the diff to output
+    dynstr_append_mem(ds, ds_diff.str, ds_diff.length);
+  else
+    // Print diff directly to stderr
+    fprintf(stderr, "%s\n", ds_diff.str);
 
-  dynstr_free(&ds_tmp);
+  dynstr_free(&ds_diff);
 }
 
 enum compare_files_result_enum {
@@ -1716,7 +1865,7 @@ static void check_result() {
 #ifdef HAVE_GCOV
   char cmd[FN_REFLEN];
   strcpy(cmd, "sed -i '/gcda:Merge mismatch for function/d' ");
-  strcat(cmd, log_file.file_name());
+  std::strcat(cmd, log_file.file_name());
   system(cmd);
 #endif
 
@@ -1813,8 +1962,8 @@ VAR *var_init(VAR *v, const char *name, size_t name_len, const char *val,
               size_t val_len) {
   size_t val_alloc_len;
   VAR *tmp_var;
-  if (!name_len && name) name_len = strlen(name);
-  if (!val_len && val) val_len = strlen(val);
+  if (!name_len && name) name_len = std::strlen(name);
+  if (!val_len && val) val_len = std::strlen(val);
   if (!val) val_len = 0;
   val_alloc_len = val_len + 16; /* room to grow */
   if (!(tmp_var = v) && !(tmp_var = (VAR *)my_malloc(
@@ -1850,8 +1999,8 @@ VAR *var_from_env(const char *name, const char *def_val) {
   VAR *v;
   if (!(tmp = getenv(name))) tmp = def_val;
 
-  v = var_init(0, name, strlen(name), tmp, strlen(tmp));
-  var_hash->emplace(name, unique_ptr<VAR, var_free>(v));
+  v = var_init(0, name, std::strlen(name), tmp, std::strlen(tmp));
+  var_hash->emplace(name, std::unique_ptr<VAR, var_free>(v));
   return v;
 }
 
@@ -1877,7 +2026,7 @@ VAR *var_get(const char *var_name, const char **var_name_end, bool raw,
     if (length >= MAX_VAR_NAME_LENGTH)
       die("Too long variable name: %s", save_var_name);
 
-    if (!(v = find_or_nullptr(*var_hash, string(save_var_name, length)))) {
+    if (!(v = find_or_nullptr(*var_hash, std::string(save_var_name, length)))) {
       char buff[MAX_VAR_NAME_LENGTH + 1];
       strmake(buff, save_var_name, length);
       v = var_from_env(buff, "");
@@ -1889,7 +2038,7 @@ VAR *var_get(const char *var_name, const char **var_name_end, bool raw,
   if (!raw && v->int_dirty) {
     sprintf(v->str_val, "%d", v->int_val);
     v->int_dirty = false;
-    v->str_val_len = strlen(v->str_val);
+    v->str_val_len = std::strlen(v->str_val);
   }
   if (var_name_end) *var_name_end = var_name;
   DBUG_RETURN(v);
@@ -1900,10 +2049,11 @@ err:
 }
 
 static VAR *var_obtain(const char *name, int len) {
-  VAR *v = find_or_nullptr(*var_hash, string(name, len));
+  VAR *v = find_or_nullptr(*var_hash, std::string(name, len));
   if (v == nullptr) {
     v = var_init(0, name, len, "", 0);
-    var_hash->emplace(string(name, len), unique_ptr<VAR, var_free>(v));
+    var_hash->emplace(std::string(name, len),
+                      std::unique_ptr<VAR, var_free>(v));
   }
   return v;
 }
@@ -1941,7 +2091,7 @@ void var_set(const char *var_name, const char *var_name_end,
     if (v->int_dirty) {
       sprintf(v->str_val, "%d", v->int_val);
       v->int_dirty = false;
-      v->str_val_len = strlen(v->str_val);
+      v->str_val_len = std::strlen(v->str_val);
     }
     /* setenv() expects \0-terminated strings */
     DBUG_ASSERT(v->name[v->name_len] == 0);
@@ -1951,7 +2101,7 @@ void var_set(const char *var_name, const char *var_name_end,
 }
 
 static void var_set_string(const char *name, const char *value) {
-  var_set(name, name + strlen(name), value, value + strlen(value));
+  var_set(name, name + std::strlen(name), value, value + std::strlen(value));
 }
 
 static void var_set_int(const char *name, int value) {
@@ -1983,7 +2133,7 @@ static void set_once_property(enum_prop prop, bool val) {
 
 static void set_property(st_command *command, enum_prop prop, bool val) {
   char *p = command->first_argument;
-  if (p && !strcmp(p, "ONCE")) {
+  if (p && !std::strcmp(p, "ONCE")) {
     command->last_argument = p + 4;
     set_once_property(prop, val);
     return;
@@ -2031,8 +2181,8 @@ void revert_properties() {
 */
 
 static void var_query_set(VAR *var, const char *query, const char **query_end) {
-  char *end =
-      (char *)((query_end && *query_end) ? *query_end : query + strlen(query));
+  char *end = (char *)((query_end && *query_end) ? *query_end
+                                                 : query + std::strlen(query));
   MYSQL_RES *res = NULL;
   MYSQL_ROW row;
   MYSQL *mysql = &cur_con->mysql;
@@ -2088,7 +2238,7 @@ static void var_query_set(VAR *var, const char *query, const char **query_end) {
           /* Regex replace */
           if (!multi_reg_replace(glob_replace_regex, (char *)val)) {
             val = glob_replace_regex->buf;
-            len = strlen(val);
+            len = std::strlen(val);
           }
         }
         DYNAMIC_STRING ds_temp;
@@ -2111,7 +2261,7 @@ static void var_query_set(VAR *var, const char *query, const char **query_end) {
             dynstr_free(&ds_temp);
             init_dynamic_string(&ds_temp, "", 512, 512);
             replace_numeric_round_append(glob_replace_numeric_round, &ds_temp,
-                                         buffer, strlen(buffer));
+                                         buffer, std::strlen(buffer));
           } else
             replace_numeric_round_append(glob_replace_numeric_round, &ds_temp,
                                          val, len);
@@ -2120,7 +2270,7 @@ static void var_query_set(VAR *var, const char *query, const char **query_end) {
         if (!glob_replace && glob_replace_numeric_round < 0)
           dynstr_append_mem(&result, val, len);
         else
-          dynstr_append_mem(&result, ds_temp.str, strlen(ds_temp.str));
+          dynstr_append_mem(&result, ds_temp.str, std::strlen(ds_temp.str));
         dynstr_free(&ds_temp);
       }
       dynstr_append_mem(&result, "\t", 1);
@@ -2338,8 +2488,8 @@ static void var_set_query_get_value(struct st_command *command, VAR *var) {
     MYSQL_FIELD *fields = mysql_fetch_fields(res);
 
     for (i = 0; i < num_fields; i++) {
-      if (strcmp(fields[i].name, ds_col.str) == 0 &&
-          strlen(fields[i].name) == ds_col.length) {
+      if (std::strcmp(fields[i].name, ds_col.str) == 0 &&
+          std::strlen(fields[i].name) == ds_col.length) {
         col_no = i;
         break;
       }
@@ -2438,8 +2588,8 @@ void eval_expr(VAR *v, const char *p, const char **p_end, bool open_end,
   {
     /* Check if this is a "let $var= query_get_value()" */
     const char *get_value_str = "query_get_value";
-    const size_t len = strlen(get_value_str);
-    if (strncmp(p, get_value_str, len) == 0) {
+    const size_t len = std::strlen(get_value_str);
+    if (std::strncmp(p, get_value_str, len) == 0) {
       struct st_command command;
       memset(&command, 0, sizeof(command));
       command.query = (char *)p;
@@ -2451,8 +2601,8 @@ void eval_expr(VAR *v, const char *p, const char **p_end, bool open_end,
     }
     /* Check if this is a "let $var= convert_error()" */
     const char *get_value_str1 = "convert_error";
-    const size_t len1 = strlen(get_value_str1);
-    if (strncmp(p, get_value_str1, len1) == 0) {
+    const size_t len1 = std::strlen(get_value_str1);
+    if (std::strncmp(p, get_value_str1, len1) == 0) {
       struct st_command command;
       memset(&command, 0, sizeof(command));
       command.query = (char *)p;
@@ -2466,7 +2616,7 @@ void eval_expr(VAR *v, const char *p, const char **p_end, bool open_end,
 
 NO_EVAL : {
   size_t new_val_len =
-      (p_end && *p_end) ? static_cast<size_t>(*p_end - p) : strlen(p);
+      (p_end && *p_end) ? static_cast<size_t>(*p_end - p) : std::strlen(p);
   if (new_val_len + 1 >= v->alloced_len) {
     static size_t MIN_VAR_ALLOC = 32;
     v->alloced_len =
@@ -2590,12 +2740,12 @@ static FILE *my_popen(DYNAMIC_STRING *ds_cmd, const char *mode,
     uint dummy_errors;
     size_t len;
     len = my_convert((char *)wcmd, sizeof(wcmd) - sizeof(wcmd[0]),
-                     &my_charset_utf16le_bin, ds_cmd->str, strlen(ds_cmd->str),
-                     charset_info, &dummy_errors);
+                     &my_charset_utf16le_bin, ds_cmd->str,
+                     std::strlen(ds_cmd->str), charset_info, &dummy_errors);
     wcmd[len / sizeof(wchar_t)] = 0;
     len = my_convert((char *)wmode, sizeof(wmode) - sizeof(wmode[0]),
-                     &my_charset_utf16le_bin, mode, strlen(mode), charset_info,
-                     &dummy_errors);
+                     &my_charset_utf16le_bin, mode, std::strlen(mode),
+                     charset_info, &dummy_errors);
     wmode[len / sizeof(wchar_t)] = 0;
     return _wpopen(wcmd, wmode);
   }
@@ -2699,11 +2849,9 @@ static void replace_crlf_with_lf(char *buf) {
 /// It is recommended to use mysqltest command(s) like "remove_file"
 /// instead of executing the shell commands using 'exec' command.
 static void do_exec(struct st_command *command, bool run_in_background) {
-  int error;
-  FILE *res_file;
-  char *cmd = command->first_argument;
-  DYNAMIC_STRING ds_cmd;
   DBUG_ENTER("do_exec");
+
+  char *cmd = command->first_argument;
   DBUG_PRINT("enter", ("cmd: '%s'", cmd));
 
   // Skip leading space
@@ -2711,14 +2859,16 @@ static void do_exec(struct st_command *command, bool run_in_background) {
   if (!*cmd) die("Missing argument in exec");
   command->last_argument = command->end;
 
+  DYNAMIC_STRING ds_cmd;
   init_dynamic_string(&ds_cmd, 0, command->query_len + 256, 256);
+
   // Eval the command, thus replacing all environment variables
   do_eval(&ds_cmd, cmd, command->end, !is_windows);
 
   // Check if echo should be replaced with "builtin" echo
-  if (builtin_echo[0] && strncmp(cmd, "echo", 4) == 0) {
+  if (builtin_echo[0] && std::strncmp(cmd, "echo", 4) == 0) {
     // Replace echo with our "builtin" echo
-    replace(&ds_cmd, "echo", 4, builtin_echo, strlen(builtin_echo));
+    replace(&ds_cmd, "echo", 4, builtin_echo, std::strlen(builtin_echo));
   }
 
 #ifdef _WIN32
@@ -2759,6 +2909,7 @@ static void do_exec(struct st_command *command, bool run_in_background) {
 #else
   const char *mode = "r";
 #endif
+  FILE *res_file;
   if (!(res_file = my_popen(&ds_cmd, mode, command)) &&
       command->abort_on_error) {
     dynstr_free(&ds_cmd);
@@ -2769,12 +2920,12 @@ static void do_exec(struct st_command *command, bool run_in_background) {
     char buf[512];
     std::string str;
     while (std::fgets(buf, sizeof(buf), res_file)) {
-      if (strlen(buf) < 1) continue;
+      if (std::strlen(buf) < 1) continue;
 
 #ifdef WIN32
       // Replace CRLF char with LF.
       // See bug#22608247 and bug#22811243
-      DBUG_ASSERT(!strcmp(mode, "rb"));
+      DBUG_ASSERT(!std::strcmp(mode, "rb"));
       replace_crlf_with_lf(buf);
 #endif
       if (trace_exec) {
@@ -2782,13 +2933,14 @@ static void do_exec(struct st_command *command, bool run_in_background) {
         fflush(stdout);
       }
       if (disable_result_log) {
-        buf[strlen(buf) - 1] = 0;
+        buf[std::strlen(buf) - 1] = 0;
         DBUG_PRINT("exec_result", ("%s", buf));
       } else {
         // Read the file line by line. Check if the buffer read from the
         // file ends with EOL character.
-        if ((buf[strlen(buf) - 1] != '\n' && strlen(buf) < (sizeof(buf) - 1)) ||
-            (buf[strlen(buf) - 1] == '\n')) {
+        if ((buf[std::strlen(buf) - 1] != '\n' &&
+             std::strlen(buf) < (sizeof(buf) - 1)) ||
+            (buf[std::strlen(buf) - 1] == '\n')) {
           // Found EOL
           if (str.length()) {
             // Temporary string exists, append the current buffer read
@@ -2809,7 +2961,7 @@ static void do_exec(struct st_command *command, bool run_in_background) {
     }
   }
 
-  error = pclose(res_file);
+  int error = pclose(res_file);
   if (error > 0) {
 #ifdef _WIN32
     uint status = WEXITSTATUS(error);
@@ -2822,38 +2974,37 @@ static void do_exec(struct st_command *command, bool run_in_background) {
       status = 0x80 + WTERMSIG(error);
 #endif
 
-    int i;
-
     if (command->abort_on_error) {
       log_msg("exec of '%s' failed, error: %d, status: %d, errno: %d",
               ds_cmd.str, error, status, errno);
       dynstr_free(&ds_cmd);
-      die("command \"%s\" failed\n\nOutput from before failure:\n%s\n",
+      die("Command \"%s\" failed\n\nOutput from before failure:\n%s\n",
           command->first_argument, ds_res.str);
     }
 
     DBUG_PRINT("info", ("error: %d, status: %d", error, status));
 
-    i = match_expected_error(command, status, NULL);
+    int i = match_expected_error(command, status, NULL);
 
     if (i >= 0)
-      DBUG_PRINT("info", ("command \"%s\" failed with expected error: %d",
+      DBUG_PRINT("info", ("Command \"%s\" failed with expected error: %d.",
                           command->first_argument, status));
     else {
       dynstr_free(&ds_cmd);
-      if (command->expected_errors.count > 0)
-        die("command \"%s\" failed with wrong error: %d",
+      if (expected_errors->count() > 0)
+        die("Command \"%s\" failed with wrong error: %d.",
             command->first_argument, status);
     }
-  } else if (command->expected_errors.err[0].type == ERR_ERRNO &&
-             command->expected_errors.err[0].code.errnum != 0) {
+  } else if (expected_errors->count() && expected_errors->type() == ERR_ERRNO &&
+             expected_errors->error_code() != 0) {
     // Error code we wanted was != 0, i.e. not an expected success
-    log_msg("exec of '%s failed, error: %d, errno: %d", ds_cmd.str, error,
+    log_msg("exec of '%s failed, error: %d, errno: %d.", ds_cmd.str, error,
             errno);
     dynstr_free(&ds_cmd);
-    die("command \"%s\" succeeded - should have failed with errno %d...",
-        command->first_argument, command->expected_errors.err[0].code.errnum);
+    die("Command \"%s\" succeeded, should have failed with errno %d.",
+        command->first_argument, expected_errors->error_code());
   }
+
   // Save error code
   {
     const char var_name[] = "__error";
@@ -3073,7 +3224,8 @@ static void do_remove_files_wildcard(struct st_command *command) {
     /* if (!MY_S_ISREG(file->mystat->st_mode)) */
     /* MY_S_ISREG does not work here on Windows, just skip directories */
     if (MY_S_ISDIR(file->mystat->st_mode)) continue;
-    if (wild_compare_full(file->name, ds_wild.str, false, 0, '?', '*'))
+    if (wild_compare_full(file->name, std::strlen(file->name), ds_wild.str,
+                          std::strlen(ds_wild.str), false, 0, '?', '*'))
       continue;
     /* Not required as the var ds_file_to_remove.length already has the
        length in canonnicalized form */
@@ -3193,16 +3345,17 @@ static int recursive_copy(DYNAMIC_STRING *ds_source,
       }
     } else {
       /* Extracting the source directory name */
-      if (ds_source->str[strlen(ds_source->str) - 1] == '/') {
-        strmake(ds_source->str, ds_source->str, strlen(ds_source->str) - 1);
+      if (ds_source->str[std::strlen(ds_source->str) - 1] == '/') {
+        strmake(ds_source->str, ds_source->str,
+                std::strlen(ds_source->str) - 1);
         ds_source->length = ds_source->length - 1;
       }
       char *src_dir_name = strrchr(ds_source->str, '/');
 
       /* Extracting the destination directory name */
-      if (ds_destination->str[strlen(ds_destination->str) - 1] == '/') {
+      if (ds_destination->str[std::strlen(ds_destination->str) - 1] == '/') {
         strmake(ds_destination->str, ds_destination->str,
-                strlen(ds_destination->str) - 1);
+                std::strlen(ds_destination->str) - 1);
         ds_destination->length = ds_destination->length - 1;
       }
       char *dest_dir_name = strrchr(ds_destination->str, '/');
@@ -3218,7 +3371,7 @@ static int recursive_copy(DYNAMIC_STRING *ds_source,
         directory "abc" under "def" and copy the files from source to
         destination directory.
       */
-      if (strcmp(src_dir_name, dest_dir_name)) {
+      if (std::strcmp(src_dir_name, dest_dir_name)) {
         dynstr_append(ds_destination, src_dir_name);
         my_dirend(dest_dir_info);
         dest_dir_info =
@@ -3253,7 +3406,8 @@ static int recursive_copy(DYNAMIC_STRING *ds_source,
       FILEINFO *file = src_dir_info->dir_entry + i;
 
       /* Skip the names "." and ".." */
-      if (!strcmp(file->name, ".") || !strcmp(file->name, "..")) continue;
+      if (!std::strcmp(file->name, ".") || !std::strcmp(file->name, ".."))
+        continue;
 
       dynstr_append(ds_source, file->name);
       dynstr_append(ds_destination, file->name);
@@ -3322,7 +3476,7 @@ static void do_force_cpdir(struct st_command *command) {
     Throw an error if source directory path and
     destination directory path are same.
   */
-  if (!strcmp(ds_source.str, ds_destination.str)) {
+  if (!std::strcmp(ds_source.str, ds_destination.str)) {
     error = 1;
     set_my_errno(EEXIST);
   } else
@@ -3429,7 +3583,8 @@ static void do_copy_files_wildcard(struct st_command *command) {
     if (MY_S_ISDIR(file->mystat->st_mode)) continue;
 
     /* Copy only those files which the pattern matches */
-    if (wild_compare_full(file->name, ds_wild.str, false, 0, '?', '*'))
+    if (wild_compare_full(file->name, std::strlen(file->name), ds_wild.str,
+                          std::strlen(ds_wild.str), false, 0, '?', '*'))
       continue;
 
     match_count++;
@@ -3696,8 +3851,9 @@ static void do_mkdir(struct st_command *command) {
 void do_force_rmdir(struct st_command *command, DYNAMIC_STRING *ds_dirname) {
   DBUG_ENTER("do_force_rmdir");
 
-  char dir_name[FN_REFLEN];
-  strncpy(dir_name, ds_dirname->str, sizeof(dir_name));
+  char dir_name[FN_REFLEN + 1];
+  strncpy(dir_name, ds_dirname->str, sizeof(dir_name) - 1);
+  dir_name[FN_REFLEN] = '\0';
 
   /* Note that my_dir sorts the list if not given any flags */
   MY_DIR *dir_info = my_dir(ds_dirname->str, MYF(MY_DONT_SORT | MY_WANT_STAT));
@@ -3711,7 +3867,8 @@ void do_force_rmdir(struct st_command *command, DYNAMIC_STRING *ds_dirname) {
       FILEINFO *file = dir_info->dir_entry + i;
 
       /* Skip the names "." and ".." */
-      if (!strcmp(file->name, ".") || !strcmp(file->name, "..")) continue;
+      if (!std::strcmp(file->name, ".") || !std::strcmp(file->name, ".."))
+        continue;
 
       ds_dirname->length = length;
       char dir_separator[2] = {FN_LIBCHAR, 0};
@@ -3796,7 +3953,8 @@ static int get_list_files(DYNAMIC_STRING *ds, const DYNAMIC_STRING *ds_dirname,
          (file->name[1] == '.' && file->name[2] == '\0')))
       continue; /* . or .. */
     if (ds_wild && ds_wild->length &&
-        wild_compare_full(file->name, ds_wild->str, false, 0, '?', '*'))
+        wild_compare_full(file->name, std::strlen(file->name), ds_wild->str,
+                          std::strlen(ds_wild->str), false, 0, '?', '*'))
       continue;
     replace_dynstr_append(ds, file->name);
     dynstr_append(ds, "\n");
@@ -4117,7 +4275,7 @@ static void do_diff_files(struct st_command *command) {
 static struct st_connection *find_connection_by_name(const char *name) {
   struct st_connection *con;
   for (con = connections; con < next_con; con++) {
-    if (!strcmp(con->name, name)) {
+    if (!std::strcmp(con->name, name)) {
       return con;
     }
   }
@@ -4277,7 +4435,7 @@ static void do_perl(struct st_command *command) {
     my_close(fd, MYF(0));
 
     /* Compatibility for Perl 5.24 and newer. */
-    string script = "push @INC, \".\";\n";
+    std::string script = "push @INC, \".\";\n";
     script.append(ds_script.str, ds_script.length);
 
     str_to_file(temp_file_path, &script[0], script.size());
@@ -4290,7 +4448,7 @@ static void do_perl(struct st_command *command) {
 
     while (fgets(buf, sizeof(buf), res_file)) {
       if (disable_result_log) {
-        buf[strlen(buf) - 1] = 0;
+        buf[std::strlen(buf) - 1] = 0;
         DBUG_PRINT("exec_result", ("%s", buf));
       } else {
         replace_dynstr_append(&ds_res, buf);
@@ -4377,7 +4535,7 @@ static void do_wait_for_slave_to_stop(
       mysql_free_result(res);
       die("Strange result from query while probing slave for stop");
     }
-    done = !strcmp(row[1], "OFF");
+    done = !std::strcmp(row[1], "OFF");
     mysql_free_result(res);
     if (done) break;
     my_sleep(SLAVE_POLL_INTERVAL);
@@ -4484,7 +4642,7 @@ static void ndb_wait_for_binlog_injector(void) {
   if (!(row = mysql_fetch_row(res)))
     die("Query '%s' returned empty result", query);
 
-  have_ndbcluster = strcmp(row[0], "1") == 0;
+  have_ndbcluster = std::strcmp(row[0], "1") == 0;
   mysql_free_result(res);
 
   if (!have_ndbcluster) {
@@ -4507,15 +4665,17 @@ static void ndb_wait_for_binlog_injector(void) {
     if (mysql_query(mysql, query = "show engine ndb status"))
       die("failed in '%s': %d %s", query, mysql_errno(mysql),
           mysql_error(mysql));
+
     if (!(res = mysql_store_result(mysql)))
       die("mysql_store_result() returned NULL for '%s'", query);
+
     while ((row = mysql_fetch_row(res))) {
-      if (strcmp(row[1], binlog) == 0) {
+      if (std::strcmp(row[1], binlog) == 0) {
         const char *status = row[2];
 
         /* latest_trans_epoch */
-        while (*status && strncmp(status, latest_trans_epoch_str,
-                                  sizeof(latest_trans_epoch_str) - 1))
+        while (*status && std::strncmp(status, latest_trans_epoch_str,
+                                       sizeof(latest_trans_epoch_str) - 1))
           status++;
         if (*status) {
           status += sizeof(latest_trans_epoch_str) - 1;
@@ -4525,8 +4685,9 @@ static void ndb_wait_for_binlog_injector(void) {
               query);
 
         /* latest_handled_binlog */
-        while (*status && strncmp(status, latest_handled_binlog_epoch_str,
-                                  sizeof(latest_handled_binlog_epoch_str) - 1))
+        while (*status &&
+               std::strncmp(status, latest_handled_binlog_epoch_str,
+                            sizeof(latest_handled_binlog_epoch_str) - 1))
           status++;
         if (*status) {
           status += sizeof(latest_handled_binlog_epoch_str) - 1;
@@ -4749,7 +4910,7 @@ static void do_expr(struct st_command *command) {
 
   char math_operator[3];
   strmake(math_operator, operator_start, (p - operator_start));
-  if (!strlen(math_operator))
+  if (!std::strlen(math_operator))
     die("Missing mathematical operator in expr command.");
 
   // Skip spaces after the operator
@@ -4777,31 +4938,31 @@ static void do_expr(struct st_command *command) {
 
   double result;
   // Arithmetic Operators
-  if (!strcmp(math_operator, "+"))
+  if (!std::strcmp(math_operator, "+"))
     result = operand1 + operand2;
-  else if (!strcmp(math_operator, "-"))
+  else if (!std::strcmp(math_operator, "-"))
     result = operand1 - operand2;
-  else if (!strcmp(math_operator, "*"))
+  else if (!std::strcmp(math_operator, "*"))
     result = operand1 * operand2;
-  else if (!strcmp(math_operator, "/"))
+  else if (!std::strcmp(math_operator, "/"))
     result = operand1 / operand2;
-  else if (!strcmp(math_operator, "%"))
+  else if (!std::strcmp(math_operator, "%"))
     result = (int)operand1 % (int)operand2;
   // Logical Operators
-  else if (!strcmp(math_operator, "&&"))
+  else if (!std::strcmp(math_operator, "&&"))
     result = operand1 && operand2;
-  else if (!strcmp(math_operator, "||"))
+  else if (!std::strcmp(math_operator, "||"))
     result = operand1 || operand2;
   // Bitwise Operators
-  else if (!strcmp(math_operator, "&"))
+  else if (!std::strcmp(math_operator, "&"))
     result = (int)operand1 & (int)operand2;
-  else if (!strcmp(math_operator, "|"))
+  else if (!std::strcmp(math_operator, "|"))
     result = (int)operand1 | (int)operand2;
-  else if (!strcmp(math_operator, "^"))
+  else if (!std::strcmp(math_operator, "^"))
     result = (int)operand1 ^ (int)operand2;
-  else if (!strcmp(math_operator, ">>"))
+  else if (!std::strcmp(math_operator, ">>"))
     result = (int)operand1 >> (int)operand2;
-  else if (!strcmp(math_operator, "<<"))
+  else if (!std::strcmp(math_operator, "<<"))
     result = (int)operand1 << (int)operand2;
   else
     die("Invalid operator '%s' in expr command", math_operator);
@@ -5056,7 +5217,7 @@ static void abort_process(int pid, const char *path MY_ATTRIBUTE((unused))) {
       /* Append mysqld.<pid>.dmp to the path. */
       strncpy(name, path, sizeof(name) - 1);
       name[sizeof(name) - 1] = '\0';
-      end = name + strlen(name);
+      end = name + std::strlen(name);
       /* Make sure "/mysqld.nnnnnnnnnn.dmp" fits */
       if ((end - name) < (sizeof(name) - 23)) {
         if (!is_directory_separator(end[-1])) {
@@ -5155,7 +5316,7 @@ static void do_shutdown_server(struct st_command *command) {
     /* Check if we should generate a minidump on timeout. */
     if (query_get_string(mysql, "SHOW VARIABLES LIKE 'core_file'", 1,
                          &ds_file_name) ||
-        strcmp("ON", ds_file_name.c_str())) {
+        std::strcmp("ON", ds_file_name.c_str())) {
     } else {
       /* Get the data dir and use it as path for a minidump if needed. */
       if (query_get_string(mysql, "SHOW VARIABLES LIKE 'datadir'", 1,
@@ -5215,8 +5376,8 @@ uint get_errcode_from_name(char *error_name, char *error_end) {
       matched against in case it was longer than what we are checking
       (as in ER_WRONG_VALUE vs. ER_WRONG_VALUE_COUNT).
     */
-    if (!strncmp(error_name, e->name, (int)(error_end - error_name)) &&
-        (uint)strlen(e->name) == (uint)(error_end - error_name)) {
+    if (!std::strncmp(error_name, e->name, (int)(error_end - error_name)) &&
+        (uint)std::strlen(e->name) == (uint)(error_end - error_name)) {
       DBUG_RETURN(e->code);
     }
   }
@@ -5242,29 +5403,30 @@ const char *get_errname_from_code(uint error_code) {
   DBUG_RETURN("<Unknown>");
 }
 
+/// Get the error code corresponding to an error string or to a
+/// SQLSTATE string.
+///
+/// @param command Pointer to the st_command structure which holds the
+///                arguments and information for the command.
 static void do_get_errcodes(struct st_command *command) {
-  struct st_match_err *to = saved_expected_errors.err;
-  char *p = command->first_argument;
-  uint count = 0;
-  char *next;
-
   DBUG_ENTER("do_get_errcodes");
 
+  char *p = command->first_argument;
   if (!*p) die("Missing argument(s) to 'error'");
 
+  char *next;
   do {
     char *end;
 
-    /* Skip leading spaces */
+    // Skip leading spaces
     while (*p && *p == ' ') p++;
 
     /* Find end */
     end = p;
     while (*end && *end != ',' && *end != ' ') end++;
-
     next = end;
 
-    /* code to handle variables passed to mysqltest */
+    // Code to handle variables passed to mysqltest
     if (*p == '$') {
       const char *fin = NULL;
       VAR *var = var_get(p, &fin, 0, 0);
@@ -5273,87 +5435,79 @@ static void do_get_errcodes(struct st_command *command) {
     }
 
     if (*p == 'S') {
-      char *to_ptr = to->code.sqlstate;
+      // SQLSTATE string
+      //   - Must be SQLSTATE_LENGTH long
+      //   - May contain only digits[0-9] and _uppercase_ letters
+      std::string sqlstate;
 
-      /*
-        SQLSTATE string
-        - Must be SQLSTATE_LENGTH long
-        - May contain only digits[0-9] and _uppercase_ letters
-      */
-      p++; /* Step past the S */
+      // Step pass 'S' character
+      p++;
+
       if ((end - p) != SQLSTATE_LENGTH)
-        die("The sqlstate must be exactly %d chars long", SQLSTATE_LENGTH);
+        die("The sqlstate must be exactly %d chars long.", SQLSTATE_LENGTH);
 
-      /* Check sqlstate string validity */
+      sqlstate.assign(p, SQLSTATE_LENGTH);
+
+      // Check sqlstate string validity
       while (*p && p < end) {
         if (my_isdigit(charset_info, *p) || my_isupper(charset_info, *p))
-          *to_ptr++ = *p++;
+          p++;
         else
           die("The sqlstate may only consist of digits[0-9] "
-              "and _uppercase_ letters");
+              "and _uppercase_ letters.");
       }
 
-      *to_ptr = 0;
-      to->type = ERR_SQLSTATE;
-      DBUG_PRINT("info", ("ERR_SQLSTATE: %s", to->code.sqlstate));
+      expected_errors->add_error(0, sqlstate.c_str(), ERR_SQLSTATE);
+      DBUG_PRINT("info", ("ERR_SQLSTATE: %s", sqlstate.c_str()));
     } else if (*p == 's') {
-      die("The sqlstate definition must start with an uppercase S");
+      die("The sqlstate definition must start with an uppercase S.");
     }
-    /*
-      Code to handle --error <error_string>
-      Checking for both server error names as well as client error names.
-    */
+    // Code to handle --error <error_string>.
+    // Checking for both server error names as well as client error names.
     else if (*p == 'E' || *p == 'C') {
-      /* Error name string */
-
+      // Error name string
       DBUG_PRINT("info", ("Error name: %s", p));
-      to->code.errnum = get_errcode_from_name(p, end);
-      to->type = ERR_ERRNO;
-      DBUG_PRINT("info", ("ERR_ERRNO: %d", to->code.errnum));
+      std::uint32_t error_code = get_errcode_from_name(p, end);
+      expected_errors->add_error(error_code, "00000", ERR_ERRNO);
+      DBUG_PRINT("info", ("ERR_ERRNO: %d", error_code));
     } else if (*p == 'e' || *p == 'c') {
-      die("The error name definition must start with an uppercase E or C");
+      die("The error name definition must start with an uppercase E or C.");
     } else {
-      long val;
       char *start = p;
-      /* Check that the string passed to str2int only contain digits */
+      long val;
+
+      // Check that the string passed to str2int only contain digits
       while (*p && p != end) {
         if (!my_isdigit(charset_info, *p))
-          die("Invalid argument to error: '%s' - "
-              "the errno may only consist of digits[0-9]",
+          die("Invalid argument to error: '%s', the errno may only consist "
+              "of digits[0-9]",
               command->first_argument);
         p++;
       }
 
-      /* Convert the sting to int */
+      // Convert the sting to int
       if (!str2int(start, 10, (long)INT_MIN, (long)INT_MAX, &val))
-        die("Invalid argument to error: '%s'", command->first_argument);
+        die("Invalid argument to error: '%s'.", command->first_argument);
 
-      to->code.errnum = (uint)val;
-      to->type = ERR_ERRNO;
-      DBUG_PRINT("info", ("ERR_ERRNO: %d", to->code.errnum));
+      expected_errors->add_error((unsigned int)val, "00000", ERR_ERRNO);
+      DBUG_PRINT("info", ("ERR_ERRNO: %d", (unsigned int)val));
     }
-    to++;
-    count++;
 
-    if (count >=
-        (sizeof(saved_expected_errors.err) / sizeof(struct st_match_err)))
-      die("Too many errorcodes specified");
+    if (expected_errors->count() >= MAX_ERROR_COUNT)
+      die("Too many errorcodes specified.");
 
-    /* Set pointer to the end of the last error code */
+    // Set pointer to the end of the last error code
     p = next;
 
-    /* Find next ',' */
+    // Find next ','
     while (*p && *p != ',') p++;
 
-    if (*p) p++; /* Step past ',' */
-
+    // Step past ','
+    if (*p) p++;
   } while (*p);
 
   command->last_argument = p;
-  to->type = ERR_EMPTY; /* End of data */
-
-  DBUG_PRINT("info", ("Expected errors: %d", count));
-  saved_expected_errors.count = count;
+  DBUG_PRINT("info", ("Expected errors: %d", expected_errors->count()));
   DBUG_VOID_RETURN;
 }
 
@@ -5621,29 +5775,26 @@ static void safe_connect(MYSQL *mysql, const char *name, const char *host,
   DBUG_VOID_RETURN;
 }
 
-/*
-  Connect to a server and handle connection errors in case they occur.
-
-  SYNOPSIS
-  connect_n_handle_errors()
-  q                 - context of connect "query" (command)
-  con               - connection structure to be used
-  host, user, pass, - connection parameters
-  db, port, sock
-
-  DESCRIPTION
-  This function will try to establish a connection to server and handle
-  possible errors in the same manner as if "connect" was usual SQL-statement
-  (If error is expected it will ignore it once it occurs and log the
-  "statement" to the query log).
-  Unlike safe_connect() it won't do several attempts.
-
-  RETURN VALUES
-  1 - Connected
-  0 - Not connected
-
-*/
-
+/// Connect to a server and handle connection errors in case they
+/// occur.
+///
+/// This function will try to establish a connection to server and
+/// handle possible errors in the same manner as if "connect" was usual
+/// SQL-statement. If an error is expected it will ignore it once it
+/// occurs and log the "statement" to the query log. Unlike
+/// safe_connect() it won't do several attempts.
+///
+/// @param command Pointer to the st_command structure which holds the
+///                     arguments and information for the command.
+/// @param con     Connection structure to be used
+/// @param host    Host name
+/// @param user    User name
+/// @param pass    Password
+/// @param db      Database name
+/// @param port    Port number
+/// @param sock    Socket value
+///
+/// @retval 1 if connection succeeds, 0 otherwise
 static int connect_n_handle_errors(struct st_command *command, MYSQL *con,
                                    const char *host, const char *user,
                                    const char *pass, const char *db, int port,
@@ -5654,7 +5805,7 @@ static int connect_n_handle_errors(struct st_command *command, MYSQL *con,
   ds = &ds_res;
 
   /* Only log if an error is expected */
-  if (command->expected_errors.count > 0 && !disable_query_log) {
+  if (expected_errors->count() > 0 && !disable_query_log) {
     /*
       Log the connect to result log
     */
@@ -5841,19 +5992,19 @@ static void do_connect(struct st_command *command) {
     char cur_con_option[10];
     strmake(cur_con_option, con_options, con_option_len);
 
-    if (!strcmp(cur_con_option, "SSL"))
+    if (!std::strcmp(cur_con_option, "SSL"))
       con_ssl = 1;
-    else if (!strcmp(cur_con_option, "COMPRESS"))
+    else if (!std::strcmp(cur_con_option, "COMPRESS"))
       con_compress = 1;
-    else if (!strcmp(cur_con_option, "PIPE"))
+    else if (!std::strcmp(cur_con_option, "PIPE"))
       con_pipe = 1;
-    else if (!strcmp(cur_con_option, "SHM"))
+    else if (!std::strcmp(cur_con_option, "SHM"))
       con_shm = 1;
-    else if (!strcmp(cur_con_option, "CLEARTEXT"))
+    else if (!std::strcmp(cur_con_option, "CLEARTEXT"))
       con_cleartext_enable = 1;
-    else if (!strcmp(cur_con_option, "SOCKET"))
+    else if (!std::strcmp(cur_con_option, "SOCKET"))
       con_socket = 1;
-    else if (!strcmp(cur_con_option, "TCP"))
+    else if (!std::strcmp(cur_con_option, "TCP"))
       con_tcp = 1;
     else
       die("Illegal option to connect: %s", cur_con_option);
@@ -5961,7 +6112,7 @@ static void do_connect(struct st_command *command) {
                   (char *)&con_cleartext_enable);
 
   /* Special database to allow one to connect without a database name */
-  if (ds_database.length && !strcmp(ds_database.str, "*NO-ONE*"))
+  if (ds_database.length && !std::strcmp(ds_database.str, "*NO-ONE*"))
     dynstr_set(&ds_database, "");
 
   if (connect_n_handle_errors(command, &con_slot->mysql, ds_host.str,
@@ -5973,7 +6124,7 @@ static void do_connect(struct st_command *command) {
     if (!(con_slot->name = my_strdup(PSI_NOT_INSTRUMENTED,
                                      ds_connection_name.str, MYF(MY_WME))))
       die("Out of memory");
-    con_slot->name_len = strlen(con_slot->name);
+    con_slot->name_len = std::strlen(con_slot->name);
     set_current_connection(con_slot);
 
     if (con_slot == next_con)
@@ -6010,7 +6161,7 @@ static int do_done(struct st_command *command) {
     if (*cur_block->delim) {
       /* Restore "old" delimiter after false if block */
       strcpy(delimiter, cur_block->delim);
-      delimiter_length = strlen(delimiter);
+      delimiter_length = std::strlen(delimiter);
     }
     /* Pop block from stack, goto next line */
     cur_block--;
@@ -6167,14 +6318,14 @@ static void do_block(enum block_cmd cmd, struct st_command *command) {
         if (v.is_int)
           v.int_val = (v2.is_int && v2.int_val == v.int_val);
         else
-          v.int_val = !strcmp(v.str_val, v2.str_val);
+          v.int_val = !std::strcmp(v.str_val, v2.str_val);
         break;
 
       case NE_OP:
         if (v.is_int)
           v.int_val = !(v2.is_int && v2.int_val == v.int_val);
         else
-          v.int_val = (strcmp(v.str_val, v2.str_val) != 0);
+          v.int_val = (std::strcmp(v.str_val, v2.str_val) != 0);
         break;
 
       case LT_OP:
@@ -6243,7 +6394,7 @@ static void do_delimiter(struct st_command *command) {
   if (!(*p)) die("Can't set empty delimiter");
 
   strmake(delimiter, p, sizeof(delimiter) - 1);
-  delimiter_length = strlen(delimiter);
+  delimiter_length = std::strlen(delimiter);
 
   DBUG_PRINT("exit", ("delimiter: %s", delimiter));
   command->last_argument = p + delimiter_length;
@@ -6376,10 +6527,10 @@ static int read_line(char *buf, int size) {
         } else if ((c == '{' &&
                     (!charset_info->coll->strnncoll(
                          charset_info, (const uchar *)"while", 5, (uchar *)buf,
-                         min<my_ptrdiff_t>(5, p - buf), 0) ||
+                         std::min<my_ptrdiff_t>(5, p - buf), 0) ||
                      !charset_info->coll->strnncoll(
                          charset_info, (const uchar *)"if", 2, (uchar *)buf,
-                         min<my_ptrdiff_t>(2, p - buf), 0)))) {
+                         std::min<my_ptrdiff_t>(2, p - buf), 0)))) {
           /* Only if and while commands can be terminated by { */
           *p++ = c;
           *p = 0;
@@ -6584,7 +6735,7 @@ void check_eol_junk_line(const char *line) {
   DBUG_PRINT("enter", ("line: %s", line));
 
   /* Check for extra delimiter */
-  if (*p && !strncmp(p, delimiter, delimiter_length))
+  if (*p && !std::strncmp(p, delimiter, delimiter_length))
     die("Extra delimiter \"%s\" found", delimiter);
 
   /* Allow trailing # comment */
@@ -6717,18 +6868,22 @@ static int read_command(struct st_command **command_ptr) {
 }
 
 static struct my_option my_long_options[] = {
-    {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
-     0, 0, 0, 0, 0},
+#include "caching_sha2_passwordopt-longopts.h"
+#include "sslopt-longopts.h"
     {"basedir", 'b', "Basedir for tests.", &opt_basedir, &opt_basedir, 0,
      GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {"character-sets-dir", OPT_CHARSETS_DIR,
      "Directory for character set files.", &opt_charsets_dir, &opt_charsets_dir,
      0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"default-character-set", OPT_DEFAULT_CHARSET,
-     "Set the default character set.", &default_charset, &default_charset, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    {"colored-diff", OPT_COLORED_DIFF, "Colorize the diff outout.",
+     &opt_colored_diff, &opt_colored_diff, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
+     0},
     {"compress", 'C', "Use the compressed server/client protocol.",
      &opt_compress, &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"connect_timeout", OPT_CONNECT_TIMEOUT,
+     "Number of seconds before connection timeout.", &opt_connect_timeout,
+     &opt_connect_timeout, 0, GET_UINT, REQUIRED_ARG, 120, 0, 3600 * 12, 0, 0,
+     0},
     {"cursor-protocol", OPT_CURSOR_PROTOCOL,
      "Use cursors for prepared statements.", &cursor_protocol, &cursor_protocol,
      0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -6752,10 +6907,24 @@ static struct my_option my_long_options[] = {
     {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
      &debug_info_flag, &debug_info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+    {"default-character-set", OPT_DEFAULT_CHARSET,
+     "Set the default character set.", &default_charset, &default_charset, 0,
+     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    {"explain-protocol", OPT_EXPLAIN_PROTOCOL,
+     "Explain all SELECT/INSERT/REPLACE/UPDATE/DELETE statements",
+     &explain_protocol, &explain_protocol, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
+     0},
+    {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
+     0, 0, 0, 0, 0},
     {"host", 'h', "Connect to host.", &opt_host, &opt_host, 0, GET_STR,
      REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {"include", 'i', "Include SQL before each test case.", &opt_include,
      &opt_include, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    {"json-explain-protocol", OPT_JSON_EXPLAIN_PROTOCOL,
+     "Explain all SELECT/INSERT/REPLACE/UPDATE/DELETE statements with "
+     "FORMAT=JSON",
+     &json_explain_protocol, &json_explain_protocol, 0, GET_BOOL, NO_ARG, 0, 0,
+     0, 0, 0, 0},
     {"logdir", OPT_LOG_DIR, "Directory for log files", &opt_logdir, &opt_logdir,
      0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {"mark-progress", OPT_MARK_PROGRESS,
@@ -6769,11 +6938,20 @@ static struct my_option my_long_options[] = {
     {"max-connections", OPT_MAX_CONNECTIONS,
      "Max number of open connections to server", &opt_max_connections,
      &opt_max_connections, 0, GET_INT, REQUIRED_ARG, 128, 8, 5120, 0, 0, 0},
+    {"no-skip", OPT_NO_SKIP, "Force the test to run without skip.", &no_skip,
+     &no_skip, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"no-skip-exclude-list", 'n',
+     "Contains comma seperated list of to be excluded inc files.",
+     &excluded_string, &excluded_string, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
+     0, 0},
+    {"opt-trace-protocol", OPT_TRACE_PROTOCOL,
+     "Trace DML statements with optimizer trace", &opt_trace_protocol,
+     &opt_trace_protocol, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
     {"password", 'p', "Password to use when connecting to server.", 0, 0, 0,
      GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-    {"protocol", OPT_MYSQL_PROTOCOL,
-     "The protocol of connection (tcp,socket,pipe,memory).", 0, 0, 0, GET_STR,
-     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
+     &opt_plugin_dir, &opt_plugin_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0,
+     0},
     {"port", 'P',
      "Port number to use for connection or 0 for default to, in "
      "order of preference, my.cnf, $MYSQL_TCP_PORT, "
@@ -6782,6 +6960,9 @@ static struct my_option my_long_options[] = {
 #endif
      "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
      &opt_port, &opt_port, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    {"protocol", OPT_MYSQL_PROTOCOL,
+     "The protocol of connection (tcp,socket,pipe,memory).", 0, 0, 0, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {"ps-protocol", OPT_PS_PROTOCOL,
      "Use prepared-statement protocol for communication.", &ps_protocol,
      &ps_protocol, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -6795,6 +6976,11 @@ static struct my_option my_long_options[] = {
     {"result-format-version", OPT_RESULT_FORMAT_VERSION,
      "Version of the result file format to use", &opt_result_format_version,
      &opt_result_format_version, 0, GET_INT, REQUIRED_ARG, 1, 1, 2, 0, 0, 0},
+#ifdef _WIN32
+    {"safe-process-pid", OPT_SAFEPROCESS_PID, "PID of safeprocess.",
+     &opt_safe_process_pid, &opt_safe_process_pid, 0, GET_INT, REQUIRED_ARG, 0,
+     0, 0, 0, 0, 0},
+#endif
     {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
      "Base name of shared memory.", &shared_memory_base_name,
      &shared_memory_base_name, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -6806,21 +6992,12 @@ static struct my_option my_long_options[] = {
      &unix_sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {"sp-protocol", OPT_SP_PROTOCOL, "Use stored procedures for select.",
      &sp_protocol, &sp_protocol, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"no-skip", OPT_NO_SKIP, "Force the test to run without skip.", &no_skip,
-     &no_skip, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-#include "caching_sha2_passwordopt-longopts.h"
-#include "sslopt-longopts.h"
-
     {"tail-lines", OPT_TAIL_LINES,
      "Number of lines of the result to include in a failure report.",
      &opt_tail_lines, &opt_tail_lines, 0, GET_INT, REQUIRED_ARG, 0, 0, 10000, 0,
      0, 0},
     {"test-file", 'x', "Read test from/in this file (default stdin).", 0, 0, 0,
      GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"no-skip-exclude-list", 'n',
-     "Contains comma seperated list of to be excluded inc files.",
-     &excluded_string, &excluded_string, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
-     0, 0},
     {"timer-file", 'm', "File where the timing in microseconds is stored.", 0,
      0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {"tmpdir", 't', "Temporary directory where sockets are put.", 0, 0, 0,
@@ -6835,25 +7012,6 @@ static struct my_option my_long_options[] = {
      GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
     {"view-protocol", OPT_VIEW_PROTOCOL, "Use views for select.",
      &view_protocol, &view_protocol, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"opt-trace-protocol", OPT_TRACE_PROTOCOL,
-     "Trace DML statements with optimizer trace", &opt_trace_protocol,
-     &opt_trace_protocol, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"explain-protocol", OPT_EXPLAIN_PROTOCOL,
-     "Explain all SELECT/INSERT/REPLACE/UPDATE/DELETE statements",
-     &explain_protocol, &explain_protocol, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
-     0},
-    {"json-explain-protocol", OPT_JSON_EXPLAIN_PROTOCOL,
-     "Explain all SELECT/INSERT/REPLACE/UPDATE/DELETE statements with "
-     "FORMAT=JSON",
-     &json_explain_protocol, &json_explain_protocol, 0, GET_BOOL, NO_ARG, 0, 0,
-     0, 0, 0, 0},
-    {"connect_timeout", OPT_CONNECT_TIMEOUT,
-     "Number of seconds before connection timeout.", &opt_connect_timeout,
-     &opt_connect_timeout, 0, GET_UINT, REQUIRED_ARG, 120, 0, 3600 * 12, 0, 0,
-     0},
-    {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
-     &opt_plugin_dir, &opt_plugin_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0,
-     0},
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
 static void usage() {
@@ -7123,7 +7281,7 @@ void init_win_path_patterns() {
       p = my_strdup(PSI_NOT_INSTRUMENTED, paths[i], MYF(MY_FAE));
 
     /* Don't insert zero length strings in patterns array */
-    if (strlen(p) == 0) {
+    if (std::strlen(p) == 0) {
       my_free(p);
       continue;
     }
@@ -7201,7 +7359,7 @@ static void append_field(DYNAMIC_STRING *ds, uint col_idx, MYSQL_FIELD *field,
 
   if (col_idx < max_replace_column && replace_column[col_idx]) {
     val = replace_column[col_idx];
-    len = strlen(val);
+    len = std::strlen(val);
   } else if (is_null) {
     val = null;
     len = 4;
@@ -7212,8 +7370,8 @@ static void append_field(DYNAMIC_STRING *ds, uint col_idx, MYSQL_FIELD *field,
            field->decimals >= 31) {
     /* Convert 1.2e+018 to 1.2e+18 and 1.2e-018 to 1.2e-18 */
     char *start = strchr(val, 'e');
-    if (start && strlen(start) >= 5 && (start[1] == '-' || start[1] == '+') &&
-        start[2] == '0') {
+    if (start && std::strlen(start) >= 5 &&
+        (start[1] == '-' || start[1] == '+') && start[2] == '0') {
       start += 2; /* Now points at first '0' */
       if (field->flags & ZEROFILL_FLAG) {
         /* Move all chars before the first '0' one step right */
@@ -7221,7 +7379,7 @@ static void append_field(DYNAMIC_STRING *ds, uint col_idx, MYSQL_FIELD *field,
         *val = '0';
       } else {
         /* Move all chars after the first '0' one step left */
-        memmove(start, start + 1, strlen(start));
+        memmove(start, start + 1, std::strlen(start));
         len--;
       }
     }
@@ -7591,160 +7749,6 @@ end:
 }
 
 /*
-  Check whether given error is in list of expected errors
-
-  SYNOPSIS
-    match_expected_error()
-
-  PARAMETERS
-    command        the current command (and its expect-list)
-    err_errno      error number of the error that actually occurred
-    err_sqlstate   SQL-state that was thrown, or NULL for impossible
-                   (file-ops, diff, etc.)
-
-  RETURNS
-    -1 for not in list, index in list of expected errors otherwise
-
-  NOTE
-    If caller needs to know whether the list was empty, they should
-    check command->expected_errors.count.
-*/
-
-static int match_expected_error(struct st_command *command,
-                                unsigned int err_errno,
-                                const char *err_sqlstate) {
-  uint i;
-
-  for (i = 0; (uint)i < command->expected_errors.count; i++) {
-    if ((command->expected_errors.err[i].type == ERR_ERRNO) &&
-        (command->expected_errors.err[i].code.errnum == err_errno))
-      return i;
-
-    if (command->expected_errors.err[i].type == ERR_SQLSTATE) {
-      /*
-        NULL is quite likely, but not in conjunction with a SQL-state expect!
-      */
-      if (unlikely(err_sqlstate == NULL))
-        die("expecting a SQL-state (%s) from query '%s' which cannot produce "
-            "one...",
-            command->expected_errors.err[i].code.sqlstate, command->query);
-
-      if (strncmp(command->expected_errors.err[i].code.sqlstate, err_sqlstate,
-                  SQLSTATE_LENGTH) == 0)
-        return i;
-    }
-  }
-  return -1;
-}
-
-/*
-  Handle errors which occurred during execution
-
-  SYNOPSIS
-  handle_error()
-  q     - query context
-  err_errno - error number
-  err_error - error message
-  err_sqlstate - sql state
-  ds    - dynamic string which is used for output buffer
-
-  NOTE
-    If there is an unexpected error this function will abort mysqltest
-    immediately.
-*/
-
-void handle_error(struct st_command *command, unsigned int err_errno,
-                  const char *err_error, const char *err_sqlstate,
-                  DYNAMIC_STRING *ds) {
-  int i;
-
-  DBUG_ENTER("handle_error");
-
-  if (command->abort_on_error)
-    die("query '%s' failed: %d: %s", command->query, err_errno, err_error);
-
-  DBUG_PRINT("info",
-             ("expected_errors.count: %d", command->expected_errors.count));
-
-  i = match_expected_error(command, err_errno, err_sqlstate);
-
-  if (i >= 0) {
-    if (!disable_result_log) {
-      if (command->expected_errors.count == 1) {
-        /* Only log error if there is one possible error */
-        dynstr_append_mem(ds, "ERROR ", 6);
-        replace_dynstr_append(ds, err_sqlstate);
-        dynstr_append_mem(ds, ": ", 2);
-        replace_dynstr_append(ds, err_error);
-        dynstr_append_mem(ds, "\n", 1);
-      }
-      /* Don't log error if we may not get an error */
-      else if (command->expected_errors.err[0].type == ERR_SQLSTATE ||
-               (command->expected_errors.err[0].type == ERR_ERRNO &&
-                command->expected_errors.err[0].code.errnum != 0))
-        dynstr_append(ds, "Got one of the listed errors\n");
-    }
-    /* OK */
-    revert_properties();
-    DBUG_VOID_RETURN;
-  }
-
-  DBUG_PRINT("info",
-             ("i: %d  expected_errors: %d", i, command->expected_errors.count));
-
-  if (!disable_result_log) {
-    dynstr_append_mem(ds, "ERROR ", 6);
-    replace_dynstr_append(ds, err_sqlstate);
-    dynstr_append_mem(ds, ": ", 2);
-    replace_dynstr_append(ds, err_error);
-    dynstr_append_mem(ds, "\n", 1);
-  }
-
-  if (command->expected_errors.count > 0) {
-    if (command->expected_errors.err[0].type == ERR_ERRNO)
-      die("query '%s' failed with wrong errno %d: '%s', instead of %d...",
-          command->query, err_errno, err_error,
-          command->expected_errors.err[0].code.errnum);
-    else
-      die("query '%s' failed with wrong sqlstate %s: '%s', instead of %s...",
-          command->query, err_sqlstate, err_error,
-          command->expected_errors.err[0].code.sqlstate);
-  }
-
-  revert_properties();
-  DBUG_VOID_RETURN;
-}
-
-/*
-  Handle absence of errors after execution
-
-  SYNOPSIS
-  handle_no_error()
-  q - context of query
-
-  RETURN VALUE
-  error - function will not return
-*/
-
-void handle_no_error(struct st_command *command) {
-  DBUG_ENTER("handle_no_error");
-
-  if (command->expected_errors.err[0].type == ERR_ERRNO &&
-      command->expected_errors.err[0].code.errnum != 0) {
-    /* Error code we wanted was != 0, i.e. not an expected success */
-    die("query '%s' succeeded - should have failed with errno %d...",
-        command->query, command->expected_errors.err[0].code.errnum);
-  } else if (command->expected_errors.err[0].type == ERR_SQLSTATE &&
-             strcmp(command->expected_errors.err[0].code.sqlstate, "00000") !=
-                 0) {
-    /* SQLSTATE we wanted was != "00000", i.e. not an expected success */
-    die("query '%s' succeeded - should have failed with sqlstate %s...",
-        command->query, command->expected_errors.err[0].code.sqlstate);
-  }
-  DBUG_VOID_RETURN;
-}
-
-/*
   Run query using prepared statement C API
 
   SYNPOSIS
@@ -8037,7 +8041,7 @@ static void run_query(struct st_connection *cn, struct st_command *command,
     query_len = eval_query.length;
   } else {
     query = command->query;
-    query_len = strlen(query);
+    query_len = std::strlen(query);
   }
 
   /*
@@ -8086,7 +8090,7 @@ static void run_query(struct st_connection *cn, struct st_command *command,
       */
       view_created = 1;
       query = (char *)"SELECT * FROM mysqltest_tmp_v";
-      query_len = strlen(query);
+      query_len = std::strlen(query);
 
       /*
         Collect warnings from create of the view that should otherwise
@@ -8127,7 +8131,7 @@ static void run_query(struct st_connection *cn, struct st_command *command,
       sp_created = 1;
 
       query = (char *)"CALL mysqltest_tmp_sp()";
-      query_len = strlen(query);
+      query_len = std::strlen(query);
     }
     dynstr_free(&query_str);
   }
@@ -8195,8 +8199,7 @@ static void run_query(struct st_connection *cn, struct st_command *command,
 static void display_opt_trace(struct st_connection *cn,
                               struct st_command *command, int flags) {
   if (!disable_query_log && opt_trace_protocol_enabled && !cn->pending &&
-      !command->expected_errors.count &&
-      match_re(&opt_trace_re, command->query)) {
+      !expected_errors->count() && match_re(&opt_trace_re, command->query)) {
     st_command save_command = *command;
     DYNAMIC_STRING query_str;
     init_dynamic_string(&query_str,
@@ -8221,7 +8224,7 @@ static void display_opt_trace(struct st_connection *cn,
 
 static void run_explain(struct st_connection *cn, struct st_command *command,
                         int flags, bool json) {
-  if ((flags & QUERY_REAP_FLAG) && !command->expected_errors.count &&
+  if ((flags & QUERY_REAP_FLAG) && !expected_errors->count() &&
       match_re(&explain_re, command->query)) {
     st_command save_command = *command;
     DYNAMIC_STRING query_str;
@@ -8440,17 +8443,6 @@ static void get_command_type(struct st_command *command) {
   DBUG_VOID_RETURN;
 }
 
-void update_expected_errors(struct st_command *command) {
-  DBUG_ENTER("update_expected_errors");
-
-  /* Set expected error on command */
-  memcpy(&command->expected_errors, &saved_expected_errors,
-         sizeof(saved_expected_errors));
-  DBUG_PRINT("info",
-             ("There are %d expected errors", command->expected_errors.count));
-  DBUG_VOID_RETURN;
-}
-
 /*
   Record how many milliseconds it took to execute the test file
   up until the current line and write it to .progress file
@@ -8495,26 +8487,30 @@ static void mark_progress(struct st_command *command MY_ATTRIBUTE((unused)),
 }
 
 #ifdef HAVE_STACKTRACE
-
-static void dump_backtrace(void) {
+static void dump_backtrace() {
   struct st_connection *conn = cur_con;
 
-  fprintf(stderr, "read_command_buf (%p): ", read_command_buf);
-  my_safe_puts_stderr(read_command_buf, sizeof(read_command_buf));
+  fprintf(stderr, "mysqltest: ");
 
-  if (conn) {
-    fprintf(stderr, "conn->name (%p): ", conn->name);
-    my_safe_puts_stderr(conn->name, conn->name_len);
+  // Print the query and the line number
+  if (start_lineno > 0) fprintf(stderr, "At line %u: ", start_lineno);
+  fprintf(stderr, "%s\n", curr_command->query);
+
+  // Print the file stack
+  if (cur_file && cur_file != file_stack) {
+    fprintf(stderr, "In included ");
+    print_file_stack();
   }
-  fputs("Attempting backtrace...\n", stderr);
+
+  if (conn) fprintf(stderr, "conn->name: %s\n", conn->name);
+
+  fprintf(stderr, "Attempting backtrace.\n");
+  fflush(stderr);
   my_print_stacktrace(NULL, my_thread_stack_size);
 }
 
 #else
-
-static void dump_backtrace(void) {
-  fputs("Backtrace not available.\n", stderr);
-}
+static void dump_backtrace() { fputs("Backtrace not available.\n", stderr); }
 
 #endif
 
@@ -8522,11 +8518,12 @@ static void signal_handler(int sig) {
   fprintf(stderr, "mysqltest got " SIGNAL_FMT "\n", sig);
   dump_backtrace();
 
-  fprintf(stderr, "Writing a core file...\n");
+  fprintf(stderr, "Writing a core file.\n");
   fflush(stderr);
   my_write_core(sig);
 #ifndef _WIN32
-  exit(1);  // Shouldn't get here but just in case
+  // Shouldn't get here but just in case
+  exit(1);
 #endif
 }
 
@@ -8546,6 +8543,10 @@ LONG WINAPI exception_filter(EXCEPTION_POINTERS *exp) {
 static void init_signal_handling(void) {
   UINT mode;
 
+  mysqltest_thread = OpenThread(THREAD_ALL_ACCESS, FALSE, GetCurrentThreadId());
+  if (mysqltest_thread == NULL)
+    die("OpenThread failed, err = %d.", GetLastError());
+
   /* Set output destination of messages to the standard error stream. */
   _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
   _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
@@ -8559,6 +8560,90 @@ static void init_signal_handling(void) {
   SetErrorMode(mode);
 
   SetUnhandledExceptionFilter(exception_filter);
+}
+
+/// Function to handle the stacktrace request event.
+///
+/// - Suspend the thread running the test
+/// - Fetch CONTEXT record from the thread handle
+/// - Initialize EXCEPTION_RECORD structure
+/// - Use EXCEPTION_POINTERS and EXCEPTION_RECORD to set EXCEPTION_POINTERS
+///   structure
+/// - Call exception_filter() method to generate to stack trace
+/// - Resume the suspended test thread
+static void handle_wait_stacktrace_request_event() {
+  fprintf(stderr, "Test case timeout failure.\n");
+
+  // Suspend the thread running the test
+  if (SuspendThread(mysqltest_thread) == -1) {
+    DWORD error = GetLastError();
+    CloseHandle(mysqltest_thread);
+    die("Error suspending thread, err = %d.\n", error);
+  }
+
+  // Fetch the thread context
+  CONTEXT test_thread_ctx = {0};
+  test_thread_ctx.ContextFlags = CONTEXT_FULL;
+
+  if (GetThreadContext(mysqltest_thread, &test_thread_ctx) == FALSE) {
+    DWORD error = GetLastError();
+    CloseHandle(mysqltest_thread);
+    die("Error while fetching thread conext information, err = %d.\n", error);
+  }
+
+  EXCEPTION_POINTERS exp = {0};
+  exp.ContextRecord = &test_thread_ctx;
+
+  // Set up an Exception record with EXCEPTION_BREAKPOINT code
+  EXCEPTION_RECORD exc_rec = {0};
+  exc_rec.ExceptionCode = EXCEPTION_BREAKPOINT;
+  exp.ExceptionRecord = &exc_rec;
+
+  exception_filter(&exp);
+
+  // Resume the suspended test thread
+  if (ResumeThread(mysqltest_thread) == -1) {
+    DWORD error = GetLastError();
+    CloseHandle(mysqltest_thread);
+    die("Error resuming thread, err = %d.\n", error);
+  }
+
+  my_set_exception_pointers(nullptr);
+}
+
+/// Thread waiting for timeout event to occur. If the event occurs,
+/// this method will trigger signal_handler() function.
+static void wait_stacktrace_request_event() {
+  DWORD wait_res = WaitForSingleObject(stacktrace_request_event, INFINITE);
+  switch (wait_res) {
+    case WAIT_OBJECT_0:
+      handle_wait_stacktrace_request_event();
+      break;
+    default:
+      die("Unexpected result %d from WaitForSingleObject.", wait_res);
+      break;
+  }
+  CloseHandle(stacktrace_request_event);
+}
+
+/// Create an event name from the safeprocess PID value of the form
+/// mysqltest[%d]stacktrace and spawn thread waiting for that event
+/// to occur.
+///
+/// When this event occurs, signal_handler() method is called and
+/// stacktrace for the mysqltest client process is printed in the
+/// log file.
+static void create_stacktrace_request_event() {
+  char event_name[64];
+  std::sprintf(event_name, "mysqltest[%d]stacktrace", opt_safe_process_pid);
+
+  // Create an event for the signal handler
+  if ((stacktrace_request_event = CreateEvent(NULL, TRUE, FALSE, event_name)) ==
+      NULL)
+    die("Failed to create timeout_event.");
+
+  wait_for_stacktrace_request_event_thread =
+      std::thread(wait_stacktrace_request_event);
 }
 
 #else /* _WIN32 */
@@ -8602,9 +8687,6 @@ int main(int argc, char **argv) {
 
   init_signal_handling();
 
-  /* Init expected errors */
-  memset(&saved_expected_errors, 0, sizeof(saved_expected_errors));
-
   /* Init file stack */
   memset(file_stack, 0, sizeof(file_stack));
   file_stack_end =
@@ -8621,8 +8703,9 @@ int main(int argc, char **argv) {
 
   q_lines = new Q_lines(PSI_NOT_INSTRUMENTED);
 
-  var_hash = new collation_unordered_map<string, unique_ptr<VAR, var_free>>(
-      charset_info, PSI_NOT_INSTRUMENTED);
+  var_hash =
+      new collation_unordered_map<std::string, std::unique_ptr<VAR, var_free>>(
+          charset_info, PSI_NOT_INSTRUMENTED);
 
   {
     char path_separator[] = {FN_LIBCHAR, 0};
@@ -8652,6 +8735,11 @@ int main(int argc, char **argv) {
   init_dynamic_string(&ds_result, "", 1024, 1024);
 
   parse_args(argc, argv);
+
+#ifdef _WIN32
+  // Create an event to request stack trace when timeout occurs
+  if (opt_safe_process_pid) create_stacktrace_request_event();
+#endif
 
   /* Init connections, allocate 1 extra as buffer + 1 for default */
   connections = (struct st_connection *)my_malloc(
@@ -8699,7 +8787,7 @@ int main(int argc, char **argv) {
     result file doesn't exist
   */
   if (!result_file_name) {
-    if (strcmp(cur_file->file_name, "<stdin>"))
+    if (std::strcmp(cur_file->file_name, "<stdin>"))
       temp_log_file.open(opt_logdir, cur_file->file_name, ".log");
     else
       temp_log_file.open(opt_logdir, "stdin", ".log");
@@ -8709,7 +8797,7 @@ int main(int argc, char **argv) {
     if (result_file_name)
       progress_file.open(opt_logdir, result_file_name, ".progress");
     else {
-      if (strcmp(cur_file->file_name, "<stdin>"))
+      if (std::strcmp(cur_file->file_name, "<stdin>"))
         progress_file.open(opt_logdir, cur_file->file_name, ".progress");
       else
         progress_file.open(opt_logdir, "stdin", ".progress");
@@ -8738,7 +8826,7 @@ int main(int argc, char **argv) {
                   (void *)&opt_connect_timeout);
   if (opt_compress) mysql_options(&con->mysql, MYSQL_OPT_COMPRESS, NullS);
   mysql_options(&con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
-  if (strcmp(default_charset, charset_info->csname) &&
+  if (std::strcmp(default_charset, charset_info->csname) &&
       !(charset_info =
             get_charset_by_csname(default_charset, MY_CS_PRIMARY, MYF(MY_WME))))
     die("Invalid character set specified.");
@@ -8752,7 +8840,7 @@ int main(int argc, char **argv) {
 #if defined(HAVE_OPENSSL)
   /* Turn on VERIFY_IDENTITY mode only if host=="localhost". */
   if (opt_ssl_mode == SSL_MODE_VERIFY_IDENTITY) {
-    if (!opt_host || strcmp(opt_host, "localhost"))
+    if (!opt_host || std::strcmp(opt_host, "localhost"))
       opt_ssl_mode = SSL_MODE_VERIFY_CA;
   }
 #endif
@@ -8797,10 +8885,9 @@ int main(int argc, char **argv) {
     if (command->type == Q_UNKNOWN || command->type == Q_COMMENT_WITH_COMMAND)
       get_command_type(command);
 
-    if ((saved_expected_errors.count > 0) ||
-        (command->expected_errors.count > 0)) {
-      update_expected_errors(command);
-    }
+    if (command->type == Q_ERROR && expected_errors->count())
+      // Delete all the error codes from previous 'error' command.
+      expected_errors->clear_error_list();
 
     if (parsing_disabled && command->type != Q_ENABLE_PARSING &&
         command->type != Q_DISABLE_PARSING) {
@@ -8809,8 +8896,7 @@ int main(int argc, char **argv) {
     }
 
     /* (Re-)set abort_on_error for this command */
-    command->abort_on_error =
-        (command->expected_errors.count == 0 && abort_on_error);
+    command->abort_on_error = (expected_errors->count() == 0 && abort_on_error);
 
     /* delimiter needs to be executed so we can continue to parse */
     bool ok_to_do = cur_block->ok || command->type == Q_DELIMITER;
@@ -9291,11 +9377,9 @@ int main(int argc, char **argv) {
 
     if (command->type != Q_ERROR && command->type != Q_COMMENT &&
         command->type != Q_IF && command->type != Q_END_BLOCK) {
-      /*
-        As soon as any non "error" command or comment has been executed,
-        the array with expected errors should be cleared
-      */
-      memset(&saved_expected_errors, 0, sizeof(saved_expected_errors));
+      // As soon as any non "error" command or comment has been executed,
+      // the array with expected errors should be cleared
+      expected_errors->clear_error_list();
     }
 
     if (command_executed != last_command_executed || command->used_replace) {
@@ -9319,8 +9403,8 @@ int main(int argc, char **argv) {
     log_file.flush();
 
     if (!result_file_name) {
-      temp_log_file.flush();
       temp_log_file.write(&ds_res);
+      temp_log_file.flush();
     }
     dynstr_set(&ds_res, 0);
   }
@@ -9429,7 +9513,7 @@ void do_get_replace_column(struct st_command *command) {
   if (!*from) die("Missing argument in %s", command->query);
 
   /* Allocate a buffer for results */
-  start = buff = (char *)my_malloc(PSI_NOT_INSTRUMENTED, strlen(from) + 1,
+  start = buff = (char *)my_malloc(PSI_NOT_INSTRUMENTED, std::strlen(from) + 1,
                                    MYF(MY_WME | MY_FAE));
   while (*from) {
     char *to;
@@ -9634,7 +9718,7 @@ void do_get_replace(struct st_command *command) {
   free_replace();
 
   if (!*from) die("Missing argument in %s", command->query);
-  start = buff = (char *)my_malloc(PSI_NOT_INSTRUMENTED, strlen(from) + 1,
+  start = buff = (char *)my_malloc(PSI_NOT_INSTRUMENTED, std::strlen(from) + 1,
                                    MYF(MY_WME | MY_FAE));
   while (*from) {
     char *to = buff;
@@ -9716,7 +9800,7 @@ void replace_strings_append(REPLACE *rep, DYNAMIC_STRING *ds, const char *str,
 
     /* Append replace string */
     dynstr_append_mem(ds, rep_str->replace_string,
-                      strlen(rep_str->replace_string));
+                      std::strlen(rep_str->replace_string));
 
     if (!*(from -= rep_str->from_offset) && rep_pos->found != 2) {
       /* End of from string */
@@ -9770,7 +9854,7 @@ static struct st_replace_regex *init_replace_regex(char *expr) {
   char *buf, *expr_end;
   char *p;
   char *buf_p;
-  size_t expr_len = strlen(expr);
+  size_t expr_len = std::strlen(expr);
   char last_c = 0;
   struct st_regex reg;
 
@@ -9965,7 +10049,7 @@ int reg_replace(char **buf_p, int *buf_len_p, char *pattern, char *replace,
   char *res_p, *str_p, *str_end;
 
   buf_len = *buf_len_p;
-  len = strlen(string);
+  len = std::strlen(string);
   str_end = string + len;
 
   /* start with a buffer of a reasonable size that hopefully will not
@@ -9989,7 +10073,7 @@ int reg_replace(char **buf_p, int *buf_len_p, char *pattern, char *replace,
 
   *res_p = 0;
   str_p = string;
-  replace_end = replace + strlen(replace);
+  replace_end = replace + std::strlen(replace);
 
   /* for each pattern match instance perform a replacement */
   while (!err_code) {
@@ -10192,7 +10276,7 @@ REPLACE *init_replace(char **from, char **to, uint count,
       DBUG_RETURN(0);
     }
     states += len + 1;
-    result_len += (uint)strlen(to[i]) + 1;
+    result_len += (uint)std::strlen(to[i]) + 1;
     if (len > max_length) max_length = len;
   }
   memset(is_word_end, 0, sizeof(is_word_end));
@@ -10587,7 +10671,7 @@ int insert_pointer_name(POINTER_ARRAY *pa, char *name) {
     pa->max_length = PS_MALLOC - MALLOC_OVERHEAD;
     pa->array_allocs = 1;
   }
-  length = (uint)strlen(name) + 1;
+  length = (uint)std::strlen(name) + 1;
   if (pa->length + length >= pa->max_length) {
     if (!(new_pos = (uchar *)my_realloc(PSI_NOT_INSTRUMENTED, (uchar *)pa->str,
                                         (uint)(pa->length + length + PS_MALLOC),
@@ -10655,7 +10739,7 @@ void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
     /* Regex replace */
     if (!multi_reg_replace(glob_replace_regex, (char *)val)) {
       val = glob_replace_regex->buf;
-      len = strlen(val);
+      len = std::strlen(val);
     }
   }
 
@@ -10681,7 +10765,7 @@ void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
       dynstr_free(&ds_temp);
       init_dynamic_string(&ds_temp, "", 512, 512);
       replace_numeric_round_append(glob_replace_numeric_round, &ds_temp, buffer,
-                                   strlen(buffer));
+                                   std::strlen(buffer));
     } else
       replace_numeric_round_append(glob_replace_numeric_round, &ds_temp, val,
                                    len);
@@ -10690,13 +10774,13 @@ void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
   if (!glob_replace && glob_replace_numeric_round < 0)
     dynstr_append_mem(ds, val, len);
   else
-    dynstr_append_mem(ds, ds_temp.str, strlen(ds_temp.str));
+    dynstr_append_mem(ds, ds_temp.str, std::strlen(ds_temp.str));
   dynstr_free(&ds_temp);
 }
 
 /* Append zero-terminated string to ds, with optional replace */
 void replace_dynstr_append(DYNAMIC_STRING *ds, const char *val) {
-  replace_dynstr_append_mem(ds, val, strlen(val));
+  replace_dynstr_append_mem(ds, val, std::strlen(val));
 }
 
 /* Append uint to ds, with optional replace */
@@ -10721,7 +10805,9 @@ void replace_dynstr_append_uint(DYNAMIC_STRING *ds, uint val) {
 class Comp_lines
     : public std::binary_function<const char *, const char *, bool> {
  public:
-  bool operator()(const char *a, const char *b) { return strcmp(a, b) < 0; }
+  bool operator()(const char *a, const char *b) {
+    return std::strcmp(a, b) < 0;
+  }
 };
 
 void dynstr_append_sorted(DYNAMIC_STRING *ds, DYNAMIC_STRING *ds_input) {

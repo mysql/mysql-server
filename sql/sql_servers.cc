@@ -222,7 +222,7 @@ static bool servers_load(THD *thd, TABLE *table) {
   free_root(&mem, MYF(0));
   init_sql_alloc(key_memory_servers, &mem, ACL_ALLOC_BLOCK_SIZE, 0);
 
-  if (init_read_record(&read_record_info, thd, table, NULL, 1, 1, false))
+  if (init_read_record(&read_record_info, thd, table, NULL, 1, false))
     DBUG_RETURN(true);
 
   while (!(read_record_info.read_record(&read_record_info))) {
@@ -409,7 +409,7 @@ static bool close_cached_connection_tables(THD *thd,
     if (share->m_open_in_progress) continue;
 
     /* Ignore if table is not open or does not have a connect_string */
-    if (!share->connect_string.length || !share->ref_count) continue;
+    if (!share->connect_string.length || share->ref_count() == 0) continue;
 
     /* Compare the connection string */
     if (connection_string &&

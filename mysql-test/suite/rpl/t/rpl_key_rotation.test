@@ -124,9 +124,15 @@ ALTER INSTANCE ROTATE INNODB MASTER KEY;
 --echo # Installing keyring_file plugin on master.
 --replace_regex /\.dll/.so/
 eval INSTALL PLUGIN keyring_file SONAME '$KEYRING_PLUGIN';
+
 --echo # Cleanup
 DROP TABLE t1,t2,t3,t4;
 
+--connection slave
+
+--connection master
 --source include/sync_slave_sql_with_master.inc
 --source include/rpl_end.inc
 # End:
+# Restart
+--source include/force_restart.inc

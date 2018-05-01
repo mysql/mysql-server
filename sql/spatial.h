@@ -858,14 +858,12 @@ class Geometry {
     @retval false invalid geometry type
   */
   static bool is_valid_geotype(uint32 gtype) {
-    wkbType gt = static_cast<wkbType>(gtype);
-
     /*
       Stricter check, outside only checks for [wkb_first, wkb_last],
       they don't have to know about the details.
      */
-    return ((gt >= wkb_first && gt <= wkb_geometrycollection) ||
-            gt == wkb_polygon_inner_rings);
+    return ((gtype >= wkb_first && gtype <= wkb_geometrycollection) ||
+            gtype == wkb_polygon_inner_rings);
   }
 
   /**

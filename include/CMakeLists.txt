@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -45,3 +45,11 @@ SET(HEADERS_MYSQL_DIR
 
 INSTALL(FILES ${HEADERS} DESTINATION ${INSTALL_INCLUDEDIR} COMPONENT Development)
 INSTALL(FILES ${HEADERS_MYSQL_DIR} DESTINATION ${INSTALL_INCLUDEDIR}/mysql COMPONENT Development)
+
+# openssl/applink.c must be built into applications linking with libmysql.dll
+IF (WIN32 AND OPENSSL_APPLINK_C)
+  INSTALL(FILES ${OPENSSL_APPLINK_C}
+    DESTINATION ${INSTALL_INCLUDEDIR}/openssl
+    COMPONENT Development
+    )
+ENDIF()

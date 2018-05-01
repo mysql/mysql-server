@@ -68,9 +68,6 @@ enum enum_explain_filename_mode {
   EXPLAIN_PARTITIONS_AS_COMMENT
 };
 
-/* Maximum length of GEOM_POINT Field */
-#define MAX_LEN_GEOM_POINT_FIELD 25
-
 /* Flags for conversion functions. */
 static const uint FN_FROM_IS_TMP = 1 << 0;
 static const uint FN_TO_IS_TMP = 1 << 1;
@@ -185,19 +182,21 @@ inline bool adjust_fk_children_after_parent_def_change(
 }
 
 /**
-  Add MDL requests for exclusive lock on all tables referencing the given
+  Add MDL requests for specified lock type on all tables referencing the given
   schema qualified table name to the list.
 
   @param          thd           Thread handle.
   @param          schema        Schema name.
   @param          table_name    Table name.
   @param          hton          Handlerton for table's storage engine.
+  @param          lock_type     Type of MDL requests to add.
   @param[in,out]  mdl_requests  List to which MDL requests are to be added.
 
   @retval operation outcome, false if no error.
 */
 bool collect_fk_children(THD *thd, const char *schema, const char *table_name,
-                         handlerton *hton, MDL_request_list *mdl_requests)
+                         handlerton *hton, enum_mdl_type lock_type,
+                         MDL_request_list *mdl_requests)
     MY_ATTRIBUTE((warn_unused_result));
 
 /**
@@ -293,18 +292,36 @@ bool adjust_fks_for_rename_table(THD *thd, const char *db,
                                  const char *new_table_name, handlerton *hton)
     MY_ATTRIBUTE((warn_unused_result));
 
-/**
-  Find name of unique constraint in parent table which is referenced by
-  foreign key.
+/*
+  Check if parent key for the foreign key exists, set foreign key's unique
+  constraint name accordingly. Emit error if no parent key found.
 
-  @param parent_table_def Object describing the parent table.
-  @param fk               Object describing the foreign key.
+  @note Prefer unique key if possible. If parent key is non-unique
+        unique constraint name is set to NULL.
 
-  @retval non-"" - unique constraint name if matching constraint is found.
-  @retval ""     - if no matching unique constraint is found.
+  @note DDL code use this function for non-self-referencing foreign keys.
+
+  @sa prepare_fk_parent_key(THD, handlerton, FOREIGN_KEY)
+
+  @param  hton                  Handlerton for tables' storage engine.
+  @param  parent_table_def      Object describing new version of parent table.
+  @param  old_child_table_def   Object describing old version of child table.
+                                Can be nullptr if old_parent_table_def is
+                                nullptr. Used for error reporting.
+  @param  old_parent_table_def  Object describing old version of parent table.
+                                nullptr indicates that this is not ALTER TABLE
+                                operation. Used for error reporting.
+  @param  fk[in,out]            Object describing the foreign key,
+                                its unique_constraint_name member
+                                will be updated if matching parent
+                                unique constraint is found.
+
+  @retval Operation result. False if success.
 */
-const char *find_fk_parent_key(const dd::Table *parent_table_def,
-                               const dd::Foreign_key *fk)
+bool prepare_fk_parent_key(handlerton *hton, const dd::Table *parent_table_def,
+                           const dd::Table *old_parent_table_def,
+                           const dd::Table *old_child_table_def,
+                           dd::Foreign_key *fk)
     MY_ATTRIBUTE((warn_unused_result));
 
 /**
@@ -437,6 +454,9 @@ bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
   @param[in] existing_fks          An array of pre-existing FOREIGN KEYS
                                    (in case of ALTER).
   @param[in] existing_fks_count    The number of pre-existing foreign keys.
+  @param[in] existing_fks_table    dd::Table object for table version from
+                                   which pre-existing foreign keys come from.
+                                   Needed for error reporting.
   @param[in] fk_max_generated_name_number  Max value of number component among
                                            existing generated foreign key names.
   @param select_field_count        The number of fields coming from a select
@@ -454,8 +474,8 @@ bool mysql_prepare_create_table(
     HA_CREATE_INFO *create_info, Alter_info *alter_info, handler *file,
     KEY **key_info_buffer, uint *key_count, FOREIGN_KEY **fk_key_info_buffer,
     uint *fk_key_count, FOREIGN_KEY *existing_fks, uint existing_fks_count,
-    uint fk_max_generated_name_number, int select_field_count,
-    bool find_parent_keys);
+    const dd::Table *existing_fks_table, uint fk_max_generated_name_number,
+    int select_field_count, bool find_parent_keys);
 
 size_t explain_filename(THD *thd, const char *from, char *to, size_t to_length,
                         enum_explain_filename_mode explain_mode);
@@ -481,5 +501,7 @@ extern MYSQL_PLUGIN_IMPORT const char *primary_key_name;
 */
 
 bool lock_trigger_names(THD *thd, TABLE_LIST *tables);
+struct TYPELIB;
+TYPELIB *create_typelib(MEM_ROOT *mem_root, Create_field *field_def);
 
 #endif /* SQL_TABLE_INCLUDED */

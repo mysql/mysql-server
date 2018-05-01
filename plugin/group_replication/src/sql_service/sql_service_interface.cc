@@ -135,8 +135,8 @@ long Sql_service_interface::execute_internal(
 
     if (err != 0) {
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SQL_SERVICE_FAILED_TO_RUN_SQL_QUERY,
-                   cmd.com_query.query, rset->sql_errno(),
-                   rset->err_msg().c_str());
+                   cmd.com_query.query, rset->err_msg().c_str(),
+                   rset->sql_errno());
     } else {
       if (is_session_killed(m_session) && rset->get_killed_status()) {
         LogPluginErr(INFORMATION_LEVEL,

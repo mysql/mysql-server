@@ -86,8 +86,10 @@ void rec_init_offsets(const rec_t *rec,          /*!< in: physical record */
         return;
     }
 
+    ut_ad(!rec_get_instant_flag_new(rec));
+
     nulls = rec - (REC_N_NEW_EXTRA_BYTES + 1);
-    lens = nulls - UT_BITS_IN_BYTES(index->n_nullable);
+    lens = nulls - UT_BITS_IN_BYTES(index->n_instant_nullable);
     offs = 0;
     null_mask = 1;
 
@@ -168,23 +170,38 @@ void rec_init_offsets(const rec_t *rec,          /*!< in: physical record */
     /* Old-style record: determine extra size and end offsets */
     offs = REC_N_OLD_EXTRA_BYTES;
     if (rec_get_1byte_offs_flag(rec)) {
-      offs += rec_offs_n_fields(offsets);
+      offs += rec_get_n_fields_old_raw(rec);
       *rec_offs_base(offsets) = offs;
       /* Determine offsets to fields */
       do {
-        offs = rec_1_get_field_end_info(rec, i);
+        if (index->has_instant_cols() && i >= rec_get_n_fields_old_raw(rec)) {
+          offs &= ~REC_OFFS_SQL_NULL;
+          offs = rec_get_instant_offset(index, i, offs);
+        } else {
+          offs = rec_1_get_field_end_info(rec, i);
+        }
+
         if (offs & REC_1BYTE_SQL_NULL_MASK) {
           offs &= ~REC_1BYTE_SQL_NULL_MASK;
           offs |= REC_OFFS_SQL_NULL;
         }
+
+        ut_ad(i < rec_get_n_fields_old_raw(rec) || (offs & REC_OFFS_SQL_NULL) ||
+              (offs & REC_OFFS_DEFAULT));
         rec_offs_base(offsets)[1 + i] = offs;
       } while (++i < rec_offs_n_fields(offsets));
     } else {
-      offs += 2 * rec_offs_n_fields(offsets);
+      offs += 2 * rec_get_n_fields_old_raw(rec);
       *rec_offs_base(offsets) = offs;
       /* Determine offsets to fields */
       do {
-        offs = rec_2_get_field_end_info(rec, i);
+        if (index->has_instant_cols() && i >= rec_get_n_fields_old_raw(rec)) {
+          offs &= ~(REC_OFFS_SQL_NULL | REC_OFFS_EXTERNAL);
+          offs = rec_get_instant_offset(index, i, offs);
+        } else {
+          offs = rec_2_get_field_end_info(rec, i);
+        }
+
         if (offs & REC_2BYTE_SQL_NULL_MASK) {
           offs &= ~REC_2BYTE_SQL_NULL_MASK;
           offs |= REC_OFFS_SQL_NULL;
@@ -194,6 +211,9 @@ void rec_init_offsets(const rec_t *rec,          /*!< in: physical record */
           offs |= REC_OFFS_EXTERNAL;
           *rec_offs_base(offsets) |= REC_OFFS_EXTERNAL;
         }
+
+        ut_ad(i < rec_get_n_fields_old_raw(rec) || (offs & REC_OFFS_SQL_NULL) ||
+              (offs & REC_OFFS_DEFAULT));
         rec_offs_base(offsets)[1 + i] = offs;
       } while (++i < rec_offs_n_fields(offsets));
     }
@@ -202,6 +222,10 @@ void rec_init_offsets(const rec_t *rec,          /*!< in: physical record */
 
 /** The following function determines the offsets to each field
  in the record.	It can reuse a previously returned array.
+ Note that after instant ADD COLUMN, if this is a record
+ from clustered index, fields in the record may be less than
+ the fields defined in the clustered index. So the offsets
+ size is allocated according to the clustered index fields.
  @return the new offsets */
 ulint *rec_get_offsets_func(
     const rec_t *rec,          /*!< in: physical record */
@@ -244,10 +268,9 @@ ulint *rec_get_offsets_func(
         break;
       default:
         ut_error;
-        return (NULL);
     }
   } else {
-    n = rec_get_n_fields_old(rec);
+    n = rec_get_n_fields_old(rec, index);
   }
 
   if (UNIV_UNLIKELY(n_fields < n)) {

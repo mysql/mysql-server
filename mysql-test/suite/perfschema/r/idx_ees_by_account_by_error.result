@@ -34,14 +34,14 @@ from performance_schema.events_errors_summary_by_account_by_error
 where HOST = "impossible"
     and USER = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	events_errors_summary_by_account_by_error	NULL	ref	ACCOUNT	ACCOUNT	278	const,const	#	100.00	NULL
+1	SIMPLE	events_errors_summary_by_account_by_error	NULL	ref	ACCOUNT	ACCOUNT	370	const,const	#	100.00	NULL
 ############ Explain for Query ####################################
 explain select SUM_ERROR_RAISED
 from performance_schema.events_errors_summary_by_account_by_error
 where HOST = "localhost"
 and USER = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	events_errors_summary_by_account_by_error	NULL	ref	ACCOUNT	ACCOUNT	278	const,const	#	100.00	NULL
+1	SIMPLE	events_errors_summary_by_account_by_error	NULL	ref	ACCOUNT	ACCOUNT	370	const,const	#	100.00	NULL
 ############ Explain for Query ####################################
 explain select SUM_ERROR_RAISED
 from performance_schema.events_errors_summary_by_account_by_error
@@ -62,7 +62,7 @@ from performance_schema.events_errors_summary_by_account_by_error
 where HOST = "localhost"
 and USER = "foo";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	events_errors_summary_by_account_by_error	NULL	ref	ACCOUNT	ACCOUNT	278	const,const	#	100.00	NULL
+1	SIMPLE	events_errors_summary_by_account_by_error	NULL	ref	ACCOUNT	ACCOUNT	370	const,const	#	100.00	NULL
 ############ Explain for Query ####################################
 explain select SUM_ERROR_RAISED
 from performance_schema.events_errors_summary_by_account_by_error
@@ -86,7 +86,7 @@ where HOST = "localhost"
 and USER = "foo"
 and ERROR_NUMBER > "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	events_errors_summary_by_account_by_error	NULL	ref	ACCOUNT	ACCOUNT	278	const,const	#	33.33	Using where
+1	SIMPLE	events_errors_summary_by_account_by_error	NULL	ref	ACCOUNT	ACCOUNT	370	const,const	#	33.33	Using where
 ############ Explain for Query ####################################
 explain select SUM_ERROR_RAISED
 from performance_schema.events_errors_summary_by_account_by_error
@@ -94,7 +94,7 @@ where HOST = "localhost"
 and USER = "foo"
 and ERROR_NUMBER < "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	events_errors_summary_by_account_by_error	NULL	ref	ACCOUNT	ACCOUNT	278	const,const	#	33.33	Using where
+1	SIMPLE	events_errors_summary_by_account_by_error	NULL	ref	ACCOUNT	ACCOUNT	370	const,const	#	33.33	Using where
 ############ Explain for Query ####################################
 explain select SUM_ERROR_RAISED
 from performance_schema.events_errors_summary_by_account_by_error
@@ -102,7 +102,7 @@ where HOST = "localhost"
 and USER = "foo"
 and ERROR_NUMBER = "1146";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	events_errors_summary_by_account_by_error	NULL	const	ACCOUNT	ACCOUNT	283	const,const,const	#	100.00	NULL
+1	SIMPLE	events_errors_summary_by_account_by_error	NULL	const	ACCOUNT	ACCOUNT	375	const,const,const	#	100.00	NULL
 ############# Explain End #########################################
 flush status;
 select SUM_ERROR_RAISED

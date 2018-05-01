@@ -52,7 +52,6 @@ enum dberr_t {
   DB_DEADLOCK,
   DB_ROLLBACK,
   DB_DUPLICATE_KEY,
-  DB_QUE_THR_SUSPENDED,
   DB_MISSING_HISTORY, /*!< required history data has been
                       deleted due to lack of space in
                       rollback segment */
@@ -145,8 +144,8 @@ enum dberr_t {
   DB_CANT_CREATE_GEOMETRY_OBJECT,   /*!< Cannot create specified Geometry
                                     data object */
   DB_CANNOT_OPEN_FILE,              /*!< Cannot open a file */
-  DB_FTS_TOO_MANY_WORDS_IN_PHRASE,
-  /*!< Too many words in a phrase */
+  DB_FTS_TOO_MANY_WORDS_IN_PHRASE,  /*!< Too many words in a phrase */
+  DB_SERVER_VERSION_LOW, /* Server version is lower than tablespace version */
 
   DB_IO_ERROR = 100, /*!< Generic IO error */
 

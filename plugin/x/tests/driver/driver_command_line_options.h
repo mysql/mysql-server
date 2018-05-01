@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef X_TESTS_DRIVER_DRIVER_COMMAND_LINE_OPTIONS_H_
-#define X_TESTS_DRIVER_DRIVER_COMMAND_LINE_OPTIONS_H_
+#ifndef PLUGIN_X_TESTS_DRIVER_DRIVER_COMMAND_LINE_OPTIONS_H_
+#define PLUGIN_X_TESTS_DRIVER_DRIVER_COMMAND_LINE_OPTIONS_H_
 
 #include <map>
 #include <string>
@@ -59,6 +59,9 @@ class Driver_command_line_options : public Command_line_options {
   std::string m_uri;
   bool m_daemon;
   std::string m_sql;
+  int m_expected_error_code{0};
+
+  bool is_expected_error_set() const { return 0 != m_expected_error_code; }
 
  private:
   void set_variable_option(const std::string &set_expression);
@@ -66,4 +69,4 @@ class Driver_command_line_options : public Command_line_options {
   xcl::Internet_protocol set_protocol(const int mode);
 };
 
-#endif  // X_TESTS_DRIVER_DRIVER_COMMAND_LINE_OPTIONS_H_
+#endif  // PLUGIN_X_TESTS_DRIVER_DRIVER_COMMAND_LINE_OPTIONS_H_

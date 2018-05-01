@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,9 +20,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#define LOG_COMPONENT_TAG "test_x_sessions_deinit"
+
 #include <fcntl.h>
 #include <mysql/plugin.h>
 #include <stdlib.h>
+
+#include <mysql/components/my_service.h>
+#include <mysql/components/services/log_builtins.h>
+#include <mysqld_error.h>
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -56,6 +62,10 @@ static MYSQL_SYSVAR_INT(nb_sessions, nb_sessions, PLUGIN_VAR_RQCMDARG,
                         "number of sessions", NULL, NULL, 1, 1, 500, 0);
 
 static SYS_VAR *test_services_sysvars[] = {MYSQL_SYSVAR(nb_sessions), NULL};
+
+static SERVICE_TYPE(registry) *reg_srv = nullptr;
+SERVICE_TYPE(log_builtins) *log_bi = nullptr;
+SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
 
 static File outfile;
 
@@ -140,8 +150,8 @@ static void *test_sql_threaded_wrapper(void *param) {
   WRITE_SEP();
   WRITE_STR("init thread\n");
   if (srv_session_init_thread(context->p))
-    my_plugin_log_message(&context->p, MY_ERROR_LEVEL,
-                          "srv_session_init_thread failed.");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "srv_session_init_thread failed.");
 
   context->test_function(context->p);
 
@@ -175,22 +185,25 @@ static void test_in_spawned_thread(void *p, void (*test_function)(void *)) {
   /* now create the thread and call test_session within the thread. */
   if (my_thread_create(&(context.thread), &attr, test_sql_threaded_wrapper,
                        &context) != 0)
-    my_plugin_log_message(&p, MY_ERROR_LEVEL,
-                          "Could not create test session thread");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "Could not create test session thread");
   else
     my_thread_join(&context.thread, NULL);
 }
 
-static int test_session_service_plugin_init(void *p) {
+static int test_session_service_plugin_init(void *p MY_ATTRIBUTE((unused))) {
   DBUG_ENTER("test_session_service_plugin_init");
-  my_plugin_log_message(&p, MY_INFORMATION_LEVEL, "Installation.");
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
+    DBUG_RETURN(1);
+  LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Installation.");
   DBUG_RETURN(0);
 }
 
 static int test_session_service_plugin_deinit(void *p) {
   char buffer[STRING_BUFFER_SIZE];
   DBUG_ENTER("test_session_service_plugin_deinit");
-  my_plugin_log_message(&p, MY_INFORMATION_LEVEL, "Uninstallation.");
+  LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Uninstallation.");
+  deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
 
   create_log_file(log_filename);
 

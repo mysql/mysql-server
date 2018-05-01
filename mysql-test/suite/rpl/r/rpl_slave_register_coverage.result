@@ -14,7 +14,7 @@ Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 START SLAVE IO_THREAD;
-include/wait_for_slave_io_error.inc [errno=1597]
+include/wait_for_slave_io_error.inc [errno=13120]
 CALL mtr.add_suppression(".*Slave I/O thread couldn't register on master.*");
 CALL mtr.add_suppression(".* Master command COM_REGISTER_SLAVE failed.*");
 #

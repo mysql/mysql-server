@@ -315,7 +315,7 @@ void row_upd_rec_sys_fields_in_recovery(
     byte *field;
     ulint len;
 
-    field = rec_get_nth_field(rec, offsets, pos, &len);
+    field = const_cast<byte *>(rec_get_nth_field(rec, offsets, pos, &len));
     ut_ad(len == DATA_TRX_ID_LEN);
 #if DATA_TRX_ID + 1 != DATA_ROLL_PTR
 #error "DATA_TRX_ID + 1 != DATA_ROLL_PTR"
@@ -401,16 +401,30 @@ ibool row_upd_changes_field_size_or_external(
 
     old_len = rec_offs_nth_size(offsets, upd_field->field_no);
 
-    if (rec_offs_comp(offsets) &&
-        rec_offs_nth_sql_null(offsets, upd_field->field_no)) {
-      /* Note that in the compact table format, for a
-      variable length field, an SQL NULL will use zero
-      bytes in the offset array at the start of the physical
-      record, but a zero-length value (empty string) will
-      use one byte! Thus, we cannot use update-in-place
-      if we update an SQL NULL varchar to an empty string! */
+    if (rec_offs_comp(offsets)) {
+      if (rec_offs_nth_sql_null(offsets, upd_field->field_no)) {
+        /* Note that in the compact table format,
+        for a variable length field, an SQL NULL
+        will use zero bytes in the offset array
+        at the start of the physical record, but
+        a zero-length value (empty string) will
+        use one byte! Thus, we cannot use
+        update-in-place if we update an SQL NULL
+        varchar to an empty string! */
 
-      old_len = UNIV_SQL_NULL;
+        old_len = UNIV_SQL_NULL;
+      } else if (rec_offs_nth_default(offsets, upd_field->field_no)) {
+        /* This will force to do pessimistic update,
+        since the default value is not inlined,
+        so any update to it will extend the record. */
+        old_len = UNIV_SQL_ADD_COL_DEFAULT;
+      }
+    } else {
+      /* REDUNDANT row format, if it updates the field with
+      not inlined default value, do it in pessimistic way */
+      if (rec_offs_nth_default(offsets, upd_field->field_no)) {
+        old_len = UNIV_SQL_ADD_COL_DEFAULT;
+      }
     }
 
     if (dfield_is_ext(new_val) || old_len != new_len ||
@@ -477,7 +491,13 @@ void row_upd_rec_in_place(
   ut_ad(!index->table->skip_alter_undo);
 
   if (rec_offs_comp(offsets)) {
+    bool is_instant = rec_get_instant_flag_new(rec);
     rec_set_info_bits_new(rec, update->info_bits);
+    if (is_instant) {
+      rec_set_instant_flag_new(rec, true);
+    } else {
+      rec_set_instant_flag_new(rec, false);
+    }
   } else {
     rec_set_info_bits_old(rec, update->info_bits);
   }
@@ -496,6 +516,10 @@ void row_upd_rec_in_place(
     ut_ad(!dfield_is_ext(new_val) ==
           !rec_offs_nth_extern(offsets, upd_field->field_no));
 
+    /* Updating default value for instantly added columns
+    must not be done in-place. See also
+    row_upd_changes_field_size_or_external() */
+    ut_ad(!rec_offs_nth_default(offsets, upd_field->field_no));
     rec_set_nth_field(rec, offsets, upd_field->field_no,
                       dfield_get_data(new_val), dfield_get_len(new_val));
   }
@@ -840,7 +864,7 @@ upd_t *row_upd_build_difference_binary(dict_index_t *index,
   }
 
   for (i = 0; i < n_fld; i++) {
-    data = rec_get_nth_field(rec, offsets, i, &len);
+    data = rec_get_nth_field_instant(rec, offsets, i, index, &len);
 
     dfield = dtuple_get_nth_field(entry, i);
 
@@ -1510,8 +1534,9 @@ ibool row_upd_changes_ord_field_binary_func(
 
         const dict_index_t *clust_index =
             (ext == nullptr ? index->table->first_index() : ext->index);
-        dptr = lob::btr_copy_externally_stored_field(
-            clust_index, &dlen, dptr, page_size, flen, false, temp_heap);
+        dptr = lob::btr_copy_externally_stored_field(clust_index, &dlen,
+                                                     nullptr, dptr, page_size,
+                                                     flen, false, temp_heap);
       } else {
         dptr = static_cast<uchar *>(dfield->data);
         dlen = dfield->len;
@@ -1546,7 +1571,7 @@ ibool row_upd_changes_ord_field_binary_func(
         const dict_index_t *clust_index =
             (ext == nullptr ? index->table->first_index() : ext->index);
         dptr = lob::btr_copy_externally_stored_field(
-            clust_index, &dlen, dptr, page_size, flen,
+            clust_index, &dlen, nullptr, dptr, page_size, flen,
             dict_table_is_sdi(index->table->id), temp_heap);
       } else {
         dptr = static_cast<uchar *>(upd_field->new_val.data);
@@ -1749,20 +1774,22 @@ static ibool row_upd_changes_first_fields_binary(
   return (FALSE);
 }
 
-/** Copies the column values from a record. */
+/** Copies the column values from a record.
+@param[in]	rec	record in a clustered index
+@param[in]	offsets	array returned by rec_get_offsets()
+@param[in]	index	clustered index where record resides
+@param[in]	column	first column in a column list, or nullptr */
 UNIV_INLINE
-void row_upd_copy_columns(
-    rec_t *rec,           /*!< in: record in a clustered index */
-    const ulint *offsets, /*!< in: array returned by rec_get_offsets() */
-    sym_node_t *column)   /*!< in: first column in a column list, or
-                          NULL */
-{
-  byte *data;
+void row_upd_copy_columns(rec_t *rec, const ulint *offsets,
+                          const dict_index_t *index, sym_node_t *column) {
+  const byte *data;
   ulint len;
 
+  ut_ad(index->is_clustered());
+
   while (column) {
-    data = rec_get_nth_field(rec, offsets,
-                             column->field_nos[SYM_CLUST_FIELD_NO], &len);
+    data = rec_get_nth_field_instant(
+        rec, offsets, column->field_nos[SYM_CLUST_FIELD_NO], index, &len);
     eval_node_copy_and_alloc_val(column, data, len);
 
     column = UT_LIST_GET_NEXT(col_var_list, column);
@@ -2765,7 +2792,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   if (UNIV_UNLIKELY(!node->in_mysql_interface)) {
     /* Copy the necessary columns from clust_rec and calculate the
     new values to set */
-    row_upd_copy_columns(rec, offsets, UT_LIST_GET_FIRST(node->columns));
+    row_upd_copy_columns(rec, offsets, index, UT_LIST_GET_FIRST(node->columns));
     row_upd_eval_new_vals(node->update);
   }
 
@@ -2973,10 +3000,6 @@ que_thr_t *row_upd_step(que_thr_t *thr) /*!< in: query thread */
       to update */
 
       ut_error;
-
-      err = DB_ERROR;
-
-      goto error_handling;
     }
 
     ut_ad(sel_node->state == SEL_NODE_NO_MORE_ROWS);
@@ -3020,7 +3043,16 @@ error_handling:
 std::ostream &upd_field_t::print(std::ostream &out) const {
   out << "[upd_field_t: field_no=" << field_no << ", orig_len=" << orig_len
       << ", old_val=" << old_val << ", new_val=" << new_val
-      << ", ext_in_old=" << ext_in_old << "]";
+      << ", ext_in_old=" << ext_in_old;
+
+  if (lob_diffs != nullptr) {
+    for (auto iter = lob_diffs->begin(); iter != lob_diffs->end(); ++iter) {
+      out << *iter;
+    }
+  }
+
+  out << "]";
+
   return (out);
 }
 
@@ -3028,9 +3060,39 @@ std::ostream &upd_t::print(std::ostream &out) const {
   out << "[upd_t: n_fields=" << n_fields << ", ";
   for (ulint i = 0; i < n_fields; ++i) {
     out << fields[i];
+    print_puvect(out, &fields[i]);
   }
-  print_puvect(out);
   out << "]";
+  return (out);
+}
+
+/** Print the given binary diff into the given output stream.
+@param[in]	out	the output stream
+@param[in]	uf	the update vector of concerned field.
+@param[in]	bdiff	binary diff to be printed.
+@param[in]	table	the table dictionary object.
+@param[in]	field	mysql field object.
+@return the output stream */
+static std::ostream &print_binary_diff(std::ostream &out, upd_field_t *uf,
+                                       const Binary_diff *bdiff,
+                                       const dict_table_t *table,
+                                       const Field *field) {
+  ulint field_no = 0;
+  if (table != nullptr) {
+    dict_col_t *col = table->get_col(field->field_index);
+    field_no = dict_col_get_clust_pos(col, table->first_index());
+  }
+
+  const char *to = bdiff->new_data(const_cast<Field *>(field));
+  size_t len = bdiff->length();
+
+  const char *from = bdiff->old_data(const_cast<Field *>(field));
+
+  out << "[Binary_diff: field_index=" << field->field_index
+      << ", field_no=" << field_no << ", offset=" << bdiff->offset()
+      << ", length=" << len << ", new_data=" << PrintBuffer(to, len)
+      << ", old_data=" << PrintBuffer(from, len) << "]";
+
   return (out);
 }
 
@@ -3043,30 +3105,49 @@ std::ostream &upd_t::print(std::ostream &out) const {
 std::ostream &print_binary_diff(std::ostream &out, const Binary_diff *bdiff,
                                 const dict_table_t *table, const Field *field) {
   ulint field_no = 0;
-
   if (table != nullptr) {
     dict_col_t *col = table->get_col(field->field_index);
     field_no = dict_col_get_clust_pos(col, table->first_index());
   }
 
+  const char *to = bdiff->new_data(const_cast<Field *>(field));
+  size_t len = bdiff->length();
+
   out << "[Binary_diff: field_index=" << field->field_index
       << ", field_no=" << field_no << ", offset=" << bdiff->offset()
-      << ", length=" << bdiff->length()
-      << ", new_data=" << (void *)bdiff->new_data(const_cast<Field *>(field))
-      << "]";
+      << ", length=" << len << ", new_data=" << PrintBuffer(to, len) << "]";
 
   return (out);
 }
 
 std::ostream &print_binary_diff(std::ostream &out, const Binary_diff *bdiff,
                                 Field *fld) {
+  const char *to = bdiff->new_data(fld);
+  size_t len = bdiff->length();
+
   out << "[Binary_diff: field_index=" << fld->field_index
       << ", offset=" << bdiff->offset() << ", length=" << bdiff->length()
-      << ", new_data=" << (void *)bdiff->new_data(fld) << "]";
+      << ", new_data=" << PrintBuffer(to, len) << "]";
   return (out);
 }
 
-std::ostream &upd_t::print_puvect(std::ostream &out) const { return (out); }
+std::ostream &upd_t::print_puvect(std::ostream &out, upd_field_t *uf) const {
+  if (!is_partially_updated(uf->field_no)) {
+    return (out);
+  }
+
+  Field *fld = uf->mysql_field;
+
+  const Binary_diff_vector *dv = mysql_table->get_binary_diffs(fld);
+
+  for (Binary_diff_vector::const_iterator iter = dv->begin(); iter != dv->end();
+       ++iter) {
+    const Binary_diff *bdiff = iter;
+    print_binary_diff(out, uf, bdiff, table, fld);
+  }
+
+  return (out);
+}
 
 upd_field_t *upd_t::get_field_by_field_no(ulint field_no,
                                           dict_index_t *index) const {
@@ -3096,7 +3177,7 @@ bool upd_t::is_partially_updated(ulint field_no) const {
 
   upd_field_t *uf = get_field_by_field_no(field_no, table->first_index());
 
-  if (uf == nullptr) {
+  if (uf == nullptr || uf->mysql_field == nullptr) {
     return (false);
   }
 
@@ -3138,7 +3219,13 @@ const Binary_diff_vector *upd_t::get_binary_diff_by_field_no(
   ut_ad(table != nullptr);
 
   upd_field_t *uf = get_field_by_field_no(field_no, table->first_index());
+  ut_ad(uf != nullptr);
+
   Field *fld = uf->mysql_field;
+
+  if (fld == nullptr) {
+    return (nullptr);
+  }
 
   return (mysql_table->get_binary_diffs(fld));
 }

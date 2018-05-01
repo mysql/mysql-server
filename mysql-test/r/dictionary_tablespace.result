@@ -163,6 +163,8 @@ call mtr.add_suppression("Error in checking mysql.slave_master_info repository i
 call mtr.add_suppression("Error creating master info: Error checking repositories.");
 call mtr.add_suppression("Slave: Failed to initialize the master info structure for channel");
 call mtr.add_suppression("Failed to create or recover replication info repositories.");
+call mtr.add_suppression("Plugin mysqlx reported: 'Unable to use user mysql.session");
+call mtr.add_suppression("Plugin mysqlx reported: 'Unable to switch context");
 # Copy the remote tablespace & DB zip files from suite location to working location.
 # Check that the file exists in the working folder.
 # Unzip the zip file.
@@ -191,8 +193,6 @@ mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
-mysql.innodb_ddl_log                               OK
-mysql.innodb_dynamic_metadata                      OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
 mysql.ndb_binlog_index                             OK

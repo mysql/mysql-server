@@ -216,12 +216,7 @@ struct first_page_t : public basic_page_t {
 
   /** Free the first page.  This is done when all other LOB pages have
   been freed. */
-  void dealloc() {
-    ut_ad(m_mtr != nullptr);
-    ut_ad(get_next_page() == FIL_NULL);
-    btr_page_free_low(m_index, m_block, ULINT_UNDEFINED, m_mtr);
-    m_block = nullptr;
-  }
+  void dealloc();
 
   /** Check if the index list is empty or not.
   @return true if empty, false otherwise. */
@@ -347,6 +342,18 @@ struct first_page_t : public basic_page_t {
   @return	the newly allocated buffer block. */
   buf_block_t *replace(trx_t *trx, ulint offset, const byte *&ptr, ulint &want,
                        mtr_t *mtr);
+
+  /** Replace data in the page inline.
+  @param[in]	trx	the current transaction.
+  @param[in]	offset	the location where replace operation starts.
+  @param[in,out]	ptr	the buffer containing new data. after the
+                          call it will point to remaining data.
+  @param[in,out]	want	requested amount of data to be replaced.
+                          after the call it will contain amount of
+                          data yet to be replaced.
+  @param[in]	mtr	the mini-transaction context.*/
+  void replace_inline(trx_t *trx, ulint offset, const byte *&ptr, ulint &want,
+                      mtr_t *mtr);
 
   ulint get_data_len() const {
     return (mach_read_from_4(frame() + OFFSET_DATA_LEN));

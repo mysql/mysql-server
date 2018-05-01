@@ -7,5 +7,5 @@ SET debug = '+d,temptable_use_char_length';
 SELECT DISTINCT * FROM t;
 c
 aabbccdd
-SET debug = '-d,use_char_length';
+SET debug = '-d,temptable_use_char_length';
 DROP TABLE t;

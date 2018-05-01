@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _XPL_DISPATCHER_H_
-#define _XPL_DISPATCHER_H_
+#ifndef PLUGIN_X_SRC_XPL_DISPATCHER_H_
+#define PLUGIN_X_SRC_XPL_DISPATCHER_H_
 
 #include "plugin/x/ngs/include/ngs/protocol/message.h"
 #include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
@@ -38,9 +38,9 @@ class Session_options;
 
 namespace dispatcher {
 bool dispatch_command(Session &session, Crud_command_handler &crudh,
-                      Expectation_stack &expect, ngs::Request &command);
+                      Expectation_stack &expect, ngs::Message_request &command);
 
 }  // namespace dispatcher
 }  // namespace xpl
 
-#endif
+#endif  // PLUGIN_X_SRC_XPL_DISPATCHER_H_

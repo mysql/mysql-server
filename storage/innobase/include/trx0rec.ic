@@ -68,10 +68,18 @@ UNIV_INLINE
 undo_no_t trx_undo_rec_get_undo_no(
     const trx_undo_rec_t *undo_rec) /*!< in: undo log record */
 {
-  const byte *ptr;
+  const byte *ptr = undo_rec + 2;
+  uint8_t type_cmpl = mach_read_from_1(ptr);
 
-  ptr = undo_rec + 3;
+  const bool blob_undo = type_cmpl & TRX_UNDO_MODIFY_BLOB;
 
+  if (blob_undo) {
+    /* The next record offset takes 2 bytes + 1 byte for
+    type_cmpl flag + 1 byte for the new flag.  Total 4 bytes.*/
+    ptr = undo_rec + 4;
+  } else {
+    ptr = undo_rec + 3;
+  }
   return (mach_u64_read_much_compressed(ptr));
 }
 

@@ -74,7 +74,7 @@ static rtr_split_node_t *rtr_page_split_initialize_nodes(
   page_t *page;
   ulint n_uniq;
   ulint len;
-  byte *source_cur;
+  const byte *source_cur;
 
   block = btr_cur_get_block(cursor);
   page = buf_block_get_frame(block);
@@ -1733,7 +1733,7 @@ int64_t rtr_estimate_n_rows_in_range(dict_index_t *index, const dtuple_t *tuple,
   }
 
   rec_t *rec;
-  byte *field;
+  const byte *field;
   ulint len;
   ulint *offsets = NULL;
   mem_heap_t *heap;

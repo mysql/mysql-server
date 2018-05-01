@@ -1593,7 +1593,7 @@ Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
 PRIMARY KEY Host (Host,Db,User), KEY User (User) ) engine=MyISAM
 CHARACTER SET utf8 COLLATE utf8_bin comment='Database privileges';
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE IF NOT EXISTS mysql.user (   Host char(60) binary DEFAULT '' NOT NULL,
 User char(16) binary DEFAULT '' NOT NULL, Password char(41) character set latin1
 collate latin1_bin DEFAULT '' NOT NULL, Select_priv enum('N','Y') COLLATE utf8_general_ci
@@ -1631,12 +1631,12 @@ max_questions int(11) unsigned DEFAULT 0  NOT NULL,
 max_updates int(11) unsigned DEFAULT 0  NOT NULL,
 max_connections int(11) unsigned DEFAULT 0  NOT NULL,
 max_user_connections int(11) unsigned DEFAULT 0  NOT NULL,
-plugin char(64) DEFAULT 'mysql_native_password', authentication_string TEXT,
+plugin char(64) DEFAULT 'caching_sha2_password', authentication_string TEXT,
 password_expired ENUM('N', 'Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
 PRIMARY KEY Host (Host,User) ) engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin
 comment='Users and global privileges';
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE IF NOT EXISTS mysql.tables_priv ( Host char(60) binary DEFAULT '' NOT NULL,
 Db char(64) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL,
 Table_name char(64) binary DEFAULT '' NOT NULL, Grantor char(77) DEFAULT '' NOT NULL,
@@ -1647,7 +1647,7 @@ Column_priv set('Select','Insert','Update','References') COLLATE utf8_general_ci
  NOT NULL, PRIMARY KEY (Host,Db,User,Table_name), KEY Grantor (Grantor) )
 engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin   comment='Table privileges';
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE IF NOT EXISTS mysql.columns_priv ( Host char(60) binary DEFAULT '' NOT NULL,
 Db char(64) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL,
 Table_name char(64) binary DEFAULT '' NOT NULL, Column_name char(64) binary DEFAULT '' NOT NULL,
@@ -1656,7 +1656,7 @@ Column_priv set('Select','Insert','Update','References') COLLATE utf8_general_ci
 DEFAULT '' NOT NULL, PRIMARY KEY (Host,Db,User,Table_name,Column_name) )
 engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin   comment='Column privileges';
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE IF NOT EXISTS mysql.procs_priv ( Host char(60) binary DEFAULT '' NOT NULL,
 Db char(64) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL,
 Routine_name char(64) COLLATE utf8_general_ci DEFAULT '' NOT NULL,
@@ -1666,7 +1666,7 @@ Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTA
 PRIMARY KEY (Host,Db,User,Routine_name,Routine_type), KEY Grantor (Grantor) )
 engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin   comment='Procedure privileges';
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE IF NOT EXISTS mysql.proxies_priv (Host char(60) binary DEFAULT '' NOT NULL,
 User char(16) binary DEFAULT '' NOT NULL, Proxied_host char(60) binary DEFAULT '' NOT NULL,
 Proxied_user char(16) binary DEFAULT '' NOT NULL, With_grant BOOL DEFAULT 0 NOT NULL,
@@ -1675,7 +1675,7 @@ ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY Host (Host,User,Proxied_host,Proxied_us
 KEY Grantor (Grantor) ) engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin
 comment='User proxy privileges';
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Restore original content of privilege tables
 INSERT INTO mysql.user(Host, User, Select_priv, Insert_priv, Update_priv, Delete_priv,
 Create_priv, Drop_priv, Reload_priv, Shutdown_priv, Process_priv, File_priv, Grant_priv,
@@ -1780,8 +1780,6 @@ mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
-mysql.innodb_ddl_log                               OK
-mysql.innodb_dynamic_metadata                      OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
 mysql.password_history                             OK
@@ -1806,7 +1804,7 @@ mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 mysql.user_bak                                     OK
-The sys schema is already up to date (version 1.6.0).
+The sys schema is already up to date (version 2.0.0).
 Checking databases.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
@@ -1868,7 +1866,7 @@ RENAME TABLE mysql.tables_priv_bak TO mysql.tables_priv;
 INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session',
 'N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y','N','N','N',
 'N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,
-'mysql_native_password','*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE',
+'caching_sha2_password','$A$005$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED',
 'N',CURRENT_TIMESTAMP,NULL,'Y', 'N', 'N', NULL, NULL);
 INSERT IGNORE INTO mysql.tables_priv VALUES ('localhost', 'mysql',
 'mysql.session', 'user', 'root\@localhost',

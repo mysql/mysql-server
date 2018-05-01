@@ -94,7 +94,7 @@ Verify indexes usage
 explain select * from performance_schema.pfs_example_continent
 where NAME="bar1";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	pfs_example_continent	NULL	const	PRIMARY	PRIMARY	60	const	1	100.00	NULL
+1	SIMPLE	pfs_example_continent	NULL	const	PRIMARY	PRIMARY	80	const	1	100.00	NULL
 -------------------------------------------------
 Verify stats collection in PFS stats tables
 -------------------------------------------------

@@ -314,7 +314,7 @@ KEY (key1),
 KEY (key2)
 ) AUTO_INCREMENT=6 DEFAULT CHARSET=utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES
 (1,NULL,1130,NULL,'Hello',NULL,100,'bodyandsubject',0),
 (2,NULL,1130,NULL,'bye',NULL,100,'bodyandsubject',0),
@@ -558,7 +558,7 @@ PRIMARY KEY (pk),
 KEY k1 (i1)
 );
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t2 VALUES (3, 9, 1, NULL);
 EXPLAIN SELECT i1
 FROM t1 LEFT JOIN t2 ON t1.pk = t2.i2
@@ -674,7 +674,7 @@ PRIMARY KEY (pk),
 KEY k1 (c1_key)
 ) charset latin1;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t5 (
 pk INTEGER NOT NULL,
 c1 VARCHAR(10) NOT NULL,

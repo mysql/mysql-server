@@ -623,4 +623,9 @@ drop database mysqltest1;
 connection master;
 # Restore binlog format setting
 set global binlog_format =@my_binlog_format;
+
+# Cleanup
+--remove_file $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_slave.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_master.sql
 --source include/rpl_end.inc
+

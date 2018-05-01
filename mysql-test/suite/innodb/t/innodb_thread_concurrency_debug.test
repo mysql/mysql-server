@@ -2,16 +2,21 @@
 --source include/have_debug_sync.inc
 --source include/count_sessions.inc
 
+--echo # Setup connections
+SET @old_innodb_thread_concurrency := @@innodb_thread_concurrency;
+SET @old_innodb_concurrency_tickets := @@innodb_concurrency_tickets;
+SET @old_innodb_thread_sleep_delay := @@innodb_thread_sleep_delay;
+
+connect (con1, localhost, root);
+connect (con2, localhost, root);
+
 --echo #
 --echo # Bug #19386426	SHUTDOWN HANGS: CLIENT THREAD IN A LOOP
 --echo # AROUND SRV_CONC_ENTER_INNODB()
 --echo #
 
-SET @old_innodb_thread_concurrency := @@innodb_thread_concurrency;
-SET @old_innodb_thread_sleep_delay := @@innodb_thread_sleep_delay;
 SET GLOBAL innodb_thread_concurrency = 1;
 create table t1(f1 int) engine=innodb;
-connect (con1, localhost, root);
 connection con1;
 SET DEBUG_SYNC= 'ib_after_row_insert
 SIGNAL opened WAIT_FOR flushed';
@@ -32,5 +37,106 @@ connection default;
 reap;
 select * from t1;
 drop table t1;
+
+--echo #
+--echo # bug#23476050 THREADS STUCK WAITING TO ENTER INNODB
+--echo #
+
+--echo # Scenario-1: High Priority Transaction
+--echo In connection DEFAULT
+SET GLOBAL innodb_thread_concurrency = 1;
+
+CREATE TABLE t1(col1 INT PRIMARY KEY);
+INSERT INTO t1 VALUES(10);
+
+START TRANSACTION;
+--echo # Lock Row
+UPDATE t1 SET col1 = 20 where col1 = 10;
+
+--echo # stop after TrxInInnoDB and before innodb thread concurrency
+SET DEBUG_SYNC= 'ha_innobase_index_read_begin SIGNAL kill_me WAIT_FOR proceed';
+
+--send UPDATE t1 SET col1 = 30 where col1 = 20
+
+--echo In connection CON-1
+connection con1;
+SET DEBUG_SYNC='now WAIT_FOR kill_me';
+--source include/start_transaction_high_prio.inc
+
+SET DEBUG_SYNC= 'trx_kill_blocking_enter SIGNAL proceed';
+UPDATE t1 SET col1 = 100;
+COMMIT;
+
+--echo In connection DEFAULT
+--connection default
+
+--echo # Rolled back by high priority transaction
+--error ER_LOCK_DEADLOCK
+--reap
+
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--echo # Scenario-2: Auto Increment in partitioned table
+SET GLOBAL innodb_thread_concurrency = 1;
+
+CREATE TABLE t1 (col1 INT AUTO_INCREMENT PRIMARY KEY, col2 int)
+PARTITION BY KEY(col1) PARTITIONS 2;
+
+INSERT INTO t1(col2) VALUES(10);
+
+SELECT * FROM t1;
+
+--echo # stop after innodb thread concurrency before auto increment lock
+SET DEBUG_SYNC='ib_after_row_insert SIGNAL got_innodb_ticket WAIT_FOR proceed';
+
+--send INSERT INTO t1(col2) VALUES (20)
+
+--echo In connection CON-1
+connection con1;
+SET LOCAL binlog_format = 'STATEMENT';
+SET DEBUG_SYNC='now WAIT_FOR got_innodb_ticket';
+--send INSERT INTO t1(col2) SELECT 30
+
+# wait for insert statement to block on innodb thread concurrency
+--sleep 1
+
+--echo In connection CON-2
+connection con2;
+SET DEBUG_SYNC='now SIGNAL proceed';
+
+--echo In connection CON-1
+connection con1;
+--reap
+
+--echo In connection DEFAULT
+--connection default
+--reap
+
+SELECT * FROM t1 ORDER BY col1;
+DROP TABLE t1;
+
+--echo #
+--echo # bug#27661171 INNODB: TRX->DECLARED_TO_BE_INSIDE_INNODB
+--echo #
+CREATE TABLE t1 (col1 INT AUTO_INCREMENT PRIMARY KEY, col2 int)
+PARTITION BY KEY(col1) PARTITIONS 2;
+
+--echo # Insert 2 rows in same statement consuming the tickets
+SET GLOBAL innodb_concurrency_tickets = 2;
+SHOW VARIABLES LIKE 'innodb_concurrency_tickets';
+INSERT INTO t1(col2) VALUES (10), (20);
+
+SELECT * FROM t1 ORDER BY col1;
+DROP TABLE t1;
+
+--echo # Cleanup
+disconnect con1;
+disconnect con2;
+
+SET DEBUG_SYNC='reset';
 SET GLOBAL innodb_thread_concurrency = @old_innodb_thread_concurrency;
+SET GLOBAL innodb_concurrency_tickets = @old_innodb_concurrency_tickets;
 SET GLOBAL innodb_thread_sleep_delay = @old_innodb_thread_sleep_delay;
+
+--source include/wait_until_count_sessions.inc

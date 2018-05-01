@@ -168,8 +168,8 @@ mkdir $NEWDATADIR_4;
 --eval CHANGE MASTER TO MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, MASTER_HOST='localhost'
 START SLAVE;
 # Verify that slave IO error occurs on START SLAVE
-# 1593 is the code for ER_SLAVE_FATAL_ERROR
---let $slave_io_errno= 1593
+# 13117 is the code for ER_SLAVE_FATAL_ERROR
+--let $slave_io_errno= 13117
 --source include/wait_for_slave_io_error.inc
 
 # 10. Restart server-2 with the original datadir to bring it back to

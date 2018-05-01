@@ -1268,8 +1268,8 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg,
 
   if (all) {
     /*
-      Ensure no active backup engine data exists, unless the current transaction
-      is from replication and in active xa state.
+      Ensure no active backup engine data exists, unless the current
+      transaction is from replication and in active xa state.
     */
     DBUG_ASSERT(
         thd->get_ha_data(ht_arg->slot)->ha_ptr_backup == NULL ||
@@ -2292,16 +2292,10 @@ static bool flush_handlerton(THD *, plugin_ref plugin, void *arg) {
   return false;
 }
 
-bool ha_flush_logs(handlerton *db_type, bool binlog_group_flush) {
-  if (db_type == NULL) {
-    if (plugin_foreach(NULL, flush_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN,
-                       static_cast<void *>(&binlog_group_flush)))
-      return true;
-  } else {
-    if (db_type->state != SHOW_OPTION_YES ||
-        (db_type->flush_logs &&
-         db_type->flush_logs(db_type, binlog_group_flush)))
-      return true;
+bool ha_flush_logs(bool binlog_group_flush) {
+  if (plugin_foreach(NULL, flush_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN,
+                     static_cast<void *>(&binlog_group_flush))) {
+    return true;
   }
   return false;
 }
@@ -3932,13 +3926,15 @@ void handler::print_error(int error, myf errflag) {
     case HA_ERR_INDEX_FILE_FULL: {
       textno = ER_RECORD_FILE_FULL;
       /* Write the error message to error log */
-      errflag |= ME_ERRORLOG;
+      LogErr(ERROR_LEVEL, ER_SERVER_RECORD_FILE_FULL,
+             table_share->table_name.str);
       break;
     }
     case HA_ERR_DISK_FULL_NOWAIT: {
       textno = ER_DISK_FULL_NOWAIT;
       /* Write the error message to error log */
-      errflag |= ME_ERRORLOG;
+      LogErr(ERROR_LEVEL, ER_SERVER_DISK_FULL_NOWAIT,
+             table_share->table_name.str);
       break;
     }
     case HA_ERR_LOCK_WAIT_TIMEOUT:
@@ -4568,8 +4564,8 @@ bool handler::ha_commit_inplace_alter_table(TABLE *altered_table,
 }
 
 /*
-   Default implementation to support in-place alter table
-   and old online add/drop index API
+   Default implementation to support in-place/instant alter table
+   for operations which do not affect table data.
 */
 
 enum_alter_inplace_result handler::check_if_supported_inplace_alter(
@@ -4613,7 +4609,7 @@ enum_alter_inplace_result handler::check_if_supported_inplace_alter(
                            : IS_EQUAL_YES;
   if (table->file->check_if_incompatible_data(create_info, table_changes) ==
       COMPATIBLE_DATA_YES)
-    DBUG_RETURN(HA_ALTER_INPLACE_EXCLUSIVE_LOCK);
+    DBUG_RETURN(HA_ALTER_INPLACE_INSTANT);
 
   DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 }
@@ -4813,6 +4809,7 @@ int ha_create_table(THD *thd, const char *path, const char *db,
 #endif
 
   // When db_stat is 0, we can pass nullptr as dd::Table since it won't be used.
+  destroy(&table);
   if (open_table_from_share(thd, &share, "", 0, (uint)READ_ALL, 0, &table, true,
                             nullptr)) {
 #ifdef HAVE_PSI_TABLE_INTERFACE

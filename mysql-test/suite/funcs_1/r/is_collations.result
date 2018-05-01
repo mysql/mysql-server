@@ -34,7 +34,7 @@ ID	bigint(20) unsigned	NO		0
 IS_DEFAULT	varchar(3)	NO			
 IS_COMPILED	varchar(3)	NO			
 SORTLEN	int(10) unsigned	NO		NULL	
-PAD_ATTRIBUTE	varchar(9)	NO		NULL	
+PAD_ATTRIBUTE	enum('PAD SPACE','NO PAD')	NO		NULL	
 SHOW CREATE TABLE information_schema.COLLATIONS;
 View	Create View	character_set_client	collation_connection
 COLLATIONS	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`COLLATIONS` AS select `col`.`name` AS `COLLATION_NAME`,`cs`.`name` AS `CHARACTER_SET_NAME`,`col`.`id` AS `ID`,if(exists(select 1 from `mysql`.`character_sets` where (`mysql`.`character_sets`.`default_collation_id` = `col`.`id`)),'Yes','') AS `IS_DEFAULT`,if(`col`.`is_compiled`,'Yes','') AS `IS_COMPILED`,`col`.`sort_length` AS `SORTLEN`,`col`.`pad_attribute` AS `PAD_ATTRIBUTE` from (`mysql`.`collations` `col` join `mysql`.`character_sets` `cs` on((`col`.`character_set_id` = `cs`.`id`)))	utf8	utf8_general_ci
@@ -46,7 +46,7 @@ ID	bigint(20) unsigned	NO		0
 IS_DEFAULT	varchar(3)	NO			
 IS_COMPILED	varchar(3)	NO			
 SORTLEN	int(10) unsigned	NO		NULL	
-PAD_ATTRIBUTE	varchar(9)	NO		NULL	
+PAD_ATTRIBUTE	enum('PAD SPACE','NO PAD')	NO		NULL	
 # Testcases 3.2.3.2 and 3.2.3.3 are checked in suite/funcs_1/t/charset_collation*.test
 ########################################################################
 # Testcases 3.2.1.3-3.2.1.5 + 3.2.1.8-3.2.1.12: INSERT/UPDATE/DELETE and

@@ -1,4 +1,4 @@
-/*  Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -31,9 +31,14 @@
   This test plugin is based on the dialog plugin example.
 */
 
+#define LOG_COMPONENT_TAG "test_plugin_server"
+
 #include <mysql/client_plugin.h>
+#include <mysql/components/my_service.h>
+#include <mysql/components/services/log_builtins.h>
 #include <mysql/plugin_auth.h>
-#include <mysql/service_my_plugin_log.h>
+#include <mysqld_error.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,6 +54,13 @@
 #define PASSWORD_QUESTION "\5"
 
 /********************* SERVER SIDE ****************************************/
+
+/**
+ Initialize parameters required for error logging
+*/
+static SERVICE_TYPE(registry) *reg_srv = nullptr;
+SERVICE_TYPE(log_builtins) *log_bi = nullptr;
+SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
 
 /**
  Handle assigned when loading the plugin.
@@ -70,19 +82,27 @@ static int auth_test_plugin(MYSQL_PLUGIN_VIO *vio,
   unsigned char *pkt;
   int pkt_len;
 
-  /* send a password question */
-  if (vio->write_packet(vio, (const unsigned char *)PASSWORD_QUESTION, 1))
+  /* Initialize error log service*/
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
     return CR_ERROR;
 
+  /* send a password question */
+  if (vio->write_packet(vio, (const unsigned char *)PASSWORD_QUESTION, 1)) {
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
+    return CR_ERROR;
+  }
   /* read the answer */
-  if ((pkt_len = vio->read_packet(vio, &pkt)) < 0) return CR_ERROR;
-
+  if ((pkt_len = vio->read_packet(vio, &pkt)) < 0) {
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
+    return CR_ERROR;
+  }
   info->password_used = PASSWORD_USED_YES;
 
   /* fail if the password is wrong */
   if (strcmp((const char *)pkt, info->auth_string)) {
-    my_plugin_log_message(&plugin_info_ptr, MY_ERROR_LEVEL,
-                          "Wrong password supplied for %s", info->auth_string);
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Wrong password supplied for %s", info->auth_string);
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return CR_ERROR;
   }
 
@@ -92,9 +112,9 @@ static int auth_test_plugin(MYSQL_PLUGIN_VIO *vio,
   /* copy something into the external user name */
   strcpy(info->external_user, info->auth_string);
 
-  my_plugin_log_message(&plugin_info_ptr, MY_INFORMATION_LEVEL,
-                        "successfully authenticated user %s",
-                        info->authenticated_as);
+  LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                  "successfully authenticated user %s", info->authenticated_as);
+  deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
   return CR_OK;
 }
 

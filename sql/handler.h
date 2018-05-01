@@ -173,7 +173,8 @@ enum enum_alter_inplace_result {
   HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE,
   HA_ALTER_INPLACE_SHARED_LOCK,
   HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE,
-  HA_ALTER_INPLACE_NO_LOCK
+  HA_ALTER_INPLACE_NO_LOCK,
+  HA_ALTER_INPLACE_INSTANT
 };
 
 /* Bits in table_flags() to show what database can do */
@@ -1364,6 +1365,7 @@ typedef bool (*sdi_get_t)(const dd::Tablespace &tablespace,
 
 /**
   Insert/Update SDI for a given SDI key.
+  @param[in]  hton        handlerton object
   @param[in]  tablespace  tablespace object
   @param[in]  sdi_key     SDI key to uniquely identify SDI obj
   @param[in]  sdi         SDI to write into the tablespace
@@ -1372,7 +1374,7 @@ typedef bool (*sdi_get_t)(const dd::Tablespace &tablespace,
   @retval     true        failure, my_error() should be called
                           by SE
 */
-typedef bool (*sdi_set_t)(const dd::Tablespace &tablespace,
+typedef bool (*sdi_set_t)(handlerton *hton, const dd::Tablespace &tablespace,
                           const dd::Table *table, const dd::sdi_key_t *sdi_key,
                           const void *sdi, uint64 sdi_len);
 
@@ -1917,7 +1919,7 @@ struct handlerton {
   void *data;
 
   /*
-    Instance_log_resource functions that must be supported by storage engines
+    Log_resource functions that must be supported by storage engines
     with relevant log information to be collected.
   */
   lock_hton_log_t lock_hton_log;
@@ -1977,6 +1979,18 @@ struct handlerton {
 */
 
 #define HTON_SUPPORTS_ATOMIC_DDL (1 << 12)
+
+/**
+  Engine supports both unique and non-unique parent keys for
+  foreign keys which contain full foreign key as its prefix.
+
+  Storage engines which support foreign keys but do not have
+  this flag set are assumed to support only parent keys which
+  are primary/unique and contain exactly the same columns as
+  the foreign key, possibly, in different order.
+*/
+
+#define HTON_SUPPORTS_FKS_WITH_PREFIX_PARENT_KEYS (1 << 13)
 
 inline bool ddl_is_atomic(const handlerton *hton) {
   return (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) != 0;
@@ -2307,6 +2321,22 @@ class Alter_inplace_info {
   Alter_info *alter_info;
 
   /**
+    Indicates whether operation should fail if table is non-empty.
+    Storage engines should not suggest/allow execution of such operations
+    using INSTANT algorithm since check whether table is empty done from
+    SQL-layer is not "instant". Also SEs might choose different algorithm for
+    ALTER TABLE execution knowing that it will be allowed to proceed only if
+    table is empty.
+
+    Unlike for Alter_table_ctx::error_if_not_empty, we use bool for this flag
+    and not bitmap, since SEs are really interested in the fact that ALTER
+    will fail if table is not empty and not in exact reason behind this fact,
+    and because we want to avoid extra dependency between Alter_table_ctx and
+    Alter_inplace_info.
+  */
+  bool error_if_not_empty;
+
+  /**
     Array of KEYs for new version of table - including KEYs to be added.
 
     @note Currently this array is produced as result of
@@ -2399,6 +2429,14 @@ class Alter_inplace_info {
   bool online;
 
   /**
+    Can be set by handler along with handler_ctx. The difference is that
+    this flag can be used to store SE-specific in-place ALTER context in cases
+    when constructing full-blown inplace_alter_handler_ctx descendant is
+    inconvenient.
+  */
+  uint handler_trivial_ctx;
+
+  /**
      Can be set by handler to describe why a given operation cannot be done
      in-place (HA_ALTER_INPLACE_NOT_SUPPORTED) or why it cannot be done
      online (HA_ALTER_INPLACE_NO_LOCK or HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE)
@@ -2413,10 +2451,12 @@ class Alter_inplace_info {
   const char *unsupported_reason;
 
   Alter_inplace_info(HA_CREATE_INFO *create_info_arg,
-                     Alter_info *alter_info_arg, KEY *key_info_arg,
-                     uint key_count_arg, partition_info *modified_part_info_arg)
+                     Alter_info *alter_info_arg, bool error_if_not_empty_arg,
+                     KEY *key_info_arg, uint key_count_arg,
+                     partition_info *modified_part_info_arg)
       : create_info(create_info_arg),
         alter_info(alter_info_arg),
+        error_if_not_empty(error_if_not_empty_arg),
         key_info_buffer(key_info_arg),
         key_count(key_count_arg),
         index_drop_count(0),
@@ -2431,6 +2471,7 @@ class Alter_inplace_info {
         handler_flags(0),
         modified_part_info(modified_part_info_arg),
         online(false),
+        handler_trivial_ctx(0),
         unsupported_reason(NULL) {}
 
   ~Alter_inplace_info() { destroy(handler_ctx); }
@@ -4695,7 +4736,7 @@ class handler {
     return COMPATIBLE_DATA_NO;
   }
 
-  /* On-line/in-place ALTER TABLE interface. */
+  /* On-line/in-place/instant ALTER TABLE interface. */
 
   /*
     Here is an outline of on-line/in-place ALTER TABLE execution through
@@ -4710,23 +4751,28 @@ class handler {
     *) This phase starts by opening the table and preparing description
        of the new version of the table.
     *) Then we check if it is impossible even in theory to carry out
-       this ALTER TABLE using the in-place algorithm. For example, because
-       we need to change storage engine or the user has explicitly requested
-       usage of the "copy" algorithm.
-    *) If in-place ALTER TABLE is theoretically possible, we continue
+       this ALTER TABLE using the in-place/instant algorithm. For example,
+       because we need to change storage engine or the user has explicitly
+       requested usage of the "copy" algorithm.
+    *) If in-place/instant ALTER TABLE is theoretically possible, we continue
        by compiling differences between old and new versions of the table
        in the form of HA_ALTER_FLAGS bitmap. We also build a few
        auxiliary structures describing requested changes and store
        all these data in the Alter_inplace_info object.
     *) Then the handler::check_if_supported_inplace_alter() method is called
        in order to find if the storage engine can carry out changes requested
-       by this ALTER TABLE using the in-place algorithm. To determine this,
-       the engine can rely on data in HA_ALTER_FLAGS/Alter_inplace_info
-       passed to it as well as on its own checks. If the in-place algorithm
-       can be used for this ALTER TABLE, the level of required concurrency for
-       its execution is also returned.
+       by this ALTER TABLE using the in-place or instant algorithm.
+       To determine this, the engine can rely on data in HA_ALTER_FLAGS/
+       Alter_inplace_info passed to it as well as on its own checks.
+       If the in-place algorithm can be used for this ALTER TABLE, the level
+       of required concurrency for its execution is also returned.
        If any errors occur during the handler call, ALTER TABLE is aborted
        and no further handler functions are called.
+       Note that in cases when there is difference between in-place and
+       instant algorithm and user explicitly asked for usage of in-place
+       algorithm storage engine MUST return one of values corresponding
+       to in-place algorithm and not HA_ALTER_INPLACE_INSTANT from this
+       method.
     *) Locking requirements of the in-place algorithm are compared to any
        concurrency requirements specified by user. If there is a conflict
        between them, we either switch to the copy algorithm or emit an error.
@@ -4742,30 +4788,36 @@ class handler {
        duration of in-place ALTER (if HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE
        or HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE were returned we acquire an
        exclusive lock for duration of the next step only).
+       For HA_ALTER_INPLACE_INSTANT we keep shared upgradable metadata lock
+       which was acquired at table open time.
     *) After that we call handler::ha_prepare_inplace_alter_table() to give the
        storage engine a chance to update its internal structures with a higher
        lock level than the one that will be used for the main step of algorithm.
        After that we downgrade the lock if it is necessary.
+       This step should be no-op for instant algorithm.
     *) After that, the main step of this phase and algorithm is executed.
        We call the handler::ha_inplace_alter_table() method, which carries out
-    the changes requested by ALTER TABLE but does not makes them visible to
-    other connections yet.
+       the changes requested by ALTER TABLE but does not makes them visible to
+       other connections yet.
+       This step should be no-op for instant algorithm as well.
     *) We ensure that no other connection uses the table by upgrading our
        lock on it to exclusive.
     *) a) If the previous step succeeds,
     handler::ha_commit_inplace_alter_table() is called to allow the storage
     engine to do any final updates to its structures, to make all earlier
-    changes durable and visible to other connections. Engines that support
-    atomic DDL only prepare for the commit during this step but do not finalize
-    it. Real commit happens later when the whole statement is committed. Also in
-    some situations statement might be rolled back after call to
-    commit_inplace_alter_table() for such storage engines. In the latter special
-    case SE might require call to handlerton::dict_cache_reset() in order to
-    invalidate its internal table definition cache after rollback. b) If we have
-    failed to upgrade lock or any errors have occured during the handler
-    functions calls (including commit), we call
-          handler::ha_commit_inplace_alter_table()
-          to rollback all changes which were done during previous steps.
+    changes durable and visible to other connections.
+    For instant algorithm this is the step during which SE changes are done.
+    Engines that support atomic DDL only prepare for the commit during this
+    step but do not finalize it. Real commit happens later when the whole
+    statement is committed. Also in some situations statement might be rolled
+    back after call to commit_inplace_alter_table() for such storage engines.
+    In the latter special case SE might require call to
+    handlerton::dict_cache_reset() in order to invalidate its internal table
+    definition cache after rollback.
+    b) If we have failed to upgrade lock or any errors have occured during
+    the handler functions calls (including commit), we call
+    handler::ha_commit_inplace_alter_table() to rollback all changes which
+    were done during previous steps.
 
     All the above calls to SE are provided with dd::Table objects describing old
     and new version of table being altered. Engines which support atomic DDL are
@@ -4826,9 +4878,23 @@ class handler {
      reads/writes allowed. However, prepare phase requires X lock.
      @retval   HA_ALTER_INPLACE_NO_LOCK        Supported, concurrent
                                                reads/writes allowed.
+     @retval   HA_ALTER_INPLACE_INSTANT        Instant algorithm is supported.
+                                               Prepare and main phases are
+                                               no-op. Changes happen during
+                                               commit phase and it should be
+                                               "instant". We keep SU lock,
+                                               allowing concurrent reads and
+                                               writes during no-op phases and
+                                               upgrade it to X lock before
+                                               commit phase.
 
      @note The default implementation uses the old in-place ALTER API
      to determine if the storage engine supports in-place ALTER or not.
+
+     @note In cases when there is difference between in-place and instant
+     algorithm and explicit ALGORITHM=INPLACE clause was provided SE MUST
+     return one of values corresponding to in-place algorithm and not
+     HA_ALTER_INPLACE_INSTANT from this method.
 
      @note Called without holding thr_lock.c lock.
   */
@@ -4885,6 +4951,8 @@ class handler {
      exclusive lock otherwise the same level of locking as for
      inplace_alter_table() will be used.
 
+     @note Should be no-op for instant algorithm.
+
      @note Storage engines are responsible for reporting any errors by
      calling my_error()/print_error()
 
@@ -4926,6 +4994,8 @@ class handler {
      during this operation depends on the return value from
      check_if_supported_inplace_alter().
 
+     @note Should be no-op for instant algorithm.
+
      @note Storage engines are responsible for reporting any errors by
      calling my_error()/print_error()
 
@@ -4963,6 +5033,8 @@ class handler {
      might be higher than during prepare_inplace_alter_table(). (For example,
      concurrent writes were blocked during prepare, but might not be during
      rollback).
+
+     @note This is the place where SE changes happen for instant algorithm.
 
      @note For storage engines supporting atomic DDL this method should only
      prepare for the commit but do not finalize it. Real commit should happen
@@ -5710,16 +5782,16 @@ void ha_close_connection(THD *thd);
 void ha_kill_connection(THD *thd);
 /** Invoke handlerton::pre_dd_shutdown() on every storage engine plugin. */
 void ha_pre_dd_shutdown(void);
+
 /**
   Flush the log(s) of storage engine(s).
 
-  @param db_type Handlerton of storage engine.
   @param binlog_group_flush true if we got invoked by binlog group
   commit during flush stage, false in other cases.
   @retval false Succeed
   @retval true Error
 */
-bool ha_flush_logs(handlerton *db_type, bool binlog_group_flush = false);
+bool ha_flush_logs(bool binlog_group_flush = false);
 void ha_drop_database(char *path);
 int ha_create_table(THD *thd, const char *path, const char *db,
                     const char *table_name, HA_CREATE_INFO *create_info,

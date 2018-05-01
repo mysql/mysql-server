@@ -684,10 +684,10 @@ drop table t1;
 create table t1 (a int primary key, b varchar(1000) not null, unique key (b))
 engine=ndb charset=utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (1, repeat(_utf8 0xe288ab6474, 200));
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (2, repeat(_utf8 0xe288ab6474, 200));
 ERROR 23000: Duplicate entry '∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫d' for key 'b'
 select a, sha1(b) from t1;
@@ -1053,7 +1053,7 @@ a	int(11)	NO	PRI	NULL
 b	int(11)	NO	UNI	NULL	
 # Drop index uk1 - it should fail
 drop index uk1 on t1;
-ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint '<parent_table_id>/<child_table_id>/fk1' in the referenced table '#sql-temporary'
+ERROR HY000: Cannot drop index 'uk1': needed in a foreign key constraint
 # Verify table is intact
 show create table t1;
 Table	Create Table

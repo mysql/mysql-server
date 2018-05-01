@@ -689,6 +689,8 @@ int cmp_dtuple_rec_with_match_low(const dtuple_t *dtuple, const rec_t *rec,
     contain externally stored fields, and the first fields
     (primary key fields) should already differ. */
     ut_ad(!rec_offs_nth_extern(offsets, cur_field));
+    /* So does the field with default value */
+    ut_ad(!rec_offs_nth_default(offsets, cur_field));
 
     rec_b_ptr = rec_get_nth_field(rec, offsets, cur_field, &rec_f_len);
 
@@ -794,6 +796,9 @@ int cmp_dtuple_rec_with_match_bytes(const dtuple_t *dtuple, const rec_t *rec,
     const byte *dtuple_b_ptr;
     const byte *rec_b_ptr;
     ulint rec_f_len;
+
+    ut_ad(!rec_offs_nth_default(offsets, cur_field));
+
     /* For now, change buffering is only supported on
     indexes with ascending order on the columns. */
     const bool is_ascending =
@@ -971,8 +976,8 @@ static MY_ATTRIBUTE((warn_unused_result)) int cmp_rec_rec_simple_field(
   ut_ad(!rec_offs_nth_extern(offsets1, n));
   ut_ad(!rec_offs_nth_extern(offsets2, n));
 
-  rec1_b_ptr = rec_get_nth_field(rec1, offsets1, n, &rec1_f_len);
-  rec2_b_ptr = rec_get_nth_field(rec2, offsets2, n, &rec2_f_len);
+  rec1_b_ptr = rec_get_nth_field_instant(rec1, offsets1, n, index, &rec1_f_len);
+  rec2_b_ptr = rec_get_nth_field_instant(rec2, offsets2, n, index, &rec2_f_len);
 
   return (cmp_data(col->mtype, col->prtype, field->is_ascending, rec1_b_ptr,
                    rec1_f_len, rec2_b_ptr, rec2_f_len));
@@ -1150,8 +1155,10 @@ int cmp_rec_rec_with_match(const rec_t *rec1, const rec_t *rec2,
     ut_ad(!rec_offs_nth_extern(offsets1, cur_field));
     ut_ad(!rec_offs_nth_extern(offsets2, cur_field));
 
-    rec1_b_ptr = rec_get_nth_field(rec1, offsets1, cur_field, &rec1_f_len);
-    rec2_b_ptr = rec_get_nth_field(rec2, offsets2, cur_field, &rec2_f_len);
+    rec1_b_ptr = rec_get_nth_field_instant(rec1, offsets1, cur_field, index,
+                                           &rec1_f_len);
+    rec2_b_ptr = rec_get_nth_field_instant(rec2, offsets2, cur_field, index,
+                                           &rec2_f_len);
 
     if (nulls_unequal && rec1_f_len == UNIV_SQL_NULL &&
         rec2_f_len == UNIV_SQL_NULL) {

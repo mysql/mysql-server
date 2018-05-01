@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -73,6 +73,17 @@ enum enum_query_type {
     don't reveal values.
   */
   QT_NO_DATA_EXPANSION = (1 << 10),
+
+  /**
+    Don't print the QB name. Used for the INSERT part of an INSERT...SELECT.
+  */
+  QT_IGNORE_QB_NAME = (1 << 11),
+
+  /**
+    Print only the QB name. Used for the SELECT part of an INSERT...SELECT.
+  */
+  QT_ONLY_QB_NAME = (1 << 12),
+
 };
 
 #endif  // ENUM_QUERY_TYPE_INCLUDED

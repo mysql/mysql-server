@@ -84,3 +84,11 @@ void log_primary_member_details() {
     }
   }
 }
+
+void abort_plugin_process(const char *message) {
+  LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_PLUGIN_ABORT, message);
+#if !defined(DBUG_OFF)
+  DBUG_SUICIDE();
+#endif
+  abort();
+}

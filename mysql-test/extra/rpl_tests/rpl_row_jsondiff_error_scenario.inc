@@ -236,12 +236,23 @@ if (!$skip_case)
   --source include/rpl_connection_master.inc
   eval DROP TABLE $table;
   --source include/sync_slave_sql_with_master.inc
-  #--source include/rpl_reset.inc
   --source include/stop_slave.inc
-  RESET SLAVE;
+
+  # BUG#27636289: RPL BREAKS WITH RESTART AFTER RESET SLAVE,
+  #               RESET MASTER WITH WRONG ERROR IN MTS
+  # Due to the above mentioned bug we need to use RESET SLAVE ALL
+  # and CHANGE MASTER instead of just RESET SLAVE, in order to clear
+  # RECEIVED_GTID_SET when test runs in MTS mode.
+
+  RESET SLAVE ALL;
+  RESET MASTER;
   --source include/rpl_connection_master.inc
   RESET MASTER;
   --source include/rpl_connection_slave.inc
+  --replace_result $MASTER_MYPORT MASTER_PORT
+  --disable_warnings
+  eval CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=$MASTER_MYPORT,MASTER_HOST='localhost';
+  --enable_warnings
   --source include/start_slave.inc
 
 }

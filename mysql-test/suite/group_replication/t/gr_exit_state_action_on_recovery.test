@@ -1,0 +1,184 @@
+###############################################################################
+#
+# group_replication_exit_state_action sysvar specifies which action is taken by
+# a server once it has involuntarily left the group. Currently there are only
+# two actions: either the server continues running but with super_read_only
+# enabled (READ_ONLY) or it aborts (ABORT_SERVER).
+#
+# This test shall verify that the correct exit state action is executed when
+# an error occurs during the catch-up phase of distributed recovery.
+#
+# Test:
+# 0) Setup group of 2 members (M1 and M2).
+# 1) Force error during the catch-up phase of M1.
+# 1.1) Verify that M1 goes into ERROR state and to super_read_only mode.
+# 2) Set group_replication_exit_state_action to ABORT_SERVER on M1.
+# 3) Force another error during the catch-up phase of M1.
+# 3.1) Verify that M1 aborted.
+# 4) Relaunch M1 and join the group.
+# 5) Cleanup.
+#
+################################################################################
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+
+--echo
+--echo #########################################################################
+--echo # 0) Setup group of 2 members (M1 and M2) but only start GR on M2.
+--echo #########################################################################
+--echo
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $member1_uuid= `SELECT @@GLOBAL.server_uuid`
+--let $local_address_server1= `SELECT @@GLOBAL.group_replication_local_address`
+--let $group_seeds_server1= `SELECT @@GLOBAL.group_replication_group_seeds`
+# Create a table on M1 while it isn't part of the group
+SET sql_log_bin = 0;
+CREATE TABLE t1 (a INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+SET sql_log_bin = 1;
+# Bootstrap the rest of the group (minus M1)
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+# Suppress expected errors and warnings
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET sql_log_bin = 0;
+call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Error 'Table 't1'*");
+call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Worker [0-9] failed executing transaction*");
+call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': ... The slave coordinator and worker threads are stopped,*");
+call mtr.add_suppression("Slave: Table 't1' already exists Error_code:*");
+call mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached. Aborting group replication recovery.");
+call mtr.add_suppression("Fatal error during the recovery process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("Fatal error during execution of Group Replication");
+SET sql_log_bin = 1;
+
+--echo
+--echo #########################################################################
+--echo # 1) Force error during the catch-up phase of M1.
+--echo #########################################################################
+--echo
+# Create and replicate a table on the group
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+CREATE TABLE t1 (a INT PRIMARY KEY);
+# Add M1 to the group
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $group_replication_start_member_state= RECOVERING
+--source include/start_group_replication.inc
+
+--echo
+--echo #########################################################################
+--echo # 1.1) Verify that M1 goes into ERROR state and to super_read_only mode.
+--echo #########################################################################
+--echo
+# Firstly verify that the member entered an error state
+--let $group_replication_member_state= ERROR
+--let $group_replication_member_id= $member1_uuid
+--source include/gr_wait_for_member_state.inc
+# Then verify that it enabled super_read_only
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $assert_text= super_read_only should be enabled
+--let $assert_cond= [SELECT @@GLOBAL.super_read_only] = 1;
+--source include/assert.inc
+# Lastly, verify that the member is not viewed as part of the group on M2 and
+# M3
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $group_replication_number_of_members= 1
+--source include/gr_wait_for_number_of_members.inc
+
+--echo
+--echo #########################################################################
+--echo # 2) Set group_replication_exit_state_action to ABORT_SERVER on M1.
+--echo #########################################################################
+--echo
+# Stop GR
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+# Delete the transaction that clashed, so the server doesn't error out right
+# at the beginning of recovery
+SET SESSION sql_log_bin= 0;
+DROP TABLE t1;
+SET SESSION sql_log_bin= 1;
+# Set the exit state action sysvar to ABORT_SERVER
+SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
+
+--echo
+--echo #########################################################################
+--echo # 3) Force another error during the catch-up phase of M1.
+--echo #########################################################################
+--echo
+# Inform MTR that we are expecting an abort and that it should wait before
+# restarting the aborting member
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+# Recreate the table
+SET SESSION sql_log_bin= 0;
+CREATE TABLE t1(a INT PRIMARY KEY);
+SET SESSION sql_log_bin= 1;
+# Join the group again
+--let $group_replication_start_member_state= RECOVERING
+--source include/start_group_replication.inc
+
+--echo
+--echo #########################################################################
+--echo # 3.1) Verify that M1 aborted.
+--echo #########################################################################
+--echo
+# For simplicity, let's assume that once the group size is 1, then member 1 has
+# abort()'ed
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $group_replication_number_of_members = 1
+--source include/gr_wait_for_number_of_members.inc
+# Also, the member should not be in the group view of any of the other members
+--let $assert_text = Member 1 should have aborted
+--let $assert_cond = COUNT(*) = 0 FROM performance_schema.replication_group_members WHERE MEMBER_ID = "$member1_uuid"
+--source include/assert.inc
+
+--echo
+--echo #########################################################################
+--echo # 4) Relaunch M1 and join the group.
+--echo #########################################################################
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/wait_until_disconnected.inc
+# Inform MTR that it should restart the aborted member
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+# Reconnect
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+# Remove conflicting trx so M1 can stay in the group
+SET SESSION sql_log_bin= 0;
+DROP TABLE t1;
+SET SESSION sql_log_bin= 1;
+RESET MASTER;
+--replace_result $group_seeds_server1 GROUP_SEEDS_SERVER1
+--eval SET @@global.group_replication_group_seeds="$group_seeds_server1"
+--replace_result $local_address_server1 LOCAL_ADDRESS_SERVER1
+--eval SET @@global.group_replication_local_address="$local_address_server1"
+--source include/start_group_replication.inc
+# Wait for group to stabilize
+--let $group_replication_number_of_members = 2
+--source include/gr_wait_for_number_of_members.inc
+
+--echo
+--echo #########################################################################
+--echo # 5) Cleanup.
+--echo #########################################################################
+--echo
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

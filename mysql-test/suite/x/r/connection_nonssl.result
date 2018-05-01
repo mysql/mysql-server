@@ -67,8 +67,8 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-Application terminated with expected error: Your password has expired. To log in you must change it using a client that supports expired passwords. (code 1045)
-not ok
+Application terminated with expected error: Your password has expired. To log in you must change it using a client that supports expired passwords. (code 1862)
+ok
 NOTICE: Account password expired
 RUN ALTER USER USER() IDENTIFIED BY 'alter-new-auth'
 
@@ -99,7 +99,7 @@ Mysqlx.Ok {
 }
 ok
 Application terminated with expected error: Capability prepare failed for 'tls' (code 5001)
-not ok
+ok
 RUN SET PASSWORD='set-new-auth'
 
 0 rows affected
@@ -107,17 +107,17 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
-Application terminated with expected error: Account is locked. (code 1045)
-not ok
+Application terminated with expected error: Authentication failed, check username and password or try a secure connection (code 2510)
+ok
+Application terminated with expected error: Access denied for user 'user4_mysqlx'@'localhost'. Account is locked. (code 3118)
+ok
 ALTER USER user4_mysqlx@localhost ACCOUNT UNLOCK;
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
+Application terminated with expected error: Authentication failed, check username and password or try a secure connection (code 2510)
+ok
+Application terminated with expected error: Authentication failed, check username and password or try a secure connection (code 2510)
+ok
+Application terminated with expected error: Authentication failed, check username and password or try a secure connection (code 2510)
+ok
 DROP USER user1_mysqlx@localhost, user2_mysqlx@localhost, user3_mysqlx@localhost,
 user4_mysqlx@localhost, user5_mysqlx@localhost, user6_mysqlx@localhost;
 SET GLOBAL mysqlx_connect_timeout= DEFAULT;

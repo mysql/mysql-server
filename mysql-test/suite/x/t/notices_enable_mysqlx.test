@@ -861,12 +861,12 @@ create user xplugin@localhost identified by 'xplugin';
 
 ##verify MYSQLX_NOTICE_OTHER_SENT,MYSQLX_NOTICE_WARNING_SENT
 let $restart_parameters = restart: ;
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
+--source include/restart_mysqld.inc
 --exec $MYSQLXTEST -ux_root --password='' --file=$xtest_stats_noti_no_err $MACROS 2>&1
 
 ##verify MYSQLX_NOTICE_OTHER_SENT,MYSQLX_NOTICE_WARNING_SENT with unprivileged user
 let $restart_parameters = restart: ;
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
+--source include/restart_mysqld.inc
 create user noti@localhost identified by 'noti';
 --exec $MYSQLXTEST -unoti --password='noti' --file=$xtest_stats_noti $MACROS 2>&1
 

@@ -1,0 +1,63 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # Bug #27566937 SERVER STARTUP CRASH AFTER SHUTDOWN IF TABLES
+--echo # CREATED USING JUNK CHARACTER-DEBUG
+--echo #
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+ SET NAMES utf8mb4 ;
+# set character_set_database = utf8mb4;
+
+--disable_warnings
+DROP DATABASE IF EXISTS `mytest`;
+CREATE DATABASE `mytest`;
+USE `mytest`;
+--enable_warnings
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+ SET character_set_client = utf8mb4 ;
+CREATE TABLE `???]?yt???c??.?t??*?nb???%fk2???1??\?` (c1 int
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+CREATE TABLE `mytest` (c1 int);
+
+--source include/restart_mysqld.inc
+
+USE mytest;
+SELECT COUNT(*) FROM mytest;
+SELECT COUNT(*) FROM `???]?yt???c??.?t??*?nb???%fk2???1??\?`;
+
+DROP DATABASE IF EXISTS `mytest`;
+
+# There is an issue where the server throws out error while creating the table
+# in the next test case.
+# Remove the following exit once this issue is fixed.
+--exit
+
+--disable_warnings
+DROP DATABASE IF EXISTS `???]?yt???c?^S^F?.?t??*?nb???%f^_k2???^^1?^D?\^Y?`;
+CREATE DATABASE `???]?yt???c?^S^F?.?t??*?nb???%f^_k2???^^1?^D?\^Y?`;
+USE `???]?yt???c?^S^F?.?t??*?nb???%f^_k2???^^1?^D?\^Y?`;
+--enable_warnings
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+ SET character_set_client = utf8mb4 ;
+CREATE TABLE `???]?yt???c??.?t??*?nb???%fk2???1??\?` (c1 int)
+ ENGINE=InnoDB;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--source include/restart_mysqld.inc
+
+use `???]?yt???c?^S^F?.?t??*?nb???%f^_k2???^^1?^D?\^Y?`;
+SELECT COUNT(*) FROM `???]?yt???c??.?t??*?nb???%fk2???1??\?`;
+
+DROP DATABASE IF EXISTS `???]?yt???c?^S^F?.?t??*?nb???%f^_k2???^^1?^D?\^Y?`;

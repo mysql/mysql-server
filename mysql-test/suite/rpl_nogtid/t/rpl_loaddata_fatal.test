@@ -16,7 +16,7 @@ connection master;
 LOAD DATA INFILE '../../std_data/rpl_loaddata.dat' INTO TABLE t1;
 
 connection slave;
-call mtr.add_suppression("Slave SQL.*Fatal error: Not enough memory, Error_code: 1593");
+call mtr.add_suppression("Slave SQL.*Fatal error: Not enough memory, Error_code: MY-013117");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 --let $slave_sql_errno= convert_error(ER_SLAVE_FATAL_ERROR) # 1593
@@ -24,6 +24,7 @@ source include/wait_for_slave_sql_error_and_skip.inc;
 
 connection master;
 DROP TABLE t1;
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp SQL_LOAD*
 --source include/sync_slave_sql_with_master.inc
 
 --source include/rpl_end.inc

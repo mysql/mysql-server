@@ -646,4 +646,25 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+
+command ok
+
+Numerical _id
+-------------
+
+1 rows affected
+Got expected error (code 0)
+doc
+{"_id": "123", "first": "A", "second": "A"}
+0 rows affected
+
+2 rows affected
+Got expected error (code 0)
+doc
+{"_id": 123, "first": "B", "second": "B"}
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
 DROP SCHEMA IF EXISTS xtest;

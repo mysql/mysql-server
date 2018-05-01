@@ -3,10 +3,6 @@ DROP VIEW IF EXISTS v_t1;
 CREATE TABLE t1 (id INT PRIMARY KEY);
 CREATE view v_t1 AS SELECT * FROM t1;
 CALL sys.table_exists('test', 't1', @exists);
-Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT @exists;
 @exists
 BASE TABLE

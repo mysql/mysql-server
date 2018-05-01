@@ -1,0 +1,62 @@
+#                                                                             #
+# Variable Name: mysqlx_bind_address                                          #
+# Scope: Global                                                               #
+# Access Type: Static                                                         #
+# Data Type: filename                                                         #
+###############################################################################
+
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SELECT COUNT(@@GLOBAL.mysqlx_bind_address);
+--echo 1 Expected
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.mysqlx_bind_address=1;
+--echo Expected error 'Read only variable'
+
+--disable_warnings
+SELECT VARIABLE_VALUE = ''
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='mysqlx_bind_address';
+--enable_warnings
+--echo 0 Expected
+
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='mysqlx_bind_address';
+--enable_warnings
+--echo 1 Expected
+################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable  #
+################################################################################
+SELECT @@mysqlx_bind_address is NULL AND @@GLOBAL.mysqlx_bind_address is NULL;
+--echo 0 Expected
+
+SELECT @@mysqlx_bind_address is NOT NULL AND @@GLOBAL.mysqlx_bind_address is NOT NULL;
+--echo 1 Expected
+################################################################################
+#   Check if bind_address can be accessed with and without @@ sign                  #
+################################################################################
+
+SELECT COUNT(@@mysqlx_bind_address);
+--echo 1 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.mysqlx_bind_address);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.mysqlx_bind_address);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.mysqlx_bind_address);
+--echo 1 Expected
+
+--Error ER_BAD_FIELD_ERROR
+SELECT mysqlx_bind_address = @@SESSION.mysqlx_bind_address;
+--echo Expected error 'Readonly variable'
+
+

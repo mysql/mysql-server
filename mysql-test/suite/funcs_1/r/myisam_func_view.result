@@ -150,31 +150,31 @@ INSERT INTO t1_values SET select_id = @select_id,
 my_double = -0.33333333E+4;
 ##### 1.1.7. CAST --> SIGNED INTEGER
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 "Attention: CAST --> SIGNED INTEGER
             Bug#5913 Traditional mode: BIGINT range not correctly delimited
             Status: To be fixed later"
 --------------------------------------------------------------------------------
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ##### 1.1.8. CAST --> UNSIGNED INTEGER
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 "Attention: CAST --> UNSIGNED INTEGER
             The file with expected results suffers from Bug 5913"
 --------------------------------------------------------------------------------
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 some statements disabled because of
 Bug#5913 Traditional mode: BIGINT range not correctly delimited
 --------------------------------------------------------------------------------
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET @my_select = 'SELECT CONVERT(my_char_30 USING utf8),
 my_char_30, id FROM t1_values';
 SET @my_select = 'SELECT CONVERT(my_varchar_1000 USING utf8),
@@ -306,12 +306,12 @@ INSERT INTO t1_values SET select_id = @select_id,
 my_char_30 = 'Viana do Castelo';
 SET sql_mode = default;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 "# The basic preparations end and the main test starts here"
 --------------------------------------------------------------------------------
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE VIEW v1 AS SELECT my_char_30, id FROM t1_values;
 SELECT my_char_30, id FROM t1_values
 WHERE select_id = 193 OR select_id IS NULL order by id;
@@ -2351,7 +2351,7 @@ DROP VIEW v1;
 CREATE VIEW v1 AS SELECT CONVERT(my_varbinary_1000 USING utf8),
 my_varbinary_1000, id FROM t1_values;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT CONVERT(my_varbinary_1000 USING utf8),
 my_varbinary_1000, id FROM t1_values
 WHERE select_id = 98 OR select_id IS NULL order by id;
@@ -2362,12 +2362,12 @@ NULL	NULL	1
  ---äÖüß@µ*$-- 	 ---äÖüß@µ*$-- 	4
 -1	-1	5
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select convert(`t1_values`.`my_varbinary_1000` using utf8) AS `CONVERT(my_varbinary_1000 USING utf8)`,`t1_values`.`my_varbinary_1000` AS `my_varbinary_1000`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 98 OR select_id IS NULL) order by id;
@@ -2378,14 +2378,14 @@ NULL	NULL	1
  ---äÖüß@µ*$-- 	 ---äÖüß@µ*$-- 	4
 -1	-1	5
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP VIEW v1;
 
 
 CREATE VIEW v1 AS SELECT CONVERT(my_binary_30 USING utf8),
 my_binary_30, id FROM t1_values;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT CONVERT(my_binary_30 USING utf8),
 my_binary_30, id FROM t1_values
 WHERE select_id = 97 OR select_id IS NULL order by id;
@@ -2396,12 +2396,12 @@ NULL	NULL	1
  ---äÖüß@µ*$-- 	 ---äÖüß@µ*$-- 	4
 -1	-1	5
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select convert(`t1_values`.`my_binary_30` using utf8) AS `CONVERT(my_binary_30 USING utf8)`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 97 OR select_id IS NULL) order by id;
@@ -2412,14 +2412,14 @@ NULL	NULL	1
  ---äÖüß@µ*$--           	 ---äÖüß@µ*$--           	4
 -1                            	-1                            	5
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP VIEW v1;
 
 
 CREATE VIEW v1 AS SELECT CONVERT(my_varchar_1000 USING utf8),
 my_varchar_1000, id FROM t1_values;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT CONVERT(my_varchar_1000 USING utf8),
 my_varchar_1000, id FROM t1_values
 WHERE select_id = 96 OR select_id IS NULL order by id;
@@ -2430,12 +2430,12 @@ NULL	NULL	1
  ---Ã¤Ã–Ã¼ÃŸ@Âµ*$-- 	 ---Ã¤Ã–Ã¼ÃŸ@Âµ*$-- 	4
 -1	-1	5
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select convert(`t1_values`.`my_varchar_1000` using utf8) AS `CONVERT(my_varchar_1000 USING utf8)`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 96 OR select_id IS NULL) order by id;
@@ -2446,14 +2446,14 @@ NULL	NULL	1
  ---Ã¤Ã–Ã¼ÃŸ@Âµ*$-- 	 ---Ã¤Ã–Ã¼ÃŸ@Âµ*$-- 	4
 -1	-1	5
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP VIEW v1;
 
 
 CREATE VIEW v1 AS SELECT CONVERT(my_char_30 USING utf8),
 my_char_30, id FROM t1_values;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT CONVERT(my_char_30 USING utf8),
 my_char_30, id FROM t1_values
 WHERE select_id = 95 OR select_id IS NULL order by id;
@@ -2464,12 +2464,12 @@ NULL	NULL	1
  ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--	 ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--	4
 -1	-1	5
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select convert(`t1_values`.`my_char_30` using utf8) AS `CONVERT(my_char_30 USING utf8)`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 95 OR select_id IS NULL) order by id;
@@ -2480,7 +2480,7 @@ NULL	NULL	1
  ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--	 ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--	4
 -1	-1	5
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP VIEW v1;
 
 

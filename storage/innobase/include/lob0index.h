@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -62,6 +62,9 @@ struct index_entry_mem_t {
   @return the output stream. */
   std::ostream &print(std::ostream &out) const;
 };
+
+/** List of index entry memory (iem) objects. */
+using List_iem_t = std::list<index_entry_mem_t>;
 
 /** Overloading the global output operator to print the index_entry_mem_t
 object.
@@ -263,6 +266,28 @@ struct index_entry_t {
     return (flst_read_addr(m_node + OFFSET_NEXT, m_mtr));
   }
 
+  /** Make the current index entry object to point to the next index
+  entry object.
+  @return the buffer block in which the next index entry is available.*/
+  buf_block_t *next() {
+    fil_addr_t node_loc = get_next();
+
+    if (node_loc.is_null()) {
+      return (nullptr);
+    }
+
+    if (m_block == nullptr || m_block->page.id.page_no() != node_loc.page) {
+      load_x(node_loc);
+    } else {
+      /* Next entry in the same page. */
+      reset(node_loc);
+    }
+
+    return (m_block);
+  }
+
+  /** Get the previous index entry.
+  @return The file address of previous index entry. */
   fil_addr_t get_prev() const {
     return (flst_read_addr(m_node + OFFSET_PREV, m_mtr));
   }

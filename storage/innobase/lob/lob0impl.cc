@@ -32,7 +32,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lob0pages.h"
 #include "lob0util.h"
 #include "lob0zip.h"
-#include "lock0lock.h"
 #include "my_dbug.h"
 #include "trx0sys.h"
 #include "ut0ut.h"
@@ -627,7 +626,6 @@ frag_id_t z_frag_page_t::alloc_fragment(ulint size, z_frag_entry_t &entry) {
 
   ut_ad(visited_big_frag);
   ut_error;
-  return (FRAG_ID_NULL);
 }
 
 /** Grow the frag directory by one entry.
@@ -910,15 +908,6 @@ dberr_t insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
   ref.update(space_id, first_page_no, 1, mtr);
   ref.set_length(total_written, mtr);
 
-#ifdef LOB_DEBUG
-  std::cout << "thread=" << std::this_thread::get_id()
-            << ", lob::insert(): table=" << ctx->index()->table->name
-            << ", ref=" << ref << ", total_written=" << total_written
-            << ", field->len=" << field->len << std::endl;
-  // print(trx, index, std::cerr, ref, false);
-  // std::cout << PrintBuffer(field->ptr(), total_written) << std::endl;
-#endif
-
   DBUG_EXECUTE_IF("innodb_lob_print",
                   print(trx, index, std::cerr, ref, false););
 
@@ -985,6 +974,8 @@ ulint read(ReadContext *ctx, ref_t ref, ulint offset, ulint len, byte *buf) {
 
   cached_blocks.insert(
       std::pair<page_no_t, buf_block_t *>(page_no, first_page.get_block()));
+
+  ctx->m_lob_version = first_page.get_lob_version();
 
   page_no_t first_page_no = first_page.get_page_no();
 

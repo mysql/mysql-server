@@ -63,6 +63,13 @@
 bool pfs_enabled = true;
 
 /**
+  Global performance schema reference count for plugin and component events.
+  Incremented when a shared library is being unloaded, decremented when
+  the performance schema is finished processing the event.
+*/
+std::atomic<uint32> pfs_unload_plugin_ref_count(0);
+
+/**
   PFS_INSTRUMENT option settings array
  */
 Pfs_instr_config_array *pfs_instr_config_array = NULL;

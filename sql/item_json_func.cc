@@ -3029,6 +3029,9 @@ String *Item_func_json_unquote::val_str(String *str) {
       }
 
       null_value = false;
+      // String pointer may be null.
+      if (m_value.is_empty()) return make_empty_result();
+
       return &m_value;
     }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -391,7 +391,7 @@ bool resolve_engine(THD *thd, const LEX_STRING &name, bool is_temp_table,
     return false;
   }
 
-  if (strict || (thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION)) {
+  if (strict || !is_engine_substitution_allowed(thd)) {
     my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), name.str);
     return true;
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -165,9 +165,9 @@ class Semijoin_mat_exec;
   The structs which holds the join connections and join states
 */
 enum join_type { /*
-                   Initial state. Access type has not yet been decided
-                   for the table
-                 */
+                         Initial state. Access type has not yet been decided
+                         for the table
+                       */
                  JT_UNKNOWN,
                  /* Table has exactly one row */
                  JT_SYSTEM,
@@ -529,16 +529,48 @@ class QEP_shared_owner {
 /**
   Symbolic slice numbers into JOIN's arrays ref_items, tmp_fields and
   tmp_all_fields
+
+  See also the comments on JOIN::ref_items.
 */
 enum {
   /**
      The slice which is used during evaluation of expressions; Item_ref::ref
-     points there.
-     The contents of this slice is dynamic, and is filled with one
-     of the other (static) slices during execution, see
-     Switch_ref_item_slice.
+     points there. This is the only slice that is not allocated on the heap;
+     it always points to select_lex->base_ref_items.
+
+     If we have a simple query (no temporary tables or GROUP BY needed),
+     this slice always contains the base slice, i.e., the actual Items used
+     in the original query.
+
+     However, if we have temporary tables, there are cases where we need to
+     swap out those Items, because they refer to Fields that are no longer in
+     use. As a simple case, consider
+
+       SELECT REVERSE(t1), COUNT(*) FROM t1 GROUP BY REVERSE(t1);
+
+     Assuming no index on t1, this will require creating a temporary table
+     consisting only of REVERSE(t1), and then sorting it before grouping.
+     During execution of the query creating the temporary table, we will
+     have an Item_func_reverse pointing to a Field for t1, and the result of
+     this will be stored in the temporary table "tmp". However, when reading
+     from "tmp", it would be wrong to use that Item_func_reverse, as the Field
+     no longer exists. Thus, we create a slice (in REF_SLICE_TMP1) with new Item
+     pointers, where Item_func_reverse is replaced by an Item_field that reads
+     from the right field in the temporary table. Similar logic applies for
+     windowing functions etc.; see below.
+
+     In such cases, the pointers in this slice are _overwritten_ (using memcpy)
+     by e.g. REF_SLICE_TMP1 for as long as we read from the temporary table.
+     Switch_ref_item_slice provides an encapsulation of the overwriting,
+     and the optimizer stores a copy of the original Item pointers in the
+     REF_SLICE_SAVED_BASE slice so that it is possible to copy them back
+     when we are done.
+
+     @todo It would probably be better to store the active slice index in
+     current_thd and do the indirection in Item_ref_* instead of copying the
+     slices around.
   */
-  REF_SLICE_BASE = 0,
+  REF_SLICE_ACTIVE = 0,
   /**
      The slice with pointers to columns of 1st group-order-distinct tmp
      table
@@ -550,39 +582,57 @@ enum {
   */
   REF_SLICE_TMP2,
   /**
-     The slice with pointers to columns of a pseudo-tmp-table used for
-     GROUP BY. For certain queries with GROUP BY, when it's time to group,
-     rows arrive already sorted in the order of group expressions (example:
-     index is used, or a sort has been inserted at the join's beginning or
-     end). In that case, we do not use a tmp table to manage the groups (as
-     end_update() would do); we use a set of Items, which
-     together represent a one-row pseudo-tmp-table holding the current group.
-     These items are created by setup_copy_fields().
+     Stores the unfinished aggregated row when doing GROUP BY on an
+     ordered table.
+
+     For certain queries with GROUP BY (e.g., when using an index),
+     rows arrive already sorted in the right order for grouping.
+     In that case, we do not need nor use a temporary table, but can
+     just group values as we go. However, we do not necessarily know when
+     a group ends -- a group implicitly ends when we see that the
+     group index values have changed, and by that time, it's too late to
+     output them in the aggregated row (the Fields already point to the
+     new row, so the data is lost).
+
+     Thus, we need to store the values for the current group somewhere.
+     We use a set of Items, which together represent a one-row
+     pseudo-tmp-table holding the current group. These items are created
+     by setup_copy_fields().
+
      When we have finished reading a row from the last pre-grouping table, we
      process it either with end_send_group() or end_send():
-     * end_send_group(): we compare new row with current group, if it belongs
-     to that group we update aggregate functions of the group, if it doesn't
-     belong we send the group forward and then overwrite it with the new
-     group.
-     * end_send(): that's for when the comparison is unnecessary i.e. we know
-     every incoming row is a new group i.e. grouping has been handled before
-     (e.g. loose index scan). Then we just build the group and send it
-     forward.
-     Both functions build the group by copying values of items from previous
-     stages into pseudo-table, e.g.
-     SELECT a, RAND() AS r FROM t GROUP BY a HAVING r=1;
-     copies "a" from "t" and stores it into pseudo-table, evaluates rand() and
-     stores it too, then evaluates "r=1" based on stored value (which is
-     necessary so that "r" in SELECT list and "r" in "r=1" match).
+
+       * end_send_group(): Compare the new row with the current group.
+         If it belongs to the current group, we update the aggregation functions
+         and move on. If not, we output the aggregated row and overwrite the
+         contents of this slice with the new group.
+
+       * end_send(): Used when we know there's exactly one row for each group
+         (e.g., during a loose index scan). In this case, we can skip the
+         comparison and just output the group directly; however, we still need
+         the temporary table to avoid evaluating Items more than once (see the
+         next paragraph).
+
+     Both functions build the group by copying values of items from the previous
+     stages into a pseudo-table, e.g.
+
+       SELECT a, RAND() AS r FROM t GROUP BY a HAVING r=1;
+
+     copies "a" from "t" and stores it into the pseudo-table (this slice),
+     evaluates rand() and stores it, then finally evaluates "r=1" based on the
+     stored value (so that "r" in the SELECT list and "r" in "r=1" match).
 
      Groups from this slice are always directly sent to the query's result,
-     and never buffered to any further tmp table.
+     and never buffered to any further temporary table.
   */
-  REF_SLICE_TMP3,
+  REF_SLICE_ORDERED_GROUP_BY,
   /**
-     The slice with pointers to columns of the joined tables
+     The slice with pointers to columns of table(s), ie., the actual Items.
+     Only used for queries involving temporary tables or the likes; for simple
+     queries, they always live in REF_SLICE_ACTIVE, so we don't need a copy
+     here. See REF_SLICE_ACTIVE for more discussion.
   */
-  REF_SLICE_SAVE,
+  REF_SLICE_SAVED_BASE,
   /**
      The slice with pointers to columns of 1st tmp table of windowing
   */

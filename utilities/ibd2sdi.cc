@@ -34,6 +34,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <time.h>
+#include <limits>
 #ifndef _WIN32
 #include <unistd.h>
 #endif
@@ -1153,6 +1154,13 @@ double tablespace_creator::get_page_size_corruption_count(
       ++corruption_count;
     }
   }
+
+  // If all pages are all-zero, the corruption ratio is undefined.
+  // Return NaN immediately instead of relying on the division below
+  // to return NaN. Division by zero is undefined behavior, so make it
+  // explicit to avoid complaints from UBSAN.
+  if (all_zero_page_count == num_pages)
+    return std::numeric_limits<double>::quiet_NaN();
 
   double corruption_ratio =
       corruption_count * 1.0 / (num_pages - all_zero_page_count);

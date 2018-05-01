@@ -778,7 +778,7 @@ col19 DATE,col20 DATETIME, col21 TIMESTAMP NULL,
 col22 TIME, col23 YEAR) ENGINE = InnoDB
 ;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # table for trigger action
 CREATE TABLE trigger_table (i int) ENGINE = InnoDB;
 CREATE  TRIGGER tri AFTER INSERT ON  t1
@@ -836,7 +836,7 @@ col19 DATE,col20 DATETIME, col21 TIMESTAMP NULL,
 col22 TIME, col23 YEAR) ENGINE = InnoDB
 ;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE INDEX idx1 ON t1(col18);
 CREATE INDEX prefix_idx ON t1(col14 (10));
 CREATE UNIQUE INDEX idx2 ON t1(col12);
@@ -887,4 +887,94 @@ col18	col24
 DROP VIEW VW1;
 DROP TABLE t1;
 DROP TABLE trigger_table;
+#
+# case 13 Simple export, discard and import with instant ADD COLUMN.
+#
+CREATE TABLE t1 (c1 INT) ENGINE = InnoDB
+;
+INSERT INTO t1 VALUES (1), (123), (212), (331), (332), (333), (334), (335) ;
+ALTER TABLE t1 ADD COLUMN c2 INT DEFAULT 500;
+SELECT c1 FROM t1;
+c1
+1
+123
+212
+331
+332
+333
+334
+335
+FLUSH TABLES t1 FOR EXPORT;
+SELECT * FROM t1 ORDER BY c1;
+c1	c2
+1	500
+123	500
+212	500
+331	500
+332	500
+333	500
+334	500
+335	500
+backup: t1
+UNLOCK TABLES;
+DROP TABLE t1;
+CREATE TABLE t1 (c1 INT, c2 INT) ENGINE = InnoDB
+;
+ALTER TABLE t1 DISCARD TABLESPACE;
+restore: t1 .ibd and .cfg files
+ALTER TABLE t1 IMPORT TABLESPACE;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1 ORDER BY c1;
+c1	c2
+1	500
+123	500
+212	500
+331	500
+332	500
+333	500
+334	500
+335	500
+DROP TABLE t1;
+#
+# case 14 Simple export, discard and import with instant ADD COLUMN.
+# However, this time the .cfg file would be missing
+#
+CREATE TABLE t1 (c1 INT) ENGINE = InnoDB
+;
+INSERT INTO t1 VALUES (1), (123), (212), (331), (332), (333), (334), (335) ;
+ALTER TABLE t1 ADD COLUMN c2 INT DEFAULT 500;
+SELECT c1 FROM t1;
+c1
+1
+123
+212
+331
+332
+333
+334
+335
+FLUSH TABLES t1 FOR EXPORT;
+SELECT * FROM t1 ORDER BY c1;
+c1	c2
+1	500
+123	500
+212	500
+331	500
+332	500
+333	500
+334	500
+335	500
+backup: t1
+UNLOCK TABLES;
+DROP TABLE t1;
+CREATE TABLE t1 (c1 INT, c2 INT) ENGINE = InnoDB
+;
+ALTER TABLE t1 DISCARD TABLESPACE;
+restore: t1 .ibd and .cfg files
+# remove the .cfg files
+ALTER TABLE t1 IMPORT TABLESPACE;
+ERROR HY000: Schema mismatch (Clustered index validation failed. Because the .cfg file is missing, table definition of the IBD file could be different. Or the data file itself is already corrupted.)
+DROP TABLE t1;
 SET GLOBAL innodb_file_per_table = @old_innodb_file_per_table;

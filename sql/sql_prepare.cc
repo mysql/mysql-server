@@ -2083,9 +2083,8 @@ void mysql_stmt_get_longdata(THD *thd, Prepared_statement *stmt,
   if (thd->get_stmt_da()->is_error()) {
     stmt->state = Query_arena::STMT_ERROR;
     stmt->last_errno = thd->get_stmt_da()->mysql_errno();
-    size_t len = sizeof(stmt->last_error);
-    strncpy(stmt->last_error, thd->get_stmt_da()->message_text(), len - 1);
-    stmt->last_error[len - 1] = '\0';
+    snprintf(stmt->last_error, sizeof(stmt->last_error), "%.*s",
+             MYSQL_ERRMSG_SIZE - 1, thd->get_stmt_da()->message_text());
   }
   thd->pop_diagnostics_area();
 
@@ -2907,6 +2906,13 @@ void Prepared_statement::swap_prepared_statement(Prepared_statement *copy) {
   std::swap(m_name, copy->m_name);
   /* Ditto */
   std::swap(m_db, copy->m_db);
+
+  // The call to copy.prepare() will have set the copy as the owner of
+  // the Sql_cmd object, if there is one. Set it back to this.
+  if (lex->m_sql_cmd != nullptr) {
+    DBUG_ASSERT(lex->m_sql_cmd->get_owner() == copy);
+    lex->m_sql_cmd->set_owner(this);
+  }
 
   DBUG_ASSERT(param_count == copy->param_count);
   DBUG_ASSERT(thd == copy->thd);

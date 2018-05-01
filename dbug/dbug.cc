@@ -1450,7 +1450,7 @@ next:
     subdir = 0;
     while (ctlp < end && !isseparator(ctlp)) ctlp++;
     len = ctlp - start;
-    if (start[len - 1] == '/') {
+    if (len > 0 && start[len - 1] == '/') {
       len--;
       subdir = SUBDIR;
     }

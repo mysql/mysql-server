@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,11 +20,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#define LOG_COMPONENT_TAG "test_sql_stmt"
+
 #include <fcntl.h>
 #include <mysql/plugin.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <vector>
+
+#include <mysql/components/my_service.h>
+#include <mysql/components/services/log_builtins.h>
+#include <mysqld_error.h>
 
 #include "m_string.h"
 #include "my_dbug.h"
@@ -68,6 +74,9 @@ static const char *sep =
 
 #define WRITE_SEP() my_write(outfile, (uchar *)sep, strlen(sep), MYF(0))
 
+static SERVICE_TYPE(registry) *reg_srv = nullptr;
+SERVICE_TYPE(log_builtins) *log_bi = nullptr;
+SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
 static File outfile;
 
 #define SIZEOF_SQL_STR_VALUE 256
@@ -709,7 +718,7 @@ static void set_query_in_com_data(union COM_DATA *cmd, const char *query) {
 
 static void run_cmd(MYSQL_SESSION session, enum_server_command cmd,
                     COM_DATA *data, Server_context *ctx,
-                    bool generates_result_set, void *p) {
+                    bool generates_result_set, void *p MY_ATTRIBUTE((unused))) {
   char buffer[STRING_BUFFER_SIZE];
   WRITE_DASHED_LINE();
 
@@ -723,7 +732,8 @@ again:
                                          &my_charset_utf8_general_ci,
                                          &protocol_callbacks, txt_or_bin, ctx);
   if (fail) {
-    my_plugin_log_message(&p, MY_ERROR_LEVEL, "run_statement code: %d\n", fail);
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "run_statement code: %d\n",
+                    fail);
     return;
   }
 
@@ -1453,7 +1463,7 @@ static void test_sql(void *p) {
   WRITE_STR("[srv_session_open]\n");
   session = srv_session_open(NULL, NULL);
   if (!session) {
-    my_plugin_log_message(&p, MY_ERROR_LEVEL, "srv_session_open failed");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "srv_session_open failed");
     goto end;
   }
 
@@ -1472,7 +1482,7 @@ static void test_sql(void *p) {
   /* close session 1: Must pass */
   WRITE_STR("[srv_session_close]\n");
   if (srv_session_close(session))
-    my_plugin_log_message(&p, MY_ERROR_LEVEL, "srv_session_close failed.");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "srv_session_close failed.");
 
 end:
   DBUG_VOID_RETURN;
@@ -1492,8 +1502,8 @@ static void *test_sql_threaded_wrapper(void *param) {
   WRITE_SEP();
   WRITE_STR("init thread\n");
   if (srv_session_init_thread(context->p))
-    my_plugin_log_message(&context->p, MY_ERROR_LEVEL,
-                          "srv_session_init_thread failed.");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "srv_session_init_thread failed.");
 
   context->test_function(context->p);
 
@@ -1527,8 +1537,8 @@ static void test_in_spawned_thread(void *p, void (*test_function)(void *)) {
   /* now create the thread and call test_session within the thread. */
   if (my_thread_create(&(context.thread), &attr, test_sql_threaded_wrapper,
                        &context) != 0)
-    my_plugin_log_message(&p, MY_ERROR_LEVEL,
-                          "Could not create test session thread");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "Could not create test session thread");
   else
     my_thread_join(&context.thread, NULL);
 }
@@ -1536,7 +1546,10 @@ static void test_in_spawned_thread(void *p, void (*test_function)(void *)) {
 static int test_sql_service_plugin_init(void *p) {
   char buffer[STRING_BUFFER_SIZE];
   DBUG_ENTER("test_sql_service_plugin_init");
-  my_plugin_log_message(&p, MY_INFORMATION_LEVEL, "Installation.");
+
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
+    DBUG_RETURN(1);
+  LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Installation.");
 
   create_log_file(log_filename);
 
@@ -1553,9 +1566,10 @@ static int test_sql_service_plugin_init(void *p) {
   DBUG_RETURN(0);
 }
 
-static int test_sql_service_plugin_deinit(void *p) {
+static int test_sql_service_plugin_deinit(void *p MY_ATTRIBUTE((unused))) {
   DBUG_ENTER("test_sql_service_plugin_deinit");
-  my_plugin_log_message(&p, MY_INFORMATION_LEVEL, "Uninstallation.");
+  LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Uninstallation.");
+  deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
   DBUG_RETURN(0);
 }
 

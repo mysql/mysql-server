@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -460,8 +460,6 @@ class ha_innopart : public ha_innobase,
   @retval 0 on success */
   int delete_table(const char *name, const dd::Table *dd_table);
 
-  int truncate(dd::Table *table_def);
-
   /** Rename a table.
   @param[in]	from		table name before rename
   @param[in]	to		table name after rename
@@ -705,6 +703,16 @@ class ha_innopart : public ha_innobase,
   Copies needed info from m_prebuilt into the partition specific memory.
   @param[in]	part_id	Partition to set as active. */
   void update_partition(uint part_id);
+
+  /** TRUNCATE an InnoDB partitioned table.
+  @param[in]		name		table name
+  @param[in]		form		table definition
+  @param[in,out]	table_def	dd::Table describing table to be
+  truncated. Can be adjusted by SE, the changes will be saved into
+  the data-dictionary at statement commit time.
+  @return	error number
+  @retval 0 on success */
+  int truncate_impl(const char *name, TABLE *form, dd::Table *table_def);
 
   /** Helpers needed by Partition_helper, @see partition_handler.h @{ */
 
@@ -950,7 +958,31 @@ class ha_innopart : public ha_innobase,
                              thr_lock_type lock_type);
 
   int write_row(uchar *record) {
-    return (Partition_helper::ph_write_row(record));
+    bool entered = false;
+    auto trx = m_prebuilt->trx;
+
+    /* Enter innodb to order Auto INC partition lock after Innodb. No need to
+    enter if there are tickets left. Currently we cannot handle re-enter
+    without exit if no more tickets left.
+
+    1. We avoid consuming the last ticket as there could be another enter
+    call from innobase.
+
+    2. If we enter innodb here, there is at least one more ticket left as
+    the minimum value for "innodb_concurrency_tickets" is 1 */
+
+    if (!trx->declared_to_be_inside_innodb) {
+      srv_concurrency_enter();
+      entered = true;
+    }
+
+    auto err = Partition_helper::ph_write_row(record);
+
+    if (entered) {
+      srv_concurrency_exit();
+    }
+
+    return (err);
   }
 
   int update_row(const uchar *old_record, uchar *new_record) {

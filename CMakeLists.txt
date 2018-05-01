@@ -153,17 +153,24 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
         IF (MY_GCC_COMPILER)
           MESSAGE(STATUS "gcc is ${MY_GCC_COMPILER}")
           MESSAGE(STATUS
-            "We probably need /opt/rh/devtoolset-6/root/usr/bin/gcc")
+            "We probably need /opt/rh/devtoolset-7/root/usr/bin/gcc")
           EXECUTE_PROCESS(COMMAND ${MY_GCC_COMPILER} -dumpversion
             OUTPUT_VARIABLE MY_GCC_VERSION)
           IF(MY_GCC_VERSION VERSION_LESS 5.0)
             MESSAGE(STATUS "${MY_GCC_COMPILER} is version ${MY_GCC_VERSION}")
             FIND_PROGRAM(ALTERNATIVE_GCC gcc
               NO_DEFAULT_PATH
-              PATHS "/opt/rh/devtoolset-6/root/usr/bin")
+              PATHS "/opt/rh/devtoolset-7/root/usr/bin")
             FIND_PROGRAM(ALTERNATIVE_GPP g++
               NO_DEFAULT_PATH
-              PATHS "/opt/rh/devtoolset-6/root/usr/bin")
+              PATHS "/opt/rh/devtoolset-7/root/usr/bin")
+            # On ARM there is no /opt/rh/devtoolset-7/ look for /usr/bin/gcc7
+            FIND_PROGRAM(ALTERNATIVE_GCC gcc7
+              NO_DEFAULT_PATH
+              PATHS "/usr/bin")
+            FIND_PROGRAM(ALTERNATIVE_GPP g++7
+              NO_DEFAULT_PATH
+              PATHS "/usr/bin")
             IF(ALTERNATIVE_GCC AND ALTERNATIVE_GPP)
               SET(CMAKE_C_COMPILER ${ALTERNATIVE_GCC})
               SET(CMAKE_CXX_COMPILER ${ALTERNATIVE_GPP})
@@ -288,14 +295,6 @@ INCLUDE(mysql_add_executable)
 INCLUDE(mysqlgcs)
 INCLUDE(curl)
 
-# Handle options
-IF(EXISTS ${CMAKE_SOURCE_DIR}/rapid)
-  OPTION(WITH_RAPID
-    "Build additonal code(plugins) that is located in rapid directory" ON)
-ELSE()
-  OPTION(WITH_RAPID
-    "Build additonal code(plugins) that is located in rapid directory" OFF)
-ENDIF()
 OPTION(DISABLE_SHARED 
  "Don't build shared libraries, compile code as position-dependent" OFF)
 IF(DISABLE_SHARED)
@@ -545,8 +544,14 @@ IF(LINK_RANDOMIZE)
   SET(CMAKE_C_ARCHIVE_CREATE_APPEND ${CMAKE_CXX_ARCHIVE_CREATE_APPEND})
 ENDIF()
 
-IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
-  OPTION(REPRODUCIBLE_BUILD "Take extra pains to make build result independent of build location and time" OFF)
+IF(LINUX)
+  # May be set to ON in cmake/build_configurations/mysql_release.cmake
+  IF(DEFINED REPRODUCIBLE_BUILD)
+    SET(REPRODUCIBLE_BUILD_DEFAULT ${REPRODUCIBLE_BUILD})
+  ELSE()
+    SET(REPRODUCIBLE_BUILD_DEFAULT OFF)
+  ENDIF()
+  OPTION(REPRODUCIBLE_BUILD "Take extra pains to make build result independent of build location and time" ${REPRODUCIBLE_BUILD_DEFAULT})
 ENDIF()
 IF(REPRODUCIBLE_BUILD)
   SET(DEBUG_PREFIX_FLAGS
@@ -701,10 +706,8 @@ ENDIF()
 INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_BINARY_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}/include
-  ${CMAKE_CURRENT_BINARY_DIR}/rapid
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/include
-  ${CMAKE_SOURCE_DIR}/rapid
   ${CMAKE_CURRENT_BINARY_DIR}/libbinlogevents/include
   ${CMAKE_SOURCE_DIR}/libbinlogevents/export)
 
@@ -842,8 +845,10 @@ IF(NOT WITHOUT_SERVER)
   # Add storage engines and plugins.
   CONFIGURE_PLUGINS()
 ELSE()
-  # We may still want Cluster client libraries, use -DWITH_NDBCLUSTER=1
-  ADD_SUBDIRECTORY(storage/ndb)
+  IF(EXISTS "${CMAKE_SOURCE_DIR}/storage/ndb")
+    # We may still want Cluster client libraries, use -DWITH_NDBCLUSTER=1
+    ADD_SUBDIRECTORY(storage/ndb)
+  ENDIF()
 ENDIF()
 
 IF(NOT WITHOUT_SERVER)
@@ -856,9 +861,6 @@ IF(WITH_UNIT_TESTS)
   ADD_SUBDIRECTORY(unittest/examples)
   ADD_SUBDIRECTORY(unittest/mytap)
   ADD_SUBDIRECTORY(unittest/mytap/t)
-  IF(WITH_RAPID AND EXISTS ${CMAKE_SOURCE_DIR}/rapid/unittest/gunit)
-    ADD_SUBDIRECTORY(rapid/unittest/gunit)
-  ENDIF()
 ENDIF()
 
 ADD_SUBDIRECTORY(client)
@@ -1029,6 +1031,31 @@ IF(UNIX)
   )
 ENDIF()
 
+SET(DOXYGEN_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/doxygen")
+FIND_PACKAGE(Doxygen)
+IF(DOXYGEN_FOUND)
+  CONFIGURE_FILE(Doxyfile.in Doxyfile @ONLY)
+  ADD_CUSTOM_TARGET(
+    doxygen
+    COMMAND ${CMAKE_COMMAND}
+    -DDOXYGEN_EXECUTABLE=${DOXYGEN_EXECUTABLE}
+    -DDOXYFILE=${CMAKE_BINARY_DIR}/Doxyfile
+    -DERROR_FILE=${CMAKE_BINARY_DIR}/doxyerror.log
+    -DOUTPUT_FILE=${CMAKE_BINARY_DIR}/doxyoutput.log
+    -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
+    -DTOFIX_FILE=${CMAKE_BINARY_DIR}/tofix-all.log
+    -DREGRESSION_FILE=${CMAKE_BINARY_DIR}/tofix-regressions.log
+    -DIGNORE_FILE=${CMAKE_SOURCE_DIR}/Doxyfile-ignored
+    -P ${CMAKE_SOURCE_DIR}/run_doxygen.cmake
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Generating Doxygen documentation" VERBATIM
+    )
+  SET_PROPERTY(TARGET doxygen PROPERTY EXCLUDE_FROM_ALL TRUE)
+  IF(WIN32)
+    SET_PROPERTY(TARGET doxygen PROPERTY EXCLUDE_FROM_DEFAULT_BUILD TRUE)
+  ENDIF()
+ENDIF(DOXYGEN_FOUND)
+
 INCLUDE(CPack)
 
 # C compiler flags consist of:
@@ -1067,3 +1094,4 @@ IF(NOT BUILD_IS_SINGLE_CONFIG)
   MESSAGE(STATUS
     "CMAKE_CXX_FLAGS_RELWITHDEBINFO: ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 ENDIF()
+

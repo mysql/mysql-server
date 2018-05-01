@@ -1,10 +1,6 @@
 SELECT sys.ps_is_account_enabled('foo', 'bar');
 sys.ps_is_account_enabled('foo', 'bar')
 YES
-Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DELETE FROM performance_schema.setup_actors;
 INSERT INTO performance_schema.setup_actors VALUES
 ('test', 'test', '%', 'YES', 'NO');

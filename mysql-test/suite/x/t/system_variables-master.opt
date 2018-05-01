@@ -1,0 +1,5 @@
+--loose-mysqlx-ssl-mode=0
+--loose-mysqlx-ssl-key=
+--loose-mysqlx-ssl-ca=
+--loose-mysqlx-ssl-cert=
+--loose-mysqlx-server-public-key-path=

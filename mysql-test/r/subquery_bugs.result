@@ -335,3 +335,18 @@ AND SUM(t1.k)) = 'XXX'
 FROM t1;
 ERROR 42000: In aggregated query without GROUP BY, expression #1 of SELECT list contains nonaggregated column 'test.t1.k'; this is incompatible with sql_mode=only_full_group_by
 DROP TABLE t1,t2;
+#
+# Bug#27665085 ASSERTION FAILED: JOIN == 0.
+#
+SET sql_mode='';
+CREATE TABLE a(d INT,e BIGINT, KEY(e));
+INSERT a VALUES (0,0);
+CREATE TABLE b(f TIME);
+INSERT b VALUES (null),(null),(null);
+CREATE TABLE c(g DATETIME(6) NOT NULL);
+INSERT c(g) VALUES (now()+interval 1 day);
+INSERT c(g) VALUES (now()-interval 1 day);
+SELECT 1 FROM a WHERE (SELECT f FROM b WHERE (SELECT 1 FROM c)) <=> e GROUP BY d;
+ERROR 21000: Subquery returns more than 1 row
+SET sql_mode=default;
+DROP TABLES a, b, c;

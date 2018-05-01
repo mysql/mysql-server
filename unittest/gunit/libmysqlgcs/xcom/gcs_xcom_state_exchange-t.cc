@@ -469,7 +469,6 @@ TEST_F(XComStateExchangeTest, StateExchangeDiscardSynodes) {
   ASSERT_EQ(state_exchange->get_member_states()->size(), 0u);
 
   delete member_id_1;
-  delete state_1;
 }
 
 }  // namespace gcs_xcom_state_exchange_unittest

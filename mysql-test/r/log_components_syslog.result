@@ -47,30 +47,30 @@ FLUSH ERROR LOGS;
 ### error log file
 ###
 
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@session.debug="+d,log_error_normalize"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@session.debug="+d,parser_stmt_to_error_log_with_system_prio"
-1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: SET @@session.debug="+d,parser_stmt_to_error_log_with_system_prio"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SELECT @@global.log_error_services
-1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: SELECT @@global.log_error_services
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SELECT "*** SWITCHING ERROR LOG TO SYSEVENTLOG ***"
-1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: SELECT "*** SWITCHING ERROR LOG TO SYSEVENTLOG ***"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: INSTALL COMPONENT "file://component_log_sink_syseventlog"
-1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: INSTALL COMPONENT "file://component_log_sink_syseventlog"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.log_syslog_tag="wl9343"
-1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: SET @@global.log_syslog_tag="wl9343"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_internal; log_sink_syseventlog"
-1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_internal; log_sink_syseventlog"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.log_syslog_tag="wl9343"
-1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: SET @@global.log_syslog_tag="wl9343"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SELECT "logging to syslog"
-1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: SELECT "logging to syslog"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.log_syslog_tag=DEFAULT
-1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: SET @@global.log_syslog_tag=DEFAULT
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_internal"
-1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_internal"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_syseventlog"
-1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_syseventlog"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@session.debug="-d,parser_stmt_to_error_log_with_system_prio"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@session.debug="+d,log_error_normalize"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@session.debug="+d,parser_stmt_to_error_log_with_system_prio"
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] [Server] Parser saw: SET @@session.debug="+d,parser_stmt_to_error_log_with_system_prio"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT @@global.log_error_services
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] [Server] Parser saw: SELECT @@global.log_error_services
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT "*** SWITCHING ERROR LOG TO SYSEVENTLOG ***"
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] [Server] Parser saw: SELECT "*** SWITCHING ERROR LOG TO SYSEVENTLOG ***"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: INSTALL COMPONENT "file://component_log_sink_syseventlog"
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] [Server] Parser saw: INSTALL COMPONENT "file://component_log_sink_syseventlog"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.log_syslog_tag="wl9343"
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] [Server] Parser saw: SET @@global.log_syslog_tag="wl9343"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_internal; log_sink_syseventlog"
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] [Server] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_internal; log_sink_syseventlog"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.log_syslog_tag="wl9343"
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] [Server] Parser saw: SET @@global.log_syslog_tag="wl9343"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT "logging to syslog"
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] [Server] Parser saw: SELECT "logging to syslog"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.log_syslog_tag=DEFAULT
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] [Server] Parser saw: SET @@global.log_syslog_tag=DEFAULT
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_internal"
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] [Server] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_internal"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_syseventlog"
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] [Server] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_syseventlog"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@session.debug="-d,parser_stmt_to_error_log_with_system_prio"
 
 ###
 ### done

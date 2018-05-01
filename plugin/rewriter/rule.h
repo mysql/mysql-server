@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,7 @@ struct Rewrite_result {
 */
 class Pattern {
  public:
-  enum Load_status { OK, PARSE_ERROR, NOT_A_SELECT_STATEMENT, NO_DIGEST };
+  enum Load_status { OK, PARSE_ERROR, NOT_SUPPORTED_STATEMENT, NO_DIGEST };
 
   int number_parameters;
 
@@ -128,7 +128,7 @@ class Rule {
   enum Load_status {
     OK,
     PATTERN_PARSE_ERROR,
-    PATTERN_NOT_A_SELECT_STATEMENT,
+    PATTERN_NOT_SUPPORTED_STATEMENT,
     PATTERN_GOT_NO_DIGEST,
     REPLACEMENT_PARSE_ERROR,
     REPLACEMENT_HAS_MORE_MARKERS
@@ -147,8 +147,8 @@ class Rule {
         break;
       case Pattern::PARSE_ERROR:
         return PATTERN_PARSE_ERROR;
-      case Pattern::NOT_A_SELECT_STATEMENT:
-        return PATTERN_NOT_A_SELECT_STATEMENT;
+      case Pattern::NOT_SUPPORTED_STATEMENT:
+        return PATTERN_NOT_SUPPORTED_STATEMENT;
       case Pattern::NO_DIGEST:
         return PATTERN_GOT_NO_DIGEST;
     }

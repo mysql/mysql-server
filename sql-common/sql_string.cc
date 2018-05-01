@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -227,7 +227,7 @@ bool String::copy(const String &str) {
   const char *str_ptr = str.m_ptr;
   if (alloc(str.m_length)) return true;
   m_length = str_length;
-  memmove(m_ptr, str_ptr, m_length);  // May be overlapping
+  if (m_length > 0) memmove(m_ptr, str_ptr, m_length);  // May be overlapping
   m_ptr[m_length] = 0;
   m_charset = str.m_charset;
   return false;

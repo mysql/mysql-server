@@ -1,0 +1,82 @@
+################################################################################
+#
+# exit_state_action sysvar specifies which action is taken by a server once it
+# has involuntarily left the group. Currently there are only two actions:
+# either the server continues running but with super_read_only enabled
+# (READ_ONLY) or it aborts (ABORT_SERVER).
+#
+# This test verifies that the sysvar behaves as expected, meaning that the
+# default value is the expected one (ABORT_SERVER), that we can change it
+# and the value is maintained and that invalid values result in error.
+#
+# Test:
+# 0) The test requires one server.
+# 1) Check the default value. It should be ABORT_SERVER.
+# 2) Set the sysvar to the possible valid values. Verify that the valid values
+#    are accepted with no error and the values are set correctly.
+# 3) Set the sysvar to invalid values. There should be an error and the value of
+#    the sysvar should not be altered.
+# 4) Cleanup.
+#
+################################################################################
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo
+--echo #########################################################################
+--echo # 0) The test requires one server.
+--echo #########################################################################
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--echo
+--echo #########################################################################
+--echo # 1) Check the default value. It should be ABORT_SERVER.
+--echo #########################################################################
+--echo
+SET @@GLOBAL.group_replication_exit_state_action = default;
+--let $assert_text= The default of group_replication_exit_state_action should be ABORT_SERVER
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_exit_state_action]" = "ABORT_SERVER"
+--source include/assert.inc
+
+--echo
+--echo #########################################################################
+--echo # 2) Set the sysvar to the possible valid values.
+--echo #########################################################################
+--echo
+SET GLOBAL group_replication_exit_state_action = "READ_ONLY";
+--let $assert_text= The default of group_replication_exit_state_action should be READ_ONLY
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_exit_state_action]" = "READ_ONLY"
+--source include/assert.inc
+SET GLOBAL group_replication_exit_state_action = "ABORT_SERVER";
+--let $assert_text= The default of group_replication_exit_state_action should be ABORT_SERVER
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_exit_state_action]" = "ABORT_SERVER"
+--source include/assert.inc
+
+--echo
+--echo #########################################################################
+--echo # 3) Set the sysvar to invalid values. There should be an error and the
+--echo #    value of the sysvar should not be altered.
+--echo #########################################################################
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_exit_state_action = 42;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_exit_state_action = on;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_exit_state_action = "abort";
+SET GLOBAL group_replication_exit_state_action = "ABORT_SERVER";
+--let $assert_text= The default of group_replication_exit_state_action should be ABORT_SERVER
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_exit_state_action]" = "ABORT_SERVER"
+--source include/assert.inc
+
+--echo
+--echo #########################################################################
+--echo # 4) Cleanup.
+--echo #########################################################################
+--echo
+SET GLOBAL group_replication_exit_state_action = READ_ONLY;
+--source include/group_replication_end.inc

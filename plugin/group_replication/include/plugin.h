@@ -63,6 +63,11 @@ enum enum_channel_observation_manager_position {
   END_CHANNEL_OBSERVATION_MANAGER_POS
 };
 
+enum enum_exit_state_action {
+  EXIT_STATE_ACTION_READ_ONLY = 0,
+  EXIT_STATE_ACTION_ABORT_SERVER
+};
+
 extern const char *group_replication_plugin_name;
 extern char *group_name_var;
 extern rpl_sidno group_sidno;
@@ -77,6 +82,7 @@ extern bool plugin_is_setting_read_mode;
 extern bool known_server_reset;
 // Certification latch
 extern Wait_ticket<my_thread_id> *certification_latch;
+extern ulong exit_state_action_var;
 
 // The modules
 extern Gcs_operations *gcs_module;

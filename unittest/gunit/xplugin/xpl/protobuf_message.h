@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -20,8 +20,8 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef _XPL_PROTOUFF_MESSAGE_H_
-#define _XPL_PROTOUFF_MESSAGE_H_
+#ifndef UNITTEST_GUNIT_XPLUGIN_XPL_PROTOBUF_MESSAGE_H_
+#define UNITTEST_GUNIT_XPLUGIN_XPL_PROTOBUF_MESSAGE_H_
 
 namespace xpl {
 
@@ -38,7 +38,7 @@ Msg *message_from_buffer(ngs::Buffer *buffer) {
     size_t offset = (it == obuffer_pages.begin()) ? 5 : 0;
 
     str_buff.append((*it)->data + offset, (*it)->length - offset);
-  };
+  }
   Msg *result = new Msg();
 
   result->ParseFromString(str_buff);
@@ -47,7 +47,6 @@ Msg *message_from_buffer(ngs::Buffer *buffer) {
 }
 
 }  // namespace test
-
 }  // namespace xpl
 
-#endif  // _XPL_PROTOUFF_MESSAGE_H_
+#endif  // UNITTEST_GUNIT_XPLUGIN_XPL_PROTOBUF_MESSAGE_H_

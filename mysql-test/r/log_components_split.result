@@ -4,7 +4,8 @@
 call mtr.add_suppression("filter_rules: *");
 call mtr.add_suppression(".*No error message, or error message of non-string type. This is almost certainly a bug!");
 call mtr.add_suppression(".*using log_message.. with .*");
-call mtr.add_suppression(".* YES");
+call mtr.add_suppression(".*System schema directory does not exist.");
+call mtr.add_suppression(".* Simulated");
 SET @orig_log_error_verbosity= @@GLOBAL.log_error_verbosity;
 SET @@global.log_error_verbosity=3;
 FLUSH LOGS;
@@ -45,141 +46,141 @@ FLUSH ERROR LOGS;
 ### error log file
 ###
 
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@session.debug="+d,log_error_normalize"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@session.debug="+d,parser_stmt_to_error_log_with_system_prio"
-1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: SET @@session.debug="+d,parser_stmt_to_error_log_with_system_prio"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SELECT @@global.log_error_services
-1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: SELECT @@global.log_error_services
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SELECT "*** TRYING TO LOG THINGS FROM EXTERNAL SERVICE ***"
-1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: SELECT "*** TRYING TO LOG THINGS FROM EXTERNAL SERVICE ***"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: INSTALL COMPONENT "file://component_log_sink_json"
-1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: INSTALL COMPONENT "file://component_log_sink_json"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: INSTALL COMPONENT "file://component_log_sink_test"
-1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: INSTALL COMPONENT "file://component_log_sink_test"
-[prio=3];[err_code=10000];[subsystem=parser];[SQL_state=XX999];[source_file=sql_parse.cc];[function=dispatch_command];[msg=Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_test; log_sink_json; log_sink_internal"];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[label=Note];
-[prio=3];[msg=using log_message() in external service];[time=1970-01-01T00:00:00.000000Z];[thread=0];[label=Note];
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-000000] using log_message() in external service
-[prio=1];[thread=0];[msg=using log_message() with duplicate source-line k/v pair];[time=1970-01-01T00:00:00.000000Z];[label=Error];
-1970-01-01T00:00:00.000000Z 0 [ERROR] [MY-000000] using log_message() with duplicate source-line k/v pair
-[prio=1];[key=val];[msg=using log_message() with duplicate generic C-string k/v pair];[time=1970-01-01T00:00:00.000000Z];[thread=0];[label=Error];
-1970-01-01T00:00:00.000000Z 0 [ERROR] [MY-000000] using log_message() with duplicate generic C-string k/v pair
-[prio=1];[key=4711];[msg=using log_message() with duplicate generic mixed k/v pair];[time=1970-01-01T00:00:00.000000Z];[thread=0];[label=Error];
-1970-01-01T00:00:00.000000Z 0 [ERROR] [MY-000000] using log_message() with duplicate generic mixed k/v pair
-[prio=1];[msg=using log_message() with errno 0];[time=1970-01-01T00:00:00.000000Z];[thread=0];[label=Error];
-1970-01-01T00:00:00.000000Z 0 [ERROR] [MY-000000] using log_message() with errno 0
-[prio=1];[err_code=1003];[msg=YES];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_YES];[SQL_state=HY000];[label=Error];
-1970-01-01T00:00:00.000000Z 0 [ERROR] [MY-001003] YES
-[prio=1];[err_symbol=ER_NO];[msg=using log_message() with errsymbol];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_code=1002];[SQL_state=HY000];[label=Error];
-1970-01-01T00:00:00.000000Z 0 [ERROR] [MY-001002] using log_message() with errsymbol
-[log_type=1];[prio=3];[thread=0];[source_file=log_sink_test];[test_float=3.141592692700];[test_int=739241];[test_cstring=cstring];[test_lexstring=lexstring];[msg=using LogEvent() object in external service];[time=1970-01-01T00:00:00.000000Z];[label=Note];
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-000000] using LogEvent() object in external service
-[log_type=1];[prio=3];[msg=item_inconsistent(#1): NOT_FOUND];[time=1970-01-01T00:00:00.000000Z];[thread=0];[label=Note];
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-000000] item_inconsistent(#1): NOT_FOUND
-[log_type=1];[prio=3];[msg=item_inconsistent(#2): CLASS_MISMATCH];[time=1970-01-01T00:00:00.000000Z];[thread=0];[label=Note];
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-000000] item_inconsistent(#2): CLASS_MISMATCH
-[log_type=1];[prio=3];[msg=item_inconsistent(#2): KEY_MISMATCH];[time=1970-01-01T00:00:00.000000Z];[thread=0];[label=Note];
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-000000] item_inconsistent(#2): KEY_MISMATCH
-[log_type=1];[prio=3];[msg=item_inconsistent(#3): KEY_NULL];[time=1970-01-01T00:00:00.000000Z];[thread=0];[label=Note];
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-000000] item_inconsistent(#3): KEY_NULL
-[log_type=1];[prio=3];[msg=item_inconsistent(#4): STRING_NULL];[time=1970-01-01T00:00:00.000000Z];[thread=0];[label=Note];
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-000000] item_inconsistent(#4): STRING_NULL
-[log_type=1];[prio=3];[msg=item_inconsistent(#5): OK];[time=1970-01-01T00:00:00.000000Z];[thread=0];[label=Note];
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-000000] item_inconsistent(#5): OK
-[log_type=1];[prio=3];[thread=0];[source_file=log_sink_test];[msg=below: 3*yes per writer == correct.  >3*yes per writer == filter fail. 0*yes == log_sink_test fail.];[time=1970-01-01T00:00:00.000000Z];[label=Note];
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-000000] below: 3*yes per writer == correct.  >3*yes per writer == filter fail. 0*yes == log_sink_test fail.
-[log_type=1];[prio=3];[thread=0];[source_file=log_sink_test];[msg=filter_rules: (throttle: delta in medias res) 1];[time=1970-01-01T00:00:00.000000Z];[label=Note];
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-000000] filter_rules: (throttle: delta in medias res) 1
-[log_type=1];[prio=3];[SQL_state=HY000];[source_file=log_sink_test];[err_code=1003];[msg=YES];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_YES];[label=Note];
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-001003] YES
-[log_type=1];[prio=3];[SQL_state=HY000];[source_file=log_sink_test];[err_code=1003];[msg=YES];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_YES];[label=Note];
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-001003] YES
-[log_type=1];[prio=3];[SQL_state=HY000];[source_file=log_sink_test];[err_code=1003];[msg=YES];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_YES];[label=Note];
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-001003] YES
-[log_type=1];[prio=3];[thread=0];[source_file=log_sink_test];[msg=filter_rules: (throttle: delta ex post) 0];[time=1970-01-01T00:00:00.000000Z];[label=Note];
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-000000] filter_rules: (throttle: delta ex post) 0
-[log_type=1];[meow=test_me_for_presence];[thread=0];[prio_change=yes];[source_file=log_sink_test];[msg=filter_rules: (add_item delta in medias res) 3];[prio=2];[time=1970-01-01T00:00:00.000000Z];[far=added_by_rule];[label=Warning];
-1970-01-01T00:00:00.000000Z 0 [Warning] [MY-000000] filter_rules: (add_item delta in medias res) 3
-[log_type=1];[meow=test_me_for_presence];[bark=delete_me_by_rule];[prio_change=yes];[source_file=log_sink_test];[msg=filter_rules: (add_item delta ex post) 0];[prio=1];[time=1970-01-01T00:00:00.000000Z];[thread=0];[label=Error];
-1970-01-01T00:00:00.000000Z 0 [ERROR] [MY-000000] filter_rules: (add_item delta ex post) 0
-[log_type=1];[prio=3];[wl9651_val1=0];[wl9651_val2=1];[wl9651_val3a=1];[wl9651_val3b=2];[wl9651_val3c=3];[msg=WL#9651 expected: r1-IF, r2-SUCCESS, r3-SUCCESS];[time=1970-01-01T00:00:00.000000Z];[thread=0];[label=Note];
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-000000] WL#9651 expected: r1-IF, r2-SUCCESS, r3-SUCCESS
-[log_type=1];[prio=3];[wl9651_val1=1];[wl9651_val2=2];[wl9651_val3a=0];[wl9651_val3b=2];[wl9651_val3c=3];[msg=WL#9651 expected: r1-ELSEIF1, r2-SUCCESS, r3-FAILURE];[time=1970-01-01T00:00:00.000000Z];[thread=0];[label=Note];
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-000000] WL#9651 expected: r1-ELSEIF1, r2-SUCCESS, r3-FAILURE
-[log_type=1];[prio=3];[wl9651_val1=2];[wl9651_val2=3.100000000000];[wl9651_val3a=1];[wl9651_val3b=0];[wl9651_val3c=3];[msg=WL#9651 expected: r1-ELSEIF2, r2-FAILURE, r3-FAILURE];[time=1970-01-01T00:00:00.000000Z];[thread=0];[label=Note];
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-000000] WL#9651 expected: r1-ELSEIF2, r2-FAILURE, r3-FAILURE
-[log_type=1];[prio=3];[wl9651_val1=3];[wl9651_val2=4];[wl9651_val3a=1];[wl9651_val3b=2];[wl9651_val3c=0];[msg=WL#9651 expected: r1-ELSE, r2-FAILURE, r3-FAILURE];[time=1970-01-01T00:00:00.000000Z];[thread=0];[label=Note];
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-000000] WL#9651 expected: r1-ELSE, r2-FAILURE, r3-FAILURE
-[log_type=1];[prio=3];[wl9651_val1=-7];[wl9651_val2=1];[wl9651_val3a=1];[wl9651_val3c=3];[msg=WL#9651 expected: r1-IF, r2-FAILURE, r3-FAILURE];[time=1970-01-01T00:00:00.000000Z];[thread=0];[label=Note];
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-000000] WL#9651 expected: r1-IF, r2-FAILURE, r3-FAILURE
-[label=log_sink_test: broken item with class 3, type 131072];[prio=1];[time=1970-01-01T00:00:00.000000Z];[thread=0];[label=Error];
-1970-01-01T00:00:00.000000Z 0 [ERROR] [MY-000000] No error message, or error message of non-string type. This is almost certainly a bug!
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_test; log_sink_json; log_sink_internal"
-1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_test; log_sink_json; log_sink_internal"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SELECT "logging as traditional MySQL error log and as JSON"
-1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: SELECT "logging as traditional MySQL error log and as JSON"
-[prio=3];[err_code=10000];[subsystem=parser];[SQL_state=XX999];[source_file=sql_parse.cc];[function=dispatch_command];[msg=Parser saw: FLUSH ERROR LOGS];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[label=Note];
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: FLUSH ERROR LOGS
-[prio=0];[err_code=10000];[subsystem=parser];[SQL_state=XX999];[source_file=sql_parse.cc];[function=dispatch_command];[msg=Parser saw: FLUSH ERROR LOGS];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[label=System];
-1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: FLUSH ERROR LOGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_internal"
-1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_internal"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_test"
-1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_test"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_json"
-1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_json"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@session.debug="-d,parser_stmt_to_error_log_with_system_prio"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@session.debug="+d,log_error_normalize"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@session.debug="+d,parser_stmt_to_error_log_with_system_prio"
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] [Server] Parser saw: SET @@session.debug="+d,parser_stmt_to_error_log_with_system_prio"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT @@global.log_error_services
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] [Server] Parser saw: SELECT @@global.log_error_services
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT "*** TRYING TO LOG THINGS FROM EXTERNAL SERVICE ***"
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] [Server] Parser saw: SELECT "*** TRYING TO LOG THINGS FROM EXTERNAL SERVICE ***"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: INSTALL COMPONENT "file://component_log_sink_json"
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] [Server] Parser saw: INSTALL COMPONENT "file://component_log_sink_json"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: INSTALL COMPONENT "file://component_log_sink_test"
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] [Server] Parser saw: INSTALL COMPONENT "file://component_log_sink_test"
+[prio=3];[err_code=10000];[subsystem=Server];[source_file=sql_parse.cc];[function=dispatch_command];[msg=Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_test; log_sink_json; log_sink_internal"];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[label=Note];
+[prio=3];[err_symbol=ER_PARSER_TRACE];[msg=using log_message() in external service];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_code=10000];[SQL_state=XX999];[subsystem=Server];[label=Note];
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] using log_message() in external service
+[prio=1];[err_symbol=ER_PARSER_TRACE];[subsystem=Server];[msg=using log_message() with duplicate source-line k/v pair];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_code=10000];[SQL_state=XX999];[label=Error];
+1970-01-01T00:00:00.000000Z 0 [ERROR] [MY-010000] [Server] using log_message() with duplicate source-line k/v pair
+[prio=1];[err_symbol=ER_PARSER_TRACE];[key=val];[msg=using log_message() with duplicate generic C-string k/v pair];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_code=10000];[SQL_state=XX999];[subsystem=Server];[label=Error];
+1970-01-01T00:00:00.000000Z 0 [ERROR] [MY-010000] [Server] using log_message() with duplicate generic C-string k/v pair
+[prio=1];[err_symbol=ER_PARSER_TRACE];[key=4711];[msg=using log_message() with duplicate generic mixed k/v pair];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_code=10000];[SQL_state=XX999];[subsystem=Server];[label=Error];
+1970-01-01T00:00:00.000000Z 0 [ERROR] [MY-010000] [Server] using log_message() with duplicate generic mixed k/v pair
+[prio=1];[err_symbol=ER_PARSER_TRACE];[msg=using log_message() with errno 0];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_code=10000];[SQL_state=XX999];[subsystem=Server];[label=Error];
+1970-01-01T00:00:00.000000Z 0 [ERROR] [MY-010000] [Server] using log_message() with errno 0
+[prio=1];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[SQL_state=HY000];[subsystem=Server];[label=Error];
+1970-01-01T00:00:00.000000Z 0 [ERROR] [MY-013151] [Server] Simulated error
+[prio=1];[err_symbol=ER_SERVER_TEST_MESSAGE];[msg=using log_message() with errsymbol];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_code=13151];[SQL_state=HY000];[subsystem=Server];[label=Error];
+1970-01-01T00:00:00.000000Z 0 [ERROR] [MY-013151] [Server] using log_message() with errsymbol
+[log_type=1];[prio=3];[err_code=10000];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=XX999];[source_file=log_sink_test];[test_float=3.141592692700];[test_int=739241];[test_cstring=cstring];[test_lexstring=lexstring];[msg=using LogEvent() object in external service];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[label=Note];
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [log_sink_tes] using LogEvent() object in external service
+[log_type=1];[prio=3];[err_code=10000];[subsystem=log_sink_test];[component=log_sink_test];[msg=item_inconsistent(#1): NOT_FOUND];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[label=Note];
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [log_sink_tes] item_inconsistent(#1): NOT_FOUND
+[log_type=1];[prio=3];[err_code=10000];[subsystem=log_sink_test];[component=log_sink_test];[msg=item_inconsistent(#2): CLASS_MISMATCH];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[label=Note];
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [log_sink_tes] item_inconsistent(#2): CLASS_MISMATCH
+[log_type=1];[prio=3];[err_code=10000];[subsystem=log_sink_test];[component=log_sink_test];[msg=item_inconsistent(#2): KEY_MISMATCH];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[label=Note];
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [log_sink_tes] item_inconsistent(#2): KEY_MISMATCH
+[log_type=1];[prio=3];[err_code=10000];[subsystem=log_sink_test];[component=log_sink_test];[msg=item_inconsistent(#3): KEY_NULL];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[label=Note];
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [log_sink_tes] item_inconsistent(#3): KEY_NULL
+[log_type=1];[prio=3];[err_code=10000];[subsystem=log_sink_test];[component=log_sink_test];[msg=item_inconsistent(#4): STRING_NULL];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[label=Note];
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [log_sink_tes] item_inconsistent(#4): STRING_NULL
+[log_type=1];[prio=3];[err_code=10000];[subsystem=log_sink_test];[component=log_sink_test];[msg=item_inconsistent(#5): OK];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[label=Note];
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [log_sink_tes] item_inconsistent(#5): OK
+[log_type=1];[prio=3];[err_code=10000];[SQL_state=XX999];[subsystem=log_sink_test];[component=log_sink_test];[source_file=log_sink_test];[msg=below: 3*unknown error per writer == correct.  >3*unknown error per writer == filter fail. 0*unknown error == log_sink_test fail.];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[label=Note];
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [log_sink_tes] below: 3*unknown error per writer == correct.  >3*unknown error per writer == filter fail. 0*unknown error == log_sink_test fail.
+[log_type=1];[prio=3];[err_code=10000];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=XX999];[source_file=log_sink_test];[msg=filter_rules: (throttle: delta in medias res) 1];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[label=Note];
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [log_sink_tes] filter_rules: (throttle: delta in medias res) 1
+[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[label=Note];
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-013151] [log_sink_tes] Simulated error
+[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[label=Note];
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-013151] [log_sink_tes] Simulated error
+[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[label=Note];
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-013151] [log_sink_tes] Simulated error
+[log_type=1];[prio=3];[err_code=10000];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=XX999];[source_file=log_sink_test];[msg=filter_rules: (throttle: delta ex post) 0];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[label=Note];
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [log_sink_tes] filter_rules: (throttle: delta ex post) 0
+[log_type=1];[err_code=10000];[meow=test_me_for_presence];[SQL_state=XX999];[prio_change=yes];[subsystem=log_sink_test];[component=log_sink_test];[source_file=log_sink_test];[msg=filter_rules: (add_item delta in medias res) 3];[prio=2];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[far=added_by_rule];[label=Warning];
+1970-01-01T00:00:00.000000Z 0 [Warning] [MY-010000] [log_sink_tes] filter_rules: (add_item delta in medias res) 3
+[log_type=1];[err_code=10000];[meow=test_me_for_presence];[bark=delete_me_by_rule];[prio_change=yes];[subsystem=log_sink_test];[component=log_sink_test];[source_file=log_sink_test];[msg=filter_rules: (add_item delta ex post) 0];[prio=1];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[label=Error];
+1970-01-01T00:00:00.000000Z 0 [ERROR] [MY-010000] [log_sink_tes] filter_rules: (add_item delta ex post) 0
+[log_type=1];[prio=3];[err_code=10000];[wl9651_val1=0];[wl9651_val2=1];[wl9651_val3a=1];[wl9651_val3b=2];[wl9651_val3c=3];[subsystem=log_sink_test];[component=log_sink_test];[msg=WL#9651 expected: r1-IF, r2-SUCCESS, r3-SUCCESS];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[label=Note];
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [log_sink_tes] WL#9651 expected: r1-IF, r2-SUCCESS, r3-SUCCESS
+[log_type=1];[prio=3];[err_code=10000];[wl9651_val1=1];[wl9651_val2=2];[wl9651_val3a=0];[wl9651_val3b=2];[wl9651_val3c=3];[subsystem=log_sink_test];[component=log_sink_test];[msg=WL#9651 expected: r1-ELSEIF1, r2-SUCCESS, r3-FAILURE];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[label=Note];
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [log_sink_tes] WL#9651 expected: r1-ELSEIF1, r2-SUCCESS, r3-FAILURE
+[log_type=1];[prio=3];[err_code=10000];[wl9651_val1=2];[wl9651_val2=3.100000000000];[wl9651_val3a=1];[wl9651_val3b=0];[wl9651_val3c=3];[subsystem=log_sink_test];[component=log_sink_test];[msg=WL#9651 expected: r1-ELSEIF2, r2-FAILURE, r3-FAILURE];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[label=Note];
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [log_sink_tes] WL#9651 expected: r1-ELSEIF2, r2-FAILURE, r3-FAILURE
+[log_type=1];[prio=3];[err_code=10000];[wl9651_val1=3];[wl9651_val2=4];[wl9651_val3a=1];[wl9651_val3b=2];[wl9651_val3c=0];[subsystem=log_sink_test];[component=log_sink_test];[msg=WL#9651 expected: r1-ELSE, r2-FAILURE, r3-FAILURE];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[label=Note];
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [log_sink_tes] WL#9651 expected: r1-ELSE, r2-FAILURE, r3-FAILURE
+[log_type=1];[prio=3];[err_code=10000];[wl9651_val1=-7];[wl9651_val2=1];[wl9651_val3a=1];[wl9651_val3c=3];[subsystem=log_sink_test];[component=log_sink_test];[msg=WL#9651 expected: r1-IF, r2-FAILURE, r3-FAILURE];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[label=Note];
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [log_sink_tes] WL#9651 expected: r1-IF, r2-FAILURE, r3-FAILURE
+[label=log_sink_test: broken item with class 3, type 131072];[err_code=10000];[prio=1];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[subsystem=Server];[label=Error];
+1970-01-01T00:00:00.000000Z 0 [ERROR] [MY-010000] [Server] No error message, or error message of non-string type. This is almost certainly a bug!
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_test; log_sink_json; log_sink_internal"
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] [Server] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_test; log_sink_json; log_sink_internal"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT "logging as traditional MySQL error log and as JSON"
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] [Server] Parser saw: SELECT "logging as traditional MySQL error log and as JSON"
+[prio=3];[err_code=10000];[subsystem=Server];[source_file=sql_parse.cc];[function=dispatch_command];[msg=Parser saw: FLUSH ERROR LOGS];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[label=Note];
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: FLUSH ERROR LOGS
+[prio=0];[err_code=10000];[subsystem=Server];[source_file=sql_parse.cc];[function=dispatch_command];[msg=Parser saw: FLUSH ERROR LOGS];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[label=System];
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] [Server] Parser saw: FLUSH ERROR LOGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_internal"
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] [Server] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_internal"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_test"
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] [Server] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_test"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_json"
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] [Server] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_json"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@session.debug="-d,parser_stmt_to_error_log_with_system_prio"
 
 ###
 ### error log file (JSON) -- stream 0
 ###
 
-{ "prio" : 3, "msg" : "using log_message() in external service", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "label" : "Note" }
-{ "prio" : 1, "thread" : 0, "msg" : "using log_message() with duplicate source-line k/v pair", "time" : "1970-01-01T00:00:00.000000Z", "label" : "Error" }
-{ "prio" : 1, "key" : "val", "msg" : "using log_message() with duplicate generic C-string k/v pair", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "label" : "Error" }
-{ "prio" : 1, "key" : 4711, "msg" : "using log_message() with duplicate generic mixed k/v pair", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "label" : "Error" }
-{ "prio" : 1, "msg" : "using log_message() with errno 0", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "label" : "Error" }
-{ "prio" : 1, "msg" : "YES", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_YES", "SQL_state" : "HY000", "label" : "Error" }
-{ "prio" : 1, "err_symbol" : "ER_NO", "msg" : "using log_message() with errsymbol", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "SQL_state" : "HY000", "label" : "Error" }
-{ "log_type" : 1, "prio" : 3, "thread" : 0, "source_file" : "log_sink_test", "test_float" : 3.141592692700, "test_int" : 739241, "test_cstring" : "cstring", "test_lexstring" : "lexstring", "msg" : "using LogEvent() object in external service", "time" : "1970-01-01T00:00:00.000000Z", "label" : "Note" }
-{ "log_type" : 1, "prio" : 3, "msg" : "item_inconsistent(#1): NOT_FOUND", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "label" : "Note" }
-{ "log_type" : 1, "prio" : 3, "msg" : "item_inconsistent(#2): CLASS_MISMATCH", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "label" : "Note" }
-{ "log_type" : 1, "prio" : 3, "msg" : "item_inconsistent(#2): KEY_MISMATCH", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "label" : "Note" }
-{ "log_type" : 1, "prio" : 3, "msg" : "item_inconsistent(#3): KEY_NULL", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "label" : "Note" }
-{ "log_type" : 1, "prio" : 3, "msg" : "item_inconsistent(#4): STRING_NULL", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "label" : "Note" }
-{ "log_type" : 1, "prio" : 3, "msg" : "item_inconsistent(#5): OK", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "label" : "Note" }
-{ "log_type" : 1, "prio" : 3, "thread" : 0, "source_file" : "log_sink_test", "msg" : "below: 3*yes per writer == correct.  >3*yes per writer == filter fail. 0*yes == log_sink_test fail.", "time" : "1970-01-01T00:00:00.000000Z", "label" : "Note" }
-{ "log_type" : 1, "prio" : 3, "thread" : 0, "source_file" : "log_sink_test", "msg" : "filter_rules: (throttle: delta in medias res) 1", "time" : "1970-01-01T00:00:00.000000Z", "label" : "Note" }
-{ "log_type" : 1, "prio" : 3, "SQL_state" : "HY000", "source_file" : "log_sink_test", "msg" : "YES", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_YES", "label" : "Note" }
-{ "log_type" : 1, "prio" : 3, "SQL_state" : "HY000", "source_file" : "log_sink_test", "msg" : "YES", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_YES", "label" : "Note" }
-{ "log_type" : 1, "prio" : 3, "SQL_state" : "HY000", "source_file" : "log_sink_test", "msg" : "YES", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_YES", "label" : "Note" }
-{ "log_type" : 1, "prio" : 3, "thread" : 0, "source_file" : "log_sink_test", "msg" : "filter_rules: (throttle: delta ex post) 0", "time" : "1970-01-01T00:00:00.000000Z", "label" : "Note" }
-{ "log_type" : 1, "meow" : "test_me_for_presence", "thread" : 0, "prio_change" : "yes", "source_file" : "log_sink_test", "msg" : "filter_rules: (add_item delta in medias res) 3", "prio" : 2, "time" : "1970-01-01T00:00:00.000000Z", "far" : "added_by_rule", "label" : "Warning" }
-{ "log_type" : 1, "meow" : "test_me_for_presence", "bark" : "delete_me_by_rule", "prio_change" : "yes", "source_file" : "log_sink_test", "msg" : "filter_rules: (add_item delta ex post) 0", "prio" : 1, "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "label" : "Error" }
-{ "log_type" : 1, "prio" : 3, "wl9651_val1" : 0, "wl9651_val2" : 1, "wl9651_val3a" : 1, "wl9651_val3b" : 2, "wl9651_val3c" : 3, "msg" : "WL#9651 expected: r1-IF, r2-SUCCESS, r3-SUCCESS", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "label" : "Note" }
-{ "log_type" : 1, "prio" : 3, "wl9651_val1" : 1, "wl9651_val2" : 2, "wl9651_val3a" : 0, "wl9651_val3b" : 2, "wl9651_val3c" : 3, "msg" : "WL#9651 expected: r1-ELSEIF1, r2-SUCCESS, r3-FAILURE", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "label" : "Note" }
-{ "log_type" : 1, "prio" : 3, "wl9651_val1" : 2, "wl9651_val2" : 3.100000000000, "wl9651_val3a" : 1, "wl9651_val3b" : 0, "wl9651_val3c" : 3, "msg" : "WL#9651 expected: r1-ELSEIF2, r2-FAILURE, r3-FAILURE", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "label" : "Note" }
-{ "log_type" : 1, "prio" : 3, "wl9651_val1" : 3, "wl9651_val2" : 4, "wl9651_val3a" : 1, "wl9651_val3b" : 2, "wl9651_val3c" : 0, "msg" : "WL#9651 expected: r1-ELSE, r2-FAILURE, r3-FAILURE", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "label" : "Note" }
-{ "log_type" : 1, "prio" : 3, "wl9651_val1" : -7, "wl9651_val2" : "1", "wl9651_val3a" : 1, "wl9651_val3c" : 3, "msg" : "WL#9651 expected: r1-IF, r2-FAILURE, r3-FAILURE", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "label" : "Note" }
-{ "label" : "log_sink_json: broken item with class 3, type 131072", "prio" : 1, "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "label" : "Error" }
-{ "prio" : 3, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_filter_internal; log_sink_test; log_sink_json; log_sink_internal\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
-{ "prio" : 0, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_filter_internal; log_sink_test; log_sink_json; log_sink_internal\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "System" }
-{ "prio" : 3, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT \"logging as traditional MySQL error log and as JSON\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
-{ "prio" : 0, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT \"logging as traditional MySQL error log and as JSON\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "System" }
-{ "prio" : 3, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: FLUSH ERROR LOGS", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
-{ "prio" : 0, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: FLUSH ERROR LOGS", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "System" }
-{ "prio" : 3, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_sink_json; log_sink_json\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
-{ "prio" : 0, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_sink_json; log_sink_json\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "System" }
-{ "prio" : 3, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT \"double dutch!\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
-{ "prio" : 0, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT \"double dutch!\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "System" }
+{ "prio" : 3, "err_symbol" : "ER_PARSER_TRACE", "msg" : "using log_message() in external service", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "SQL_state" : "XX999", "subsystem" : "Server", "label" : "Note" }
+{ "prio" : 1, "err_symbol" : "ER_PARSER_TRACE", "subsystem" : "Server", "msg" : "using log_message() with duplicate source-line k/v pair", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "SQL_state" : "XX999", "label" : "Error" }
+{ "prio" : 1, "err_symbol" : "ER_PARSER_TRACE", "key" : "val", "msg" : "using log_message() with duplicate generic C-string k/v pair", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "SQL_state" : "XX999", "subsystem" : "Server", "label" : "Error" }
+{ "prio" : 1, "err_symbol" : "ER_PARSER_TRACE", "key" : 4711, "msg" : "using log_message() with duplicate generic mixed k/v pair", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "SQL_state" : "XX999", "subsystem" : "Server", "label" : "Error" }
+{ "prio" : 1, "err_symbol" : "ER_PARSER_TRACE", "msg" : "using log_message() with errno 0", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "SQL_state" : "XX999", "subsystem" : "Server", "label" : "Error" }
+{ "prio" : 1, "msg" : "Simulated error", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_SERVER_TEST_MESSAGE", "SQL_state" : "HY000", "subsystem" : "Server", "label" : "Error" }
+{ "prio" : 1, "err_symbol" : "ER_SERVER_TEST_MESSAGE", "msg" : "using log_message() with errsymbol", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "SQL_state" : "HY000", "subsystem" : "Server", "label" : "Error" }
+{ "log_type" : 1, "prio" : 3, "subsystem" : "log_sink_test", "component" : "log_sink_test", "SQL_state" : "XX999", "source_file" : "log_sink_test", "test_float" : 3.141592692700, "test_int" : 739241, "test_cstring" : "cstring", "test_lexstring" : "lexstring", "msg" : "using LogEvent() object in external service", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
+{ "log_type" : 1, "prio" : 3, "subsystem" : "log_sink_test", "component" : "log_sink_test", "msg" : "item_inconsistent(#1): NOT_FOUND", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "log_type" : 1, "prio" : 3, "subsystem" : "log_sink_test", "component" : "log_sink_test", "msg" : "item_inconsistent(#2): CLASS_MISMATCH", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "log_type" : 1, "prio" : 3, "subsystem" : "log_sink_test", "component" : "log_sink_test", "msg" : "item_inconsistent(#2): KEY_MISMATCH", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "log_type" : 1, "prio" : 3, "subsystem" : "log_sink_test", "component" : "log_sink_test", "msg" : "item_inconsistent(#3): KEY_NULL", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "log_type" : 1, "prio" : 3, "subsystem" : "log_sink_test", "component" : "log_sink_test", "msg" : "item_inconsistent(#4): STRING_NULL", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "log_type" : 1, "prio" : 3, "subsystem" : "log_sink_test", "component" : "log_sink_test", "msg" : "item_inconsistent(#5): OK", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "log_type" : 1, "prio" : 3, "SQL_state" : "XX999", "subsystem" : "log_sink_test", "component" : "log_sink_test", "source_file" : "log_sink_test", "msg" : "below: 3*unknown error per writer == correct.  >3*unknown error per writer == filter fail. 0*unknown error == log_sink_test fail.", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
+{ "log_type" : 1, "prio" : 3, "subsystem" : "log_sink_test", "component" : "log_sink_test", "SQL_state" : "XX999", "source_file" : "log_sink_test", "msg" : "filter_rules: (throttle: delta in medias res) 1", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
+{ "log_type" : 1, "prio" : 3, "subsystem" : "log_sink_test", "component" : "log_sink_test", "SQL_state" : "HY000", "source_file" : "log_sink_test", "msg" : "Simulated error", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_SERVER_TEST_MESSAGE", "label" : "Note" }
+{ "log_type" : 1, "prio" : 3, "subsystem" : "log_sink_test", "component" : "log_sink_test", "SQL_state" : "HY000", "source_file" : "log_sink_test", "msg" : "Simulated error", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_SERVER_TEST_MESSAGE", "label" : "Note" }
+{ "log_type" : 1, "prio" : 3, "subsystem" : "log_sink_test", "component" : "log_sink_test", "SQL_state" : "HY000", "source_file" : "log_sink_test", "msg" : "Simulated error", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_SERVER_TEST_MESSAGE", "label" : "Note" }
+{ "log_type" : 1, "prio" : 3, "subsystem" : "log_sink_test", "component" : "log_sink_test", "SQL_state" : "XX999", "source_file" : "log_sink_test", "msg" : "filter_rules: (throttle: delta ex post) 0", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
+{ "log_type" : 1, "meow" : "test_me_for_presence", "SQL_state" : "XX999", "prio_change" : "yes", "subsystem" : "log_sink_test", "component" : "log_sink_test", "source_file" : "log_sink_test", "msg" : "filter_rules: (add_item delta in medias res) 3", "prio" : 2, "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "far" : "added_by_rule", "label" : "Warning" }
+{ "log_type" : 1, "meow" : "test_me_for_presence", "bark" : "delete_me_by_rule", "prio_change" : "yes", "subsystem" : "log_sink_test", "component" : "log_sink_test", "source_file" : "log_sink_test", "msg" : "filter_rules: (add_item delta ex post) 0", "prio" : 1, "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Error" }
+{ "log_type" : 1, "prio" : 3, "wl9651_val1" : 0, "wl9651_val2" : 1, "wl9651_val3a" : 1, "wl9651_val3b" : 2, "wl9651_val3c" : 3, "subsystem" : "log_sink_test", "component" : "log_sink_test", "msg" : "WL#9651 expected: r1-IF, r2-SUCCESS, r3-SUCCESS", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "log_type" : 1, "prio" : 3, "wl9651_val1" : 1, "wl9651_val2" : 2, "wl9651_val3a" : 0, "wl9651_val3b" : 2, "wl9651_val3c" : 3, "subsystem" : "log_sink_test", "component" : "log_sink_test", "msg" : "WL#9651 expected: r1-ELSEIF1, r2-SUCCESS, r3-FAILURE", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "log_type" : 1, "prio" : 3, "wl9651_val1" : 2, "wl9651_val2" : 3.100000000000, "wl9651_val3a" : 1, "wl9651_val3b" : 0, "wl9651_val3c" : 3, "subsystem" : "log_sink_test", "component" : "log_sink_test", "msg" : "WL#9651 expected: r1-ELSEIF2, r2-FAILURE, r3-FAILURE", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "log_type" : 1, "prio" : 3, "wl9651_val1" : 3, "wl9651_val2" : 4, "wl9651_val3a" : 1, "wl9651_val3b" : 2, "wl9651_val3c" : 0, "subsystem" : "log_sink_test", "component" : "log_sink_test", "msg" : "WL#9651 expected: r1-ELSE, r2-FAILURE, r3-FAILURE", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "log_type" : 1, "prio" : 3, "wl9651_val1" : -7, "wl9651_val2" : "1", "wl9651_val3a" : 1, "wl9651_val3c" : 3, "subsystem" : "log_sink_test", "component" : "log_sink_test", "msg" : "WL#9651 expected: r1-IF, r2-FAILURE, r3-FAILURE", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "label" : "log_sink_json: broken item with class 3, type 131072", "prio" : 1, "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "subsystem" : "Server", "label" : "Error" }
+{ "prio" : 3, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_filter_internal; log_sink_test; log_sink_json; log_sink_internal\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "prio" : 0, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_filter_internal; log_sink_test; log_sink_json; log_sink_internal\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "System" }
+{ "prio" : 3, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT \"logging as traditional MySQL error log and as JSON\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "prio" : 0, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT \"logging as traditional MySQL error log and as JSON\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "System" }
+{ "prio" : 3, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: FLUSH ERROR LOGS", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "prio" : 0, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: FLUSH ERROR LOGS", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "System" }
+{ "prio" : 3, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_sink_json; log_sink_json\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "prio" : 0, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_sink_json; log_sink_json\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "System" }
+{ "prio" : 3, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT \"double dutch!\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "prio" : 0, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT \"double dutch!\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "System" }
 
 ###
 ### error log file (JSON) -- stream 1
 ###
 
-{ "prio" : 3, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_sink_json; log_sink_json\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
-{ "prio" : 0, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_sink_json; log_sink_json\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "System" }
-{ "prio" : 3, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT \"double dutch!\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
-{ "prio" : 0, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT \"double dutch!\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "System" }
+{ "prio" : 3, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_sink_json; log_sink_json\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "prio" : 0, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_sink_json; log_sink_json\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "System" }
+{ "prio" : 3, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT \"double dutch!\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "prio" : 0, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT \"double dutch!\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "System" }
 
 ###
 ### done

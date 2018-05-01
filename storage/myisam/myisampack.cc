@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2744,7 +2744,6 @@ static int save_state_mrg(File file, PACK_MRG_INFO *mrg, my_off_t new_length,
 
 static void mrg_reset(PACK_MRG_INFO *mrg) {
   if (mrg->current) {
-    mi_extra(*mrg->current, HA_EXTRA_NO_CACHE, 0);
     mrg->current = 0;
   }
 }
@@ -2758,7 +2757,6 @@ static int mrg_rrnd(PACK_MRG_INFO *info, uchar *buf) {
     isam_info = *(info->current = info->file);
     info->end = info->current + info->count;
     mi_reset(isam_info);
-    mi_extra(isam_info, HA_EXTRA_CACHE, 0);
     filepos = isam_info->s->pack.header_length;
   } else {
     isam_info = *info->current;
@@ -2771,13 +2769,11 @@ static int mrg_rrnd(PACK_MRG_INFO *info, uchar *buf) {
               (*isam_info->s->read_rnd)(isam_info, (uchar *)buf, filepos, 1)) ||
         error != HA_ERR_END_OF_FILE)
       return (error);
-    mi_extra(isam_info, HA_EXTRA_NO_CACHE, 0);
     if (info->current + 1 == info->end) return (HA_ERR_END_OF_FILE);
     info->current++;
     isam_info = *info->current;
     filepos = isam_info->s->pack.header_length;
     mi_reset(isam_info);
-    mi_extra(isam_info, HA_EXTRA_CACHE, 0);
   }
 }
 

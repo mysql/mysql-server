@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -126,7 +126,7 @@ typedef std::vector<Column, Allocator<Column>> Columns;
 inline bool Column::is_nullable() const { return m_nullable; }
 
 inline bool Column::is_null(const unsigned char *mysql_row) const {
-  return m_nullable && m_null_bitmask & *(mysql_row + m_null_byte_offset);
+  return m_nullable && (m_null_bitmask & *(mysql_row + m_null_byte_offset));
 }
 
 inline uint32_t Column::null_byte_offset() const { return m_null_byte_offset; }

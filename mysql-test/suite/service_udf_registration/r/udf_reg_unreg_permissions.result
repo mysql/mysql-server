@@ -8,6 +8,7 @@ component_urn
 file://component_udf_reg_avg_func
 connect c1,localhost,test,,;
 SELECT * FROM performance_schema.user_defined_functions
+WHERE (udf_name LIKE 'myfunc%') or (udf_name LIKE 'avgcost%')
 ORDER BY udf_name;
 ERROR 42000: SELECT command denied to user 'test'@'localhost' for table 'user_defined_functions'
 create table t1(sum int, price float(24));
@@ -42,6 +43,7 @@ SELECT myfunc_int(23);
 connection default;
 SELECT udf_name,udf_return_type,udf_type,udf_library,udf_usage_count>0
 FROM performance_schema.user_defined_functions
+WHERE (udf_name LIKE 'myfunc%') or (udf_name LIKE 'avgcost%')
 ORDER BY udf_name;
 udf_name	udf_return_type	udf_type	udf_library	udf_usage_count>0
 myfunc_int	integer	function		1

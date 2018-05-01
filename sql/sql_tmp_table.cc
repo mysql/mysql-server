@@ -702,13 +702,13 @@ void sort_copy_func(const SELECT_LEX *select, Func_ptr_array *copy_func) {
 
     Let's go through the process of writing to the tmp table
     (e.g. end_write(), end_write_group()). We also include here the
-    "pseudo-tmp table" embedded into REF_ITEM_SLICE3, used by
+    "pseudo-tmp table" embedded into REF_SLICE_ORDERED_GROUP_BY, used by
     end_send_group().
     (1) we switch to the REF_SLICE used to read from that tmp table
     (2.1) we (copy_fields() part 1) copy some columns from the
     output of the previous step of execution (e.g. the join's output) to the
     tmp table
-    (2.2) (specifically for REF_SLICE_TMP3 in end_send_group()) we
+    (2.2) (specifically for REF_SLICE_ORDERED_GROUP_BY in end_send_group()) we
     (copy_fields() part 2) evaluate some expressions from the same previous
     step of execution, with Item_copy::copy(). The mechanism of Item_copy is:
     * copy() evaluates the expression and caches its value in memory
@@ -884,7 +884,6 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   uchar *null_flags;
   Field **reg_field, **from_field, **default_field;
   uint *blob_field;
-  Copy_field *copy = 0;
   KEY *keyinfo;
   KEY_PART_INFO *key_part_info;
   MI_COLUMNDEF *recinfo;
@@ -959,12 +958,13 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
           &bitmaps, bitmap_buffer_size(field_count + 1) * 3, NullS)) {
     DBUG_RETURN(NULL); /* purecov: inspected */
   }
-  /* Copy_field belongs to Temp_table_param, allocate it in THD mem_root */
-  if (!(param->copy_field = copy =
-            new (thd->mem_root) Copy_field[field_count])) {
-    free_root(&own_root, MYF(0)); /* purecov: inspected */
-    DBUG_RETURN(NULL);            /* purecov: inspected */
+
+  try {
+    param->copy_fields.reserve(field_count);
+  } catch (std::bad_alloc &) {
+    DBUG_RETURN(nullptr);
   }
+
   param->items_to_copy = copy_func;
   /* make table according to fields */
 
@@ -1456,8 +1456,8 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
       Field *orig_field = default_field[i];
       /*
         Get the value from default_values. Note that orig_field->ptr might not
-        point into record[0] if previous step is REF_SLICE_TMP3 and we are
-        creating a tmp table to materialize the query's result.
+        point into record[0] if previous step is REF_SLICE_ORDERED_GROUP_BY and
+        we are creating a tmp table to materialize the query's result.
       */
       my_ptrdiff_t diff = orig_field->table->default_values_offset();
       Field *f_in_record0 = orig_field->table->field[orig_field->field_index];
@@ -1471,17 +1471,17 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
       f_in_record0->move_field_offset(-diff);  // Back to record[0]
     }
 
-    if (from_field[i]) { /* Not a table Item */
+    if (from_field[i]) {
+      /* This column is directly mapped to a column in the GROUP BY clause. */
       if (param->m_window && param->m_window->frame_buffer_param() &&
           field->flags & FIELD_IS_MARKED) {
         Temp_table_param *window_fb = param->m_window->frame_buffer_param();
         // Grep for FIELD_IS_MARKED in this file.
         field->flags ^= FIELD_IS_MARKED;
-        window_fb->copy_field_end->set(from_field[i], field, save_sum_fields);
-        window_fb->copy_field_end++;
+        window_fb->copy_fields.emplace_back(from_field[i], field,
+                                            save_sum_fields);
       } else {
-        copy->set(field, from_field[i], save_sum_fields);
-        copy++;
+        param->copy_fields.emplace_back(field, from_field[i], save_sum_fields);
       }
     }
     length = field->pack_length();
@@ -1506,7 +1506,6 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
     field->table_name = &table->alias;
   }
 
-  param->copy_field_end = copy;
   param->recinfo = recinfo;
   store_record(table, s->default_values);  // Make empty default record
 
@@ -2146,7 +2145,7 @@ static bool alloc_record_buffers(TABLE *table) {
 }
 
 bool open_tmp_table(TABLE *table) {
-  DBUG_ASSERT(table->s->ref_count == 1 ||          // not shared, or:
+  DBUG_ASSERT(table->s->ref_count() == 1 ||        // not shared, or:
               table->s->db_type() == heap_hton ||  // using right engines
               table->s->db_type() == temptable_hton ||
               table->s->db_type() == innodb_hton);
@@ -2473,7 +2472,7 @@ void free_tmp_table(THD *thd, TABLE *entry) {
 
   filesort_free_buffers(entry, true);
 
-  DBUG_ASSERT(entry->s->tmp_handler_count <= entry->s->ref_count);
+  DBUG_ASSERT(entry->s->tmp_handler_count <= entry->s->ref_count());
 
   if (entry->is_created()) {
     DBUG_ASSERT(entry->s->tmp_handler_count >= 1);
@@ -2494,8 +2493,8 @@ void free_tmp_table(THD *thd, TABLE *entry) {
 
   DBUG_ASSERT(entry->mem_root.allocated_size() == 0);
 
-  DBUG_ASSERT(entry->s->ref_count >= 1);
-  if (--entry->s->ref_count == 0)  // no more TABLE objects
+  DBUG_ASSERT(entry->s->ref_count() >= 1);
+  if (entry->s->decrement_ref_count() == 0)  // no more TABLE objects
   {
     plugin_unlock(0, entry->s->db_plugin);
     /*
@@ -2505,6 +2504,7 @@ void free_tmp_table(THD *thd, TABLE *entry) {
       So we need a copy to free it.
     */
     MEM_ROOT own_root = std::move(entry->s->mem_root);
+    destroy(entry);
     free_root(&own_root, MYF(0));
   }
 
@@ -2736,9 +2736,6 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
           new_table.file->extra(HA_EXTRA_NO_ROWS);
           new_table.no_rows = 1;
         }
-
-        /* HA_EXTRA_WRITE_CACHE can stay until close, no need to disable it */
-        new_table.file->extra(HA_EXTRA_WRITE_CACHE);
 
         /*
           copy all old rows from heap table to on-disk table

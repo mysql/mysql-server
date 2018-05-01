@@ -696,6 +696,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	<subquery5>.a	1	100.00	NULL
 5	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 3	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1003	insert into `test`.`t1` (`test`.`t1`.`pk`,`test`.`t1`.`a`) /* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t2`.`pk` = `<subquery5>`.`a`)
 INSERT INTO v1
 SELECT * FROM v2;
 DELETE FROM t1;
@@ -707,6 +709,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	<subquery5>.a	1	100.00	NULL
 5	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 3	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1003	insert into `test`.`t1` (`test`.`t1`.`pk`,`test`.`t1`.`a`) /* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t2`.`pk` = `<subquery5>`.`a`)
 INSERT INTO v3(pk,a)
 SELECT * FROM v2;
 DELETE FROM t1;
@@ -720,6 +724,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.a	1	100.00	NULL
 1	PRIMARY	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.a	1	100.00	End temporary
 4	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1003	insert into `test`.`t1` (`test`.`t1`.`pk`,`test`.`t1`.`a`) /* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) semi join (`test`.`t3`) join `test`.`t2` where ((`test`.`t3`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`pk` = `test`.`t3`.`a`) and (`test`.`t2`.`pk` = `test`.`t3`.`a`))
 INSERT INTO v1
 SELECT dt.pk, v2.a
 FROM (SELECT * FROM v2) AS dt JOIN v2 ON dt.pk=v2.pk;
@@ -732,18 +738,26 @@ CREATE VIEW v AS SELECT * FROM t1 JOIN t2 ON TRUE;
 explain INSERT INTO v(a) VALUES(1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`t1` (`test`.`t1`.`a`) values (1)
 INSERT INTO v(a) VALUES(1);
 explain INSERT INTO v(b) VALUES(1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`t2` (`test`.`t2`.`b`) values (1)
 INSERT INTO v(b) VALUES(1);
 explain INSERT INTO v(a) SELECT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`t1` (`test`.`t1`.`a`) /* select#1 */ select 2 AS `2` from dual
 INSERT INTO v(a) SELECT 2;
 explain INSERT INTO v(b) SELECT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`t2` (`test`.`t2`.`b`) /* select#1 */ select 2 AS `2` from dual
 INSERT INTO v(b) SELECT 2;
 SELECT * FROM t1;
 a

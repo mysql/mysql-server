@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -26,20 +26,20 @@
 # convenience library is a static library that can be linked to shared library
 # On systems that force position-independent code, linking into shared library
 # normally requires compilation with a special flag (often -fPIC).
-# Some systems, like Windows or OSX do not need special compilation (Windows 
-# never uses PIC and OSX always uses it). 
+# Some systems, like Windows or OSX do not need special compilation (Windows
+# never uses PIC and OSX always uses it).
 #
-# The intention behind convenience libraries is simplify the build and to reduce
-# excessive recompiles.
+# The intention behind convenience libraries is simplify the build and to
+# reduce excessive recompiles.
 
-# Except for convenience libraries, this file provides macros to merge static 
-# libraries (we need it for mysqlclient) and to create shared library out of 
+# Except for convenience libraries, this file provides macros to merge static
+# libraries (we need it for mysqlclient) and to create shared library out of
 # convenience libraries(again, for mysqlclient)
 
 
 GET_FILENAME_COMPONENT(MYSQL_CMAKE_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
 IF(WIN32 OR APPLE OR DISABLE_SHARED)
- SET(_SKIP_PIC 1)
+  SET(_SKIP_PIC 1)
 ENDIF()
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/cmake_parse_arguments.cmake)
@@ -118,105 +118,105 @@ ENDMACRO()
 # The advantage compared to FILE(WRITE) is that timestamp
 # does not change if file already has the same content
 MACRO(CONFIGURE_FILE_CONTENT content file)
- SET(CMAKE_CONFIGURABLE_FILE_CONTENT 
-  "${content}\n")
- CONFIGURE_FILE(
-  ${MYSQL_CMAKE_SCRIPT_DIR}/configurable_file_content.in
-  ${file}
-  @ONLY)
+  SET(CMAKE_CONFIGURABLE_FILE_CONTENT
+    "${content}\n")
+  CONFIGURE_FILE(
+    ${MYSQL_CMAKE_SCRIPT_DIR}/configurable_file_content.in
+    ${file}
+    @ONLY)
 ENDMACRO()
 
 # Create libs from libs.
-# Merges static libraries, creates shared libraries out of convenience libraries.
+# Merge static libraries, creates shared libraries out of convenience libraries.
 MACRO(MERGE_LIBRARIES_SHARED)
   MYSQL_PARSE_ARGUMENTS(ARG
     "EXPORTS;OUTPUT_NAME;COMPONENT"
     "SKIP_INSTALL"
     ${ARGN}
-  )
-  LIST(GET ARG_DEFAULT_ARGS 0 TARGET) 
+    )
+  LIST(GET ARG_DEFAULT_ARGS 0 TARGET)
   SET(LIBS ${ARG_DEFAULT_ARGS})
   LIST(REMOVE_AT LIBS 0)
-  
-    SET(LIBTYPE SHARED)
-    # check for non-PIC libraries
-    IF(NOT _SKIP_PIC)
-      FOREACH(LIB ${LIBS})
-        GET_TARGET_PROPERTY(${LIB} TYPE LIBTYPE)
-        IF(LIBTYPE STREQUAL "STATIC_LIBRARY")
-          GET_TARGET_PROPERTY(LIB COMPILE_FLAGS LIB_COMPILE_FLAGS)
-          IF(NOT LIB_COMPILE_FLAGS MATCHES "<PIC_FLAG>")
-            MESSAGE(FATAL_ERROR 
+
+  SET(LIBTYPE SHARED)
+  # check for non-PIC libraries
+  IF(NOT _SKIP_PIC)
+    FOREACH(LIB ${LIBS})
+      GET_TARGET_PROPERTY(${LIB} TYPE LIBTYPE)
+      IF(LIBTYPE STREQUAL "STATIC_LIBRARY")
+        GET_TARGET_PROPERTY(LIB COMPILE_FLAGS LIB_COMPILE_FLAGS)
+        IF(NOT LIB_COMPILE_FLAGS MATCHES "<PIC_FLAG>")
+          MESSAGE(FATAL_ERROR
             "Attempted to link non-PIC static library ${LIB} to shared library ${TARGET}\n"
             "Please use ADD_CONVENIENCE_LIBRARY, instead of ADD_LIBRARY for ${LIB}"
             )
-          ENDIF()
         ENDIF()
-      ENDFOREACH()
-    ENDIF()
-    CREATE_EXPORT_FILE(SRC ${TARGET} "${ARG_EXPORTS}")
-    IF(UNIX)
-      # Mark every export as explicitly needed, so that ld won't remove the .a files
-      # containing them. This has a similar effect as --Wl,--no-whole-archive,
-      # but is more focused.
-      FOREACH(SYMBOL ${ARG_EXPORTS})
-        IF(APPLE)
-          SET(export_link_flags "${export_link_flags} -Wl,-u,_${SYMBOL}")
-        ELSE()
-          SET(export_link_flags "${export_link_flags} -Wl,-u,${SYMBOL}")
-        ENDIF()
-      ENDFOREACH()
-    ENDIF()
-    IF(NOT ARG_SKIP_INSTALL)
-      ADD_VERSION_INFO(${TARGET} SHARED SRC)
-    ENDIF()
-    ADD_LIBRARY(${TARGET} ${LIBTYPE} ${SRC})
-
-    # Collect all dynamic libraries in the same directory
-    SET_TARGET_PROPERTIES(${TARGET} PROPERTIES
-      LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
-    IF(WIN32_CLANG AND WITH_ASAN)
-      TARGET_LINK_LIBRARIES(${TARGET} "${ASAN_LIB_DIR}/clang_rt.asan_dll_thunk-x86_64.lib")
-    ENDIF()
-
-    IF(WIN32)
-      # This must be a cmake bug on windows ...
-      # Anyways, with this the .dll ends up in the desired directory.
-      SET_TARGET_PROPERTIES(${TARGET} PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
-    ENDIF()
-
-    TARGET_LINK_LIBRARIES(${TARGET} ${LIBS})
-    IF(ARG_OUTPUT_NAME)
-      SET_TARGET_PROPERTIES(
-        ${TARGET} PROPERTIES OUTPUT_NAME "${ARG_OUTPUT_NAME}")
-    ENDIF()
-    SET_TARGET_PROPERTIES(
-      ${TARGET} PROPERTIES LINK_FLAGS "${export_link_flags}")
-
-    IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
-      ADD_CUSTOM_COMMAND(TARGET ${TARGET} POST_BUILD
-        COMMAND install_name_tool -change
-                "${CRYPTO_VERSION}" "@loader_path/${CRYPTO_VERSION}"
-                $<TARGET_SONAME_FILE:${TARGET}>
-        COMMAND install_name_tool -change
-                "${OPENSSL_VERSION}" "@loader_path/${OPENSSL_VERSION}"
-                $<TARGET_SONAME_FILE:${TARGET}>
-        )
-      # All executables have dependencies:  "@loader_path/../lib/xxx.dylib
-      # Create a symlink so that this works for Xcode also.
-      IF(NOT BUILD_IS_SINGLE_CONFIG)
-        ADD_CUSTOM_COMMAND(TARGET ${TARGET} POST_BUILD
-          COMMAND ${CMAKE_COMMAND} -E create_symlink
-                  $<TARGET_SONAME_FILE_DIR:${TARGET}> lib
-          WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory
-          )
       ENDIF()
+    ENDFOREACH()
+  ENDIF()
+  CREATE_EXPORT_FILE(SRC ${TARGET} "${ARG_EXPORTS}")
+  IF(UNIX)
+    # Mark every export as explicitly needed, so that ld won't remove the .a files
+    # containing them. This has a similar effect as --Wl,--no-whole-archive,
+    # but is more focused.
+    FOREACH(SYMBOL ${ARG_EXPORTS})
+      IF(APPLE)
+        SET(export_link_flags "${export_link_flags} -Wl,-u,_${SYMBOL}")
+      ELSE()
+        SET(export_link_flags "${export_link_flags} -Wl,-u,${SYMBOL}")
+      ENDIF()
+    ENDFOREACH()
+  ENDIF()
+  IF(NOT ARG_SKIP_INSTALL)
+    ADD_VERSION_INFO(${TARGET} SHARED SRC)
+  ENDIF()
+  ADD_LIBRARY(${TARGET} ${LIBTYPE} ${SRC})
+
+  # Collect all dynamic libraries in the same directory
+  SET_TARGET_PROPERTIES(${TARGET} PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
+  IF(WIN32_CLANG AND WITH_ASAN)
+    TARGET_LINK_LIBRARIES(${TARGET} "${ASAN_LIB_DIR}/clang_rt.asan_dll_thunk-x86_64.lib")
+  ENDIF()
+
+  IF(WIN32)
+    # This must be a cmake bug on windows ...
+    # Anyways, with this the .dll ends up in the desired directory.
+    SET_TARGET_PROPERTIES(${TARGET} PROPERTIES
+      RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
+  ENDIF()
+
+  TARGET_LINK_LIBRARIES(${TARGET} ${LIBS})
+  IF(ARG_OUTPUT_NAME)
+    SET_TARGET_PROPERTIES(
+      ${TARGET} PROPERTIES OUTPUT_NAME "${ARG_OUTPUT_NAME}")
+  ENDIF()
+  SET_TARGET_PROPERTIES(
+    ${TARGET} PROPERTIES LINK_FLAGS "${export_link_flags}")
+
+  IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
+    ADD_CUSTOM_COMMAND(TARGET ${TARGET} POST_BUILD
+      COMMAND install_name_tool -change
+      "${CRYPTO_VERSION}" "@loader_path/${CRYPTO_VERSION}"
+      $<TARGET_SONAME_FILE:${TARGET}>
+      COMMAND install_name_tool -change
+      "${OPENSSL_VERSION}" "@loader_path/${OPENSSL_VERSION}"
+      $<TARGET_SONAME_FILE:${TARGET}>
+      )
+    # All executables have dependencies:  "@loader_path/../lib/xxx.dylib
+    # Create a symlink so that this works for Xcode also.
+    IF(NOT BUILD_IS_SINGLE_CONFIG)
+      ADD_CUSTOM_COMMAND(TARGET ${TARGET} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E create_symlink
+        $<TARGET_SONAME_FILE_DIR:${TARGET}> lib
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory
+        )
     ENDIF()
+  ENDIF()
 
   IF(NOT ARG_SKIP_INSTALL)
     IF(ARG_COMPONENT)
-      SET(COMP COMPONENT ${ARG_COMPONENT}) 
+      SET(COMP COMPONENT ${ARG_COMPONENT})
     ENDIF()
     IF(LINUX_INSTALL_RPATH_ORIGIN)
       SET_PROPERTY(TARGET ${TARGET} PROPERTY INSTALL_RPATH "\$ORIGIN/")
@@ -231,17 +231,17 @@ ENDMACRO()
 FUNCTION(GET_DEPENDEND_OS_LIBS target result)
   SET(deps ${${target}_LIB_DEPENDS})
   IF(deps)
-   FOREACH(lib ${deps})
-     # Filter out keywords for used for debug vs optimized builds
-     IF(NOT lib MATCHES "general" AND
-        NOT lib MATCHES "debug" AND
-        NOT lib MATCHES "optimized")
-      LIST(FIND KNOWN_CONVENIENCE_LIBRARIES ${lib} FOUNDIT)
-      IF(FOUNDIT LESS 0)
-        SET(ret ${ret} ${lib})
+    FOREACH(lib ${deps})
+      # Filter out keywords for used for debug vs optimized builds
+      IF(NOT lib MATCHES "general" AND
+          NOT lib MATCHES "debug" AND
+          NOT lib MATCHES "optimized")
+        LIST(FIND KNOWN_CONVENIENCE_LIBRARIES ${lib} FOUNDIT)
+        IF(FOUNDIT LESS 0)
+          SET(ret ${ret} ${lib})
+        ENDIF()
       ENDIF()
-    ENDIF()
-   ENDFOREACH()
+    ENDFOREACH()
   ENDIF()
   SET(${result} ${ret} PARENT_SCOPE)
 ENDFUNCTION()

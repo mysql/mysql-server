@@ -408,13 +408,14 @@ void que_graph_free_recursive(que_node_t *node) /*!< in: query graph node */
       que_graph_free_recursive(thr->child);
 
       break;
-    case QUE_NODE_UNDO:
 
+    case QUE_NODE_UNDO:
       undo = static_cast<undo_node_t *>(node);
 
+      /* Free the heap memory. */
       mem_heap_free(undo->heap);
-
       break;
+
     case QUE_NODE_SELECT:
 
       sel = static_cast<sel_node_t *>(node);

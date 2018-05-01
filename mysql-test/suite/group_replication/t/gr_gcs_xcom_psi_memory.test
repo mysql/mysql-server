@@ -1,0 +1,67 @@
+###############################################################################
+# Verify that entries corresponding to the XCOM performance schema instrumented
+# memory are in the memory table only during the execution of the
+# group replication plugin.
+#
+# Test:
+# 0. The test requires one Server: M1
+# 1. Verify that the entries corresponding to the instrumented GCS memory are
+#    in the setup_instruments and memory summary tables.
+# 2. Verify that the sum of memory allocated is greater than the sum of memory
+#    deallocated after starting GR.
+# 3. Stop GR.
+# 4. Verify that the entries corresponding to the instrumented GCS memory
+#    remain in the tables.
+# 5. Verify that all data allocated has been deallocated.
+###############################################################################
+
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Verify that the entries corresponding to the
+--echo #    instrumented memory are in the setup instruments
+--echo #    table and the memory summary tables.
+SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE '%GCS_XCom::xcom_cache%';
+--let $assert_text= 'There should be 1 entry corresponding to the XCom cache in the setup_instruments table after starting GR'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.setup_instruments WHERE NAME LIKE "%GCS_XCom::xcom_cache%"
+--source include/assert.inc
+SELECT EVENT_NAME FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE '%GCS_XCom::xcom_cache%';
+--let $assert_text= 'There should be 1 entry corresponding to the XCom cache in the memory_summary_global_by_event_name table after starting GR'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "%GCS_XCom::xcom_cache%"
+--source include/assert.inc
+--echo
+--echo ############################################################
+--echo # 2. Verify that the sum of bytes allocated is greater than
+--echo #    the sum of bytes deallocated.
+--let $assert_text= 'The sum bytes allocated must be equal to or greater than the sum of bytes deallocated'
+--let $assert_cond= [SELECT CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "%GCS_XCom::xcom_cache%"] > 0
+--source include/assert.inc
+--echo
+--echo ############################################################
+--echo # 3. Stop GR
+--source include/stop_group_replication.inc
+
+--echo
+--echo ##############################################################
+--echo # 4. Verify that the entries corresponding to the instrumented
+--echo #    GCS memory remain in the tables after stopping GR.
+SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE '%GCS_XCom::xcom_cache%';
+--let $assert_text= 'There should be 1 entry corresponding to the XCom cache in the setup_instruments table after stopping GR'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.setup_instruments WHERE NAME LIKE "%GCS_XCom::xcom_cache%"
+--source include/assert.inc
+SELECT EVENT_NAME, CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE '%GCS_XCom::xcom_cache%';
+--let $assert_text= 'There should be 1 entry corresponding to the XCom cache in the memory_summary_global_by_event_name table after stopping GR'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "%GCS_XCom::xcom_cache%"
+--source include/assert.inc
+
+--echo
+--echo #################################################################
+--echo # 5. Assert that the number of bytes allocated is the same as the
+--echo #    number of bytes deallocated after stopping GR.
+--let $assert_text= 'The sum of bytes allocated must be equal to the sum of bytes deallocated after stopping GR'
+--let $assert_cond= [SELECT CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "%GCS_XCom::xcom_cache%"] = 0
+--source include/assert.inc
+--echo
+--source include/group_replication_end.inc

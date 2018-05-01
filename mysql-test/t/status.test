@@ -57,7 +57,6 @@ let $wait_condition= select count(*) from INFORMATION_SCHEMA.PROCESSLIST
                            INFO = "update t1 set n = get_lock('mysqltest_lock', 100)";
 --source include/wait_condition.inc
 
-let $ID= `select connection_id()`;
 --echo # Sending:
 --send update t1 set n = 3
 
@@ -65,7 +64,7 @@ connection default;
 --echo # Switched to connection: default
 --echo # wait for the second UPDATE to get blocked
 let $wait_condition= select 1 from INFORMATION_SCHEMA.PROCESSLIST
-                     where ID = $ID and STATE = "Waiting for table level lock";
+    where ID = (select connection_id()) and STATE = "Waiting for table level lock";
 --source include/wait_condition.inc
 select release_lock('mysqltest_lock');
 
@@ -103,6 +102,7 @@ insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
 insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
 insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
 insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+analyze table t1;
 select * from t1 where a=6;
 show status like 'last_query_cost';
 # Ensure value dosn't change by second status call
@@ -228,10 +228,10 @@ disconnect con1;
 CREATE TABLE t1 ( a INT );
 INSERT INTO t1 VALUES (1), (2);
 
+analyze table t1;
 SELECT a FROM t1 LIMIT 1;
 SHOW SESSION STATUS LIKE 'Last_query_cost';
 
-analyze table t1;
 EXPLAIN SELECT a FROM t1;
 SHOW SESSION STATUS LIKE 'Last_query_cost';
 

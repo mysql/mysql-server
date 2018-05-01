@@ -91,7 +91,8 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
        help in getting rid of the valgrind errors.
       */
       memset(server_version, 0, ST_SERVER_VER_LEN);
-      strncpy(server_version, server_ver, ST_SERVER_VER_LEN);
+      snprintf(server_version, ST_SERVER_VER_LEN, "%.*s", ST_SERVER_VER_LEN - 1,
+               server_ver);
       if (binary_log_debug::debug_pretend_version_50034_in_binlog)
         strcpy(server_version, "5.0.34");
       common_header_len = LOG_EVENT_HEADER_LEN;

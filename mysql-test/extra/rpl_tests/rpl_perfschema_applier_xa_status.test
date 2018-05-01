@@ -20,54 +20,63 @@
 --source include/rpl_connection_slave.inc
 TRUNCATE TABLE performance_schema.events_transactions_current;
 
+--echo ---- Setup ----
 --source include/rpl_connection_master.inc
 --let $master_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 CREATE TABLE t ( f INT) ENGINE=INNODB;
+
+--echo ---- XA PREPARE ----
 XA START 'xatest';
 INSERT INTO t VALUES (10);
 XA END 'xatest';
 XA PREPARE 'xatest';
---let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
---let $master_file= query_get_value(SHOW MASTER STATUS, File, 1)
 
---source include/rpl_connection_slave.inc
---echo # Wait until SQL thread reaches desired master binlog position
---let $slave_param= Relay_Master_Log_File
---let $slave_param_value= $master_file
---let $slave_param_comparison= =
---source include/wait_for_slave_param.inc
+# Sync on a different connection, since we can't run queries on a
+# connection that has an XA transaction in PREPARED state.
+--connection default
+--source include/sync_slave_sql_with_master.inc
 
---let $slave_param= Exec_Master_Log_Pos
---let $slave_param_value= $master_pos
---let $slave_param_comparison= >=
---source include/wait_for_slave_param.inc
+--echo # Wait for XA_STATE to become PREPARED on slave
+# It is not enough to only use sync_slave_sql_with_master.inc, because
+# the XA state is updated after the GTID state and the replication
+# positions.  Hence we also *wait* for the XA state to change.
+--let $wait_condition = SELECT COUNT(*) = 1 FROM performance_schema.events_transactions_current WHERE XID_GTRID = 'xatest' AND XA_STATE = 'PREPARED'
+--source include/wait_condition_or_abort.inc
 
+--echo # Expecting one prepared transaction
 XA RECOVER;
---echo ####################################################################
---echo # Asserting XA_STATE is PREPARED on Slave
---echo ####################################################################
---let $assert_text= Verify that XA_STATE is set PREPARED.
---let $assert_cond=count(*)=1 FROM performance_schema.events_transactions_current WHERE XID_GTRID=\'xatest\' AND XA_STATE=\'PREPARED\'
---source include/assert.inc
 
+if ($gtid_mode == ON)
+{
+  --let $gno_0 = 2
+  --let $expected_gtid = $master_uuid:$gno_0
+  --echo Waiting until gtid is MASTER_UUID:$gno_0
+  --let $wait_condition = SELECT GTID = '$expected_gtid' FROM performance_schema.events_transactions_current where XID_GTRID = 'xatest' AND XA_STATE = 'PREPARED'
+  --source include/wait_condition_or_abort.inc
+}
+
+--echo ---- XA COMMIT ----
 --source include/rpl_connection_master.inc
 XA COMMIT 'xatest';
 --source include/sync_slave_sql_with_master.inc
+
+--echo # Wait for XA_STATE to become COMMITTED on slave
+--let $wait_condition = SELECT COUNT(*) = 1 FROM performance_schema.events_transactions_current WHERE XID_GTRID = 'xatest' AND XA_STATE = 'COMMITTED'
+--source include/wait_condition_or_abort.inc
+
+--echo # Expecting no prepared transactions
 XA RECOVER;
---echo ####################################################################
---echo # Asserting XA_STATE is COMMITTED on Slave
---echo ####################################################################
---let $assert_text= Verify that XA_STATE is set COMMITTED.
---let $assert_cond=count(*)=1 FROM performance_schema.events_transactions_current WHERE XID_GTRID=\'xatest\' AND XA_STATE=\'COMMITTED\'
---source include/assert.inc
 
 if ($gtid_mode == ON)
 {
   --let $gno_0 = 3
   --let $expected_gtid = $master_uuid:$gno_0
-  --let $assert_text= Expected gtid is MASTER_UUID:$gno_0
-  --let $assert_cond= "[SELECT GTID FROM performance_schema.events_transactions_current where XID_GTRID=\'xatest\']" = "$expected_gtid"
-  --source include/assert.inc
+  --echo Waiting until gtid is MASTER_UUID:$gno_0
+  # We need the "XA_STATE='COMMITTED'" condition, since there
+  # can be multiple rows having XID_GTRID='xatest' in case XA PREPARE
+  # and XA COMMIT were handled by different applier worker threads.
+  --let $wait_condition = SELECT GTID = '$expected_gtid' FROM performance_schema.events_transactions_current where XID_GTRID = 'xatest' AND XA_STATE = 'COMMITTED'
+  --source include/wait_condition_or_abort.inc
 }
 
 --let $diff_tables=master:t,slave:t

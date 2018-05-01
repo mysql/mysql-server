@@ -441,7 +441,7 @@ SET GLOBAL innodb_file_per_table=default;
 create table t1(i int primary key,
 a geometry not null SRID 0, b geometry not null SRID 0,
 c int,
-spatial index(a),key(a(25)),key(b(25)),
+spatial index(a),
 unique key (c),
 spatial index(b))engine=innodb;
 

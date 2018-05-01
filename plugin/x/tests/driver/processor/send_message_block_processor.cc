@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -87,6 +87,7 @@ Block_processor::Result Send_message_block_processor::feed(
       xcl::XProtocol::Client_message_type_id msg_id;
       std::string processed_buffer = m_buffer;
 
+      m_context->m_variables->replace(&m_full_name);
       m_context->m_variables->replace(&processed_buffer);
 
       Message_ptr msg{

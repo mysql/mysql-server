@@ -25,33 +25,35 @@
 #include "plugin/x/ngs/include/ngs/capabilities/handler_tls.h"
 
 #include "plugin/x/ngs/include/ngs/interface/client_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/server_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/ssl_context_interface.h"
 #include "plugin/x/ngs/include/ngs/mysqlx/getter_any.h"
 #include "plugin/x/ngs/include/ngs/mysqlx/setter_any.h"
-#include "plugin/x/ngs/include/ngs_common/connection_vio.h"
 
 namespace ngs {
+
 using ::Mysqlx::Datatypes::Any;
 using ::Mysqlx::Datatypes::Any;
 using ::Mysqlx::Datatypes::Scalar;
 
 bool Capability_tls::is_supported() const {
-  const Connection_type type = m_client.connection().connection_type();
+  const Connection_type type = m_client.connection().get_type();
   const bool is_supported_connection_type = Connection_tcpip == type ||
                                             Connection_tls == type ||
                                             Connection_unixsocket == type;
 
-  return m_client.connection().options()->supports_tls() &&
+  return m_client.server().ssl_context()->has_ssl() &&
          is_supported_connection_type;
 }
 
 void Capability_tls::get(Any &any) {
-  bool is_tls_active = m_client.connection().options()->active_tls();
+  bool is_tls_active = m_client.connection().get_type() == ngs::Connection_tls;
 
   Setter_any::set_scalar(any, is_tls_active);
 }
 
 bool Capability_tls::set(const Any &any) {
-  bool is_tls_active = m_client.connection().options()->active_tls();
+  bool is_tls_active = m_client.connection().get_type() == ngs::Connection_tls;
 
   tls_should_be_enabled =
       Getter_any::get_numeric_value_or_default<int>(any, false) &&

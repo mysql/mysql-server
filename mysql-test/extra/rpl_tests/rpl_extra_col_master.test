@@ -125,11 +125,11 @@ SELECT f1,f2,f3,f4,f5,f6,f7,f8,f9,
 #connection slave;
 
 --disable_query_log
-call mtr.add_suppression("Slave SQL.*Table definition on master and slave does not match: Column 2 type mismatch.* 1535");
-call mtr.add_suppression("Slave.*Can.t DROP .c7.; check that column.key exists.* Error_code: 1091");
-call mtr.add_suppression("Slave.*Unknown column .c7. in .t15.* Error_code: 1054");
-call mtr.add_suppression("Slave.*Key column .c6. doesn.t exist in table.* Error_code: 1072");
-call mtr.add_suppression("Slave SQL.*Column 2 of table .test.t1.. cannot be converted from type.* Error_code: 1677");
+call mtr.add_suppression("Slave SQL.*Table definition on master and slave does not match: Column 2 type mismatch.* MY-001535");
+call mtr.add_suppression("Slave.*Can.t DROP .c7.; check that column.key exists.* Error_code: MY-001091");
+call mtr.add_suppression("Slave.*Unknown column .c7. in .t15.* Error_code: MY-001054");
+call mtr.add_suppression("Slave.*Key column .c6. doesn.t exist in table.* Error_code: MY-001072");
+call mtr.add_suppression("Slave SQL.*Column 2 of table .test.t1.. cannot be converted from type.* Error_code: MY-013146");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 --enable_query_log
 
@@ -487,7 +487,7 @@ INSERT INTO t10 () VALUES(1,@b1,DEFAULT,'Kyle',DEFAULT),
 --echo
 connection slave;
 --let $slave_skip_counter= 2
---let $slave_sql_errno= convert_error(ER_SLAVE_CONVERSION_FAILED)
+--let $slave_sql_errno= convert_error(ER_SERVER_SLAVE_CONVERSION_FAILED)
 --source include/wait_for_slave_sql_error_and_skip.inc
 
 --echo
@@ -541,7 +541,7 @@ INSERT INTO t11 () VALUES(1,@b1,'Testing is fun','Kyle',DEFAULT),
 --echo
 connection slave;
 --let $slave_skip_counter= 2
---let $slave_sql_errno= convert_error(ER_SLAVE_CONVERSION_FAILED)
+--let $slave_sql_errno= convert_error(ER_SERVER_SLAVE_CONVERSION_FAILED)
 --source include/wait_for_slave_sql_error_and_skip.inc
 
 --echo

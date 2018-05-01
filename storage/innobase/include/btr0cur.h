@@ -591,18 +591,17 @@ bool btr_estimate_number_of_different_key_vals(
 @param[in]	page_size	BLOB page size
 @param[in]	no		field number
 @param[out]	len		length of the field
+@param[out]	lob_version	version of lob
 @param[in]	is_sdi		true for SDI Indexes
 @param[in,out]	heap		mem heap
 @return the field copied to heap, or NULL if the field is incomplete */
-byte *btr_rec_copy_externally_stored_field_func(trx_t *trx, dict_index_t *index,
-                                                const rec_t *rec,
-                                                const ulint *offsets,
-                                                const page_size_t &page_size,
-                                                ulint no, ulint *len,
+byte *btr_rec_copy_externally_stored_field_func(
+    trx_t *trx, dict_index_t *index, const rec_t *rec, const ulint *offsets,
+    const page_size_t &page_size, ulint no, ulint *len, size_t *lob_version,
 #ifdef UNIV_DEBUG
-                                                bool is_sdi,
+    bool is_sdi,
 #endif /* UNIV_DEBUG */
-                                                mem_heap_t *heap);
+    mem_heap_t *heap);
 
 /** Sets a secondary index record's delete mark to the given value. This
  function is only used by the insert buffer merge mechanism. */

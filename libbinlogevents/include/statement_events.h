@@ -38,6 +38,7 @@
 
 #include "byteorder.h"
 #include "control_events.h"
+#include "mysql/udf_registration_types.h"
 
 namespace binary_log {
 /**
@@ -405,6 +406,15 @@ const uint64_t INVALID_XID = 0xffffffffffffffffULL;
     <td>Stores variable carrying xid info of 2pc-aware (recoverable) DDL
         queries. </td>
   </tr>
+  <tr>
+    <td>default_collation_for_utf8mb4_number</td>
+    <td>Q_DEFAULT_COLLATION_FOR_UTF8MB4</td>
+    <td>2 byte integer</td>
+    <td>Stores variable carrying the the default collation for the utf8mb4
+        character set. Mainly used to support replication 5.7- master to a 8.0+
+        slave.
+    </td>
+  </tr>
   </table>
 
   @subsection Query_event_notes_on_previous_versions Notes on Previous Versions
@@ -492,7 +502,12 @@ class Query_event : public Binary_log_event {
     /*
       The variable carries xid info of 2pc-aware (recoverable) DDL queries.
     */
-    Q_DDL_LOGGED_WITH_XID
+    Q_DDL_LOGGED_WITH_XID,
+    /*
+      This variable stores the default collation for the utf8mb4 character set.
+      Used to support cross-version replication.
+    */
+    Q_DEFAULT_COLLATION_FOR_UTF8MB4
   };
   const char *query;
   const char *db;
@@ -606,6 +621,8 @@ class Query_event : public Binary_log_event {
   char mts_accessed_db_names[MAX_DBS_IN_EVENT_MTS][NAME_LEN];
   /* XID value when the event is a 2pc-capable DDL */
   uint64_t ddl_xid;
+  /* Default collation for the utf8mb4 set. Used in cross-version replication */
+  uint16_t default_collation_for_utf8mb4_number;
   /**
     The constructor will be used while creating a Query_event, to be
     written to the binary log.
@@ -766,14 +783,7 @@ bool valid_buffer_range(T jump, const char *buf_start, const char *buf_current,
 */
 class User_var_event : public Binary_log_event {
  public:
-  enum Value_type {
-    STRING_TYPE,
-    REAL_TYPE,
-    INT_TYPE,
-    ROW_TYPE,
-    DECIMAL_TYPE,
-    VALUE_TYPE_COUNT
-  };
+  using Value_type = Item_result;
   enum { UNDEF_F, UNSIGNED_F };
   enum User_var_event_data {
     UV_VAL_LEN_SIZE = 4,
@@ -795,7 +805,7 @@ class User_var_event : public Binary_log_event {
         name_len(name_len_arg),
         val(val_arg),
         val_len(val_len_arg),
-        type((Value_type)type_arg),
+        type(type_arg),
         charset_number(charset_number_arg),
         is_null(!val),
         flags(flags_arg) {}
@@ -839,20 +849,18 @@ class User_var_event : public Binary_log_event {
 #ifndef HAVE_MYSYS
   void print_event_info(std::ostream &info);
   void print_long_info(std::ostream &info);
-  const char *get_value_type_string(enum Value_type type_arg) const {
+  const char *get_value_type_string(Value_type type_arg) const {
     switch (type_arg) {
-      case STRING_TYPE:
+      case STRING_RESULT:
         return "String";
-      case REAL_TYPE:
+      case REAL_RESULT:
         return "Real";
-      case INT_TYPE:
+      case INT_RESULT:
         return "Integer";
-      case ROW_TYPE:
+      case ROW_RESULT:
         return "Row";
-      case DECIMAL_TYPE:
+      case DECIMAL_RESULT:
         return "Decimal";
-      case VALUE_TYPE_COUNT:
-        return "Value type count";
       default:
         return "Unknown";
     }

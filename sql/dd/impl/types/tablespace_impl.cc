@@ -423,7 +423,8 @@ bool fetch_tablespace_table_refs(THD *thd, const Tablespace &tso,
             return false;
           },
           trx.otx.get_table<Partition_index>(),
-          Parent_id_range_key{2, Index_partitions::FIELD_TABLESPACE_ID,
+          Parent_id_range_key{Index_partitions::INDEX_K_TABLESPACE_ID,
+                              Index_partitions::FIELD_TABLESPACE_ID,
                               tso.id()})) {
     return checked_return(true);
   }
@@ -438,7 +439,8 @@ bool fetch_tablespace_table_refs(THD *thd, const Tablespace &tso,
               return false;
             },
             trx.otx.get_table<Partition>(),
-            Parent_id_range_key{0, Table_partitions::FIELD_ID, partid})) {
+            Parent_id_range_key{Table_partitions::INDEX_PK_ID,
+                                Table_partitions::FIELD_ID, partid})) {
       return checked_return(true);
     }
   }
@@ -449,7 +451,8 @@ bool fetch_tablespace_table_refs(THD *thd, const Tablespace &tso,
             return false;
           },
           trx.otx.get_table<Partition>(),
-          Parent_id_range_key{5, Table_partitions::FIELD_TABLESPACE_ID,
+          Parent_id_range_key{Table_partitions::INDEX_K_TABLESPACE_ID,
+                              Table_partitions::FIELD_TABLESPACE_ID,
                               tso.id()})) {
     return checked_return(true);
   }
@@ -460,7 +463,8 @@ bool fetch_tablespace_table_refs(THD *thd, const Tablespace &tso,
             return false;
           },
           trx.otx.get_table<Index>(),
-          Parent_id_range_key{2, Indexes::FIELD_TABLESPACE_ID, tso.id()})) {
+          Parent_id_range_key{Indexes::INDEX_K_TABLESPACE_ID,
+                              Indexes::FIELD_TABLESPACE_ID, tso.id()})) {
     return checked_return(true);
   }
 
@@ -479,7 +483,7 @@ bool fetch_tablespace_table_refs(THD *thd, const Tablespace &tso,
               return false;
             },
             trx.otx.get_table<Abstract_table>(),
-            Parent_id_range_key{0, Tables::FIELD_ID, tid})) {
+            Parent_id_range_key{Tables::INDEX_PK_ID, Tables::FIELD_ID, tid})) {
       return checked_return(true);
     }
   }
@@ -493,7 +497,8 @@ bool fetch_tablespace_table_refs(THD *thd, const Tablespace &tso,
             return false;
           },
           trx.otx.get_table<Abstract_table>(),
-          Parent_id_range_key{5, Tables::FIELD_TABLESPACE_ID, tso.id()})) {
+          Parent_id_range_key{Tables::INDEX_K_TABLESPACE_ID,
+                              Tables::FIELD_TABLESPACE_ID, tso.id()})) {
     return checked_return(true);
   }
 
@@ -505,7 +510,8 @@ bool fetch_tablespace_table_refs(THD *thd, const Tablespace &tso,
               return false;
             },
             trx.otx.get_table<Schema>(),
-            Parent_id_range_key{0, Schemata::FIELD_ID, tref.m_schema_id})) {
+            Parent_id_range_key{Schemata::INDEX_PK_ID, Schemata::FIELD_ID,
+                                tref.m_schema_id})) {
       return checked_return(true);
     }
   }

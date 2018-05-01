@@ -1,7 +1,7 @@
 #ifndef PARTITION_INFO_INCLUDED
 #define PARTITION_INFO_INCLUDED
 
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -531,6 +531,17 @@ class partition_info {
     return bitmap_get_next_set(&read_partitions, part_id);
   }
   bool same_key_column_order(List<Create_field> *create_list);
+
+  /**
+    Allocate memory for one partitions bitmap and initialize it.
+
+    @param  bitmap    Bitmap instance to initialize.
+    @param  mem_root  Memory root to use for bitmap buffer allocation.
+
+    @retval true    Memory allocation failure
+    @retval false   Success
+  */
+  bool init_partition_bitmap(MY_BITMAP *bitmap, MEM_ROOT *mem_root);
 
  private:
   bool set_up_default_partitions(Partition_handler *part_handler,

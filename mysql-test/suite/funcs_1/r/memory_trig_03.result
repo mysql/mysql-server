@@ -62,12 +62,12 @@ Note	1265	Data truncated for column 'f150' at row 1
 Note	1265	Data truncated for column 'f151' at row 1
 Note	1265	Data truncated for column 'f152' at row 1
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.3:
 ---------------
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop database if exists priv_db;
 create database priv_db;
 use priv_db;
@@ -77,12 +77,12 @@ set password for test_noprivs@localhost = 'PWD';
 create User test_yesprivs@localhost;
 set password for test_yesprivs@localhost = 'PWD';
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.3.2/6:
 -------------------
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
 grant ALL  on *.* to test_noprivs@localhost;
 revoke TRIGGER on *.* from test_noprivs@localhost;
@@ -98,12 +98,12 @@ Grants for test_yesprivs@localhost
 GRANT TRIGGER ON *.* TO `test_yesprivs`@`localhost`
 GRANT SELECT ON `priv_db`.`t1` TO `test_yesprivs`@`localhost`
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.3.2:
 -----------------
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select current_user;
 current_user
 test_noprivs@localhost
@@ -138,12 +138,12 @@ f1
 insert 3.5.3.2-no
 trig 3.5.3.2_2-yes
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.3.6:
 -----------------
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 use priv_db;
 drop trigger trg1_2;
 ERROR 42000: TRIGGER command denied to user 'test_noprivs'@'localhost' for table 't1'
@@ -166,12 +166,12 @@ trig 3.5.3.2_2-yes
 trig 3.5.3.2_2-yes
 drop trigger trg1_2;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.3.7a:
 ------------------
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
 grant ALL  on *.* to test_noprivs@localhost;
 revoke UPDATE  on *.* from test_noprivs@localhost;
@@ -228,12 +228,12 @@ trig 3.5.3.2_2-yes
 trig 3.5.3.7-2a
 drop trigger trg4a_2;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.3.7b:
 ------------------
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
 grant TRIGGER on *.* to test_noprivs;
 ERROR 42000: You are not allowed to create a user with GRANT
@@ -304,12 +304,12 @@ trig 3.5.3.7-2a
 trig 3.5.3.7-2b
 drop trigger trg4b_2;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.3.7c
 -----------------
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
 grant TRIGGER on *.* to test_noprivs@localhost;
 grant ALL  on priv_db.t1 to test_noprivs@localhost;
@@ -362,12 +362,12 @@ trig 3.5.3.7-2b
 trig 3.5.3.7-2c
 drop trigger trg4c_2;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.3.7d:
 ------------------
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
 grant TRIGGER on *.* to test_noprivs@localhost;
 grant SELECT (f1), INSERT (f1) on priv_db.t1 to test_noprivs@localhost;
@@ -419,12 +419,12 @@ trig 3.5.3.7-2c
 trig 3.5.3.7-2d
 drop trigger trg4d_2;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.3.8a:
 ------------------
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
 grant ALL  on *.* to test_noprivs@localhost;
 revoke SELECT  on *.* from test_noprivs@localhost;
@@ -476,12 +476,12 @@ select @test_var;
 insert 3.5.3.8-2a
 drop trigger trg5a_2;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase: 3.5.3.8b
 ------------------
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
 grant TRIGGER on *.* to test_noprivs@localhost;
 grant ALL  on priv_db.* to test_noprivs@localhost;
@@ -533,12 +533,12 @@ select @test_var;
 update 3.5.3.8-2b
 drop trigger trg5b_2;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.3.8c:
 ------------------
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
 grant TRIGGER on *.* to test_noprivs@localhost;
 grant ALL  on priv_db.t1 to test_noprivs@localhost;
@@ -582,12 +582,12 @@ select @test_var;
 insert 3.5.3.8-2c
 drop trigger trg5c_2;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase: 3.5.3.8d:
 -------------------
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
 grant TRIGGER on *.* to test_noprivs@localhost;
 grant UPDATE (f1), INSERT (f1) on priv_db.t1 to test_noprivs@localhost;
@@ -630,12 +630,12 @@ select @test_var;
 insert 3.5.3.8-2d
 drop trigger trg5d_2;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase: 3.5.3.x:
 ------------------
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 use priv_db;
 drop table if exists t1;
 drop table if exists t2;

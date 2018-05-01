@@ -183,3 +183,19 @@ OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME
 COLUMN STATISTICS	test	t1	col1
 SET DEBUG_SYNC='now SIGNAL continue_store_histogram';
 DROP TABLE t1;
+#
+# Bug#27672693  HISTOGRAMS: ASSERTION FAILED: !THD->TX_READ_ONLY
+#
+CREATE TABLE t1(col1 INT);
+SET LOCAL TRANSACTION READ ONLY;
+INSERT INTO t1 (col1) VALUES (1);
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 16 BUCKETS;
+Table	Op	Msg_type	Msg_text
+	histogram	Error	The server is in read-only mode.
+SET LOCAL TRANSACTION READ WRITE;
+INSERT INTO t1 (col1) VALUES (1);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 16 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+DROP TABLE t1;

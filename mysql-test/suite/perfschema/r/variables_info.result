@@ -1,3 +1,4 @@
+CALL mtr.add_suppression("Plugin mysqlx reported: 'All I/O interfaces are disabled");
 drop table if exists test.marker;
 create table test.marker(before_marker timestamp, after_marker timestamp);
 # Test explicitly set options using defaults-file

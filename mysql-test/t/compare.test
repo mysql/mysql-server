@@ -102,3 +102,15 @@ SET sql_mode = default;
 CREATE TABLE t1(a INT ZEROFILL);
 SELECT 1 FROM t1 WHERE t1.a IN (1, t1.a) AND t1.a=2;
 DROP TABLE t1;
+
+--echo
+--echo Bug #27452148: ASSERTION FAILED: (SLEN % 4) == 0 IN
+--echo                MY_STRNNCOLLSP_UTF32_BIN
+--echo
+SET NAMES latin1;
+CREATE TABLE t1(a CHAR(10) CHARACTER SET utf32 COLLATE utf32_bin);
+INSERT INTO t1 VALUES('a'),('b'),('c');
+SELECT ROW('1', '1') > ROW(a, '1') FROM t1;
+SELECT ROW(a, '1') > ROW('1', '1') FROM t1;
+DROP TABLE t1;
+SET NAMES default;

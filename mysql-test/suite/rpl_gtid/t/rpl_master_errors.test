@@ -81,13 +81,13 @@ FLUSH BINARY LOGS;
 --echo # Error: Client requests from a position less than 4
 --echo #
 --source include/rpl_connection_slave.inc
---let $slave_io_errno= convert_error(ER_MASTER_FATAL_ERROR_READING_BINLOG)
+--let $slave_io_errno= convert_error(ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG)
 --source include/stop_slave.inc
 --let $slave_debug= `SELECT @@debug`
 SET GLOBAL debug= 'd,request_master_log_pos_3';
 
 START SLAVE IO_THREAD;
---let $slave_io_errno= 1236
+--let $slave_io_errno= 13114
 call mtr.add_suppression(".* Got fatal error 1236 from master when reading data from binary log");
 --source include/wait_for_slave_io_error.inc
 
@@ -143,7 +143,9 @@ SET GLOBAL debug= 'd,simulate_flush_error';
 --exec $MYSQL_BINLOG -r $MYSQLTEST_VARDIR/tmp/output --read-from-remote-master=BINLOG-DUMP-GTIDS --exclude-gtids=$exclude_gtids master-bin.000001
 
 eval SET GLOBAL debug= '$master_debug';
+# Cleanup
 DROP TABLE t1;
+--remove_file $MYSQLTEST_VARDIR/tmp/output
 
 --source include/rpl_connection_slave.inc
 RESET MASTER;

@@ -1,0 +1,90 @@
+--source include/have_debug.inc
+
+CREATE TABLE t1 (a INT, b INT);
+
+INSERT INTO t1 VALUES(0, 1), (1, 2);
+SELECT * FROM t1;
+
+SET SESSION DEBUG="+d,ib_truncate_fail_after_rename";
+--error ER_GET_ERRNO
+TRUNCATE TABLE t1;
+CHECK TABLE t1;
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+INSERT INTO t1 VALUES(0, 1), (1, 2);
+SELECT * FROM t1;
+
+SET SESSION DEBUG="-d,ib_truncate_fail_after_rename";
+SET SESSION DEBUG="+d,ib_truncate_fail_after_delete";
+--error ER_GET_ERRNO
+TRUNCATE TABLE t1;
+CHECK TABLE t1;
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+INSERT INTO t1 VALUES(0, 1), (1, 2);
+SELECT * FROM t1;
+
+SET SESSION DEBUG="-d,ib_truncate_fail_after_delete";
+SET SESSION DEBUG="+d,ib_truncate_fail_after_create_new_table";
+--error ER_GET_ERRNO
+TRUNCATE TABLE t1;
+CHECK TABLE t1;
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+SET SESSION DEBUG="-d,ib_truncate_fail_after_create_new_table";
+TRUNCATE TABLE t1;
+CHECK TABLE t1;
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+
+
+CREATE TABLE t1 (
+a INT NOT NULL AUTO_INCREMENT,
+b INT NOT NULL,
+PRIMARY KEY (a)
+)
+ENGINE=InnoDB
+PARTITION BY RANGE (a)
+PARTITIONS 3
+(PARTITION P1 VALUES LESS THAN (5),
+PARTITION P2 VALUES LESS THAN (20),
+PARTITION p3 VALUES LESS THAN MAXVALUE);
+INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7);
+SELECT count(*) FROM t1;
+
+SET SESSION DEBUG="+d,ib_truncate_fail_after_rename";
+--error ER_GET_ERRNO
+ALTER TABLE t1 TRUNCATE PARTITION p2;
+CHECK TABLE t1;
+SHOW CREATE TABLE t1;
+SELECT count(*) FROM t1;
+
+SET SESSION DEBUG="-d,ib_truncate_fail_after_rename";
+SET SESSION DEBUG="+d,ib_truncate_fail_after_delete";
+--error ER_GET_ERRNO
+ALTER TABLE t1 TRUNCATE PARTITION p2;
+CHECK TABLE t1;
+SHOW CREATE TABLE t1;
+SELECT count(*) FROM t1;
+
+SET SESSION DEBUG="-d,ib_truncate_fail_after_delete";
+SET SESSION DEBUG="+d,ib_truncate_fail_after_create_new_table";
+--error ER_GET_ERRNO
+ALTER TABLE t1 TRUNCATE PARTITION p2;
+CHECK TABLE t1;
+SHOW CREATE TABLE t1;
+SELECT count(*) FROM t1;
+
+SET SESSION DEBUG="-d,ib_truncate_fail_after_create_new_table";
+ALTER TABLE t1 TRUNCATE PARTITION p2;
+CHECK TABLE t1;
+SHOW CREATE TABLE t1;
+SELECT count(*) FROM t1;
+
+DROP TABLE t1;

@@ -5,11 +5,12 @@
 # This test has four parts:
 #
 # 1. Verify the hard coded ids of the mysql schema, the mysql
-#     tablespace, the dd_properties table, and the
-#     innodb_dynamic_metadata table.
+#    tablespace, the dd_properties table, and the
+#    innodb_dynamic_metadata table.
 # 2. Verify the existence of the expected DD tables, neither less nor
 #    more.
-# 3. Verify the CREATE TABLE statements of the DD tables.
+# 3. Verify the DD_VERSION and the CREATE TABLE statements of the
+#    DD tables.
 # 4. Verify the checksum of the generated meta data associated with the
 #    current DD version number.
 #
@@ -101,18 +102,12 @@
 #    server code should be that this test stops failing.
 #
 ########################################################################
-use test;
-SET GLOBAL debug= '+d,skip_dd_table_access_check';
 # PART 1
 ########################################################################
-# The actual DD version stored on disk.
+# Verify the hard coded ids of the mysql schema, the mysql tablespace,
+# the dd_properties table, and the innodb_dynamic_metadata table.
 ########################################################################
-SELECT SUBSTRING_INDEX(SUBSTRING(properties,
-LOCATE('DD_VERSION', properties), 30), ';', 1)
-AS DD_VERSION
-FROM mysql.dd_properties;
-DD_VERSION
-DD_VERSION=80005
+SET debug = '+d,skip_dd_table_access_check';
 ########################################################################
 # The id of the mysql schema must be fixed.
 ########################################################################
@@ -134,11 +129,20 @@ include/assert.inc [The clustering index id of 'mysql.dd_properties' is 1.]
 include/assert.inc [The id of 'mysql.innodb_dynamic_metadata' is 2.]
 include/assert.inc [The SE private id of 'mysql.innodb_dynamic_metadata' is 2.]
 include/assert.inc [The index id of 'mysql.innodb_dynamic_metadata' is 2.]
+SET debug = '-d,skip_dd_table_access_check';
 # PART 2
+CREATE TABLE test.ddse_table_names (name VARCHAR(64) PRIMARY KEY);
+CREATE TABLE test.dd_table_names (name VARCHAR(64) PRIMARY KEY);
 ########################################################################
-# The number of DD tables must be as expected.
+# Verify the existence of the expected DD tables, neither less nor more.
+# Fill two help tables with the DD and DDSE table names.
 ########################################################################
-include/assert.inc [There are 29 DD tables.]
+SET debug = '+d,skip_dd_table_access_check';
+########################################################################
+# The number of hidden DD/DDSE tables must be as expected.
+########################################################################
+include/assert.inc [There are 31 hidden DD/DDSE tables.]
+include/assert.inc [There are 33 DD/DDSE tables in total.]
 ########################################################################
 # No unexpected DD tables must be present.
 ########################################################################
@@ -151,26 +155,32 @@ include/assert.inc [All expected DD tables are present.]
 # All expected DDSE tables must be present.
 ########################################################################
 include/assert.inc [All expected DDSE are be present.]
+SET debug = '-d,skip_dd_table_access_check';
 # PART 3
+########################################################################
+# Verify the DD_VERSION and the CREATE TABLE statements of the
+# DD tables.
+########################################################################
+SET debug = '+d,skip_dd_table_access_check';
+########################################################################
+# The actual DD version stored on disk.
+########################################################################
+DD_VERSION=80012
 ########################################################################
 # List the CREATE TABLE statements for the DD tables.
 # Mask the AUTO INCREMENT counter, which is not
 # deterministic when running mtr. Mask collations that
 # depend on the lower case table names setting.
 ########################################################################
-SHOW CREATE TABLE mysql.catalogs;
-Table	Create Table
 catalogs	CREATE TABLE `catalogs` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(64) <LCTN dependent collation> NOT NULL,
-  `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `last_altered` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `created` timestamp NOT NULL,
+  `last_altered` timestamp NOT NULL,
   `options` mediumtext COLLATE utf8_bin,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SHOW CREATE TABLE mysql.character_sets;
-Table	Create Table
 character_sets	CREATE TABLE `character_sets` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
@@ -180,26 +190,22 @@ character_sets	CREATE TABLE `character_sets` (
   `options` mediumtext COLLATE utf8_bin,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`),
-  KEY `default_collation_id` (`default_collation_id`),
+  UNIQUE KEY `default_collation_id` (`default_collation_id`),
   CONSTRAINT `character_sets_ibfk_1` FOREIGN KEY (`default_collation_id`) REFERENCES `collations` (`id`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SHOW CREATE TABLE mysql.collations;
-Table	Create Table
 collations	CREATE TABLE `collations` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
   `character_set_id` bigint(20) unsigned NOT NULL,
   `is_compiled` tinyint(1) NOT NULL,
   `sort_length` int(10) unsigned NOT NULL,
-  `pad_attribute` varchar(9) COLLATE utf8_bin NOT NULL,
+  `pad_attribute` enum('PAD SPACE','NO PAD') COLLATE utf8_bin NOT NULL,
   `options` mediumtext COLLATE utf8_bin,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`),
   KEY `character_set_id` (`character_set_id`),
   CONSTRAINT `collations_ibfk_1` FOREIGN KEY (`character_set_id`) REFERENCES `character_sets` (`id`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SHOW CREATE TABLE mysql.column_statistics;
-Table	Create Table
 column_statistics	CREATE TABLE `column_statistics` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `catalog_id` bigint(20) unsigned NOT NULL,
@@ -214,8 +220,6 @@ column_statistics	CREATE TABLE `column_statistics` (
   UNIQUE KEY `catalog_id_2` (`catalog_id`,`schema_name`,`table_name`,`column_name`),
   CONSTRAINT `column_statistics_ibfk_1` FOREIGN KEY (`catalog_id`) REFERENCES `catalogs` (`id`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SHOW CREATE TABLE mysql.column_type_elements;
-Table	Create Table
 column_type_elements	CREATE TABLE `column_type_elements` (
   `column_id` bigint(20) unsigned NOT NULL,
   `element_index` int(10) unsigned NOT NULL,
@@ -223,8 +227,6 @@ column_type_elements	CREATE TABLE `column_type_elements` (
   PRIMARY KEY (`column_id`,`element_index`),
   CONSTRAINT `column_type_elements_ibfk_1` FOREIGN KEY (`column_id`) REFERENCES `columns` (`id`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SHOW CREATE TABLE mysql.columns;
-Table	Create Table
 columns	CREATE TABLE `columns` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `table_id` bigint(20) unsigned NOT NULL,
@@ -265,13 +267,9 @@ columns	CREATE TABLE `columns` (
   CONSTRAINT `columns_ibfk_2` FOREIGN KEY (`collation_id`) REFERENCES `collations` (`id`),
   CONSTRAINT `columns_ibfk_3` FOREIGN KEY (`srs_id`) REFERENCES `st_spatial_reference_systems` (`id`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SHOW CREATE TABLE mysql.dd_properties;
-Table	Create Table
 dd_properties	CREATE TABLE `dd_properties` (
-  `properties` mediumtext COLLATE utf8_bin
+  `properties` mediumblob
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SHOW CREATE TABLE mysql.events;
-Table	Create Table
 events	CREATE TABLE `events` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `schema_id` bigint(20) unsigned NOT NULL,
@@ -288,8 +286,8 @@ events	CREATE TABLE `events` (
   `ends` datetime DEFAULT NULL,
   `status` enum('ENABLED','DISABLED','SLAVESIDE_DISABLED') COLLATE utf8_bin NOT NULL,
   `on_completion` enum('DROP','PRESERVE') COLLATE utf8_bin NOT NULL,
-  `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `last_altered` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `created` timestamp NOT NULL,
+  `last_altered` timestamp NOT NULL,
   `last_executed` datetime DEFAULT NULL,
   `comment` varchar(2048) COLLATE utf8_bin NOT NULL,
   `originator` int(10) unsigned NOT NULL,
@@ -307,8 +305,6 @@ events	CREATE TABLE `events` (
   CONSTRAINT `events_ibfk_3` FOREIGN KEY (`connection_collation_id`) REFERENCES `collations` (`id`),
   CONSTRAINT `events_ibfk_4` FOREIGN KEY (`schema_collation_id`) REFERENCES `collations` (`id`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SHOW CREATE TABLE mysql.foreign_key_column_usage;
-Table	Create Table
 foreign_key_column_usage	CREATE TABLE `foreign_key_column_usage` (
   `foreign_key_id` bigint(20) unsigned NOT NULL,
   `ordinal_position` int(10) unsigned NOT NULL,
@@ -320,8 +316,6 @@ foreign_key_column_usage	CREATE TABLE `foreign_key_column_usage` (
   CONSTRAINT `foreign_key_column_usage_ibfk_1` FOREIGN KEY (`foreign_key_id`) REFERENCES `foreign_keys` (`id`),
   CONSTRAINT `foreign_key_column_usage_ibfk_2` FOREIGN KEY (`column_id`) REFERENCES `columns` (`id`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SHOW CREATE TABLE mysql.foreign_keys;
-Table	Create Table
 foreign_keys	CREATE TABLE `foreign_keys` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `schema_id` bigint(20) unsigned NOT NULL,
@@ -341,8 +335,6 @@ foreign_keys	CREATE TABLE `foreign_keys` (
   KEY `referenced_table_catalog` (`referenced_table_catalog`,`referenced_table_schema`,`referenced_table_name`),
   CONSTRAINT `foreign_keys_ibfk_1` FOREIGN KEY (`schema_id`) REFERENCES `schemata` (`id`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SHOW CREATE TABLE mysql.index_column_usage;
-Table	Create Table
 index_column_usage	CREATE TABLE `index_column_usage` (
   `index_id` bigint(20) unsigned NOT NULL,
   `ordinal_position` int(10) unsigned NOT NULL,
@@ -356,8 +348,6 @@ index_column_usage	CREATE TABLE `index_column_usage` (
   CONSTRAINT `index_column_usage_ibfk_1` FOREIGN KEY (`index_id`) REFERENCES `indexes` (`id`),
   CONSTRAINT `index_column_usage_ibfk_2` FOREIGN KEY (`column_id`) REFERENCES `columns` (`id`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SHOW CREATE TABLE mysql.index_partitions;
-Table	Create Table
 index_partitions	CREATE TABLE `index_partitions` (
   `partition_id` bigint(20) unsigned NOT NULL,
   `index_id` bigint(20) unsigned NOT NULL,
@@ -371,8 +361,6 @@ index_partitions	CREATE TABLE `index_partitions` (
   CONSTRAINT `index_partitions_ibfk_2` FOREIGN KEY (`index_id`) REFERENCES `indexes` (`id`),
   CONSTRAINT `index_partitions_ibfk_3` FOREIGN KEY (`tablespace_id`) REFERENCES `tablespaces` (`id`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SHOW CREATE TABLE mysql.index_stats;
-Table	Create Table
 index_stats	CREATE TABLE `index_stats` (
   `schema_name` varchar(64) COLLATE utf8_bin NOT NULL,
   `table_name` varchar(64) COLLATE utf8_bin NOT NULL,
@@ -382,8 +370,6 @@ index_stats	CREATE TABLE `index_stats` (
   `cached_time` timestamp NOT NULL,
   UNIQUE KEY `schema_name` (`schema_name`,`table_name`,`index_name`,`column_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SHOW CREATE TABLE mysql.indexes;
-Table	Create Table
 indexes	CREATE TABLE `indexes` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `table_id` bigint(20) unsigned NOT NULL,
@@ -399,15 +385,13 @@ indexes	CREATE TABLE `indexes` (
   `options` mediumtext COLLATE utf8_bin,
   `se_private_data` mediumtext COLLATE utf8_bin,
   `tablespace_id` bigint(20) unsigned DEFAULT NULL,
-  `engine` varchar(64) COLLATE utf8_bin NOT NULL,
+  `engine` varchar(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `table_id` (`table_id`,`name`),
   KEY `tablespace_id` (`tablespace_id`),
   CONSTRAINT `indexes_ibfk_1` FOREIGN KEY (`table_id`) REFERENCES `tables` (`id`),
   CONSTRAINT `indexes_ibfk_2` FOREIGN KEY (`tablespace_id`) REFERENCES `tablespaces` (`id`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SHOW CREATE TABLE mysql.innodb_ddl_log;
-Table	Create Table
 innodb_ddl_log	CREATE TABLE `innodb_ddl_log` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `thread_id` bigint(20) unsigned NOT NULL,
@@ -421,16 +405,12 @@ innodb_ddl_log	CREATE TABLE `innodb_ddl_log` (
   PRIMARY KEY (`id`),
   KEY `thread_id` (`thread_id`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SHOW CREATE TABLE mysql.innodb_dynamic_metadata;
-Table	Create Table
 innodb_dynamic_metadata	CREATE TABLE `innodb_dynamic_metadata` (
   `table_id` bigint(20) unsigned NOT NULL,
   `version` bigint(20) unsigned NOT NULL,
   `metadata` blob NOT NULL,
   PRIMARY KEY (`table_id`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SHOW CREATE TABLE mysql.innodb_index_stats;
-Table	Create Table
 innodb_index_stats	CREATE TABLE `innodb_index_stats` (
   `database_name` varchar(64) COLLATE utf8_bin NOT NULL,
   `table_name` varchar(199) COLLATE utf8_bin NOT NULL,
@@ -442,8 +422,6 @@ innodb_index_stats	CREATE TABLE `innodb_index_stats` (
   `stat_description` varchar(1024) COLLATE utf8_bin NOT NULL,
   PRIMARY KEY (`database_name`,`table_name`,`index_name`,`stat_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SHOW CREATE TABLE mysql.innodb_table_stats;
-Table	Create Table
 innodb_table_stats	CREATE TABLE `innodb_table_stats` (
   `database_name` varchar(64) COLLATE utf8_bin NOT NULL,
   `table_name` varchar(199) COLLATE utf8_bin NOT NULL,
@@ -453,8 +431,6 @@ innodb_table_stats	CREATE TABLE `innodb_table_stats` (
   `sum_of_other_index_sizes` bigint(20) unsigned NOT NULL,
   PRIMARY KEY (`database_name`,`table_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SHOW CREATE TABLE mysql.parameter_type_elements;
-Table	Create Table
 parameter_type_elements	CREATE TABLE `parameter_type_elements` (
   `parameter_id` bigint(20) unsigned NOT NULL,
   `element_index` int(10) unsigned NOT NULL,
@@ -462,8 +438,6 @@ parameter_type_elements	CREATE TABLE `parameter_type_elements` (
   PRIMARY KEY (`parameter_id`,`element_index`),
   CONSTRAINT `parameter_type_elements_ibfk_1` FOREIGN KEY (`parameter_id`) REFERENCES `parameters` (`id`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SHOW CREATE TABLE mysql.parameters;
-Table	Create Table
 parameters	CREATE TABLE `parameters` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `routine_id` bigint(20) unsigned NOT NULL,
@@ -486,8 +460,6 @@ parameters	CREATE TABLE `parameters` (
   CONSTRAINT `parameters_ibfk_1` FOREIGN KEY (`routine_id`) REFERENCES `routines` (`id`),
   CONSTRAINT `parameters_ibfk_2` FOREIGN KEY (`collation_id`) REFERENCES `collations` (`id`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SHOW CREATE TABLE mysql.resource_groups;
-Table	Create Table
 resource_groups	CREATE TABLE `resource_groups` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `resource_group_name` varchar(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
@@ -499,8 +471,6 @@ resource_groups	CREATE TABLE `resource_groups` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `resource_group_name` (`resource_group_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SHOW CREATE TABLE mysql.routines;
-Table	Create Table
 routines	CREATE TABLE `routines` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `schema_id` bigint(20) unsigned NOT NULL,
@@ -526,10 +496,11 @@ routines	CREATE TABLE `routines` (
   `client_collation_id` bigint(20) unsigned NOT NULL,
   `connection_collation_id` bigint(20) unsigned NOT NULL,
   `schema_collation_id` bigint(20) unsigned NOT NULL,
-  `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `last_altered` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `created` timestamp NOT NULL,
+  `last_altered` timestamp NOT NULL,
   `comment` text COLLATE utf8_bin NOT NULL,
   `options` mediumtext COLLATE utf8_bin,
+  `external_language` varchar(64) COLLATE utf8_bin NOT NULL DEFAULT 'SQL',
   PRIMARY KEY (`id`),
   UNIQUE KEY `schema_id` (`schema_id`,`type`,`name`),
   KEY `result_collation_id` (`result_collation_id`),
@@ -542,15 +513,13 @@ routines	CREATE TABLE `routines` (
   CONSTRAINT `routines_ibfk_4` FOREIGN KEY (`connection_collation_id`) REFERENCES `collations` (`id`),
   CONSTRAINT `routines_ibfk_5` FOREIGN KEY (`schema_collation_id`) REFERENCES `collations` (`id`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SHOW CREATE TABLE mysql.schemata;
-Table	Create Table
 schemata	CREATE TABLE `schemata` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `catalog_id` bigint(20) unsigned NOT NULL,
   `name` varchar(64) <LCTN dependent collation> NOT NULL,
   `default_collation_id` bigint(20) unsigned NOT NULL,
-  `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `last_altered` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `created` timestamp NOT NULL,
+  `last_altered` timestamp NOT NULL,
   `options` mediumtext COLLATE utf8_bin,
   PRIMARY KEY (`id`),
   UNIQUE KEY `catalog_id` (`catalog_id`,`name`),
@@ -558,8 +527,6 @@ schemata	CREATE TABLE `schemata` (
   CONSTRAINT `schemata_ibfk_1` FOREIGN KEY (`catalog_id`) REFERENCES `catalogs` (`id`),
   CONSTRAINT `schemata_ibfk_2` FOREIGN KEY (`default_collation_id`) REFERENCES `collations` (`id`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SHOW CREATE TABLE mysql.st_spatial_reference_systems;
-Table	Create Table
 st_spatial_reference_systems	CREATE TABLE `st_spatial_reference_systems` (
   `id` int(10) unsigned NOT NULL,
   `catalog_id` bigint(20) unsigned NOT NULL,
@@ -576,8 +543,6 @@ st_spatial_reference_systems	CREATE TABLE `st_spatial_reference_systems` (
   UNIQUE KEY `ORGANIZATION_AND_ID` (`catalog_id`,`organization`,`organization_coordsys_id`),
   CONSTRAINT `st_spatial_reference_systems_ibfk_1` FOREIGN KEY (`catalog_id`) REFERENCES `catalogs` (`id`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SHOW CREATE TABLE mysql.table_partition_values;
-Table	Create Table
 table_partition_values	CREATE TABLE `table_partition_values` (
   `partition_id` bigint(20) unsigned NOT NULL,
   `list_num` tinyint(3) unsigned NOT NULL,
@@ -587,8 +552,6 @@ table_partition_values	CREATE TABLE `table_partition_values` (
   PRIMARY KEY (`partition_id`,`list_num`,`column_num`),
   CONSTRAINT `table_partition_values_ibfk_1` FOREIGN KEY (`partition_id`) REFERENCES `table_partitions` (`id`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SHOW CREATE TABLE mysql.table_partitions;
-Table	Create Table
 table_partitions	CREATE TABLE `table_partitions` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `table_id` bigint(20) unsigned NOT NULL,
@@ -596,7 +559,7 @@ table_partitions	CREATE TABLE `table_partitions` (
   `number` smallint(5) unsigned NOT NULL,
   `name` varchar(64) CHARACTER SET utf8 COLLATE utf8_tolower_ci NOT NULL,
   `description_utf8` text COLLATE utf8_bin,
-  `engine` varchar(64) COLLATE utf8_bin NOT NULL,
+  `engine` varchar(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
   `comment` varchar(2048) COLLATE utf8_bin NOT NULL,
   `options` mediumtext COLLATE utf8_bin,
   `se_private_data` mediumtext COLLATE utf8_bin,
@@ -608,11 +571,11 @@ table_partitions	CREATE TABLE `table_partitions` (
   UNIQUE KEY `engine` (`engine`,`se_private_id`),
   KEY `engine_2` (`engine`),
   KEY `tablespace_id` (`tablespace_id`),
+  KEY `parent_partition_id` (`parent_partition_id`),
   CONSTRAINT `table_partitions_ibfk_1` FOREIGN KEY (`table_id`) REFERENCES `tables` (`id`),
-  CONSTRAINT `table_partitions_ibfk_2` FOREIGN KEY (`tablespace_id`) REFERENCES `tablespaces` (`id`)
+  CONSTRAINT `table_partitions_ibfk_2` FOREIGN KEY (`tablespace_id`) REFERENCES `tablespaces` (`id`),
+  CONSTRAINT `table_partitions_ibfk_3` FOREIGN KEY (`parent_partition_id`) REFERENCES `table_partitions` (`id`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SHOW CREATE TABLE mysql.table_stats;
-Table	Create Table
 table_stats	CREATE TABLE `table_stats` (
   `schema_name` varchar(64) COLLATE utf8_bin NOT NULL,
   `table_name` varchar(64) COLLATE utf8_bin NOT NULL,
@@ -629,8 +592,6 @@ table_stats	CREATE TABLE `table_stats` (
   `cached_time` timestamp NOT NULL,
   PRIMARY KEY (`schema_name`,`table_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SHOW CREATE TABLE mysql.tables;
-Table	Create Table
 tables	CREATE TABLE `tables` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `schema_id` bigint(20) unsigned NOT NULL,
@@ -642,11 +603,11 @@ tables	CREATE TABLE `tables` (
   `collation_id` bigint(20) unsigned DEFAULT NULL,
   `comment` varchar(2048) COLLATE utf8_bin NOT NULL,
   `hidden` enum('Visible','System','SE','DDL') COLLATE utf8_bin NOT NULL,
-  `options` mediumblob,
+  `options` mediumtext COLLATE utf8_bin,
   `se_private_data` mediumtext COLLATE utf8_bin,
   `se_private_id` bigint(20) unsigned DEFAULT NULL,
   `tablespace_id` bigint(20) unsigned DEFAULT NULL,
-  `partition_type` enum('HASH','KEY_51','KEY_55','LINEAR_HASH','LINEAR_KEY_51','LINEAR_KEY_55','RANGE','LIST','RANGE_COLUMNS','LIST_COLUMNS','AUTO') COLLATE utf8_bin DEFAULT NULL,
+  `partition_type` enum('HASH','KEY_51','KEY_55','LINEAR_HASH','LINEAR_KEY_51','LINEAR_KEY_55','RANGE','LIST','RANGE_COLUMNS','LIST_COLUMNS','AUTO','AUTO_LINEAR') COLLATE utf8_bin DEFAULT NULL,
   `partition_expression` varchar(2048) COLLATE utf8_bin DEFAULT NULL,
   `partition_expression_utf8` varchar(2048) COLLATE utf8_bin DEFAULT NULL,
   `default_partitioning` enum('NO','YES','NUMBER') COLLATE utf8_bin DEFAULT NULL,
@@ -654,8 +615,8 @@ tables	CREATE TABLE `tables` (
   `subpartition_expression` varchar(2048) COLLATE utf8_bin DEFAULT NULL,
   `subpartition_expression_utf8` varchar(2048) COLLATE utf8_bin DEFAULT NULL,
   `default_subpartitioning` enum('NO','YES','NUMBER') COLLATE utf8_bin DEFAULT NULL,
-  `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `last_altered` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `created` timestamp NOT NULL,
+  `last_altered` timestamp NOT NULL,
   `view_definition` longblob,
   `view_definition_utf8` longtext COLLATE utf8_bin,
   `view_check_option` enum('NONE','LOCAL','CASCADED') COLLATE utf8_bin DEFAULT NULL,
@@ -672,12 +633,15 @@ tables	CREATE TABLE `tables` (
   KEY `engine_2` (`engine`),
   KEY `collation_id` (`collation_id`),
   KEY `tablespace_id` (`tablespace_id`),
+  KEY `type` (`type`),
+  KEY `view_client_collation_id` (`view_client_collation_id`),
+  KEY `view_connection_collation_id` (`view_connection_collation_id`),
   CONSTRAINT `tables_ibfk_1` FOREIGN KEY (`schema_id`) REFERENCES `schemata` (`id`),
   CONSTRAINT `tables_ibfk_2` FOREIGN KEY (`collation_id`) REFERENCES `collations` (`id`),
-  CONSTRAINT `tables_ibfk_3` FOREIGN KEY (`tablespace_id`) REFERENCES `tablespaces` (`id`)
+  CONSTRAINT `tables_ibfk_3` FOREIGN KEY (`tablespace_id`) REFERENCES `tablespaces` (`id`),
+  CONSTRAINT `tables_ibfk_4` FOREIGN KEY (`view_client_collation_id`) REFERENCES `collations` (`id`),
+  CONSTRAINT `tables_ibfk_5` FOREIGN KEY (`view_connection_collation_id`) REFERENCES `collations` (`id`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SHOW CREATE TABLE mysql.tablespace_files;
-Table	Create Table
 tablespace_files	CREATE TABLE `tablespace_files` (
   `tablespace_id` bigint(20) unsigned NOT NULL,
   `ordinal_position` int(10) unsigned NOT NULL,
@@ -687,20 +651,16 @@ tablespace_files	CREATE TABLE `tablespace_files` (
   UNIQUE KEY `file_name` (`file_name`),
   CONSTRAINT `tablespace_files_ibfk_1` FOREIGN KEY (`tablespace_id`) REFERENCES `tablespaces` (`id`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SHOW CREATE TABLE mysql.tablespaces;
-Table	Create Table
 tablespaces	CREATE TABLE `tablespaces` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(259) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
   `options` mediumtext COLLATE utf8_bin,
   `se_private_data` mediumtext COLLATE utf8_bin,
   `comment` varchar(2048) COLLATE utf8_bin NOT NULL,
-  `engine` varchar(64) COLLATE utf8_bin NOT NULL,
+  `engine` varchar(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SHOW CREATE TABLE mysql.triggers;
-Table	Create Table
 triggers	CREATE TABLE `triggers` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `schema_id` bigint(20) unsigned NOT NULL,
@@ -711,8 +671,8 @@ triggers	CREATE TABLE `triggers` (
   `action_order` int(10) unsigned NOT NULL,
   `action_statement` longblob NOT NULL,
   `action_statement_utf8` longtext COLLATE utf8_bin NOT NULL,
-  `created` timestamp(2) NOT NULL DEFAULT CURRENT_TIMESTAMP(2) ON UPDATE CURRENT_TIMESTAMP(2),
-  `last_altered` timestamp(2) NOT NULL DEFAULT CURRENT_TIMESTAMP(2),
+  `created` timestamp(2) NOT NULL,
+  `last_altered` timestamp(2) NOT NULL,
   `sql_mode` set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','NOT_USED_9','NOT_USED_10','NOT_USED_11','NOT_USED_12','NOT_USED_13','NOT_USED_14','NOT_USED_15','NOT_USED_16','NOT_USED_17','NOT_USED_18','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NOT_USED_29','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH') COLLATE utf8_bin NOT NULL,
   `definer` varchar(93) COLLATE utf8_bin NOT NULL,
   `client_collation_id` bigint(20) unsigned NOT NULL,
@@ -731,8 +691,6 @@ triggers	CREATE TABLE `triggers` (
   CONSTRAINT `triggers_ibfk_4` FOREIGN KEY (`connection_collation_id`) REFERENCES `collations` (`id`),
   CONSTRAINT `triggers_ibfk_5` FOREIGN KEY (`schema_collation_id`) REFERENCES `collations` (`id`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SHOW CREATE TABLE mysql.view_routine_usage;
-Table	Create Table
 view_routine_usage	CREATE TABLE `view_routine_usage` (
   `view_id` bigint(20) unsigned NOT NULL,
   `routine_catalog` varchar(64) <LCTN dependent collation> NOT NULL,
@@ -742,8 +700,6 @@ view_routine_usage	CREATE TABLE `view_routine_usage` (
   KEY `routine_catalog` (`routine_catalog`,`routine_schema`,`routine_name`),
   CONSTRAINT `view_routine_usage_ibfk_1` FOREIGN KEY (`view_id`) REFERENCES `tables` (`id`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SHOW CREATE TABLE mysql.view_table_usage;
-Table	Create Table
 view_table_usage	CREATE TABLE `view_table_usage` (
   `view_id` bigint(20) unsigned NOT NULL,
   `table_catalog` varchar(64) <LCTN dependent collation> NOT NULL,
@@ -753,12 +709,14 @@ view_table_usage	CREATE TABLE `view_table_usage` (
   KEY `table_catalog` (`table_catalog`,`table_schema`,`table_name`),
   CONSTRAINT `view_table_usage_ibfk_1` FOREIGN KEY (`view_id`) REFERENCES `tables` (`id`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SET debug = '-d,skip_dd_table_access_check';
 # PART 4
 ########################################################################
 # Create a checksum associated with the current DD version. Compare this
 # with an already recorded checksum.
 ########################################################################
+SET debug = '+d,skip_dd_table_access_check';
 include/assert.inc [The group concat max length is sufficient.]
 CHECK_STATUS
-The schema checksum corresponds to DD version 80005.
+The schema checksum corresponds to DD version 80012.
 include/assert.inc [The schema checksum corresponds to a known DD version.]

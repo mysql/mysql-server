@@ -2311,7 +2311,10 @@ void Optimize_table_order::consider_plan(uint idx,
       (Similar code in best_extension_by_li...)
     */
     join->best_read = cost - 0.001;
-    join->best_rowcount = (ha_rows)join->positions[idx].prefix_rowcount;
+    join->best_rowcount = join->positions[idx].prefix_rowcount >=
+                                  std::numeric_limits<ha_rows>::max()
+                              ? std::numeric_limits<ha_rows>::max()
+                              : (ha_rows)join->positions[idx].prefix_rowcount;
     join->sort_cost = sort_cost;
     join->windowing_cost = windowing_cost;
     found_plan_with_allowed_sj = plan_uses_allowed_sj;

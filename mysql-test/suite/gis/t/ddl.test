@@ -312,6 +312,7 @@ SELECT
 FROM t1;
 
 --echo # Add a spatial index on the generated column
+--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
 CREATE INDEX idx_4326_generated ON t1 (col_srid_4326_generated);
 
 INSERT INTO t1 (col_no_srid, col_srid_0, col_srid_2000) VALUES (
@@ -348,7 +349,6 @@ INSERT INTO t1 (col_no_srid, col_srid_0, col_srid_2000) VALUES (
   ST_GeomFromText('POINT(1 1)', 0),
   ST_GeomFromText('POINT(1 1)', 4326));
 
-DROP INDEX idx_4326_generated ON t1;
 ALTER TABLE t1 CHANGE COLUMN col_srid_2000 col_srid_2000 POINT NOT NULL;
 
 --echo # This should work just fine, since we have removed the SRID specification

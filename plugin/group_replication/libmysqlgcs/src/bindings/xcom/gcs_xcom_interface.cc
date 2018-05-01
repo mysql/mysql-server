@@ -232,6 +232,7 @@ enum_gcs_error Gcs_xcom_interface::initialize(
 
   register_gcs_thread_psi_keys();
   register_gcs_mutex_cond_psi_keys();
+  register_xcom_memory_psi_keys();
 
   last_config_id.group_id = 0;
 

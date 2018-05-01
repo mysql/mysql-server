@@ -19,14 +19,14 @@
 #    ....
 #    worker[1] Using MTR_BUILD_THREAD 300, with reserved ports 13000..13009
 #    main.1st                                 [ pass ]      3
-#    innodb.innodb_page_size                  [ fail ]
+#    innodb.innodb_page_size_func             [ fail ]
 #            Test ended at 2011-11-11 18:15:58
 #
-#    CURRENT_TEST: innodb.innodb_page_size
+#    CURRENT_TEST: innodb.innodb_page_size_func
 #    # ERROR: The file '<name>' does not contain the expected pattern  <pattern>
-#    mysqltest: In included file "./include/search_pattern_multiline.inc":
-#    included from ./include/search_pattern_multiline.inc at line 36:
-#    At line 25: command "perl" failed with error 255. my_errno=175
+#    mysqltest: At line 55: command "perl" failed with error 255. my_errno=175
+#    In included file ./include/search_pattern_multiline.inc: 55
+#    included from ./mysql-test/suite/innodb/t/innodb_page_size_func.test: 202
 #
 #    The result from queries just before the failure was:
 #    ...

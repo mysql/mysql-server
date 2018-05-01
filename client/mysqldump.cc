@@ -928,7 +928,6 @@ static int get_options(int *argc, char ***argv) {
       new collation_unordered_set<string>(charset_info, PSI_NOT_INSTRUMENTED);
   /* Don't copy internal log tables */
   ignore_table->insert("mysql.apply_status");
-  ignore_table->insert("mysql.gtid_executed");
   ignore_table->insert("mysql.schema");
   ignore_table->insert("mysql.general_log");
   ignore_table->insert("mysql.slow_log");
@@ -2442,12 +2441,16 @@ static inline bool general_log_or_slow_log_tables(const char *db,
           !my_strcasecmp(charset_info, table, "slow_log"));
 }
 
-/* slave_master_info and slave_relay_log_info tables under mysql database */
+/*
+ slave_master_info,slave_relay_log_info and gtid_executed tables under
+ mysql database
+*/
 static inline bool replication_metadata_tables(const char *db,
                                                const char *table) {
   return (!my_strcasecmp(charset_info, db, "mysql")) &&
          (!my_strcasecmp(charset_info, table, "slave_master_info") ||
-          !my_strcasecmp(charset_info, table, "slave_relay_log_info"));
+          !my_strcasecmp(charset_info, table, "slave_relay_log_info") ||
+          !my_strcasecmp(charset_info, table, "gtid_executed"));
 }
 
 /**
@@ -3686,20 +3689,19 @@ static void dump_table(char *table, char *db) {
         /*
            63 is my_charset_bin. If charsetnr is not 63,
            we have not a BLOB but a TEXT column.
-           we'll dump in hex only BLOB columns.
         */
-        is_blob = (opt_hex_blob && field->charsetnr == 63 &&
-                   (field->type == MYSQL_TYPE_BIT ||
-                    field->type == MYSQL_TYPE_STRING ||
-                    field->type == MYSQL_TYPE_VAR_STRING ||
-                    field->type == MYSQL_TYPE_VARCHAR ||
-                    field->type == MYSQL_TYPE_BLOB ||
-                    field->type == MYSQL_TYPE_LONG_BLOB ||
-                    field->type == MYSQL_TYPE_MEDIUM_BLOB ||
-                    field->type == MYSQL_TYPE_TINY_BLOB ||
-                    field->type == MYSQL_TYPE_GEOMETRY))
-                      ? 1
-                      : 0;
+        is_blob =
+            (field->charsetnr == 63 && (field->type == MYSQL_TYPE_BIT ||
+                                        field->type == MYSQL_TYPE_STRING ||
+                                        field->type == MYSQL_TYPE_VAR_STRING ||
+                                        field->type == MYSQL_TYPE_VARCHAR ||
+                                        field->type == MYSQL_TYPE_BLOB ||
+                                        field->type == MYSQL_TYPE_LONG_BLOB ||
+                                        field->type == MYSQL_TYPE_MEDIUM_BLOB ||
+                                        field->type == MYSQL_TYPE_TINY_BLOB ||
+                                        field->type == MYSQL_TYPE_GEOMETRY))
+                ? 1
+                : 0;
         if (extended_insert && !opt_xml) {
           if (i == 0)
             dynstr_set_checked(&extended_row, "(");
@@ -3727,6 +3729,13 @@ static void dump_table(char *table, char *db) {
                   /* mysql_hex_string() already terminated string by '\0' */
                   DBUG_ASSERT(extended_row.str[extended_row.length] == '\0');
                 } else {
+                  if (is_blob) {
+                    /*
+                      inform SQL parser that this string isn't in
+                      character_set_connection, so it doesn't emit a warning.
+                    */
+                    dynstr_append_checked(&extended_row, "_binary ");
+                  }
                   dynstr_append_checked(&extended_row, "'");
                   extended_row.length += mysql_real_escape_string_quote(
                       &mysql_connection, &extended_row.str[extended_row.length],
@@ -3777,8 +3786,13 @@ static void dump_table(char *table, char *db) {
               } else if (opt_hex_blob && is_blob && length) {
                 fputs("0x", md_result_file);
                 print_blob_as_hex(md_result_file, row[i], length);
-              } else
+              } else {
+                if (is_blob) {
+                  fputs("_binary ", md_result_file);
+                  check_io(md_result_file);
+                }
                 unescape(md_result_file, row[i], length);
+              }
             } else {
               /* change any strings ("inf", "-inf", "nan") into NULL */
               char *ptr = row[i];

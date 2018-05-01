@@ -49,8 +49,10 @@ external tools. */
 #define REC_OFFS_SQL_NULL ((ulint)1 << 31)
 /* External flag in offsets returned by rec_get_offsets() */
 #define REC_OFFS_EXTERNAL ((ulint)1 << 30)
+/* Default value flag in offsets returned by rec_get_offsets() */
+#define REC_OFFS_DEFAULT ((ulint)1 << 29)
 /* Mask for offsets returned by rec_get_offsets() */
-#define REC_OFFS_MASK (REC_OFFS_EXTERNAL - 1)
+#define REC_OFFS_MASK (REC_OFFS_DEFAULT - 1)
 
 /* The offset of heap_no in a compact record */
 #define REC_NEW_HEAP_NO 4
@@ -91,6 +93,7 @@ and the shift needed to obtain each bit-field of the record. */
 
 #define REC_OLD_INFO_BITS 6 /* This is single byte bit-field */
 #define REC_NEW_INFO_BITS 5 /* This is single byte bit-field */
+#define REC_TMP_INFO_BITS 1 /* This is single byte bit-field */
 #define REC_INFO_BITS_MASK 0xF0UL
 #define REC_INFO_BITS_SHIFT 0
 
@@ -117,6 +120,10 @@ B-tree page that is the leftmost page on its level
 #define REC_INFO_DELETED_FLAG                  \
   0x20UL /* when bit is set to 1, it means the \
          record has been delete marked */
+/* The 0x40UL can also be used in the future */
+/* The instant ADD COLUMN flag. When it is set to 1, it means this record
+was inserted/updated after an instant ADD COLUMN. */
+#define REC_INFO_INSTANT_FLAG 0x80UL
 
 /* Number of extra bytes in an old-style record,
 in addition to the data and the offsets */
@@ -124,6 +131,10 @@ in addition to the data and the offsets */
 /* Number of extra bytes in a new-style record,
 in addition to the data and the offsets */
 #define REC_N_NEW_EXTRA_BYTES 5
+/* NUmber of extra bytes in a new-style temporary record,
+in addition to the data and the offsets.
+This is used only after instant ADD COLUMN. */
+#define REC_N_TMP_EXTRA_BYTES 1
 
 /* Record status values */
 #define REC_STATUS_ORDINARY 0
@@ -164,8 +175,18 @@ this position, and following positions hold the end offsets of
 the fields. */
 #define rec_offs_base(offsets) (offsets + REC_OFFS_HEADER_SIZE)
 
+/** Number of fields flag which means it occupies two bytes */
+static const uint8_t REC_N_FIELDS_TWO_BYTES_FLAG = 0x80;
+
+/** Max number of fields which can be stored in one byte */
+static const uint8_t REC_N_FIELDS_ONE_BYTE_MAX = 0x7F;
+
 /** The following function determines the offsets to each field
- in the record.	It can reuse a previously allocated array.
+ in the record. It can reuse a previously allocated array.
+ Note that after instant ADD COLUMN, if this is a record
+ from clustered index, fields in the record may be less than
+ the fields defined in the clustered index. So the offsets
+ size is allocated according to the clustered index fields.
  @return the new offsets */
 ulint *rec_get_offsets_func(
     const rec_t *rec,          /*!< in: physical record */
@@ -239,11 +260,46 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint
   return (ret);
 }
 
+#ifdef UNIV_DEBUG
+/** Check if the info bits are valid.
+@param[in]	bits	info bits to check
+@return true if valid */
+inline bool rec_info_bits_valid(ulint bits) {
+  return (0 == (bits & ~(REC_INFO_DELETED_FLAG | REC_INFO_MIN_REC_FLAG |
+                         REC_INFO_INSTANT_FLAG)));
+}
+#endif /* UNIV_DEBUG */
+
+/** The following function is used to retrieve the info bits of a record.
+@param[in]	rec	physical record
+@param[in]	comp	nonzero=compact page format
+@return info bits */
+UNIV_INLINE
+ulint rec_get_info_bits(const rec_t *rec, ulint comp) {
+  const ulint val =
+      rec_get_bit_field_1(rec, comp ? REC_NEW_INFO_BITS : REC_OLD_INFO_BITS,
+                          REC_INFO_BITS_MASK, REC_INFO_BITS_SHIFT);
+  ut_ad(rec_info_bits_valid(val));
+  return (val);
+}
+
+/** The following function is used to retrieve the info bits of a temporary
+record.
+@param[in]	rec	physical record
+@return	info bits */
+UNIV_INLINE
+ulint rec_get_info_bits_temp(const rec_t *rec) {
+  const ulint val = rec_get_bit_field_1(
+      rec, REC_TMP_INFO_BITS, REC_INFO_BITS_MASK, REC_INFO_BITS_SHIFT);
+  ut_ad(rec_info_bits_valid(val));
+  return (val);
+}
+
 /** The following function is used to get the number of fields
- in an old-style record.
+ in an old-style record, which is stored in the rec
  @return number of data fields */
 UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint
-    rec_get_n_fields_old(const rec_t *rec) /*!< in: physical record */
+    rec_get_n_fields_old_raw(const rec_t *rec) /*!< in: physical record */
 {
   ulint ret;
 
@@ -258,7 +314,52 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint
 }
 
 /** The following function is used to get the number of fields
- in a record.
+in an old-style record. Have to consider the case that after
+instant ADD COLUMN, this record may have less fields than
+current index.
+@param[in]	rec	physical record
+@param[in]	index	index where the record resides
+@return number of data fields */
+UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) uint16_t
+    rec_get_n_fields_old(const rec_t *rec, const dict_index_t *index) {
+  uint16_t n = rec_get_n_fields_old_raw(rec);
+
+  if (index->has_instant_cols()) {
+    uint16_t n_uniq = dict_index_get_n_unique_in_tree_nonleaf(index);
+
+    ut_ad(index->is_clustered());
+    ut_ad(n <= dict_index_get_n_fields(index));
+    ut_ad(n_uniq > 0);
+    /* Only when it's infimum or supremum, n is 1.
+    If n is exact n_uniq, this should be a record copied with prefix during
+    search.
+    And if it's node pointer, n is n_uniq + 1, which should be always less
+    than the number of fields in any leaf page, even if the record in
+    leaf page is before instant ADD COLUMN. This is because any record in
+    leaf page must have at least n_uniq + 2 (system columns) fields */
+    ut_ad(n == 1 || n >= n_uniq);
+    ut_ad(static_cast<uint16_t>(dict_index_get_n_fields(index)) > n_uniq + 1);
+    if (n > n_uniq + 1) {
+#ifdef UNIV_DEBUG
+      uint16_t rec_diff = dict_index_get_n_fields(index) - n;
+      uint16_t col_diff = index->table->n_cols - index->table->n_instant_cols;
+      ut_ad(rec_diff <= col_diff);
+      if (n != dict_index_get_n_fields(index)) {
+        ut_ad(index->has_instant_cols());
+      }
+#endif /* UNIV_DEBUG */
+      n = dict_index_get_n_fields(index);
+    }
+  }
+
+  return (n);
+}
+
+/** The following function is used to get the number of fields
+ in a record. If it's REDUNDANT record, the returned number
+ would be a logic one which considers the fact that after
+ instant ADD COLUMN, some records may have less fields than
+ index.
  @return number of data fields */
 UNIV_INLINE
 ulint rec_get_n_fields(const rec_t *rec,          /*!< in: physical record */
@@ -268,7 +369,7 @@ ulint rec_get_n_fields(const rec_t *rec,          /*!< in: physical record */
   ut_ad(index);
 
   if (!dict_table_is_comp(index->table)) {
-    return (rec_get_n_fields_old(rec));
+    return (rec_get_n_fields_old(rec, index));
   }
 
   switch (rec_get_status(rec)) {
@@ -281,7 +382,6 @@ ulint rec_get_n_fields(const rec_t *rec,          /*!< in: physical record */
       return (1);
     default:
       ut_error;
-      return (ULINT_UNDEFINED);
   }
 }
 
@@ -355,6 +455,27 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint rec_offs_n_fields(
   return (n_fields);
 }
 
+/** Determine the offset of a specified field in the record, when this
+field is a field added after an instant ADD COLUMN
+@param[in]	index	Clustered index where the record resides
+@param[in]	n	Nth field to get offset
+@param[in]	offs	Last offset before current field
+@return The offset of the specified field */
+UNIV_INLINE
+uint64_t rec_get_instant_offset(const dict_index_t *index, uint16_t n,
+                                uint64_t offs) {
+  ut_ad(index->has_instant_cols());
+
+  ulint length;
+  index->get_nth_default(n, &length);
+
+  if (length == UNIV_SQL_NULL) {
+    return (offs | REC_OFFS_SQL_NULL);
+  } else {
+    return (offs | REC_OFFS_DEFAULT);
+  }
+}
+
 /** The following function determines the offsets to each field in the
  record.	 The offsets are written to a previously allocated array of
  ulint, where rec_offs_n_fields(offsets) has been initialized to the
@@ -388,8 +509,8 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ibool rec_offs_validate(
 
   if (rec) {
     ut_ad((ulint)rec == offsets[2]);
-    if (!comp) {
-      ut_a(rec_get_n_fields_old(rec) >= i);
+    if (!comp && index != nullptr) {
+      ut_a(rec_get_n_fields_old(rec, index) >= i);
     }
   }
   if (index) {
@@ -397,6 +518,10 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ibool rec_offs_validate(
     ut_ad((ulint)index == offsets[3]);
     max_n_fields = ut_max(dict_index_get_n_fields(index),
                           dict_index_get_n_unique_in_tree(index) + 1);
+    if (!comp && rec != nullptr && rec_get_n_fields_old_raw(rec) < i) {
+      ut_a(index->has_instant_cols());
+    }
+
     if (comp && rec) {
       switch (rec_get_status(rec)) {
         case REC_STATUS_ORDINARY:
@@ -444,6 +569,133 @@ void rec_offs_make_valid(
 #define rec_offs_make_valid(rec, index, offsets) ((void)0)
 #endif /* UNIV_DEBUG */
 
+/** The following function tells if a new-style record is instant record or not
+@param[in]	rec	new-style record
+@return true if it's instant affected */
+UNIV_INLINE
+bool rec_get_instant_flag_new(const rec_t *rec) {
+  ulint info = rec_get_info_bits(rec, TRUE);
+  return ((info & REC_INFO_INSTANT_FLAG) != 0);
+}
+
+/** The following function tells if a new-style temporary record is instant
+record or not
+@param[in]	rec	new-style temporary record
+@return	true if it's instant affected */
+UNIV_INLINE
+bool rec_get_instant_flag_new_temp(const rec_t *rec) {
+  ulint info = rec_get_info_bits_temp(rec);
+  return ((info & REC_INFO_INSTANT_FLAG) != 0);
+}
+
+/** Get the number of fields for one new style leaf page record.
+This is only needed for table after instant ADD COLUMN.
+@param[in]	rec		leaf page record
+@param[in]	extra_bytes	extra bytes of this record
+@param[in,out]	length		length of number of fields
+@return	number of fields */
+UNIV_INLINE
+uint32_t rec_get_n_fields_instant(const rec_t *rec, const ulint extra_bytes,
+                                  uint16_t *length) {
+  uint16_t n_fields;
+  const byte *ptr;
+
+  ptr = rec - (extra_bytes + 1);
+
+  if ((*ptr & REC_N_FIELDS_TWO_BYTES_FLAG) == 0) {
+    *length = 1;
+    return (*ptr);
+  }
+
+  *length = 2;
+  n_fields = ((*ptr-- & REC_N_FIELDS_ONE_BYTE_MAX) << 8);
+  n_fields |= *ptr;
+  ut_ad(n_fields < REC_MAX_N_FIELDS);
+  ut_ad(n_fields != 0);
+
+  return (n_fields);
+}
+
+/** Determines the information about null bytes and variable length bytes
+for a new-style temporary record
+@param[in]	rec		physical record
+@param[in]	index		index where the record resides
+@param[out]	nulls		the start of null bytes
+@param[out]	lens		the start of variable length bytes
+@param[out]	n_null		number of null fields
+@return	the number of fields which are inlined of the record */
+UNIV_INLINE
+uint16_t rec_init_null_and_len_temp(const rec_t *rec, const dict_index_t *index,
+                                    const byte **nulls, const byte **lens,
+                                    uint16_t *n_null) {
+  uint16_t non_default_fields = dict_index_get_n_fields(index);
+
+  *nulls = rec - 1;
+
+  if (index->has_instant_cols() && dict_table_is_comp(index->table)) {
+    *nulls -= REC_N_TMP_EXTRA_BYTES;
+  }
+
+  if (!index->has_instant_cols() || !dict_table_is_comp(index->table)) {
+    *n_null = index->n_nullable;
+  } else if (rec_get_instant_flag_new_temp(rec)) {
+    ut_ad(index->has_instant_cols());
+
+    uint16_t length;
+    non_default_fields =
+        rec_get_n_fields_instant(rec, REC_N_TMP_EXTRA_BYTES, &length);
+    ut_ad(length == 1 || length == 2);
+
+    *nulls -= length;
+    *n_null = index->get_n_nullable_before(non_default_fields);
+  } else {
+    *n_null = index->n_instant_nullable;
+    non_default_fields = index->get_instant_fields();
+  }
+
+  *lens = *nulls - UT_BITS_IN_BYTES(*n_null);
+
+  return (non_default_fields);
+}
+
+/** Determines the information about null bytes and variable length bytes
+for a new style record
+@param[in]	rec		physical record
+@param[in]	index		index where the record resides
+@param[out]	nulls		the start of null bytes
+@param[out]	lens		the start of variable length bytes
+@param[out]	n_null		number of null fields
+@return	the number of fields which are inlined of the record */
+UNIV_INLINE
+uint16_t rec_init_null_and_len_comp(const rec_t *rec, const dict_index_t *index,
+                                    const byte **nulls, const byte **lens,
+                                    uint16_t *n_null) {
+  uint16_t non_default_fields = dict_index_get_n_fields(index);
+
+  *nulls = rec - (REC_N_NEW_EXTRA_BYTES + 1);
+
+  if (!index->has_instant_cols()) {
+    *n_null = index->n_nullable;
+  } else if (rec_get_instant_flag_new(rec)) {
+    /* Row inserted after first instant ADD COLUMN */
+    uint16_t length;
+    non_default_fields =
+        rec_get_n_fields_instant(rec, REC_N_NEW_EXTRA_BYTES, &length);
+    ut_ad(length == 1 || length == 2);
+
+    *nulls -= length;
+    *n_null = index->get_n_nullable_before(non_default_fields);
+  } else {
+    /* Row inserted before first instant ADD COLUMN */
+    *n_null = index->n_instant_nullable;
+    non_default_fields = index->get_instant_fields();
+  }
+
+  *lens = *nulls - UT_BITS_IN_BYTES(*n_null);
+
+  return (non_default_fields);
+}
+
 /** Determine the offset to each field in a leaf-page record
  in ROW_FORMAT=COMPACT.  This is a special case of
  rec_init_offsets() and rec_get_offsets_func(). */
@@ -461,10 +713,11 @@ void rec_init_offsets_comp_ordinary(
   ulint i = 0;
   ulint offs = 0;
   ulint any_ext = 0;
-  ulint n_null = index->n_nullable;
-  const byte *nulls = temp ? rec - 1 : rec - (1 + REC_N_NEW_EXTRA_BYTES);
-  const byte *lens = nulls - UT_BITS_IN_BYTES(n_null);
+  uint16_t n_null = 0;
+  const byte *nulls = nullptr;
+  const byte *lens = nullptr;
   ulint null_mask = 1;
+  uint16_t non_default_fields = 0;
 
 #ifdef UNIV_DEBUG
   /* We cannot invoke rec_offs_make_valid() here if temp=true.
@@ -473,6 +726,14 @@ void rec_init_offsets_comp_ordinary(
   offsets[2] = (ulint)rec;
   offsets[3] = (ulint)index;
 #endif /* UNIV_DEBUG */
+
+  if (temp) {
+    non_default_fields =
+        rec_init_null_and_len_temp(rec, index, &nulls, &lens, &n_null);
+  } else {
+    non_default_fields =
+        rec_init_null_and_len_comp(rec, index, &nulls, &lens, &n_null);
+  }
 
   ut_ad(temp || dict_table_is_comp(index->table));
 
@@ -487,6 +748,14 @@ void rec_init_offsets_comp_ordinary(
     const dict_field_t *field = index->get_field(i);
     const dict_col_t *col = field->col;
     ulint len;
+
+    if (i >= non_default_fields) {
+      ut_ad(index->has_instant_cols());
+
+      len = rec_get_instant_offset(index, i, offs);
+
+      goto resolved;
+    }
 
     if (!(col->prtype & DATA_NOT_NULL)) {
       /* nullable field => read the null flag */
@@ -573,7 +842,7 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint
                              ulint n)          /*!< in: field index */
 {
   ut_ad(rec_get_1byte_offs_flag(rec));
-  ut_ad(n < rec_get_n_fields_old(rec));
+  ut_ad(n < rec_get_n_fields_old_raw(rec));
 
   return (mach_read_from_1(rec - (REC_N_OLD_EXTRA_BYTES + n + 1)));
 }
@@ -588,7 +857,7 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint
                              ulint n)          /*!< in: field index */
 {
   ut_ad(!rec_get_1byte_offs_flag(rec));
-  ut_ad(n < rec_get_n_fields_old(rec));
+  ut_ad(n < rec_get_n_fields_old_raw(rec));
 
   return (mach_read_from_2(rec - (REC_N_OLD_EXTRA_BYTES + 2 * n + 2)));
 }

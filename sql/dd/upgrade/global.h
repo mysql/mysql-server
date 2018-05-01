@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,8 @@
 #include <sys/types.h>
 
 #include "my_inttypes.h"
+#include "mysql/components/services/log_builtins.h"
+#include "mysql/components/services/log_shared.h"
 #include "sql/dd/string_type.h"
 #include "sql/item_create.h"
 #include "sql/sql_class.h"
@@ -53,13 +55,25 @@ const String_type table_stats = "innodb_table_stats";
 const String_type table_stats_backup = "innodb_table_stats_backup57";
 
 /**
+  THD::mem_root is only switched with the given mem_root and switched back
+  on destruction. This does not free any mem_root.
+ */
+class Thd_mem_root_guard {
+  THD *m_thd;
+  MEM_ROOT *m_thd_prev_mem_root;
+
+ public:
+  Thd_mem_root_guard(THD *thd, MEM_ROOT *mem_root);
+  ~Thd_mem_root_guard();
+};
+
+/**
    RAII for handling open and close of event and proc tables.
 */
 
 class System_table_close_guard {
   THD *m_thd;
   TABLE *m_table;
-  MEM_ROOT *m_mem_root;
 
  public:
   System_table_close_guard(THD *thd, TABLE *table);
@@ -116,7 +130,14 @@ class Bootstrap_error_handler {
   //  Set the error in DA. Optionally print error in log.
   static void my_message_bootstrap(uint error, const char *str, myf MyFlags) {
     set_abort_on_error(error);
-    my_message_sql(error, str, MyFlags | (m_log_error ? ME_ERRORLOG : 0));
+    my_message_sql(error, str, MyFlags);
+    if (m_log_error)
+      LogEvent()
+          .type(LOG_TYPE_ERROR)
+          .subsys(LOG_SUBSYSTEM_TAG)
+          .prio(ERROR_LEVEL)
+          .errcode(ER_ERROR_INFO_FROM_DA)
+          .verbatim(str);
   }
 
   // Set abort on error flag and enable error logging for certain fatal error.

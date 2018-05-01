@@ -7,10 +7,11 @@
 #2) wolfssl SSL context counters (GLOBAL status variables) are always 0
 #3) other cipher list than openssl
 
---let $ERROR_IF_CHANNEL_UNSECURE= Secure transport required. To log in you must use TCP\+SSL or UNIX socket connection. \(code 1045\)
-
---let $USE_SOCKET= '--socket=$MASTER_X_MYSOCK'
 --let $ERROR_IF_CHANNEL_UNSECURE=
+--let $INCREMENT=0
+--let $USE_SOCKET= '--socket=$MASTER_X_MYSOCK'
+--let $ERROR_IF_CHANNEL_UNSECURE=0
+--let $NO_SSL_ACCESS_DENIED_ERROR=ER_ACCESS_DENIED_ERROR
 
 --let $USER_AUTH_PLUGIN= 'mysql_native_password'
 --source  ../include/connection_ssl.inc

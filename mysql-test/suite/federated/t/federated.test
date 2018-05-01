@@ -2039,6 +2039,62 @@ DROP TABLE federated.t1_child;
 DROP TABLE federated.t1;
 --disable_connect_log
 
+--echo ###
+--echo ### Bug#27509959: EXCEPTION NOT CAUGHT W/IN SPROC ADDING A ROW
+--echo ###               THAT FAILS FK CHECK IN FED TABLE
+--echo ###
+
+connection master;
+
+CREATE TABLE federated.parent(a INT, PRIMARY KEY(a)) ENGINE=InnoDB;
+CREATE TABLE federated.child(a INT, b INT, PRIMARY KEY(b),FOREIGN KEY(a) REFERENCES federated.parent(a))ENGINE=InnoDB;
+INSERT federated.parent VALUES (1);
+INSERT federated.child VALUES (1,1);
+
+connection slave;
+
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CREATE TABLE federated.child(a INT, b INT, PRIMARY KEY(b),
+     FOREIGN KEY(a) REFERENCES federated.parent(a))
+     ENGINE=FEDERATED
+     CONNECTION='mysql://root@127.0.0.1:$MASTER_MYPORT/federated/child';
+
+SELECT * FROM federated.child;
+
+DROP PROCEDURE IF EXISTS add_child;
+DELIMITER |;
+CREATE PROCEDURE add_child(IN new_a INT, IN new_b INT)
+DETERMINISTIC MODIFIES SQL DATA
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+  BEGIN
+    GET DIAGNOSTICS @p1 = NUMBER, @p2 = ROW_COUNT;
+    GET DIAGNOSTICS CONDITION 1 @p3=CLASS_ORIGIN, @p4=SUBCLASS_ORIGIN, @p5=RETURNED_SQLSTATE, @p6=MESSAGE_TEXT, @p7=MYSQL_ERRNO;
+  SELECT
+      @p1 as 'NUMBER'
+    , @p2 as 'ROW_COUNT'
+    , @p3 as 'CLASS_ORIGIN'
+    , @p4 as 'SUBCLASS_ORIGIN'
+    , @p5 as 'RETURNED_SQLSTATE'
+    , @p6 as 'MESSAGE_TEXT'
+    , @p7 as 'MYSQL_ERRNO';
+  END;
+  INSERT federated.child(a, b) VALUES(new_a, new_b);
+END|
+DELIMITER ;|
+
+CALL add_child(2,2);
+CALL add_child(1,1);
+
+#Cleanup
+DROP TABLE federated.child;
+DROP PROCEDURE add_child;
+
+connection master;
+DROP TABLE federated.child;
+DROP TABLE federated.parent;
+
+
 connection default;
 SET @@GLOBAL.CONCURRENT_INSERT= @OLD_MASTER_CONCURRENT_INSERT;
 connection slave;

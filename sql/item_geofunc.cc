@@ -5372,61 +5372,86 @@ double Item_func_st_length::val_real() {
   DBUG_RETURN(length);
 }
 
-longlong Item_func_get_srid::val_int() {
-  DBUG_ASSERT(fixed == 1);
-  String *swkb = args[0]->val_str(&value);
-  Geometry_buffer buffer;
-  longlong res = 0L;
+longlong Item_func_st_srid_observer::val_int() {
+  DBUG_ASSERT(fixed);
+  String tmp_str;
+  String *swkb = args[0]->val_str(&tmp_str);
 
-  if ((null_value = (!swkb || args[0]->null_value))) return res;
-  if (!Geometry::construct(&buffer, swkb)) {
+  if ((null_value = (args[0]->null_value))) {
+    DBUG_ASSERT(maybe_null);
+    return 0.0;
+  }
+
+  if (!swkb) {
+    /* purecov: begin deadcode */
+    DBUG_ASSERT(false);
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_int();
+    /* purecov: end */
   }
 
-  return (longlong)(uint4korr(swkb->ptr()));
+  const dd::Spatial_reference_system *srs = nullptr;
+  std::unique_ptr<gis::Geometry> g;
+  dd::cache::Dictionary_client::Auto_releaser m_releaser(
+      current_thd->dd_client());
+  if (gis::parse_geometry(current_thd, func_name(), swkb, &srs, &g, true))
+    return error_int();
+
+  if (srs == nullptr) {
+    gis::srid_t srid = 0;
+    gis::parse_srid(swkb->ptr(), swkb->length(), &srid);
+    if (srid != 0) {
+      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                          ER_WARN_SRS_NOT_FOUND,
+                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND), srid);
+    }
+    return srid;
+  }
+
+  return srs->id();
 }
 
-String *Item_func_set_srid::val_str(String *str) {
-  String *geometry_str = args[0]->val_str(str);
-
-  gis::srid_t srid = 0;
-  // Check that the SRID-argument is within range.
-  if (validate_srid_arg(args[1], &srid, &null_value, func_name())) {
+String *Item_func_st_srid_mutator::val_str(String *str) {
+  DBUG_ASSERT(fixed);
+  String *swkb = args[0]->val_str(str);
+  gis::srid_t target_srid = 0;
+  if (validate_srid_arg(args[1], &target_srid, &null_value, func_name()))
     return error_str();
-  }
 
-  null_value |= args[0]->null_value;
-
-  // Check if either argument is null.
-  if (null_value) {
-    DBUG_ASSERT(maybe_null);
+  if ((null_value = (args[0]->null_value || args[1]->null_value)))
     return nullptr;
-  }
-  if (str->copy(*geometry_str)) {
+
+  if (!swkb) {
+    /* purecov: begin deadcode */
+    DBUG_ASSERT(false);
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
+    /* purecov: end */
   }
 
-  Geometry_buffer buffer1;
-  // Assume invalid geometry if construction fails.
-  if (!(Geometry::construct(&buffer1, str))) {
+  if (target_srid != 0) {
+    bool srs_exists = false;
+    if (Srs_fetcher::srs_exists(current_thd, target_srid, &srs_exists))
+      return error_str();
+    if (!srs_exists) {
+      my_error(ER_SRS_NOT_FOUND, MYF(0), target_srid);
+      return error_str();
+    }
+  }
+
+  if (str->copy(*swkb)) return error_str();
+  if (str->length() < 4) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
   }
+  str->write_at_position(0, target_srid);
 
-  if (srid != 0) {
-    bool srs_exists = false;
-    if (Srs_fetcher::srs_exists(current_thd, srid, &srs_exists)) {
-      return error_str();
-    }
-
-    if (!srs_exists) {
-      my_error(ER_SRS_NOT_FOUND, MYF(0), srid);
-      return error_str();
-    }
-  }
-
-  str->write_at_position(0, srid);
+  const dd::Spatial_reference_system *srs = nullptr;
+  std::unique_ptr<gis::Geometry> g;
+  dd::cache::Dictionary_client::Auto_releaser m_releaser(
+      current_thd->dd_client());
+  if (gis::parse_geometry(current_thd, func_name(), str, &srs, &g))
+    return error_str();
 
   return str;
 }

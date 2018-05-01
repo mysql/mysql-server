@@ -1085,3 +1085,30 @@ use test;
 SHOW CREATE VIEW test.v;
 SELECT * FROM test.v;
 DROP VIEW test.v;
+
+--echo #
+--echo # Bug#27729112 JSON_TABLE SHOULD DECODE BASE64-ENCODED STRINGS
+--echo #
+SELECT v
+FROM JSON_TABLE(JSON_OBJECT('foo', _binary'bar'), '$'
+     COLUMNS(v VARCHAR(255) PATH '$.foo')) tbl;
+
+CREATE TABLE t1 (col1 VARCHAR(255) CHARACTER SET ucs2,
+                 col2 VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_as_cs);
+INSERT INTO t1 VALUES ("æ", "ハ"), ("å", "ø"), ("ø", "パ"), ("@", "バ");
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2;
+SELECT v value, c cumulfreq
+FROM INFORMATION_SCHEMA.COLUMN_STATISTICS,
+     JSON_TABLE(histogram->'$.buckets', '$[*]'
+     COLUMNS(v VARCHAR(255) CHARACTER SET ucs2 PATH '$[0]',
+             c double PATH '$[1]')) hist
+WHERE column_name = "col1";
+
+SELECT v value, c cumulfreq
+FROM INFORMATION_SCHEMA.COLUMN_STATISTICS,
+     JSON_TABLE(histogram->'$.buckets', '$[*]'
+     COLUMNS(v VARCHAR(255) CHARACTER SET utf8mb4 PATH '$[0]',
+             c double PATH '$[1]')) hist
+WHERE column_name = "col2";
+DROP TABLE t1;

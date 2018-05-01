@@ -171,8 +171,8 @@ bool Spatial_reference_system_impl::deserialize(Sdi_rcontext *rctx,
 bool Spatial_reference_system_impl::parse_definition() {
   gis::srs::Spatial_reference_system *srs = nullptr;
   // parse_wkt() will only allocate memory if successful.
-  if (!gis::srs::parse_wkt(id(), &m_definition.front(),
-                           &m_definition.back() + 1, &srs)) {
+  if (!gis::srs::parse_wkt(id(), m_definition.data(),
+                           m_definition.data() + m_definition.size(), &srs)) {
     m_parsed_definition.reset(srs);
     return false;
   }

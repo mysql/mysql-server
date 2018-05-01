@@ -137,7 +137,7 @@ DELETE FROM t1 WHERE c36>'c';
 DROP TABLE t1;
 CREATE TABLE t1 (c37 NATIONAL CHAR);
 Warnings:
-Warning	11266	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
+Warning	3720	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('a');
 DELETE FROM t1 WHERE c37='a';
 DROP TABLE t1;
@@ -404,6 +404,7 @@ SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/
 SET @@session.character_set_client=255,@@session.collation_connection=255,@@session.collation_server=255/*!*/;
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
+/*!80005 SET @@session.default_collation_for_utf8mb4=255*//*!*/;
 CREATE TABLE t1 (c01 BIT)
 /*!*/;
 # at #

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _NGS_MESSAGE_H_
-#define _NGS_MESSAGE_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_MESSAGE_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_MESSAGE_H_
 
 #include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
@@ -36,58 +36,37 @@ typedef ::google::protobuf::Message Message;
 typedef ::google::protobuf::MessageLite Message;
 #endif
 
-/* X protocol client request object.
-
-This object provides a high-level interface for a X protocol object.
-The original network packet buffer, a parsed protobuf message or both can be
-held by it.
-
-The goal is to allow lazy parsing of messages, so that for example,
-a very large opaque field won't be copied into another buffer by protobuf.
-*/
-class Request {
+class Message_request {
  public:
-  Request(int8_t type)
-      : m_raw_data(NULL),
-        m_raw_data_size(0),
-        m_type(type),
-        m_message(NULL),
-        m_owns_message(false) {}
+  ~Message_request() { free_msg(); }
 
-  ~Request() {
-    if (m_owns_message) ngs::free_object(m_message);
+  void reset(Message *msg = nullptr, const uint8 msg_type = 0,
+             const bool cant_be_deleted = true) {
+    free_msg();
+
+    m_message = msg;
+    m_message_type = msg_type;
+    m_is_owned = !cant_be_deleted;
   }
 
-  void set_parsed_message(Message *message, bool free_on_delete) {
-    if (m_owns_message) ngs::free_object(m_message);
+  Message *get_message() const { return m_message; }
+  uint8 get_message_type() const { return m_message_type; }
 
-    m_message = message;
-    m_owns_message = free_on_delete;
-
-    // we do not own this buffer, it is managed elsewhere
-    m_raw_data = NULL;
-    m_raw_data_size = 0;
-  }
-
-  int8_t get_type() const { return m_type; }
-  const Message *message() const { return m_message; }
-  void buffer(char *ptr, std::size_t size) {
-    m_raw_data = ptr;
-    m_raw_data_size = size;
-  }
-
-  char *buffer() { return m_raw_data; }
-  std::size_t buffer_size() { return m_raw_data_size; }
+  bool has_message() const { return nullptr != m_message; }
 
  private:
-  char *m_raw_data;
-  std::size_t m_raw_data_size;
-  int8_t m_type;
-  Message *m_message;
-  bool m_owns_message;
+  void free_msg() {
+    if (m_is_owned) {
+      if (m_message) ngs::free_object(m_message);
+      m_is_owned = false;
+    }
+  }
+
+  Message *m_message = nullptr;
+  uint8 m_message_type{0};
+  bool m_is_owned{false};
 };
 
-typedef ngs::Memory_instrumented<Request>::Unique_ptr Request_unique_ptr;
 }  // namespace ngs
 
-#endif  // _NGS_MESSAGE_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_MESSAGE_H_

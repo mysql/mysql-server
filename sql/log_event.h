@@ -237,6 +237,13 @@ int ignored_error_code(int err_code);
 
 /* 4 bytes which all binlogs should begin with */
 #define BINLOG_MAGIC "\xfe\x62\x69\x6e"
+#define SIZEOF_BINLOG_MAGIC 4
+
+/**
+  @addtogroup group_cs_binglog_event_header_flags Binlog Event Header Flags
+  @ingroup group_cs
+  @{
+*/
 
 /*
   The 2 flags below were useless :
@@ -334,6 +341,8 @@ int ignored_error_code(int err_code);
 */
 #define LOG_EVENT_MTS_ISOLATE_F 0x200
 
+/** @}*/
+
 /**
   @def OPTIONS_WRITTEN_TO_BIN_LOG
 
@@ -429,6 +438,7 @@ struct PRINT_EVENT_INFO {
   char time_zone_str[MAX_TIME_ZONE_NAME_LENGTH];
   uint lc_time_names_number;
   uint charset_database_number;
+  uint default_collation_for_utf8mb4_number;
   my_thread_id thread_id;
   bool thread_id_printed;
 
@@ -1884,8 +1894,7 @@ class User_var_log_event : public binary_log::User_var_event, public Log_event {
                      enum_event_cache_type cache_type_arg,
                      enum_event_logging_type logging_type_arg)
       : binary_log::User_var_event(name_arg, name_len_arg, val_arg, val_len_arg,
-                                   (Value_type)type_arg, charset_number_arg,
-                                   flags_arg),
+                                   type_arg, charset_number_arg, flags_arg),
         Log_event(thd_arg, 0, cache_type_arg, logging_type_arg, header(),
                   footer()),
         deferred(false) {

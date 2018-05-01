@@ -37,6 +37,8 @@
 
 void log_primary_member_details();
 
+void abort_plugin_process(const char *message);
+
 struct thread_state {
   /**
    * @enum  thread_state_enum

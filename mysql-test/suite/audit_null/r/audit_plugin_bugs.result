@@ -5,10 +5,10 @@ call mtr.add_suppression("Event 'MYSQL_AUDIT_GENERAL_ERROR' cannot be aborted.")
 # Shutdown the server
 # Load the plugin at startup and abort on STARTUP with default message
 # Search for default abort message
-Pattern "\[ERROR\] \[[^]]*\] Aborted by Audit API \(\'MYSQL_AUDIT_SERVER_STARTUP_STARTUP\'.1\)\." found
+Pattern "\[ERROR\] \[[^]]*\] \[[^]]*\] Aborted by Audit API \(\'MYSQL_AUDIT_SERVER_STARTUP_STARTUP\'.1\)\." found
 # Load the plugin at startup and abort on STARTUP event with custom message
 # Search for custom abort message
-Pattern "\[ERROR\] \[[^]]*\] Abort message custom" found
+Pattern "\[ERROR\] \[[^]]*\] \[[^]]*\] Abort message custom" found
 # Startup the server
 #
 # Bug #22136709: INFINITE RECURSION BY CALLING MY_MESSAGE FROM

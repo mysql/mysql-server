@@ -28,3 +28,17 @@ t1	1
 DROP TABLE t1;
 SET SESSION debug= "-d,information_schema_fetch_table_stats";
 SET SESSION information_schema_stats_expiry=default;
+#
+# Bug #27569314: ASSERTION `(UCHAR *)TABLE->DEF_READ_SET.BITMAP +
+# TABLE->S->COLUMN_BITMAP_SIZE
+#
+# RQG bug, not directly re-producible. Provoking same issue using
+# fault injection. Without fix, this would trigger same assert as seen
+# in RQG. Triggered by a failure to call tmp_restore_column_map in case
+# of errors.
+CREATE TABLE t1(i INT);
+SET SESSION debug="+d,sim_acq_fail_in_store_ci";
+SHOW CREATE TABLE t1;
+ERROR HY000: Got unknown error: 42
+SET SESSION debug="";
+DROP TABLE t1;

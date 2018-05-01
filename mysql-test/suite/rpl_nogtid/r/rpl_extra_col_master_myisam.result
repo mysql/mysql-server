@@ -453,7 +453,7 @@ INSERT INTO t10 () VALUES(1,@b1,DEFAULT,'Kyle',DEFAULT),
 *** Expect slave to fail with Error 1677 ***
 ********************************************
 
-include/wait_for_slave_sql_error_and_skip.inc [errno=1677]
+include/wait_for_slave_sql_error_and_skip.inc [errno=13146]
 
 *** Drop t10  ***
 DROP TABLE t10;
@@ -486,7 +486,7 @@ INSERT INTO t11 () VALUES(1,@b1,'Testing is fun','Kyle',DEFAULT),
 *** Expect slave to fail with Error 1677 ***
 ********************************************
 
-include/wait_for_slave_sql_error_and_skip.inc [errno=1677]
+include/wait_for_slave_sql_error_and_skip.inc [errno=13146]
 
 *** Drop t11  ***
 DROP TABLE t11;
@@ -841,11 +841,11 @@ DROP TABLE t5;
 include/rpl_reset.inc
 SET NAMES utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET SQL_LOG_BIN=0;
 CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(255) CHARACTER SET UTF8 NOT NULL) ENGINE='MyISAM';
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET SQL_LOG_BIN=1;
 CREATE TABLE t1 (c1 INT) ENGINE='MyISAM';
 INSERT IGNORE INTO t1 VALUES ();

@@ -1470,7 +1470,7 @@ static void add_slave_skip_errors(const uint *errors, uint n_errors) {
     /*
       The range for client side error is [2000-2999]
       so if the err_code doesn't lie in that and if less
-      than MAX_SLAVE_ERROR[12000] we enter the if loop.
+      than MAX_SLAVE_ERROR[14000] we enter the if loop.
     */
     if (err_code < MAX_SLAVE_ERROR &&
         (err_code < CR_MIN_ERROR || err_code > CR_MAX_ERROR))
@@ -1903,7 +1903,10 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
     Rpl_info *info = (!mi->inited ? mi : static_cast<Rpl_info *>(mi->rli));
     const char *prefix =
         current_thd ? ER_THD(current_thd, error) : ER_DEFAULT(error);
-    info->report(ERROR_LEVEL, error, prefix, NULL);
+    info->report(ERROR_LEVEL,
+                 (!mi->inited ? ER_SERVER_SLAVE_MI_INIT_REPOSITORY
+                              : ER_SERVER_SLAVE_RLI_INIT_REPOSITORY),
+                 prefix, NULL);
     my_error(error, MYF(0));
     DBUG_RETURN(true);
   }
@@ -2090,6 +2093,10 @@ bool sql_slave_killed(THD *thd, Relay_log_info *rli) {
   DBUG_ASSERT(rli->info_thd == thd);
   DBUG_ASSERT(rli->slave_running == 1);
   if (rli->sql_thread_kill_accepted) DBUG_RETURN(true);
+  DBUG_EXECUTE_IF("stop_when_mts_in_group", rli->abort_slave = 1;
+                  DBUG_SET("-d,stop_when_mts_in_group");
+                  DBUG_SET("-d,simulate_stop_when_mts_in_group");
+                  DBUG_RETURN(false););
   if (connection_events_loop_aborted() || thd->killed || rli->abort_slave) {
     rli->sql_thread_kill_accepted = true;
     is_parallel_warn =
@@ -2631,7 +2638,7 @@ when it try to get the value of SERVER_ID variable from master.";
     sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
     goto err;
   } else {
-    mi->report(WARNING_LEVEL, ER_UNKNOWN_SYSTEM_VARIABLE,
+    mi->report(WARNING_LEVEL, ER_SERVER_UNKNOWN_SYSTEM_VARIABLE,
                "Unknown system variable 'SERVER_ID' on master, \
 maybe it is a *VERY OLD MASTER*.");
   }
@@ -4315,6 +4322,11 @@ apply_event_and_update_pos(Log_event **ptr_ev, THD *thd, Relay_log_info *rli) {
 
     exec_res = ev->apply_event(rli);
 
+    DBUG_EXECUTE_IF("simulate_stop_when_mts_in_group",
+                    if (rli->mts_group_status == Relay_log_info::MTS_IN_GROUP &&
+                        rli->curr_group_seen_begin)
+                        DBUG_SET("+d,stop_when_mts_in_group"););
+
     if (!exec_res && (ev->worker != rli)) {
       if (ev->worker) {
         Slave_job_item item = {ev, rli->get_event_relay_log_number(),
@@ -5271,18 +5283,18 @@ reading event"))
                    ER_RPL_LOG_ENTRY_EXCEEDS_SLAVE_MAX_ALLOWED_PACKET,
                    slave_max_allowed_packet);
             mi->report(
-                ERROR_LEVEL, ER_NET_PACKET_TOO_LARGE, "%s",
+                ERROR_LEVEL, ER_SERVER_NET_PACKET_TOO_LARGE, "%s",
                 "Got a packet bigger than 'slave_max_allowed_packet' bytes");
             goto err;
           case ER_MASTER_FATAL_ERROR_READING_BINLOG:
-            mi->report(ERROR_LEVEL, ER_MASTER_FATAL_ERROR_READING_BINLOG,
+            mi->report(ERROR_LEVEL, ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG,
                        ER_THD(thd, ER_MASTER_FATAL_ERROR_READING_BINLOG),
                        mysql_error_number, mysql_error(mysql));
             goto err;
           case ER_OUT_OF_RESOURCES:
             LogErr(ERROR_LEVEL, ER_RPL_SLAVE_STOPPING_AS_MASTER_OOM);
-            mi->report(ERROR_LEVEL, ER_OUT_OF_RESOURCES, "%s",
-                       ER_THD(thd, ER_OUT_OF_RESOURCES));
+            mi->report(ERROR_LEVEL, ER_SERVER_OUT_OF_RESOURCES, "%s",
+                       ER_THD(thd, ER_SERVER_OUT_OF_RESOURCES));
             goto err;
         }
         if (try_to_reconnect(thd, mysql, mi, &retry_count, suppress_warnings,
@@ -6573,6 +6585,7 @@ extern "C" void *handle_slave_sql(void *arg) {
 
   Relay_log_info *rli = ((Master_info *)arg)->rli;
   const char *errmsg;
+  longlong slave_errno = 0;
   bool mts_inited = false;
   Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
   Commit_order_manager *commit_order_mngr = NULL;
@@ -6781,9 +6794,9 @@ extern "C" void *handle_slave_sql(void *arg) {
   if (opt_init_slave.length) {
     execute_init_command(thd, &opt_init_slave, &LOCK_sys_init_slave);
     if (thd->is_slave_error) {
-      rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
-                  "Slave SQL thread aborted. Can't execute init_slave query,"
-                  "'%s'",
+      rli->report(ERROR_LEVEL, ER_SERVER_SLAVE_INIT_QUERY_FAILED,
+                  ER_THD(current_thd, ER_SERVER_SLAVE_INIT_QUERY_FAILED),
+                  thd->get_stmt_da()->mysql_errno(),
                   thd->get_stmt_da()->message_text());
       goto err;
     }
@@ -6877,22 +6890,13 @@ extern "C" void *handle_slave_sql(void *arg) {
                  err->message_text(), err->mysql_errno());
         }
         if (udf_error)
-          LogErr(ERROR_LEVEL, ER_RPL_SLAVE_ERROR_LOADING_USER_DEFINED_LIBRARY,
-                 rli->get_rpl_log_name(),
-                 llstr(rli->get_group_master_log_pos(), llbuff));
+          slave_errno = ER_RPL_SLAVE_ERROR_LOADING_USER_DEFINED_LIBRARY;
         else
-          LogErr(ERROR_LEVEL, ER_RPL_SLAVE_ERROR_RUNNING_QUERY,
-                 rli->get_rpl_log_name(),
-                 llstr(rli->get_group_master_log_pos(), llbuff));
+          slave_errno = ER_RPL_SLAVE_ERROR_RUNNING_QUERY;
       }
       goto err;
     }
   }
-
-  /* Thread stopped. Print the current replication position to the log */
-  LogErr(INFORMATION_LEVEL, ER_RPL_SLAVE_SQL_THREAD_EXITING,
-         rli->get_for_channel_str(), rli->get_rpl_log_name(),
-         llstr(rli->get_group_master_log_pos(), llbuff));
 
 err:
   /* At this point the SQL thread will not try to work anymore. */
@@ -6902,6 +6906,15 @@ err:
       (thd, rli->mi, rli->is_error() || !rli->sql_thread_kill_accepted));
 
   slave_stop_workers(rli, &mts_inited);  // stopping worker pool
+  /* Thread stopped. Print the current replication position to the log */
+  if (slave_errno)
+    LogErr(ERROR_LEVEL, slave_errno, rli->get_rpl_log_name(),
+           llstr(rli->get_group_master_log_pos(), llbuff));
+  else
+    LogErr(INFORMATION_LEVEL, ER_RPL_SLAVE_SQL_THREAD_EXITING,
+           rli->get_for_channel_str(), rli->get_rpl_log_name(),
+           llstr(rli->get_group_master_log_pos(), llbuff));
+
   delete rli->current_mts_submode;
   rli->current_mts_submode = 0;
   rli->clear_mts_recovery_groups();
@@ -8688,7 +8701,7 @@ bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
         report_level = WARNING_LEVEL;
 
       if (report_level != INFORMATION_LEVEL)
-        rli->report(report_level, ER_UNKNOWN_ERROR,
+        rli->report(report_level, ER_SERVER_UNKNOWN_ERROR,
                     "According to the master's version ('%s'),"
                     " it is probable that master suffers from this bug:"
                     " http://bugs.mysql.com/bug.php?id=%u"

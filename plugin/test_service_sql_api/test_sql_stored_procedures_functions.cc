@@ -20,11 +20,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#define LOG_COMPONENT_TAG "test_sql_stored_procedures_functions"
+
 #include <fcntl.h>
 #include <mysql/plugin.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+
+#include <mysql/components/my_service.h>
+#include <mysql/components/services/log_builtins.h>
+#include <mysqld_error.h>
 
 #include "m_string.h"
 #include "my_dbug.h"
@@ -93,6 +99,10 @@ static const char *sep =
     "\n";
 
 #define WRITE_SEP() my_write(outfile, (uchar *)sep, strlen(sep), MYF(0))
+
+static SERVICE_TYPE(registry) *reg_srv = nullptr;
+SERVICE_TYPE(log_builtins) *log_bi = nullptr;
+SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
 
 static const char *user_localhost = "localhost";
 static const char *user_local = "127.0.0.1";
@@ -268,33 +278,31 @@ static int sql_get_null(void *ctx) {
 }
 
 static int sql_get_integer(void *ctx, longlong value) {
-  char buffer[STRING_BUFFER_SIZE];
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
   DBUG_ENTER("sql_get_integer");
   uint row = pctx->num_rows;
   uint col = pctx->current_col;
   pctx->current_col++;
 
-  size_t len = snprintf(buffer, sizeof(buffer), "%lld", value);
+  size_t len = snprintf(pctx->sql_str_value[row][col],
+                        sizeof(pctx->sql_str_value[row][col]), "%lld", value);
 
-  strncpy(pctx->sql_str_value[row][col], buffer, len);
   pctx->sql_str_len[row][col] = len;
 
   DBUG_RETURN(false);
 }
 
 static int sql_get_longlong(void *ctx, longlong value, uint is_unsigned) {
-  char buffer[STRING_BUFFER_SIZE];
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
   DBUG_ENTER("sql_get_longlong");
   uint row = pctx->num_rows;
   uint col = pctx->current_col;
   pctx->current_col++;
 
-  size_t len =
-      snprintf(buffer, sizeof(buffer), is_unsigned ? "%llu" : "%lld", value);
+  size_t len = snprintf(pctx->sql_str_value[row][col],
+                        sizeof(pctx->sql_str_value[row][col]),
+                        is_unsigned ? "%llu" : "%lld", value);
 
-  strncpy(pctx->sql_str_value[row][col], buffer, len);
   pctx->sql_str_len[row][col] = len;
 
   DBUG_RETURN(false);
@@ -322,23 +330,21 @@ static int sql_get_decimal(void *ctx, const decimal_t *value) {
 }
 
 static int sql_get_double(void *ctx, double value, uint32) {
-  char buffer[STRING_BUFFER_SIZE];
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
   DBUG_ENTER("sql_get_double");
   uint row = pctx->num_rows;
   uint col = pctx->current_col;
   pctx->current_col++;
 
-  size_t len = snprintf(buffer, sizeof(buffer), "%3.7g", value);
+  size_t len = snprintf(pctx->sql_str_value[row][col],
+                        sizeof(pctx->sql_str_value[row][col]), "%3.7g", value);
 
-  strncpy(pctx->sql_str_value[row][col], buffer, len);
   pctx->sql_str_len[row][col] = len;
 
   DBUG_RETURN(false);
 }
 
 static int sql_get_date(void *ctx, const MYSQL_TIME *value) {
-  char buffer[STRING_BUFFER_SIZE];
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
   DBUG_ENTER("sql_get_date");
   uint row = pctx->num_rows;
@@ -346,17 +352,15 @@ static int sql_get_date(void *ctx, const MYSQL_TIME *value) {
   pctx->current_col++;
 
   size_t len =
-      snprintf(buffer, sizeof(buffer), "%s%4d-%02d-%02d", value->neg ? "-" : "",
-               value->year, value->month, value->day);
-
-  strncpy(pctx->sql_str_value[row][col], buffer, len);
+      snprintf(pctx->sql_str_value[row][col],
+               sizeof(pctx->sql_str_value[row][col]), "%s%4d-%02d-%02d",
+               value->neg ? "-" : "", value->year, value->month, value->day);
   pctx->sql_str_len[row][col] = len;
 
   DBUG_RETURN(false);
 }
 
 static int sql_get_time(void *ctx, const MYSQL_TIME *value, uint) {
-  char buffer[STRING_BUFFER_SIZE];
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
   DBUG_ENTER("sql_get_time");
   uint row = pctx->num_rows;
@@ -364,29 +368,27 @@ static int sql_get_time(void *ctx, const MYSQL_TIME *value, uint) {
   pctx->current_col++;
 
   size_t len = snprintf(
-      buffer, sizeof(buffer), "%s%02d:%02d:%02d", value->neg ? "-" : "",
+      pctx->sql_str_value[row][col], sizeof(pctx->sql_str_value[row][col]),
+      "%s%02d:%02d:%02d", value->neg ? "-" : "",
       value->day ? (value->day * 24 + value->hour) : value->hour, value->minute,
       value->second);
 
-  strncpy(pctx->sql_str_value[row][col], buffer, len);
   pctx->sql_str_len[row][col] = len;
   DBUG_RETURN(false);
 }
 
 static int sql_get_datetime(void *ctx, const MYSQL_TIME *value, uint) {
-  char buffer[STRING_BUFFER_SIZE];
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
   DBUG_ENTER("sql_get_datetime");
   uint row = pctx->num_rows;
   uint col = pctx->current_col;
   pctx->current_col++;
 
-  size_t len =
-      snprintf(buffer, sizeof(buffer), "%s%4d-%02d-%02d %02d:%02d:%02d",
-               value->neg ? "-" : "", value->year, value->month, value->day,
-               value->hour, value->minute, value->second);
+  size_t len = snprintf(
+      pctx->sql_str_value[row][col], sizeof(pctx->sql_str_value[row][col]),
+      "%s%4d-%02d-%02d %02d:%02d:%02d", value->neg ? "-" : "", value->year,
+      value->month, value->day, value->hour, value->minute, value->second);
 
-  strncpy(pctx->sql_str_value[row][col], buffer, len);
   pctx->sql_str_len[row][col] = len;
 
   DBUG_RETURN(false);
@@ -417,7 +419,8 @@ static void sql_handle_ok(void *ctx, uint server_status,
   pctx->warn_count = statement_warn_count;
   pctx->affected_rows = affected_rows;
   pctx->last_insert_id = last_insert_id;
-  if (message) strncpy(pctx->message, message, sizeof(pctx->message));
+  if (message) strncpy(pctx->message, message, sizeof(pctx->message) - 1);
+  pctx->message[sizeof(pctx->message) - 1] = '\0';
 
   DBUG_VOID_RETURN;
 }
@@ -714,7 +717,7 @@ static void set_query_in_com_data(const char *query, union COM_DATA *cmd) {
 
 static void run_statement(MYSQL_SESSION session, const char *query,
                           struct st_plugin_ctx *ctx, bool generates_result_set,
-                          void *p) {
+                          void *p MY_ATTRIBUTE((unused))) {
   char buffer[STRING_BUFFER_SIZE];
   COM_DATA cmd;
 
@@ -730,7 +733,8 @@ again:
                                          &my_charset_utf8_general_ci,
                                          &protocol_callbacks, txt_or_bin, ctx);
   if (fail) {
-    my_plugin_log_message(&p, MY_ERROR_LEVEL, "run_statement code: %d\n", fail);
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "run_statement code: %d\n",
+                    fail);
     return;
   }
 
@@ -750,7 +754,8 @@ again:
 }
 
 void static change_current_db(MYSQL_SESSION session, const char *db,
-                              struct st_plugin_ctx *ctx, void *p) {
+                              struct st_plugin_ctx *ctx,
+                              void *p MY_ATTRIBUTE((unused))) {
   char buffer[STRING_BUFFER_SIZE];
   COM_DATA cmd;
   cmd.com_init_db.db_name = db;
@@ -763,7 +768,8 @@ void static change_current_db(MYSQL_SESSION session, const char *db,
       session, COM_INIT_DB, &cmd, &my_charset_utf8_general_ci,
       &protocol_callbacks, CS_TEXT_REPRESENTATION, ctx);
   if (fail)
-    my_plugin_log_message(&p, MY_ERROR_LEVEL, "change db code: %d\n", fail);
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "change db code: %d\n",
+                    fail);
 }
 
 static void test_selects(MYSQL_SESSION session, void *p) {
@@ -800,7 +806,7 @@ static void test_sql(void *p) {
   WRITE_STR("[srv_session_open]\n");
   MYSQL_SESSION session = srv_session_open(NULL, NULL);
   if (!session) {
-    my_plugin_log_message(&p, MY_ERROR_LEVEL, "srv_session_open failed.");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "srv_session_open failed.");
     DBUG_VOID_RETURN;
   }
 
@@ -811,7 +817,7 @@ static void test_sql(void *p) {
   /* close session 1: Must pass */
   WRITE_STR("[srv_session_close]\n");
   if (srv_session_close(session))
-    my_plugin_log_message(&p, MY_ERROR_LEVEL, "srv_session_close failed.");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "srv_session_close failed.");
 
   DBUG_VOID_RETURN;
 }
@@ -830,8 +836,8 @@ static void *test_sql_threaded_wrapper(void *param) {
   WRITE_SEP();
   WRITE_STR("init thread\n");
   if (srv_session_init_thread(context->p))
-    my_plugin_log_message(&context->p, MY_ERROR_LEVEL,
-                          "srv_session_init_thread failed.");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "srv_session_init_thread failed.");
 
   context->test_function(context->p);
 
@@ -865,8 +871,8 @@ static void test_in_spawned_thread(void *p, void (*test_function)(void *)) {
   /* now create the thread and call test_session within the thread. */
   if (my_thread_create(&(context.thread), &attr, test_sql_threaded_wrapper,
                        &context) != 0)
-    my_plugin_log_message(&p, MY_ERROR_LEVEL,
-                          "Could not create test session thread");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "Could not create test session thread");
   else
     my_thread_join(&context.thread, NULL);
 }
@@ -874,7 +880,10 @@ static void test_in_spawned_thread(void *p, void (*test_function)(void *)) {
 static int test_sql_service_plugin_init(void *p) {
   char buffer[STRING_BUFFER_SIZE];
   DBUG_ENTER("test_sql_service_plugin_init");
-  my_plugin_log_message(&p, MY_INFORMATION_LEVEL, "Installation.");
+
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
+    DBUG_RETURN(1);
+  LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Installation.");
 
   create_log_file(log_filename);
 
@@ -891,9 +900,10 @@ static int test_sql_service_plugin_init(void *p) {
   DBUG_RETURN(0);
 }
 
-static int test_sql_service_plugin_deinit(void *p) {
+static int test_sql_service_plugin_deinit(void *p MY_ATTRIBUTE((unused))) {
   DBUG_ENTER("test_sql_service_plugin_deinit");
-  my_plugin_log_message(&p, MY_INFORMATION_LEVEL, "Uninstallation.");
+  LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Uninstallation.");
+  deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
   DBUG_RETURN(0);
 }
 

@@ -26,6 +26,7 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+#include "my_sys.h"
 
 #include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/client_interface.h"
@@ -75,21 +76,13 @@ void Session::on_close(const bool update_old_state) {
   }
 }
 
-void Session::on_kill() {
-  // this is usually called from a foreign thread, so we need to trigger
-  // the session close indirectly
-  // we do so by shutting down the connection for the client
-  m_client.disconnect_and_trigger_close();
-  //  on_close();
-}
-
 // Code below this line is executed from the worker thread
-// ------------------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 
 // Return value means true if message was handled, false if not.
 // If message is handled, ownership of the object is passed on (and should be
 // deleted by the callee)
-bool Session::handle_message(ngs::Request &command) {
+bool Session::handle_message(ngs::Message_request &command) {
   if (m_state == Authenticating) {
     return handle_auth_message(command);
   } else if (m_state == Ready) {
@@ -100,8 +93,8 @@ bool Session::handle_message(ngs::Request &command) {
   return false;
 }
 
-bool Session::handle_ready_message(ngs::Request &command) {
-  switch (command.get_type()) {
+bool Session::handle_ready_message(ngs::Message_request &command) {
+  switch (command.get_message_type()) {
     case Mysqlx::ClientMessages::SESS_CLOSE:
       m_encoder->send_ok("bye!");
       on_close(true);
@@ -128,15 +121,15 @@ void Session::stop_auth() {
   m_client.on_session_close(*this);
 }
 
-bool Session::handle_auth_message(ngs::Request &command) {
+bool Session::handle_auth_message(ngs::Message_request &command) {
   Authentication_interface::Response r;
-  int8_t type = command.get_type();
+  int8_t type = command.get_message_type();
 
   if (type == Mysqlx::ClientMessages::SESS_AUTHENTICATE_START &&
       m_auth_handler.get() == NULL) {
     const Mysqlx::Session::AuthenticateStart &authm =
         static_cast<const Mysqlx::Session::AuthenticateStart &>(
-            *command.message());
+            *command.get_message());
 
     log_debug("%s.%u: Login attempt: mechanism=%s auth_data=%s",
               m_client.client_id(), m_id, authm.mech_name().c_str(),
@@ -160,7 +153,7 @@ bool Session::handle_auth_message(ngs::Request &command) {
              m_auth_handler.get()) {
     const Mysqlx::Session::AuthenticateContinue &authm =
         static_cast<const Mysqlx::Session::AuthenticateContinue &>(
-            *command.message());
+            *command.get_message());
 
     r = m_auth_handler->handle_continue(authm.auth_data());
   } else {
@@ -204,19 +197,21 @@ void Session::on_auth_success(
 
 void Session::on_auth_failure(
     const Authentication_interface::Response &response) {
-  int error_code = ER_ACCESS_DENIED_ERROR;
-
   log_debug("%s.%u: Unsuccessful authentication attempt", m_client.client_id(),
             m_id);
+  m_failed_auth_count++;
+
+  Error_code error_send_back_to_user = get_authentication_access_denied_error();
 
   if (can_forward_error_code_to_client(response.error_code)) {
-    error_code = response.error_code;
+    error_send_back_to_user =
+        ngs::Error(response.error_code, "%s", response.data.c_str());
   }
 
-  m_encoder->send_init_error(
-      ngs::Fatal(error_code, "%s", response.data.c_str()));
+  error_send_back_to_user.severity =
+      can_authenticate_again() ? Error_code::ERROR : Error_code::FATAL;
 
-  m_failed_auth_count++;
+  m_encoder->send_init_error(error_send_back_to_user);
 
   if (!can_authenticate_again()) {
     log_error(ER_XPLUGIN_MAX_AUTH_ATTEMPTS_REACHED, m_client.client_id(), m_id);
@@ -226,8 +221,27 @@ void Session::on_auth_failure(
   m_auth_handler.reset();
 }
 
+Error_code Session::get_authentication_access_denied_error() const {
+  const auto authentication_info = m_auth_handler->get_authentication_info();
+  const char *is_using_password = authentication_info.m_was_using_password
+                                      ? my_get_err_msg(ER_YES)
+                                      : my_get_err_msg(ER_NO);
+
+  return ngs::SQLError(
+      ER_ACCESS_DENIED_ERROR, authentication_info.m_tried_account_name.c_str(),
+      client().client_hostname_or_address(), is_using_password);
+}
+
 bool Session::can_forward_error_code_to_client(const int error_code) {
-  return ER_DBACCESS_DENIED_ERROR == error_code;
+  // Lets ignore ER_ACCESS_DENIED_ERROR it is used by the plugin to
+  // return general authentication problem. It may have not too
+  // accurate error message.
+  const static std::set<int> allowed_error_codes{
+      ER_DBACCESS_DENIED_ERROR, ER_MUST_CHANGE_PASSWORD_LOGIN,
+      ER_ACCOUNT_HAS_BEEN_LOCKED, ER_SECURE_TRANSPORT_REQUIRED,
+      ER_SERVER_OFFLINE_MODE};
+
+  return 0 < allowed_error_codes.count(error_code);
 }
 
 bool Session::can_authenticate_again() const {

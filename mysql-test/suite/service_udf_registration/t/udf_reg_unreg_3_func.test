@@ -5,6 +5,7 @@ INSTALL COMPONENT "file://component_udf_reg_only_3_func";
 
 # Check of performance_schema contents.
 SELECT * FROM performance_schema.user_defined_functions
+  WHERE (udf_name LIKE 'myfunc%') or (udf_name LIKE 'avgcost%')
   ORDER BY udf_name;
 
 # Verify UDFs are usable.

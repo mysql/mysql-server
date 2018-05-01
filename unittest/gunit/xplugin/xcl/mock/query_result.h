@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef XPLUGIN_XCL_MOCK_QUERY_RESULT_H_
-#define XPLUGIN_XCL_MOCK_QUERY_RESULT_H_
+#ifndef UNITTEST_GUNIT_XPLUGIN_XCL_MOCK_QUERY_RESULT_H_
+#define UNITTEST_GUNIT_XPLUGIN_XCL_MOCK_QUERY_RESULT_H_
 
 #include <gmock/gmock.h>
 #include <cstdint>
@@ -60,4 +60,4 @@ class Mock_query_result : public XQuery_result {
 }  // namespace test
 }  // namespace xcl
 
-#endif  // XPLUGIN_XCL_MOCK_QUERY_RESULT_H_
+#endif  // UNITTEST_GUNIT_XPLUGIN_XCL_MOCK_QUERY_RESULT_H_

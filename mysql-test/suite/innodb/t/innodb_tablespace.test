@@ -125,7 +125,7 @@ SELECT * FROM t1;
 --source suite/innodb/include/show_i_s_tables.inc
 --source suite/innodb/include/show_i_s_tablespaces.inc
 
---replace_regex /[1-9].[0-9].[0-9]/X.Y.Z/
+--replace_regex /[1-9].[0-9].[0-9]+/X.Y.Z/
 SELECT name, server_version, space_version FROM information_schema.innodb_tablespaces where name="mysql";
 
 --echo ---- MYSQLD_DATADIR/test

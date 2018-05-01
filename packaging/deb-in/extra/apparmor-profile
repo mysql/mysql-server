@@ -53,6 +53,8 @@
 # Allow error msg and charset access
   /usr/share/mysql/ r,
   /usr/share/mysql/** r,
+  /usr/share/mysql-@MYSQL_BASE_VERSION@/ r,
+  /usr/share/mysql-@MYSQL_BASE_VERSION@/** r,
 
 # Allow data dir access
   /var/lib/mysql/ r,

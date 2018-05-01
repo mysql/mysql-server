@@ -1,4 +1,3 @@
-
 ######################### t/grant_user_lock_qa.test ########################
 # Testing CREATE/ALTER UESR with ACCOUNT UNLOCK,ACCOUNT LOCK options.      #
 # Test for WL#6054                                                         #

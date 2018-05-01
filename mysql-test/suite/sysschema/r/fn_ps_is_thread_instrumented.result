@@ -1,8 +1,6 @@
 SELECT sys.ps_is_thread_instrumented(NULL);
 sys.ps_is_thread_instrumented(NULL)
 NULL
-Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT sys.ps_is_thread_instrumented(CONNECTION_ID());
 sys.ps_is_thread_instrumented(CONNECTION_ID())
 YES

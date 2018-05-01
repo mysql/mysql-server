@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -23,6 +23,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** @file storage/temptable/include/temptable/row.h
 TempTable Row declarations. */
 
+// clang-format off
 /** @page PAGE_TEMPTABLE_ROW_FORMAT Row format
 
 The handler interface uses two different formats. Assume the following table:
@@ -55,17 +56,29 @@ the row buffer that is passed to `write_row()` is 352 bytes:
 hex | raw | description
 --- | --- | -----------
 f0  | .   | NULLs bitmask 11110000 denoting that out of 4 columns that could
-possibly be NULL (c1, c3, c5 and c7) none is actually NULL. 7b  | {   | c1=123
-stored in 4 bytes (little endian) (1/4) 00  | .   | from above (2/4) 00  | .   |
-from above (3/4) 00  | .   | from above (4/4) 7b  | {   | c2=123 stored in 4
-bytes (little endian) (1/4) 00  | .   | from above (2/4) 00  | .   | from above
-(3/4) 00  | .   | from above (4/4) 04  | .   | the length of the following data
-(for VARCHAR cells): 4 61  | a   | c3='abcd' - the actual data (1/4) 62  | b   |
-from above (2/4) 63  | c   | from above (3/4) 64  | d   | from above (4/4) a5  |
-.   | 4 wasted bytes for c3 (1/4) a5  | .   | from above (2/4) a5  | .   | from
-above (3/4) a5  | .   | from above (4/4) 04  | .   | the length of the following
-data (for VARCHAR cells): 4 61  | a   | c4='abcd' - the actual data (1/4) 62  |
-b   | from above (2/4) 63  | c   | from above (3/4) 64  | d   | from above (4/4)
+            possibly be NULL (c1, c3, c5 and c7) none is actually NULL.
+7b  | {   | c1=123 stored in 4 bytes (little endian) (1/4)
+00  | .   | from above (2/4)
+00  | .   | from above (3/4)
+00  | .   | from above (4/4)
+7b  | {   | c2=123 stored in 4 bytes (little endian) (1/4)
+00  | .   | from above (2/4)
+00  | .   | from above (3/4)
+00  | .   | from above (4/4)
+04  | .   | the length of the following data (for VARCHAR cells): 4
+61  | a   | c3='abcd' - the actual data (1/4)
+62  | b   | from above (2/4)
+63  | c   | from above (3/4)
+64  | d   | from above (4/4)
+a5  | .   | 4 wasted bytes for c3 (1/4)
+a5  | .   | from above (2/4)
+a5  | .   | from above (3/4)
+a5  | .   | from above (4/4)
+04  | .   | the length of the following data (for VARCHAR cells): 4
+61  | a   | c4='abcd' - the actual data (1/4)
+62  | b   | from above (2/4)
+63  | c   | from above (3/4)
+64  | d   | from above (4/4)
 a5  | .   | 4 wasted bytes for c4 (1/4)
 a5  | .   | from above (2/4)
 a5  | .   | from above (3/4)
@@ -86,10 +99,14 @@ a5  | .   | from above (4/4)
 20  |     | from above (6/8)
 20  |     | from above (7/8)
 20  |     | from above (8/8)
-04  | .   | the length (occupying 2 bytes) of the following data (for VARCHAR
-cells): 4 (1/2) 00  | .   | from above (2/2) 61  | a   | c7='abcd' - the actual
-data (1/4) 62  | b   | from above (2/4) 63  | c   | from above (3/4) 64  | d   |
-from above (4/4) a5  | .   | a5 repeats 296 times, wasted bytes for c7 (1/296)
+04  | .   | the length (occupying 2 bytes) of the following data
+            (for VARCHAR cells): 4 (1/2)
+00  | .   | from above (2/2)
+61  | a   | c7='abcd' - the actual data (1/4)
+62  | b   | from above (2/4)
+63  | c   | from above (3/4)
+64  | d   | from above (4/4)
+a5  | .   | a5 repeats 296 times, wasted bytes for c7 (1/296)
 a5  | .   | from above (2/296)
 ..  | ..  | ..
 a5  | .   | from above (296/296)
@@ -113,19 +130,32 @@ the indexed cells buffer that is passed to `index_read()` is 350 bytes:
 
 hex | raw | description
 --- | --- | -----------
-00  | .   | c1 NULL byte, denoting that c1 is not NULL (would have been 01 is c1
-was NULL) 7b  | {   | c1=123 stored in 4 bytes (little endian) (1/4) 00  | .   |
-from above (2/4) 00  | .   | from above (3/4) 00  | .   | from above (4/4) 7b  |
-{   | c2=123 stored in 4 bytes (little endian) (because c2 cannot be NULL there
-is no leading byte to indicate NULL or not NULL) (1/4) 00  | .   | from above
-(2/4) 00  | .   | from above (3/4) 00  | .   | from above (4/4) 00  | .   | c3
-NULL byte, denoting that c3 is not NULL (would have been 01 if c3 was NULL) 04
-| .   | c3 length (4), always 2 bytes (1/2) 00  | .   | from above (2/2) 61  | a
-| c3='abcd' - the actual data (1/4) 62  | b   | from above (2/4) 63  | c   |
-from above (3/4) 64  | d   | from above (4/4) 00  | .   | 4 wasted bytes for c3
-(1/4) 00  | .   | from above (2/4) 00  | .   | from above (3/4) 00  | .   | from
-above (4/4) 04  | .   | c4 length (4), always 2 bytes (no NULL byte for c4)
-(1/2) 00  | .   | from above (2/2) 61  | a   | c4='abcd' - the actual data (1/4)
+00  | .   | c1 NULL byte, denoting that c1 is not NULL
+            (would have been 01 is c1 was NULL)
+7b  | {   | c1=123 stored in 4 bytes (little endian) (1/4)
+00  | .   | from above (2/4)
+00  | .   | from above (3/4)
+00  | .   | from above (4/4)
+7b  | {   | c2=123 stored in 4 bytes (little endian) (because c2 cannot be NULL
+            there is no leading byte to indicate NULL or not NULL) (1/4)
+00  | .   | from above (2/4)
+00  | .   | from above (3/4)
+00  | .   | from above (4/4)
+00  | .   | c3 NULL byte, denoting that c3 is not NULL
+            (would have been 01 if c3 was NULL)
+04  | .   | c3 length (4), always 2 bytes (1/2)
+00  | .   | from above (2/2)
+61  | a   | c3='abcd' - the actual data (1/4)
+62  | b   | from above (2/4)
+63  | c   | from above (3/4)
+64  | d   | from above (4/4)
+00  | .   | 4 wasted bytes for c3 (1/4)
+00  | .   | from above (2/4)
+00  | .   | from above (3/4)
+00  | .   | from above (4/4)
+04  | .   | c4 length (4), always 2 bytes (no NULL byte for c4) (1/2)
+00  | .   | from above (2/2)
+61  | a   | c4='abcd' - the actual data (1/4)
 62  | b   | from above (2/4)
 63  | c   | from above (3/4)
 64  | d   | from above (4/4)
@@ -133,18 +163,33 @@ above (4/4) 04  | .   | c4 length (4), always 2 bytes (no NULL byte for c4)
 00  | .   | from above (2/4)
 00  | .   | from above (3/4)
 00  | .   | from above (4/4)
-00  | .   | c5 NULL byte, denoting that c5 is not NULL (would have been 01 if c5
-was NULL) 61  | a   | c5='abcd    ' (1/8) 62  | b   | from above (2/8) 63  | c
-| from above (3/8) 64  | d   | from above (4/8) 20  |     | from above (5/8) 20
-|     | from above (6/8) 20  |     | from above (7/8) 20  |     | from above
-(8/8) 61  | a   | c6='abcd    ' (c6 cannot be NULL) (1/8) 62  | b   | from above
-(2/8) 63  | c   | from above (3/8) 64  | d   | from above (4/8) 20  |     | from
-above (5/8) 20  |     | from above (6/8) 20  |     | from above (7/8) 20  |
-| from above (8/8) 00  | .   | c7 NULL byte 04  | .   | c7 length (4), always 2
-bytes (1/2) 00  | .   | from above (2/2) 61  | a   | c7='abcd' - the actual data
-(1/4) 62  | b   | from above (2/4) 63  | c   | from above (3/4) 64  | d   | from
-above (4/4) 00  | .   | 296 wasted bytes for c7 (1/296) 00  | .   | from above
-(2/296)
+00  | .   | c5 NULL byte, denoting that c5 is not NULL
+            (would have been 01 if c5 was NULL)
+61  | a   | c5='abcd    ' (1/8)
+62  | b   | from above (2/8)
+63  | c   | from above (3/8)
+64  | d   | from above (4/8)
+20  |     | from above (5/8)
+20  |     | from above (6/8)
+20  |     | from above (7/8)
+20  |     | from above (8/8)
+61  | a   | c6='abcd    ' (c6 cannot be NULL) (1/8)
+62  | b   | from above (2/8)
+63  | c   | from above (3/8)
+64  | d   | from above (4/8)
+20  |     | from above (5/8)
+20  |     | from above (6/8)
+20  |     | from above (7/8)
+20  |     | from above (8/8)
+00  | .   | c7 NULL byte
+04  | .   | c7 length (4), always 2 bytes (1/2)
+00  | .   | from above (2/2)
+61  | a   | c7='abcd' - the actual data (1/4)
+62  | b   | from above (2/4)
+63  | c   | from above (3/4)
+64  | d   | from above (4/4)
+00  | .   | 296 wasted bytes for c7 (1/296)
+00  | .   | from above (2/296)
 ..  | ..  | ..
 00  | .   | from above (296/296)
 
@@ -193,17 +238,31 @@ hex | raw | description
 00  | .   | 3 bytes padding (1/3)
 00  | .   | from above (2/3)
 00  | .   | from above (3/3)
-00  | .   | c1 length in 4 bytes in whatever is the machine's native byte order
-(1/4) 00  | .   | from above (2/4) 00  | .   | from above (3/4) 04  | .   | from
-above (4/4) f1  | .   | address in memory where c1 user data is stored (1/8) f1
-| .   | from above (2/8) f1  | .   | from above (3/8) f1  | .   | from above
-(4/8) f1  | .   | from above (5/8) f1  | .   | from above (6/8) f1  | .   | from
-above (7/8) f1  | .   | from above (8/8) 00  | .   | c2 NULL byte (00 means not
-NULL) 00  | .   | 3 bytes padding (1/3) 00  | .   | from above (2/3) 00  | .   |
-from above (3/3) 00  | .   | c2 length in 4 bytes in whatever is the machine's
-native byte order (1/4) 00  | .   | from above (2/4) 00  | .   | from above
-(3/4) 04  | .   | from above (4/4) f2  | .   | address in memory where c2 user
-data is stored (1/8) f2  | .   | from above (2/8) f2  | .   | from above (3/8)
+00  | .   | c1 length in 4 bytes in whatever is the machine's
+            native byte order (1/4)
+00  | .   | from above (2/4)
+00  | .   | from above (3/4)
+04  | .   | from above (4/4)
+f1  | .   | address in memory where c1 user data is stored (1/8)
+f1  | .   | from above (2/8)
+f1  | .   | from above (3/8)
+f1  | .   | from above (4/8)
+f1  | .   | from above (5/8)
+f1  | .   | from above (6/8)
+f1  | .   | from above (7/8)
+f1  | .   | from above (8/8)
+00  | .   | c2 NULL byte (00 means not NULL)
+00  | .   | 3 bytes padding (1/3)
+00  | .   | from above (2/3)
+00  | .   | from above (3/3)
+00  | .   | c2 length in 4 bytes in whatever is the machine's
+            native byte order (1/4)
+00  | .   | from above (2/4)
+00  | .   | from above (3/4)
+04  | .   | from above (4/4)
+f2  | .   | address in memory where c2 user data is stored (1/8)
+f2  | .   | from above (2/8)
+f2  | .   | from above (3/8)
 f2  | .   | from above (4/8)
 f2  | .   | from above (5/8)
 f2  | .   | from above (6/8)
@@ -213,17 +272,31 @@ f2  | .   | from above (8/8)
 00  | .   | 3 bytes padding (1/3)
 00  | .   | from above (2/3)
 00  | .   | from above (3/3)
-00  | .   | c3 length in 4 bytes in whatever is the machine's native byte order
-(1/4) 00  | .   | from above (2/4) 00  | .   | from above (3/4) 04  | .   | from
-above (4/4) f3  | .   | address in memory where c3 user data is stored (1/8) f3
-| .   | from above (2/8) f3  | .   | from above (3/8) f3  | .   | from above
-(4/8) f3  | .   | from above (5/8) f3  | .   | from above (6/8) f3  | .   | from
-above (7/8) f3  | .   | from above (8/8) 00  | .   | c4 NULL byte (00 means not
-NULL) 00  | .   | 3 bytes padding (1/3) 00  | .   | from above (2/3) 00  | .   |
-from above (3/3) 00  | .   | c4 length in 4 bytes in whatever is the machine's
-native byte order (1/4) 00  | .   | from above (2/4) 00  | .   | from above
-(3/4) 04  | .   | from above (4/4) f4  | .   | address in memory where c4 user
-data is stored (1/8) f4  | .   | from above (2/8) f4  | .   | from above (3/8)
+00  | .   | c3 length in 4 bytes in whatever is the machine's
+            native byte order (1/4)
+00  | .   | from above (2/4)
+00  | .   | from above (3/4)
+04  | .   | from above (4/4)
+f3  | .   | address in memory where c3 user data is stored (1/8)
+f3  | .   | from above (2/8)
+f3  | .   | from above (3/8)
+f3  | .   | from above (4/8)
+f3  | .   | from above (5/8)
+f3  | .   | from above (6/8)
+f3  | .   | from above (7/8)
+f3  | .   | from above (8/8)
+00  | .   | c4 NULL byte (00 means not NULL)
+00  | .   | 3 bytes padding (1/3)
+00  | .   | from above (2/3)
+00  | .   | from above (3/3)
+00  | .   | c4 length in 4 bytes in whatever is the machine's
+            native byte order (1/4)
+00  | .   | from above (2/4)
+00  | .   | from above (3/4)
+04  | .   | from above (4/4)
+f4  | .   | address in memory where c4 user data is stored (1/8)
+f4  | .   | from above (2/8)
+f4  | .   | from above (3/8)
 f4  | .   | from above (4/8)
 f4  | .   | from above (5/8)
 f4  | .   | from above (6/8)
@@ -233,17 +306,31 @@ f4  | .   | from above (8/8)
 00  | .   | 3 bytes padding (1/3)
 00  | .   | from above (2/3)
 00  | .   | from above (3/3)
-00  | .   | c5 length in 4 bytes in whatever is the machine's native byte order
-(1/4) 00  | .   | from above (2/4) 00  | .   | from above (3/4) 08  | .   | from
-above (4/4) f5  | .   | address in memory where c5 user data is stored (1/8) f5
-| .   | from above (2/8) f5  | .   | from above (3/8) f5  | .   | from above
-(4/8) f5  | .   | from above (5/8) f5  | .   | from above (6/8) f5  | .   | from
-above (7/8) f5  | .   | from above (8/8) 00  | .   | c6 NULL byte (00 means not
-NULL) 00  | .   | 3 bytes padding (1/3) 00  | .   | from above (2/3) 00  | .   |
-from above (3/3) 00  | .   | c6 length in 4 bytes in whatever is the machine's
-native byte order (1/4) 00  | .   | from above (2/4) 00  | .   | from above
-(3/4) 08  | .   | from above (4/4) f6  | .   | address in memory where c6 user
-data is stored (1/8) f6  | .   | from above (2/8) f6  | .   | from above (3/8)
+00  | .   | c5 length in 4 bytes in whatever is the machine's
+            native byte order (1/4)
+00  | .   | from above (2/4)
+00  | .   | from above (3/4)
+08  | .   | from above (4/4)
+f5  | .   | address in memory where c5 user data is stored (1/8)
+f5  | .   | from above (2/8)
+f5  | .   | from above (3/8)
+f5  | .   | from above (4/8)
+f5  | .   | from above (5/8)
+f5  | .   | from above (6/8)
+f5  | .   | from above (7/8)
+f5  | .   | from above (8/8)
+00  | .   | c6 NULL byte (00 means not NULL)
+00  | .   | 3 bytes padding (1/3)
+00  | .   | from above (2/3)
+00  | .   | from above (3/3)
+00  | .   | c6 length in 4 bytes in whatever is the machine's
+            native byte order (1/4)
+00  | .   | from above (2/4)
+00  | .   | from above (3/4)
+08  | .   | from above (4/4)
+f6  | .   | address in memory where c6 user data is stored (1/8)
+f6  | .   | from above (2/8)
+f6  | .   | from above (3/8)
 f6  | .   | from above (4/8)
 f6  | .   | from above (5/8)
 f6  | .   | from above (6/8)
@@ -253,39 +340,67 @@ f6  | .   | from above (8/8)
 00  | .   | 3 bytes padding (1/3)
 00  | .   | from above (2/3)
 00  | .   | from above (3/3)
-00  | .   | c7 length in 4 bytes in whatever is the machine's native byte order
-(1/4) 00  | .   | from above (2/4) 00  | .   | from above (3/4) 04  | .   | from
-above (4/4) f7  | .   | address in memory where c7 user data is stored (1/8) f7
-| .   | from above (2/8) f7  | .   | from above (3/8) f7  | .   | from above
-(4/8) f7  | .   | from above (5/8) f7  | .   | from above (6/8) f7  | .   | from
-above (7/8) f7  | .   | from above (8/8) 7b  | {   | c1=123, the address of this
-is f1f1f1f1 (1/4) 00  | .   | from above (2/4) 00  | .   | from above (3/4) 00
-| .   | from above (4/4) 7b  | {   | c2=123, the address of this is f2f2f2f2
-(1/4) 00  | .   | from above (2/4) 00  | .   | from above (3/4) 00  | .   | from
-above (4/4) 61  | a   | c3='abcd', the address of this is f3f3f3f3 (1/4) 62  | b
-| from above (2/4) 63  | c   | from above (3/4) 64  | d   | from above (4/4) 61
-| a   | c4='abcd', the address of this is f4f4f4f4 (1/4) 62  | b   | from above
-(2/4) 63  | c   | from above (3/4) 64  | d   | from above (4/4) 61  | a   |
-c5='abcd    ', the address of this is f5f5f5f5 (1/8) 62  | b   | from above
-(2/8) 63  | c   | from above (3/8) 64  | d   | from above (4/8) 20  |     | from
-above (5/8) 20  |     | from above (6/8) 20  |     | from above (7/8) 20  |
-| from above (8/8) 61  | a   | c6='abcd    ', the address of this is f6f6f6f6
-(1/8) 62  | b   | from above (2/8) 63  | c   | from above (3/8) 64  | d   | from
-above (4/8) 20  |     | from above (5/8) 20  |     | from above (6/8) 20  |
-| from above (7/8) 20  |     | from above (8/8) 61  | a   | c7='abcd', the
-address of this is f7f7f7f7 (1/4) 62  | b   | from above (2/4) 63  | c   | from
-above (3/4) 64  | d   | from above (4/4)
+00  | .   | c7 length in 4 bytes in whatever is the machine's
+            native byte order (1/4)
+00  | .   | from above (2/4)
+00  | .   | from above (3/4)
+04  | .   | from above (4/4)
+f7  | .   | address in memory where c7 user data is stored (1/8)
+f7  | .   | from above (2/8)
+f7  | .   | from above (3/8)
+f7  | .   | from above (4/8)
+f7  | .   | from above (5/8)
+f7  | .   | from above (6/8)
+f7  | .   | from above (7/8)
+f7  | .   | from above (8/8)
+7b  | {   | c1=123, the address of this is f1f1f1f1 (1/4)
+00  | .   | from above (2/4)
+00  | .   | from above (3/4)
+00  | .   | from above (4/4)
+7b  | {   | c2=123, the address of this is f2f2f2f2 (1/4)
+00  | .   | from above (2/4)
+00  | .   | from above (3/4)
+00  | .   | from above (4/4)
+61  | a   | c3='abcd', the address of this is f3f3f3f3 (1/4)
+62  | b   | from above (2/4)
+63  | c   | from above (3/4)
+64  | d   | from above (4/4)
+61  | a   | c4='abcd', the address of this is f4f4f4f4 (1/4)
+62  | b   | from above (2/4)
+63  | c   | from above (3/4)
+64  | d   | from above (4/4)
+61  | a   | c5='abcd    ', the address of this is f5f5f5f5 (1/8)
+62  | b   | from above (2/8)
+63  | c   | from above (3/8)
+64  | d   | from above (4/8)
+20  |     | from above (5/8)
+20  |     | from above (6/8)
+20  |     | from above (7/8)
+20  |     | from above (8/8)
+61  | a   | c6='abcd    ', the address of this is f6f6f6f6 (1/8)
+62  | b   | from above (2/8)
+63  | c   | from above (3/8)
+64  | d   | from above (4/8)
+20  |     | from above (5/8)
+20  |     | from above (6/8)
+20  |     | from above (7/8)
+20  |     | from above (8/8)
+61  | a   | c7='abcd', the address of this is f7f7f7f7 (1/4)
+62  | b   | from above (2/4)
+63  | c   | from above (3/4)
+64  | d   | from above (4/4)
 */
+// clang-format on
 
 #ifndef TEMPTABLE_ROW_H
 #define TEMPTABLE_ROW_H
 
-#include "my_dbug.h"                                       /* DBUG_ASSERT() */
-#include "sql/field.h"                                     /* Field */
-#include "storage/temptable/include/temptable/allocator.h" /* temptable::Allocator */
-#include "storage/temptable/include/temptable/cell.h"      /* temptable::Cell */
-#include "storage/temptable/include/temptable/column.h" /* temptable::Column, temptable::Columns */
-#include "storage/temptable/include/temptable/result.h" /* temptable::Result */
+#include "my_dbug.h"
+#include "sql/field.h"
+#include "storage/temptable/include/temptable/allocator.h"
+#include "storage/temptable/include/temptable/cell.h"
+#include "storage/temptable/include/temptable/column.h"
+#include "storage/temptable/include/temptable/result.h"
 
 namespace temptable {
 
@@ -322,22 +437,6 @@ class Row {
       /** [in] The index of the cell to fetch (must be < number_of_cells()). */
       size_t i) const;
 
-#ifndef DBUG_OFF
-  /** Compare to another row. Used by Table::update() and Table::remove() to
-   * double check that the row which is passed as "old row" indeed equals to the
-   * row pointed to by the specified position.
-   * @retval <0 if this < rhs
-   * @retval  0 if this == rhs
-   * @retval >0 if this > rhs */
-  int compare(
-      /** [in] Columns that constitute `this` and in `rhs`. */
-      const Columns &columns,
-      /** [in] List of MySQL column definitions, used for querying metadata. */
-      Field **mysql_fields,
-      /** [in] The row to compare to. */
-      const Row &rhs) const;
-#endif /* DBUG_OFF */
-
   /** Copy the user data to an own buffer (convert from write_row() format).
    * @return Result:OK or other Result::* error code */
   Result copy_to_own_memory(
@@ -354,6 +453,24 @@ class Row {
       unsigned char *mysql_row,
       /** [in] Presumed length of the mysql row in bytes. */
       size_t mysql_row_length) const;
+
+#ifndef DBUG_OFF
+  /** Compare to another row. Used by Table::update() and Table::remove() to
+   * double check that the row which is passed as "old row" indeed equals to the
+   * row pointed to by the specified position.
+   * @retval <0 if lhs < rhs
+   * @retval  0 if lhs == rhs
+   * @retval >0 if lhs > rhs */
+  static int compare(
+      /** [in] First row to compare. */
+      const Row &lhs,
+      /** [in] Second row to compare. */
+      const Row &rhs,
+      /** [in] Columns that constitute `this` and in `rhs`. */
+      const Columns &columns,
+      /** [in] List of MySQL column definitions, used for querying metadata. */
+      Field **mysql_fields);
+#endif /* DBUG_OFF */
 
  private:
   /** Get a pointer to the cells array. Only defined if

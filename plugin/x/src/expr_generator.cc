@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -589,14 +589,12 @@ struct Cast_type_validator {
   bool operator()(const char *str) const {
     static const xpl::Regex re(
         "^("
-        "BINARY([[.left-parenthesis.]][[:digit:]]+[[.right-parenthesis.]])?|"
+        "BINARY(\\([[:digit:]]+\\))?|"
         "DATE|DATETIME|TIME|JSON|"
-        "CHAR([[.left-parenthesis.]][[:digit:]]+[[.right-parenthesis.]])?|"
-        "DECIMAL([[.left-parenthesis.]][[:digit:]]+(,[[:digit:]]+)?[[.right-"
-        "parenthesis.]])?|"
+        "CHAR(\\([[:digit:]]+\\))?|"
+        "DECIMAL(\\([[:digit:]]+(,[[:digit:]]+)?\\))?|"
         "SIGNED( INTEGER)?|UNSIGNED( INTEGER)?"
         "){1}$");
-
     return re.match(str);
   }
 

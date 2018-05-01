@@ -1,9 +1,11 @@
+# Setup connections
+SET @old_innodb_thread_concurrency := @@innodb_thread_concurrency;
+SET @old_innodb_concurrency_tickets := @@innodb_concurrency_tickets;
+SET @old_innodb_thread_sleep_delay := @@innodb_thread_sleep_delay;
 #
 # Bug #19386426	SHUTDOWN HANGS: CLIENT THREAD IN A LOOP
 # AROUND SRV_CONC_ENTER_INNODB()
 #
-SET @old_innodb_thread_concurrency := @@innodb_thread_concurrency;
-SET @old_innodb_thread_sleep_delay := @@innodb_thread_sleep_delay;
 SET GLOBAL innodb_thread_concurrency = 1;
 create table t1(f1 int) engine=innodb;
 SET DEBUG_SYNC= 'ib_after_row_insert
@@ -21,5 +23,77 @@ f1
 12
 13
 drop table t1;
+#
+# bug#23476050 THREADS STUCK WAITING TO ENTER INNODB
+#
+# Scenario-1: High Priority Transaction
+In connection DEFAULT
+SET GLOBAL innodb_thread_concurrency = 1;
+CREATE TABLE t1(col1 INT PRIMARY KEY);
+INSERT INTO t1 VALUES(10);
+START TRANSACTION;
+# Lock Row
+UPDATE t1 SET col1 = 20 where col1 = 10;
+# stop after TrxInInnoDB and before innodb thread concurrency
+SET DEBUG_SYNC= 'ha_innobase_index_read_begin SIGNAL kill_me WAIT_FOR proceed';
+UPDATE t1 SET col1 = 30 where col1 = 20;
+In connection CON-1
+SET DEBUG_SYNC='now WAIT_FOR kill_me';
+include/start_transaction_high_prio.inc
+START TRANSACTION /* HIGH PRIORITY */;
+SET DEBUG_SYNC= 'trx_kill_blocking_enter SIGNAL proceed';
+UPDATE t1 SET col1 = 100;
+COMMIT;
+In connection DEFAULT
+# Rolled back by high priority transaction
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+SELECT * FROM t1;
+col1
+100
+DROP TABLE t1;
+# Scenario-2: Auto Increment in partitioned table
+SET GLOBAL innodb_thread_concurrency = 1;
+CREATE TABLE t1 (col1 INT AUTO_INCREMENT PRIMARY KEY, col2 int)
+PARTITION BY KEY(col1) PARTITIONS 2;
+INSERT INTO t1(col2) VALUES(10);
+SELECT * FROM t1;
+col1	col2
+1	10
+# stop after innodb thread concurrency before auto increment lock
+SET DEBUG_SYNC='ib_after_row_insert SIGNAL got_innodb_ticket WAIT_FOR proceed';
+INSERT INTO t1(col2) VALUES (20);
+In connection CON-1
+SET LOCAL binlog_format = 'STATEMENT';
+SET DEBUG_SYNC='now WAIT_FOR got_innodb_ticket';
+INSERT INTO t1(col2) SELECT 30;
+In connection CON-2
+SET DEBUG_SYNC='now SIGNAL proceed';
+In connection CON-1
+In connection DEFAULT
+SELECT * FROM t1 ORDER BY col1;
+col1	col2
+1	10
+2	20
+3	30
+DROP TABLE t1;
+#
+# bug#27661171 INNODB: TRX->DECLARED_TO_BE_INSIDE_INNODB
+#
+CREATE TABLE t1 (col1 INT AUTO_INCREMENT PRIMARY KEY, col2 int)
+PARTITION BY KEY(col1) PARTITIONS 2;
+# Insert 2 rows in same statement consuming the tickets
+SET GLOBAL innodb_concurrency_tickets = 2;
+SHOW VARIABLES LIKE 'innodb_concurrency_tickets';
+Variable_name	Value
+innodb_concurrency_tickets	2
+INSERT INTO t1(col2) VALUES (10), (20);
+SELECT * FROM t1 ORDER BY col1;
+col1	col2
+1	10
+2	20
+DROP TABLE t1;
+# Cleanup
+SET DEBUG_SYNC='reset';
 SET GLOBAL innodb_thread_concurrency = @old_innodb_thread_concurrency;
+SET GLOBAL innodb_concurrency_tickets = @old_innodb_concurrency_tickets;
 SET GLOBAL innodb_thread_sleep_delay = @old_innodb_thread_sleep_delay;

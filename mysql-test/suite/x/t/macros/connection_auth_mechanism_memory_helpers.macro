@@ -6,7 +6,7 @@
 echo -- Expecting failure with parameters: %SSL_MODE%	%TYPE%	%USER%	%PASS%;
 echo --;
 varlet %OPTION_SSL_MODE% %SSL_MODE%;
-expecterror ER_ACCESS_DENIED_ERROR;
+expecterror ER_ACCESS_DENIED_ERROR,2510;
 newsession_%TYPE% sess0	%USER%	%PASS%;
 -->endmacro
 

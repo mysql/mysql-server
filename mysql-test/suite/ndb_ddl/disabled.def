@@ -1,2 +1,0 @@
-# Problem with alter table while MDL lock is held on other mysqld
-alter_open_trans: Need WL#10164 Schema dist prepare phase

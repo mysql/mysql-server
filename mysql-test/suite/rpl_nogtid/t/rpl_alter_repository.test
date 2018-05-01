@@ -158,7 +158,7 @@ ALTER TABLE mysql.slave_master_info DROP COLUMN Enabled_auto_position;
 INSERT INTO t_innodb VALUES (1), (2), (3);
 --connection slave
 # ER_SLAVE_FATAL_ERROR
---let $slave_io_errno= 1593
+--let $slave_io_errno= 13117
 --let $show_slave_io_error= 1
 --source include/wait_for_slave_io_error.inc
 --source include/stop_slave_sql.inc
@@ -197,7 +197,7 @@ ALTER TABLE mysql.slave_master_info DROP COLUMN Enabled_auto_position;
 INSERT INTO t_innodb VALUES (1), (2), (3);
 --connection slave
 # ER_SLAVE_FATAL_ERROR
---let $slave_io_errno= 1593
+--let $slave_io_errno= 13117
 --let $show_slave_io_error= 1
 --source include/wait_for_slave_io_error.inc
 --source include/stop_slave_sql.inc

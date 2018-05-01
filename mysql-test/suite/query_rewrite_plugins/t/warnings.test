@@ -3,35 +3,20 @@
 --echo # query, pattern or replacement.
 --echo #
 
---echo # Most of these tests are pointless unless the plugin accepts insert
---echo # statements as pattern, which it currently does not.
-
 call mtr.add_suppression("Plugin rewriter reported: 'Some rules failed to load.'");
 
 --source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
 --source suite/query_rewrite_plugins/include/install_rewriter.inc
 
---echo # In rule 1, we get a warning during parsing of the replacement.
---echo # In rule 2, we get a warning during parsing of the pattern.
+# Still many unsupported statements
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
-VALUES ( 'INSERT INTO test.t1 VALUES ( ? )',
-         'INSERT DELAYED INTO test.t1 VALUES ( ? )' ),
-       ( 'INSERT DELAYED INTO test.t1 VALUES ( ? )',
-         'INSERT INTO test.t1 VALUES ( ? )' );
+VALUES ( 'LOAD DATA INFILE "tab1.data" INTO TABLE test.t1',
+         'LOAD DATA INFILE "tab2.data" INTO TABLE test.t1' ),
+       ( 'DO CONCAT("a", "b")', 'DO CONCAT("c", "d")' );
 
 --error ER_SIGNAL_EXCEPTION
 CALL query_rewrite.flush_rewrite_rules();
-
 SELECT * FROM query_rewrite.rewrite_rules;
-
-CREATE TABLE t1 ( a INT );
-
---echo # This will translate into INSERT DELAYED, which causes the parser to
---echo # warn.
-INSERT INTO test.t1 VALUES ( 1 );
-
---echo # Here we get a warning during the parsing of the original query.
-INSERT DELAYED INTO test.t1 VALUES ( 1 );
 
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES ( 'SHOW WARNINGS', 'SHOW /* I rewrote it */ WARNINGS' );
@@ -68,6 +53,4 @@ SELECT 1;
 SHOW WARNINGS;
 
 --enable_warnings
-DROP TABLE t1;
-
 --source suite/query_rewrite_plugins/include/uninstall_rewriter.inc

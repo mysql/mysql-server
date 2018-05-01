@@ -238,13 +238,15 @@ exit_func:
 /** Checks if the nth field in a record is a character type field which extends
  the nth field in tuple, i.e., the field is longer or equal in length and has
  common first characters.
+ @param[in]	tuple	data tuple
+ @param[in]	rec	record
+ @param[in]	offsets	array returned by rec_get_offsets()
+ @param[in]	n	compare nth field
+ @param[in]	index	index where the record resides
  @return true if rec field extends tuple field */
-static ibool page_cur_rec_field_extends(
-    const dtuple_t *tuple, /*!< in: data tuple */
-    const rec_t *rec,      /*!< in: record */
-    const ulint *offsets,  /*!< in: array returned by rec_get_offsets() */
-    ulint n)               /*!< in: compare nth field */
-{
+static ibool page_cur_rec_field_extends(const dtuple_t *tuple, const rec_t *rec,
+                                        const ulint *offsets, ulint n,
+                                        const dict_index_t *index) {
   const dtype_t *type;
   const dfield_t *dfield;
   const byte *rec_f;
@@ -255,7 +257,7 @@ static ibool page_cur_rec_field_extends(
 
   type = dfield_get_type(dfield);
 
-  rec_f = rec_get_nth_field(rec, offsets, n, &rec_f_len);
+  rec_f = rec_get_nth_field_instant(rec, offsets, n, index, &rec_f_len);
 
   if (type->mtype == DATA_VARCHAR || type->mtype == DATA_CHAR ||
       type->mtype == DATA_FIXBINARY || type->mtype == DATA_BINARY ||
@@ -498,7 +500,7 @@ void page_cur_search_with_match(
 #ifdef PAGE_CUR_LE_OR_EXTENDS
       if (mode == PAGE_CUR_LE_OR_EXTENDS &&
           page_cur_rec_field_extends(tuple, mid_rec, offsets,
-                                     cur_matched_fields)) {
+                                     cur_matched_fields, index)) {
         goto low_slot_match;
       }
 #endif /* PAGE_CUR_LE_OR_EXTENDS */
@@ -551,7 +553,7 @@ void page_cur_search_with_match(
 #ifdef PAGE_CUR_LE_OR_EXTENDS
       if (mode == PAGE_CUR_LE_OR_EXTENDS &&
           page_cur_rec_field_extends(tuple, mid_rec, offsets,
-                                     cur_matched_fields)) {
+                                     cur_matched_fields, index)) {
         goto low_rec_match;
       }
 #endif /* PAGE_CUR_LE_OR_EXTENDS */
@@ -727,7 +729,7 @@ void page_cur_search_with_match_bytes(
 #ifdef PAGE_CUR_LE_OR_EXTENDS
       if (mode == PAGE_CUR_LE_OR_EXTENDS &&
           page_cur_rec_field_extends(tuple, mid_rec, offsets,
-                                     cur_matched_fields)) {
+                                     cur_matched_fields, index)) {
         goto low_slot_match;
       }
 #endif /* PAGE_CUR_LE_OR_EXTENDS */
@@ -778,7 +780,7 @@ void page_cur_search_with_match_bytes(
 #ifdef PAGE_CUR_LE_OR_EXTENDS
       if (mode == PAGE_CUR_LE_OR_EXTENDS &&
           page_cur_rec_field_extends(tuple, mid_rec, offsets,
-                                     cur_matched_fields)) {
+                                     cur_matched_fields, index)) {
         goto low_rec_match;
       }
 #endif /* PAGE_CUR_LE_OR_EXTENDS */

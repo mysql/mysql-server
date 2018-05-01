@@ -421,6 +421,20 @@ bool create_actual_table(THD *thd, const Object_table *object_table) {
 /* purecov: end */
 
 /**
+  Predicate to check if a table type is a non-inert DD ot DDSE table.
+
+  @param table_type    Type as defined in the System_tables registry.
+  @returns             true if the table is a non-inert DD or DDSE table,
+                       false otherwise
+*/
+bool is_non_inert_dd_or_ddse_table(System_tables::Types table_type) {
+  return table_type == System_tables::Types::CORE ||
+         table_type == System_tables::Types::SECOND ||
+         table_type == System_tables::Types::DDSE_PRIVATE ||
+         table_type == System_tables::Types::DDSE_PROTECTED;
+}
+
+/**
   Execute SQL statements to create the DD tables.
 
   The tables created here will be a subset of the target DD tables for this
@@ -497,9 +511,7 @@ bool create_tables(THD *thd, const std::set<String_type> *create_set) {
   bool error = false;
   for (System_tables::Const_iterator it = System_tables::instance()->begin();
        it != System_tables::instance()->end() && !error; ++it) {
-    if ((*it)->property() == System_tables::Types::CORE ||
-        (*it)->property() == System_tables::Types::SECOND ||
-        (*it)->property() == System_tables::Types::DDSE) {
+    if (is_non_inert_dd_or_ddse_table((*it)->property())) {
       /*
         If a create set is submitted, create only the target tables that
         are in the create set.
@@ -1059,46 +1071,59 @@ bool sync_meta_data(THD *thd) {
   if (dd::end_transaction(thd, false) || execute_query(thd, "FLUSH TABLES"))
     return true;
 
+  // Get hold of the temporary actual and target schema names.
+  String_type target_schema_name;
+  bool target_schema_exists = false;
+  if (dd::tables::DD_properties::instance().get(thd, "UPGRADE_TARGET_SCHEMA",
+                                                &target_schema_name,
+                                                &target_schema_exists))
+    return true;
+
+  String_type actual_schema_name;
+  bool actual_schema_exists = false;
+  if (dd::tables::DD_properties::instance().get(thd, "UPGRADE_ACTUAL_SCHEMA",
+                                                &actual_schema_name,
+                                                &actual_schema_exists))
+    return true;
+
   // Reset the DDSE local dictionary cache.
   handlerton *ddse = ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
   if (ddse->dict_cache_reset == nullptr) return true;
 
-  for (System_tables::Const_iterator it =
-           System_tables::instance()->begin(System_tables::Types::CORE);
-       it != System_tables::instance()->end();
-       it = System_tables::instance()->next(it, System_tables::Types::CORE)) {
+  for (System_tables::Const_iterator it = System_tables::instance()->begin();
+       it != System_tables::instance()->end(); ++it) {
     // Skip extraneous tables during minor downgrade.
     if ((*it)->entity() == nullptr) continue;
 
-    ddse->dict_cache_reset(MYSQL_SCHEMA_NAME.str,
-                           (*it)->entity()->name().c_str());
+    if ((*it)->property() == System_tables::Types::CORE ||
+        (*it)->property() == System_tables::Types::SECOND) {
+      ddse->dict_cache_reset(MYSQL_SCHEMA_NAME.str,
+                             (*it)->entity()->name().c_str());
+      if (target_schema_exists && !target_schema_name.empty())
+        ddse->dict_cache_reset(target_schema_name.c_str(),
+                               (*it)->entity()->name().c_str());
+      if (actual_schema_exists && !actual_schema_name.empty())
+        ddse->dict_cache_reset(actual_schema_name.c_str(),
+                               (*it)->entity()->name().c_str());
+    }
   }
 
   /*
     At this point, we're to a large extent open for business.
     If there are leftover schema names from upgrade, delete them.
   */
-  String_type schema_name;
-  bool schema_exists = false;
-  if (dd::tables::DD_properties::instance().get(thd, "UPGRADE_ACTUAL_SCHEMA",
-                                                &schema_name, &schema_exists))
-    return true;
-
-  if (schema_exists && !schema_name.empty()) {
+  if (target_schema_exists && !target_schema_name.empty()) {
     std::stringstream ss;
-    ss << "DROP SCHEMA IF EXISTS " << schema_name;
+    ss << "DROP SCHEMA IF EXISTS " << target_schema_name;
     if (execute_query(thd, ss.str().c_str())) return true;
   }
 
-  if (dd::tables::DD_properties::instance().get(thd, "UPGRADE_TARGET_SCHEMA",
-                                                &schema_name, &schema_exists))
-    return true;
-
-  if (schema_exists && !schema_name.empty()) {
+  if (actual_schema_exists && !actual_schema_name.empty()) {
     std::stringstream ss;
-    ss << "DROP SCHEMA IF EXISTS " << schema_name;
+    ss << "DROP SCHEMA IF EXISTS " << actual_schema_name;
     if (execute_query(thd, ss.str().c_str())) return true;
   }
+
   /*
    The statements above are auto committed, so there is nothing uncommitted
    at this stage.
@@ -1245,9 +1270,7 @@ void establish_table_name_sets(std::set<String_type> *create_set,
   DBUG_ASSERT(remove_set != nullptr && remove_set->empty());
   for (System_tables::Const_iterator it = System_tables::instance()->begin();
        it != System_tables::instance()->end(); ++it) {
-    if ((*it)->property() == System_tables::Types::CORE ||
-        (*it)->property() == System_tables::Types::SECOND ||
-        (*it)->property() == System_tables::Types::DDSE) {
+    if (is_non_inert_dd_or_ddse_table((*it)->property())) {
       /*
         In this context, all tables should have an Object_table. Minor
         downgrade is the only situation where an Object_table may not exist,
@@ -1389,9 +1412,7 @@ bool update_properties(THD *thd, const std::set<String_type> *create_set,
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   for (System_tables::Const_iterator it = System_tables::instance()->begin();
        it != System_tables::instance()->end(); ++it) {
-    if ((*it)->property() == System_tables::Types::CORE ||
-        (*it)->property() == System_tables::Types::SECOND ||
-        (*it)->property() == System_tables::Types::DDSE) {
+    if (is_non_inert_dd_or_ddse_table((*it)->property())) {
       /*
         This will not be called for minor downgrade, so all tables
         will have a corresponding Object_table.
@@ -2076,12 +2097,20 @@ bool DDSE_dict_init(THD *thd, dict_init_mode_t dict_init_mode, uint version) {
     Iterate over the table definitions and add them to the System_tables
     registry. The Object_table instances will later be used to execute
     CREATE TABLE statements to actually create the tables.
+
+    If Object_table::is_hidden(), then we add the tables as type DDSE_PRIVATE
+    (not available neither for DDL nor DML), otherwise, we add them as type
+    DDSE_PROTECTED (available for DML, not for DDL).
   */
   List_iterator<const Object_table> table_it(ddse_tables);
   const Object_table *ddse_table = nullptr;
   while ((ddse_table = table_it++)) {
+    System_tables::Types table_type = System_tables::Types::DDSE_PROTECTED;
+    if (ddse_table->is_hidden()) {
+      table_type = System_tables::Types::DDSE_PRIVATE;
+    }
     System_tables::instance()->add(MYSQL_SCHEMA_NAME.str, ddse_table->name(),
-                                   System_tables::Types::DDSE, ddse_table);
+                                   table_type, ddse_table);
   }
 
   /*

@@ -2,7 +2,7 @@
 # Not GTIDs because it sets slave_sql_skip_counter
 # When log-bin, skip-log-bin and binlog-format options are specified, mask the warning.
 --disable_query_log
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] You need to use --log-bin to make --binlog-format work.");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] \\[[^]]*\\] You need to use --log-bin to make --binlog-format work.");
 --enable_query_log
 #
 # Checks how replication commands behave when replication if OFF

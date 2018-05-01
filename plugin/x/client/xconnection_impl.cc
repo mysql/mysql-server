@@ -344,6 +344,8 @@ XError Connection_impl::connect(sockaddr *addr, const std::size_t addr_size) {
   }
 
   m_vio = vio;
+  // Enable TCP_NODELAY
+  vio_fastsend(m_vio);
 
   set_read_timeout(details::make_vio_timeout(
       m_context->m_connection_config.m_timeout_read / 1000));

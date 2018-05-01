@@ -4,7 +4,7 @@
 call mtr.add_suppression("keyring_file initialization failure. Please check if the keyring_file_data points to readable keyring file or keyring file can be created in the specified location. The keyring_file will stay unusable until correct path to the keyring file gets provided");
 call mtr.add_suppression("Could not create keyring directory The keyring_file will stay unusable until correct path to the keyring directory gets provided");
 call mtr.add_suppression("Error while loading keyring content. The keyring might be malformed");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Plugin keyring_file reported: 'File .*keyring' not found .*");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_file reported: 'File .*keyring' not found .*");
 
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR

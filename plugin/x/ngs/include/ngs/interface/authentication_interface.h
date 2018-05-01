@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _NGS_PROTOCOL_AUTHENTICATION_H_
-#define _NGS_PROTOCOL_AUTHENTICATION_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_AUTHENTICATION_INTERFACE_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_AUTHENTICATION_INTERFACE_H_
 
 #include "plugin/x/ngs/include/ngs/error_code.h"
 #include "plugin/x/ngs/include/ngs/interface/account_verification_interface.h"
@@ -37,6 +37,19 @@ class Authentication_interface;
 
 typedef ngs::Memory_instrumented<Authentication_interface>::Unique_ptr
     Authentication_interface_ptr;
+
+class Authentication_info {
+ public:
+  std::string m_tried_account_name;
+  bool m_was_using_password{false};
+
+  void reset() {
+    m_was_using_password = false;
+    m_tried_account_name.clear();
+  }
+
+  bool is_valid() const { return !m_tried_account_name.empty(); }
+};
 
 class Authentication_interface {
  public:
@@ -70,8 +83,10 @@ class Authentication_interface {
   virtual ngs::Error_code authenticate_account(
       const std::string &user, const std::string &host,
       const std::string &passwd) const = 0;
+
+  virtual Authentication_info get_authentication_info() const = 0;
 };
 
 }  // namespace ngs
 
-#endif
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_AUTHENTICATION_INTERFACE_H_

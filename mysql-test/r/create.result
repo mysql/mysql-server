@@ -654,7 +654,7 @@ create table t2(test.t2.name int);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.t2.name int)' at line 1
 CREATE TABLE t1 (f1 VARCHAR(255) CHARACTER SET utf8);
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t2 AS SELECT LEFT(f1,171) AS f2 FROM t1 UNION SELECT LEFT(f1,171) AS f2 FROM t1;
 DESC t2;
 Field	Type	Null	Key	Default	Extra
@@ -697,7 +697,7 @@ a varchar(112) charset utf8 collate utf8_bin not null,
 primary key (a)
 ) select 'test' as a ;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -714,7 +714,7 @@ a varchar(12) charset utf8 collate utf8_bin not null,
 b int not null, primary key (a)
 ) select a, 1 as b from t2 ;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -728,7 +728,7 @@ a varchar(12) charset utf8 collate utf8_bin not null,
 b int not null, primary key (a)
 ) select a, 1 as c from t2 ;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1364	Field 'b' doesn't have a default value
 show create table t1;
 Table	Create Table
@@ -744,7 +744,7 @@ a varchar(12) charset utf8 collate utf8_bin not null,
 b int null, primary key (a)
 ) select a, 1 as c from t2 ;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -759,7 +759,7 @@ a varchar(12) charset utf8 collate utf8_bin not null,
 b int not null, primary key (a)
 ) select 'a' as a , 1 as b from t2 ;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -773,7 +773,7 @@ a varchar(12) charset utf8 collate utf8_bin,
 b int not null, primary key (a)
 ) select 'a' as a , 1 as b from t2 ;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -793,14 +793,14 @@ a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int,
 primary key (a1)
 ) select a1,a2,a3,a4,a5,a6,a7,a8,a9 from t1 ;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop table t2;
 create table t2 ( 
 a1 varchar(12) charset utf8 collate utf8_bin,
 a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int
 ) select a1,a2,a3,a4,a5,a6,a7,a8,a9 from t1;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop table t1, t2;
 create table t1 ( 
 a1 int, a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int
@@ -812,7 +812,7 @@ a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int,
 primary key (a1)
 ) select a1,a2,a3,a4,a5,a6,a7,a8,a9 from t1 ;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop table t2;
 create table t2 ( a int default 3, b int default 3)
 select a1,a2 from t1;
@@ -1041,7 +1041,7 @@ SHOW CREATE DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
 set names utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create database имя_базы_в_кодировке_утф8_длиной_больше_чем_45;
 use имя_базы_в_кодировке_утф8_длиной_больше_чем_45;
 select database();
@@ -1200,7 +1200,7 @@ c5 VARCHAR(255) COLLATE utf8_unicode_ci NULL DEFAULT 'b',
 c6 VARCHAR(255))
 COLLATE latin1_bin;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -2051,3 +2051,86 @@ DROP TABLE t1, t2, t3, t4;
 DROP TABLE t1, t2, t3, t4;
 SET GLOBAL innodb_default_row_format= @saved_innodb_default_row_format;
 SET SESSION show_create_table_verbosity= @saved_show_create_table_verbosity;
+#
+# Bug#27592803: ASSERTION FAILED: RC == TYPE_OK,
+#
+# Make sure that it is possible to create enums using binary string
+# values that are not valid utf8
+CREATE TABLE t0(a ENUM('aaa', 'bbb', 'ccc') BYTE);
+SHOW CREATE TABLE t0;
+Table	Create Table
+t0	CREATE TABLE `t0` (
+  `a` enum('aaa','bbb','ccc') CHARACTER SET binary COLLATE binary DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW COLUMNS FROM t0;
+Field	Type	Null	Key	Default	Extra
+a	enum('aaa','bbb','ccc')	YES		NULL	
+# Tables t1 and t2 uses a binary value that is legal as utf8, so they
+# would not trigger an assert.
+CREATE TABLE t1(a ENUM( b'1001001'));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` enum('I') DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+a	enum('I')	YES		NULL	
+CREATE TABLE t2(a ENUM( b'1001001') BYTE);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` enum('I') CHARACTER SET binary COLLATE binary DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW COLUMNS FROM t2;
+Field	Type	Null	Key	Default	Extra
+a	enum('I')	YES		NULL	
+# Tables t3 - t6 contains binary values that are not valid utf8
+# which would previously result in assert. With the fix we get the hex
+# representation of the binary value instead.
+CREATE TABLE t3(a ENUM( b'10010010') BYTE);
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` enum(x'92') CHARACTER SET binary COLLATE binary DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW COLUMNS FROM t3;
+Field	Type	Null	Key	Default	Extra
+a	enum(x'92')	YES		NULL	
+CREATE TABLE t4(a ENUM( b'1001001101101111') BYTE);
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `a` enum(x'936f') CHARACTER SET binary COLLATE binary DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW COLUMNS FROM t4;
+Field	Type	Null	Key	Default	Extra
+a	enum(x'936f')	YES		NULL	
+CREATE TABLE t5(a ENUM( b'10010011011011111111011000011') BYTE);
+SHOW CREATE TABLE t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `a` enum(x'126dfec3') CHARACTER SET binary COLLATE binary DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW COLUMNS FROM t5;
+Field	Type	Null	Key	Default	Extra
+a	enum(x'126dfec3')	YES		NULL	
+CREATE TABLE t6 (a INT);
+ALTER TABLE t6
+MODIFY COLUMN a ENUM( b'10010011011011111111011000011') BYTE UNIQUE FIRST;
+SHOW CREATE TABLE t6;
+Table	Create Table
+t6	CREATE TABLE `t6` (
+  `a` enum(x'126dfec3') CHARACTER SET binary COLLATE binary DEFAULT NULL,
+  UNIQUE KEY `a` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW COLUMNS FROM t6;
+Field	Type	Null	Key	Default	Extra
+a	enum(x'126dfec3')	YES	UNI	NULL	
+DROP TABLE t6;
+DROP TABLE t5;
+DROP TABLE t4;
+DROP TABLE t3;
+DROP TABLE t2;
+DROP TABLE t1;
+DROP TABLE t0;

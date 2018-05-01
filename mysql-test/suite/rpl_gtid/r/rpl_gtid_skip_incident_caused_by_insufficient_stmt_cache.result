@@ -4,7 +4,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
-call mtr.add_suppression("Slave SQL for channel '': The incident LOST_EVENTS occured on the master.");
+call mtr.add_suppression("Slave SQL for channel '': The incident LOST_EVENTS occurred on the master.");
 call mtr.add_suppression("The content of the statement cache is corrupted "
                          "while writing a rollback record of the transaction "
                          "to the binary log. An incident event has been "
@@ -33,7 +33,7 @@ master-bin.000001	#	Rotate	#	#	master-bin.000002;pos=POS
 # Wait for the error 'ER_SLAVE_INCIDENT' caused by applying incident
 # event on slave and then stop the slave sql thread.
 #
-include/wait_for_slave_sql_error.inc [errno=1590]
+include/wait_for_slave_sql_error.inc [errno=13119]
 #
 # Prepare the slave to skip the incident event by its GTID.
 #

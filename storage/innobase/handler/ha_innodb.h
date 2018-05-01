@@ -288,14 +288,6 @@ class ha_innobase : public handler {
                    enum enum_sql_command sqlcom);
 
  public:
-  /** DROP and CREATE an InnoDB table.
-  @param[in,out]	table_def	dd::Table describing table to be
-  truncated. Can be adjusted by SE, the changes will be saved into
-  the data-dictionary at statement commit time.
-  @return	error number
-  @retval 0 on success */
-  int truncate(dd::Table *table_def);
-
   int rename_table(const char *from, const char *to,
                    const dd::Table *from_table, dd::Table *to_table);
 
@@ -503,7 +495,23 @@ class ha_innobase : public handler {
   @retval false  if the handler does not want a buffer */
   virtual bool is_record_buffer_wanted(ha_rows *const max_rows) const;
 
+  /** TRUNCATE an InnoDB table.
+  @param[in]		name		table name
+  @param[in]		form		table definition
+  @param[in,out]	table_def	dd::Table describing table to be
+  truncated. Can be adjusted by SE, the changes will be saved into
+  the data-dictionary at statement commit time.
+  @return	error number
+  @retval 0 on success */
+  int truncate_impl(const char *name, TABLE *form, dd::Table *table_def);
+
  protected:
+  /** Enter InnoDB engine after checking max allowed threads */
+  void srv_concurrency_enter();
+
+  /** Leave Innodb, if no more tickets are left */
+  void srv_concurrency_exit();
+
   void update_thd(THD *thd);
 
   int general_fetch(uchar *buf, uint direction, uint match_mode);
@@ -530,11 +538,6 @@ class ha_innobase : public handler {
   exists for readability only, called from reset(). The name reset()
   doesn't give any clue that it is called at the end of a statement. */
   int end_stmt();
-
-  /** Rename tablespace file name for truncate
-  @param[in]	name	table name
-  @return 0 on success, error code on failure */
-  int truncate_rename_tablespace(const char *name);
 
   /** Implementation of prepare_inplace_alter_table()
   @tparam		Table		dd::Table or dd::Partition
@@ -944,13 +947,10 @@ class innobase_basic_ddl {
   @param[in,out]	thd		THD object
   @param[in]	name		table name
   @param[in]	dd_tab		dd::Table describing table to be dropped
-  @param[in]	sqlcom		type of operation that the DROP
-                                  is part of
   @return	error number
   @retval	0 on success */
   template <typename Table>
-  static int delete_impl(THD *thd, const char *name, const Table *dd_tab,
-                         enum enum_sql_command sqlcom);
+  static int delete_impl(THD *thd, const char *name, const Table *dd_tab);
 
   /** Renames an InnoDB table.
   @tparam		Table		dd::Table or dd::Partition
@@ -966,6 +966,91 @@ class innobase_basic_ddl {
   template <typename Table>
   static int rename_impl(THD *thd, const char *from, const char *to,
                          const Table *from_table, const Table *to_table);
+};
+
+/** Class to handle TRUNCATE for one InnoDB table or one partition */
+template <typename Table>
+class innobase_truncate {
+ public:
+  /** Constructor
+  @param[in]	thd		THD object
+  @param[in]	name		normalized table name
+  @param[in]	form		Table format; columns and index information
+  @param[in]	dd_table	dd::Table or dd::Partition */
+  innobase_truncate(THD *thd, const char *name, TABLE *form, Table *dd_table)
+      : m_thd(thd),
+        m_name(name),
+        m_dd_table(dd_table),
+        m_trx(nullptr),
+        m_table(nullptr),
+        m_form(form),
+        m_create_info(),
+        m_file_per_table(false),
+        m_flags(0),
+        m_flags2(0) {}
+
+  /** Destructor */
+  ~innobase_truncate();
+
+  /** Open the table/partition to be truncated
+  @param[out]	innodb_table	InnoDB table object opened
+  @return error number or 0 on success */
+  int open_table(dict_table_t *&innodb_table);
+
+  /** Do the truncate of the table/partition
+  @return error number or 0 on success */
+  int exec();
+
+ private:
+  /** Prepare for truncate
+  @return error number or 0 on success */
+  int prepare();
+
+  /** Do the real truncation
+  @return error number or 0 on success */
+  int truncate();
+
+  /** Rename tablespace file name
+  @return error number or 0 on success */
+  int rename_tablespace();
+
+  /** Cleanup */
+  void cleanup();
+
+  /** Reload the FK related information
+  @return error number or 0 on success */
+  int load_fk();
+
+ private:
+  /** THD object */
+  THD *m_thd;
+
+  /** Normalized table name */
+  const char *m_name;
+
+  /** dd::Table or dd::Partition */
+  Table *m_dd_table;
+
+  /** Transaction attached to current thd */
+  trx_t *m_trx;
+
+  /** InnoDB table object for the table/partition */
+  dict_table_t *m_table;
+
+  /** Table format */
+  TABLE *m_form;
+
+  /** Create information */
+  HA_CREATE_INFO m_create_info;
+
+  /** True if this table/partition is file per table */
+  bool m_file_per_table;
+
+  /** flags of the table to be truncated, which should not change */
+  uint64_t m_flags;
+
+  /** flags2 of the table to be truncated, which should not change */
+  uint64_t m_flags2;
 };
 
 /**

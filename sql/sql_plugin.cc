@@ -60,6 +60,8 @@
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"
+#include "mysql/psi/mysql_system.h"
+#include "mysql/psi/mysql_thread.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
@@ -563,8 +565,13 @@ static inline void free_plugin_mem(st_plugin_dl *p) {
   bool preserve_shared_objects_after_unload = false;
   DBUG_EXECUTE_IF("preserve_shared_objects_after_unload",
                   { preserve_shared_objects_after_unload = true; });
-  if (p->handle != nullptr && !preserve_shared_objects_after_unload)
+  if (p->handle != nullptr && !preserve_shared_objects_after_unload) {
+#ifdef HAVE_PSI_SYSTEM_INTERFACE
+    PSI_SYSTEM_CALL(unload_plugin)
+    (std::string(p->dl.str, p->dl.length).c_str());
+#endif
     dlclose(p->handle);
+  }
   my_free(p->dl.str);
   if (p->version != MYSQL_PLUGIN_INTERFACE_VERSION) my_free(p->plugins);
 }
@@ -1269,8 +1276,8 @@ static PSI_memory_info all_plugin_memory[]=
   { &key_memory_plugin_mem_root, "plugin_mem_root", PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME},
   { &key_memory_plugin_init_tmp, "plugin_init_tmp", 0, 0, PSI_DOCUMENT_ME},
   { &key_memory_plugin_int_mem_root, "plugin_int_mem_root", 0, 0, PSI_DOCUMENT_ME},
-  { &key_memory_mysql_plugin_dl, "mysql_plugin_dl", 0, 0, PSI_DOCUMENT_ME},
-  { &key_memory_mysql_plugin, "mysql_plugin", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_mysql_plugin_dl, "mysql_plugin_dl", PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME},
+  { &key_memory_mysql_plugin, "mysql_plugin", PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME},
   { &key_memory_plugin_bookmark, "plugin_bookmark", PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME}
 };
 /* clang-format on */
@@ -1635,7 +1642,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv) {
     DBUG_VOID_RETURN;
   }
   table = tables.table;
-  if (init_read_record(&read_record_info, new_thd, table, NULL, 1, 1, false)) {
+  if (init_read_record(&read_record_info, new_thd, table, NULL, 1, false)) {
     close_trans_system_tables(new_thd);
     DBUG_VOID_RETURN;
   }
@@ -2734,20 +2741,12 @@ static bool *mysql_sys_var_bool(THD *thd, int offset) {
   return (bool *)intern_sys_var_ptr(thd, offset, true);
 }
 
-static int *mysql_sys_var_int(THD *thd, int offset) {
-  return (int *)intern_sys_var_ptr(thd, offset, true);
-}
-
-static long *mysql_sys_var_long(THD *thd, int offset) {
-  return (long *)intern_sys_var_ptr(thd, offset, true);
+static unsigned int *mysql_sys_var_uint(THD *thd, int offset) {
+  return (unsigned int *)intern_sys_var_ptr(thd, offset, true);
 }
 
 static unsigned long *mysql_sys_var_ulong(THD *thd, int offset) {
   return (unsigned long *)intern_sys_var_ptr(thd, offset, true);
-}
-
-static long long *mysql_sys_var_longlong(THD *thd, int offset) {
-  return (long long *)intern_sys_var_ptr(thd, offset, true);
 }
 
 static unsigned long long *mysql_sys_var_ulonglong(THD *thd, int offset) {
@@ -3042,13 +3041,19 @@ static int construct_options(MEM_ROOT *mem_root, st_plugin_int *tmp,
         ((thdvar_bool_t *)opt)->resolve = mysql_sys_var_bool;
         break;
       case PLUGIN_VAR_INT:
-        ((thdvar_int_t *)opt)->resolve = mysql_sys_var_int;
+        // All PLUGIN_VAR_INT variables are actually uint,
+        // see struct System_variables
+        ((thdvar_uint_t *)opt)->resolve = mysql_sys_var_uint;
         break;
       case PLUGIN_VAR_LONG:
-        ((thdvar_long_t *)opt)->resolve = mysql_sys_var_long;
+        // All PLUGIN_VAR_LONG variables are actually ulong,
+        // see struct System_variables
+        ((thdvar_ulong_t *)opt)->resolve = mysql_sys_var_ulong;
         break;
       case PLUGIN_VAR_LONGLONG:
-        ((thdvar_longlong_t *)opt)->resolve = mysql_sys_var_longlong;
+        // All PLUGIN_VAR_LONGLONG variables are actually ulonglong,
+        // see struct System_variables
+        ((thdvar_ulonglong_t *)opt)->resolve = mysql_sys_var_ulonglong;
         break;
       case PLUGIN_VAR_STR:
         ((thdvar_str_t *)opt)->resolve = mysql_sys_var_str;
@@ -3349,7 +3354,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
   for (opt = tmp->plugin->system_vars; opt && *opt; opt++) {
     SYS_VAR *o;
     const my_option **optp = (const my_option **)&opts;
-    if (((o = *opt)->flags & PLUGIN_VAR_EXPERIMENTAL)) continue;
+    if (((o = *opt)->flags & PLUGIN_VAR_NOSYSVAR)) continue;
     if ((var = find_bookmark(plugin_name.str, o->name, o->flags)))
       v = new (mem_root) sys_var_pluginvar(&chain, var->key + 1, o);
     else {

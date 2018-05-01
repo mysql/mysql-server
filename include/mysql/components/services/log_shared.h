@@ -223,4 +223,11 @@ typedef struct _log_item_iter log_item_iter;
 /** 26 for regular timestamp, plus 7 (".123456") when using micro-seconds */
 static const int iso8601_size = 33;
 
+/**
+  index of first server error message: messages with this index or
+  higher are intended for the error log; messages below this index
+  are intended for the client
+*/
+#define ER_SERVER_RANGE_START 10000
+
 #endif

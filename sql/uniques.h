@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -91,10 +91,10 @@ class Unique {
   uint get_size() const { return size; }
   ulonglong get_max_in_memory_size() const { return max_in_memory_size; }
 
-  friend int unique_write_to_file(uchar *key, element_count count,
-                                  Unique *unique);
-  friend int unique_write_to_ptrs(uchar *key, element_count count,
-                                  Unique *unique);
+  friend int unique_write_to_file(void *v_key, element_count count,
+                                  void *unique);
+  friend int unique_write_to_ptrs(void *v_key, element_count count,
+                                  void *unique);
 };
 
 #endif  // UNIQUES_INCLUDED

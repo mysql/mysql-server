@@ -742,6 +742,8 @@ Handler_update	1
 EXPLAIN UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	pNeg_subp0	index	NULL	PRIMARY	4	NULL	1	100.00	NULL
+Warnings:
+Note	1003	update `test`.`t1` PARTITION (`subp0`) set `test`.`t1`.`b` = concat(`test`.`t1`.`b`,', Updated')
 SELECT * FROM t1 PARTITION (subp0) ORDER BY a;
 a	b
 -2	(pNeg-)subp0, Updated
@@ -760,6 +762,8 @@ Handler_update	1
 EXPLAIN UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated2') WHERE a = -2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	pNeg_subp0	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+Warnings:
+Note	1003	update `test`.`t1` PARTITION (`subp0`) set `test`.`t1`.`b` = concat(`test`.`t1`.`b`,', Updated2') where (`test`.`t1`.`a` = -(2))
 FLUSH STATUS;
 UPDATE t1 PARTITION(subp0) SET a = -4, b = concat(b, ', Updated from a = -2')
 WHERE a = -2;
@@ -778,6 +782,8 @@ Handler_update	1
 EXPLAIN UPDATE t1 PARTITION(subp0) SET a = -4, b = concat(b, ', Updated from a = -2');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	pNeg_subp0	index	NULL	PRIMARY	4	NULL	1	100.00	Using temporary
+Warnings:
+Note	1003	update `test`.`t1` PARTITION (`subp0`) set `test`.`t1`.`a` = -(4),`test`.`t1`.`b` = concat(`test`.`t1`.`b`,', Updated from a = -2')
 FLUSH STATUS;
 UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated2') WHERE a = 100;
 VARIABLE_NAME	VARIABLE_VALUE
@@ -785,6 +791,8 @@ VARIABLE_NAME	VARIABLE_VALUE
 EXPLAIN UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated2') WHERE a = 100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching rows after partition pruning
+Warnings:
+Note	1003	update `test`.`t1` PARTITION (`subp0`) set `test`.`t1`.`b` = concat(`test`.`t1`.`b`,', Updated2') where (`test`.`t1`.`a` = 100)
 FLUSH STATUS;
 UPDATE t1 PARTITION(subp0) SET a = -2, b = concat(b, ', Updated from a = 100')
 WHERE a = 100;
@@ -794,6 +802,8 @@ EXPLAIN UPDATE t1 PARTITION(subp0)
 SET a = -2, b = concat(b, ', Updated from a = 100') WHERE a = 100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching rows after partition pruning
+Warnings:
+Note	1003	update `test`.`t1` PARTITION (`subp0`) set `test`.`t1`.`a` = -(2),`test`.`t1`.`b` = concat(`test`.`t1`.`b`,', Updated from a = 100') where (`test`.`t1`.`a` = 100)
 FLUSH STATUS;
 UPDATE t1 PARTITION(`p100-99999`) SET a = -2, b = concat(b, ', Updated from a = 100')
 WHERE a = 100;

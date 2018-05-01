@@ -190,7 +190,7 @@ drop table t1;
 # Bug #5219: problem with range optimizer
 #
 
-create table t1(a geometry not null, index(a(5)));
+create table t1(a geometry not null);
 insert into t1 values
 (ST_GeomFromText('POINT(1 1)')), (ST_GeomFromText('POINT(3 3)')), 
 (ST_GeomFromText('POINT(4 4)')), (ST_GeomFromText('POINT(6 6)'));
@@ -204,7 +204,7 @@ select ST_AsText(a) from t1 where
   MBRContains(ST_GeomFromText('Polygon((0 0, 0 7, 7 7, 7 0, 0 0))'), a);
 drop table t1;
 
-CREATE TABLE t1 (Coordinates POINT NOT NULL, INDEX(Coordinates(10))); 
+CREATE TABLE t1 (Coordinates POINT NOT NULL);
 INSERT INTO t1 VALUES(ST_GeomFromText('POINT(383293632 1754448)')); 
 INSERT INTO t1 VALUES(ST_GeomFromText('POINT(564952612 157516260)')); 
 INSERT INTO t1 VALUES(ST_GeomFromText('POINT(903994614 180726515)')); 
@@ -399,7 +399,7 @@ select ST_asbinary(g) from t1;
 --disable_metadata
 drop table t1;
 
-create table t1 (a TEXT, b GEOMETRY NOT NULL, INDEX(b(5)));
+create table t1 (a TEXT, b GEOMETRY NOT NULL);
 alter table t1 disable keys;
 --error 1263
 load data infile '../../std_data/bad_gis_data.dat' into table t1;
@@ -465,13 +465,11 @@ DROP TABLE t1;
 #
 
 CREATE TABLE t1 (
-  geomdata polygon NOT NULL,
-  KEY index_geom (geomdata(10))
+  geomdata polygon NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin2 DELAY_KEY_WRITE=1 ROW_FORMAT=FIXED;
 
 CREATE TABLE t2 (
-  geomdata polygon NOT NULL,
-  KEY index_geom (geomdata(10))
+  geomdata polygon NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin2 DELAY_KEY_WRITE=1 ROW_FORMAT=FIXED;
 
 CREATE TABLE t3
@@ -496,7 +494,7 @@ drop table t3;
 #
 
 create table t1(col1 geometry default null,col15 geometrycollection not
-null, index(col15(5)),index(col1(15)))engine=InnoDB;
+null)engine=InnoDB;
 --error ER_CANT_CREATE_GEOMETRY_OBJECT
 insert into t1 set col15 = ST_GeomFromText('POINT(6 5)');
 --error ER_CANT_CREATE_GEOMETRY_OBJECT
@@ -531,11 +529,13 @@ drop function fn3;
 # Bug #12267 (primary key over GIS)
 #
 create table t1(pt POINT);
+--error ER_SPATIAL_UNIQUE_INDEX
 alter table t1 add primary key pti(pt);
 drop table t1;
 create table t1(pt GEOMETRY);
---error 1170
+--error ER_SPATIAL_UNIQUE_INDEX
 alter table t1 add primary key pti(pt);
+--error ER_WRONG_SUB_KEY
 alter table t1 add primary key pti(pt(20));
 drop table t1;
 
@@ -834,6 +834,7 @@ CREATE TABLE t3 (
 CREATE SPATIAL INDEX idx0 ON t2 (col1, col2);
 
 
+--error ER_TOO_MANY_KEY_PARTS
 CREATE TABLE t4 (
   col0 INTEGER NOT NULL,
   col1 POINT,
@@ -868,16 +869,14 @@ SELECT GEOMETRYCOLLECTION((SELECT @@OLD));
 --echo #
 
 CREATE TABLE g1
-(a geometry NOT NULL, UNIQUE KEY i (a(151))) engine=InnoDB;
+(a geometry NOT NULL) engine=InnoDB;
 
 INSERT INTO g1 VALUES (ST_geomfromtext('point(1 1)'));
 INSERT INTO g1 VALUES (ST_geomfromtext('point(1 2)'));
 
 FLUSH TABLES;
 
-SELECT 1 FROM g1 
-FORCE INDEX(i) WHERE a = date_sub(now(), interval 2808.4 year_month)
-;
+SELECT 1 FROM g1 WHERE a = date_sub(now(), interval 2808.4 year_month);
 
 DROP TABLE g1;
 

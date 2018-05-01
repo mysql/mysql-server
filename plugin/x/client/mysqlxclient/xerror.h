@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,8 @@
 // MySQL DB access module, for use by plugins and others
 // For the module that implements interactive DB functionality see mod_db
 
-#ifndef X_CLIENT_MYSQLXCLIENT_XERROR_H_
-#define X_CLIENT_MYSQLXCLIENT_XERROR_H_
+#ifndef PLUGIN_X_CLIENT_MYSQLXCLIENT_XERROR_H_
+#define PLUGIN_X_CLIENT_MYSQLXCLIENT_XERROR_H_
 
 #include <string>
 
@@ -49,10 +49,11 @@ namespace xcl {
 */
 class XError {
  public:
-  XError() : m_error(0) {}
+  XError() : m_error(0), m_is_fatal(false) {}
 
-  explicit XError(const int err, const std::string &message = "")
-      : m_message(message), m_error(err) {}
+  explicit XError(const int err, const std::string &message = "",
+                  bool is_fatal = false)
+      : m_message(message), m_error(err), m_is_fatal(is_fatal) {}
 
   /** Check if an error occurred */
   operator bool() const { return 0 != m_error; }
@@ -63,11 +64,15 @@ class XError {
   /** Get error description. */
   const char *what() const { return m_message.c_str(); }
 
+  /** Check if error is marked as fatal. */
+  bool is_fatal() const { return m_is_fatal; }
+
  private:
   std::string m_message;
   int m_error;
+  bool m_is_fatal;
 };
 
 }  // namespace xcl
 
-#endif  // X_CLIENT_MYSQLXCLIENT_XERROR_H_
+#endif  // PLUGIN_X_CLIENT_MYSQLXCLIENT_XERROR_H_

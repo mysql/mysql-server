@@ -1177,7 +1177,6 @@ dict_index_t *dict_table_get_index_on_first_col(
     }
   }
   ut_error;
-  return (0);
 }
 
 /** Get table session row-id and increment the row-id counter for next use.
@@ -1212,6 +1211,20 @@ inline uint64_t dict_table_t::get_ref_count() const { return (n_ref_count); }
 inline void dict_table_t::acquire() {
   ut_ad(mutex_own(&dict_sys->mutex) || is_intrinsic());
   ++n_ref_count;
+}
+
+inline void dict_table_t::acquire_with_lock() {
+  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(!is_intrinsic());
+
+  /* Acquiring the lock first, to prevent race between n_ref_count and
+  stat_initialized in dict_table_close(). This lock makes sure the close
+  code path either destroys the stats information before increasing
+  n_ref_count, or finds the n_ref_count is not 0, so not to destry the stats
+  information. */
+  lock();
+  ++n_ref_count;
+  unlock();
 }
 
 /** Release the table handle. */
@@ -1409,6 +1422,13 @@ space_index_t dict_sdi_get_index_id() { return (IB_UINT64_MAX); }
 @return true if table is DD table or SDI table, else false */
 inline bool dict_table_t::skip_gap_locks() const {
   return (is_dd_table || dict_table_is_sdi(id));
+}
+
+/** Determine if the table can support instant ADD COLUMN */
+inline bool dict_table_t::support_instant_add() const {
+  return (!DICT_TF_GET_ZIP_SSIZE(flags) && space != dict_sys_t::s_space_id &&
+          !DICT_TF2_FLAG_IS_SET(this, DICT_TF2_FTS_HAS_DOC_ID) &&
+          !is_temporary());
 }
 
 /** Check whether the dict_table_t is a partition.

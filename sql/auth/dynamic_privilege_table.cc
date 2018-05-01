@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -109,7 +109,7 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst) {
 
   TABLE *table = tablelst[0].table;
   table->use_all_columns();
-  if (init_read_record(&read_record_info, thd, table, NULL, 1, 1, false)) {
+  if (init_read_record(&read_record_info, thd, table, NULL, 1, false)) {
     my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
              table->s->table_name.str);
     DBUG_RETURN(true);

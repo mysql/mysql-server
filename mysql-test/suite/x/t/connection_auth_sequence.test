@@ -128,14 +128,43 @@ peerdisc 30000 30000;
 
 EOF
 
+--write_file $MYSQL_TMP_DIR/auth_errors.tmp
+expecterror ER_ACCESS_DENIED_ERROR;
+login locked_user   pass    test    sha256_memory;
+
+expecterror ER_ACCESS_DENIED_ERROR;
+login locked_user   pass    test    mysql41;
+
+EOF
+
+#
+## Error handling part
+#
+
+CREATE USER user_to_lock@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'xxx';
+GRANT ALL ON *.* TO user_to_lock@localhost;
+
+# Cache user password
+exec $MYSQLXTEST -u user_to_lock  -p "xxx" --ssl-mode=required --execute "select 1";
+
+ALTER USER user_to_lock@localhost ACCOUNT LOCK;
+
+# Use mysqlxclient library that is going to choose first error from the sequence
+
+exec $MYSQLXTEST -u user_to_lock  -p "xxx" --ssl-mode=DISABLED --cached-auth --mysql41-auth --expect-error ER_ACCOUNT_HAS_BEEN_LOCKED;
+
+# Use raw protocol message and show that first error in the sequence is ACCOUNT_LOCKED
+
+exec $MYSQLXTEST -u user_to_lock  -p "xxx" --no-auth --file=$MYSQL_TMP_DIR/auth_errors.tmp 2>&1;
+
+#
+## Authentication sequence part
+#
+
 --let $MYSQLXTEST=$MYSQLXTEST -ux_root --ssl-cipher='AES256-SHA'
 
 --source ../include/create_mysql_accounts_for_xplugin_tests.inc
 
-
-#
-## Test starts here
-#
 
 exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/auth_seq.tmp 2>&1;
 
@@ -144,6 +173,8 @@ exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/auth_seq.tmp 2>&1;
 #
 --source include/xplugin_drop_user.inc
 --remove_file $MYSQL_TMP_DIR/auth_seq.tmp
+--remove_file $MYSQL_TMP_DIR/auth_errors.tmp
+DROP USER user_to_lock@localhost;
 
 --source ../include/remove_mysql_accounts_for_xplugin_tests.inc
 

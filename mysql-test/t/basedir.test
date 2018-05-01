@@ -124,7 +124,7 @@ EOF
   my $found_expected_error= 0;
   while(<MYSQLD_OUT>)
   {
-    if (/\[ERROR\] \[[^]]*\] Could not open .+ for error logging/)
+    if (/\[ERROR\] \[[^]]*\] \[[^]]*\] Could not open .+ for error logging/)
     {
       print "# Found expected error\n";
       $found_expected_error= 1;
@@ -151,12 +151,12 @@ EOF
   my $found_expected_errors= 0;
   while(<MYSQLD_OUT>)
   {
-    if (/\[ERROR\] \[[^]]*\] Could not open .+ for error logging/)
+    if (/\[ERROR\] \[[^]]*\] \[[^]]*\] Could not open .+ for error logging/)
     {
       print "# Found expected error from launcher process\n";
       ++$found_expected_errors;
     }
-    if (/\[ERROR\] \[[^]]*\] Failed to start mysqld daemon\. Check mysqld error log\./)
+    if (/\[ERROR\] \[[^]]*\] \[[^]]*\] Failed to start mysqld daemon\. Check mysqld error log\./)
     {
       print "# Found expected error from daemon process\n";
       ++$found_expected_errors;
@@ -194,9 +194,12 @@ EOF
 
   open(MYSQLD_OUT, $mysqld_out) || die "Failed to open '$mysqld_out': $!";
   print "# Look for output (there should be none):\n";
+  print "# Supressing output for initialize:\n";
   while(<MYSQLD_OUT>)
   {
-    print;
+    if (!(/initializing of server has completed/)) {
+      print;
+    }
   }
   close(MYSQLD_OUT);
 EOF
@@ -215,3 +218,4 @@ EOF
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
+--source include/xplugin_wait_for_interfaces.inc

@@ -2,7 +2,7 @@
          xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
 
 <!--
-   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,13 +24,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 -->
+
     <!-- Include shortcuts -->
     <DirectoryRef Id='INSTALLDIR'>
     <Directory Id="DesktopFolder"/>
     <Directory Id="ProgramMenuFolder">
       <Directory Id="MysqlProgramMenuFolder" Name="MySQL">
         <Directory Id="MysqlProductMenuFolder" Name="MySQL Server @MAJOR_VERSION@.@MINOR_VERSION@">
-          <Component Id="MysqlProductMenuFolder" Guid="*" @WixWin64@>
+          <Component Id="MysqlProductMenuFolder" Guid="*" Win64="yes">
             <!-- Include a shortcut to the mysql command line client -->
             <Shortcut Id="MysqlCommandLineShellShortcut"
                       Name="MySQL @MAJOR_VERSION@.@MINOR_VERSION@ Command Line Client"
@@ -46,7 +47,7 @@
                       Description="The MySQL Command Line Shell in UTF8 Mode"
                       Icon="Icon.MysqlCmdShell"
                       Target="[D.bin]mysql.exe"
-                      Arguments='"--defaults-file=[INSTALLDIR]my.ini" "-uroot" "-p" "--default-character-set=utf8"'
+                      Arguments='"--defaults-file=[INSTALLDIR]my.ini" "-uroot" "-p" "--default-character-set=utf8mb4"'
                       WorkingDirectory="D.bin"/>
             <!-- Write Console settings for applications with this name to the registry -->
               <RegistryKey Root="HKCU" 

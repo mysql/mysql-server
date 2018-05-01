@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,15 +22,14 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _NGS_BUFFER_H_
-#define _NGS_BUFFER_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_BUFFER_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_BUFFER_H_
 
 #include <stdint.h>
 #include <list>
 #include <vector>
 
 #include "plugin/x/ngs/include/ngs/protocol/page_pool.h"
-#include "plugin/x/ngs/include/ngs_common/types.h"
 
 namespace ngs {
 
@@ -77,4 +76,4 @@ class Buffer {
 
 }  // namespace ngs
 
-#endif  // _NGS_BUFFER_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_BUFFER_H_

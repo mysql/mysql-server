@@ -56,3 +56,5 @@ if ($escape_string != '')
 
   --let $escape_string= `SELECT LOAD_FILE('$_output_filename')`
 }
+# Cleanup
+--remove_file $_output_filename

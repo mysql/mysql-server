@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -23,33 +23,32 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** @file storage/temptable/src/row.cc
 TempTable Row implementation. */
 
-#include <cstring> /* memcpy() */
-#include <utility> /* std::move() */
+#include <cstring>
+#include <utility>
 
-#include "my_dbug.h"                                       /* DBUG_ASSERT */
-#include "sql/field.h"                                     /* Field */
-#include "sql/table.h"                                     /* TABLE */
-#include "storage/temptable/include/temptable/allocator.h" /* temptable::Allocator */
-#include "storage/temptable/include/temptable/cell.h"      /* temptable::Cell */
-#include "storage/temptable/include/temptable/column.h" /* temptable::Column, temptable::Columns */
-#include "storage/temptable/include/temptable/misc.h" /* temptable::buf_is_inside_another() */
-#include "storage/temptable/include/temptable/result.h" /* temptable::Result */
-#include "storage/temptable/include/temptable/row.h"    /* temptable::Row */
+#include "my_dbug.h"
+#include "sql/field.h"
+#include "sql/table.h"
+#include "storage/temptable/include/temptable/allocator.h"
+#include "storage/temptable/include/temptable/cell.h"
+#include "storage/temptable/include/temptable/cell_calculator.h"
+#include "storage/temptable/include/temptable/column.h"
+#include "storage/temptable/include/temptable/misc.h"
+#include "storage/temptable/include/temptable/result.h"
+#include "storage/temptable/include/temptable/row.h"
 
 namespace temptable {
 
 #ifndef DBUG_OFF
-int Row::compare(const Columns &columns, Field **mysql_fields,
-                 const Row &rhs) const {
-  const Row &lhs = *this;
-
+int Row::compare(const Row &lhs, const Row &rhs, const Columns &columns,
+                 Field **mysql_fields) {
   for (size_t i = 0; i < columns.size(); ++i) {
-    const Field &mysql_field = *mysql_fields[i];
+    const Field *mysql_field = mysql_fields[i];
     const Cell &lhs_cell = lhs.cell(columns[i], i);
     const Cell &rhs_cell = rhs.cell(columns[i], i);
+    Cell_calculator calculator(mysql_field);
 
-    const int cmp_result = lhs_cell.compare(mysql_field, rhs_cell);
-
+    const int cmp_result = calculator.compare(lhs_cell, rhs_cell);
     if (cmp_result != 0) {
       return cmp_result;
     }

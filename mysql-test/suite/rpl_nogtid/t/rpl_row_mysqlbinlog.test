@@ -259,6 +259,8 @@ select "--- Test 5 LOAD DATA --" as "";
 
 # Bug#7853 (mysqlbinlog does not accept input from stdin)
 
+--let $mysqlbinlog_allow_error= 1
+
 --disable_query_log ONCE
 select "--- Test 6 reading stdin --" as "";
 let $MYSQLD_DATADIR= `select @@datadir;`;
@@ -270,6 +272,8 @@ select "--- Test 7 reading stdin w/position --" as "";
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --let $mysqlbinlog_parameters= --short-form --start-position=$position --stop-position=$stop_position - < $MYSQLD_DATADIR/master-bin.000001
 --source include/mysqlbinlog.inc
+
+--let $mysqlbinlog_allow_error= 0
        
 # Bug#16217 (mysql client did not know how not switch its internal charset)
 --disable_query_log ONCE

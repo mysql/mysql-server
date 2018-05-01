@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,12 @@ const int BINLOG_FLAGS_INFO_SIZE = 2;
 const int BINLOG_SERVER_ID_INFO_SIZE = 4;
 const int BINLOG_NAME_SIZE_INFO_SIZE = 4;
 
+/**
+  If there is no more events to send send a @ref page_protocol_basic_err_packet
+  instead of blocking the connection.
+
+  @sa ::COM_BINLOG_DUMP, ::COM_BINLOG_DUMP_GTID
+*/
 const int BINLOG_DUMP_NON_BLOCK = 1 << 0;
 
 /**

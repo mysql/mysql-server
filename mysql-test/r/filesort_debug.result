@@ -71,7 +71,23 @@ c28 TEXT,
 primary key (pk)
 ) ENGINE=InnoDB
 ;
+INSERT INTO t1 VALUES (REPEAT('x', 4096), REPEAT('x', 4096), REPEAT('x', 4096),
+REPEAT('x', 4096), REPEAT('x', 4096), REPEAT('x', 4096), REPEAT('x', 4096),
+REPEAT('x', 4096), REPEAT('x', 4096), REPEAT('x', 4096), 1, REPEAT('x', 4096),
+REPEAT('x', 4096), REPEAT('x', 4096), REPEAT('x', 4096), REPEAT('x', 4096),
+REPEAT('x', 4096), REPEAT('x', 4096), REPEAT('x', 4096), REPEAT('x', 4096));
+INSERT INTO t1 VALUES (REPEAT('x', 4096), REPEAT('x', 4096), REPEAT('x', 4096),
+REPEAT('x', 4096), REPEAT('x', 4096), REPEAT('x', 4096), REPEAT('x', 4096),
+REPEAT('x', 4096), REPEAT('x', 4096), REPEAT('x', 4096), 2, REPEAT('x', 4096),
+REPEAT('x', 4096), REPEAT('x', 4096), REPEAT('x', 4096), REPEAT('x', 4096),
+REPEAT('x', 4096), REPEAT('x', 4096), REPEAT('x', 4096), REPEAT('x', 4096));
+INSERT INTO t1 VALUES (REPEAT('x', 4096), REPEAT('x', 4096), REPEAT('x', 4096),
+REPEAT('x', 4096), REPEAT('x', 4096), REPEAT('x', 4096), REPEAT('x', 4096),
+REPEAT('x', 4096), REPEAT('x', 4096), REPEAT('x', 4096), 3, REPEAT('x', 4096),
+REPEAT('x', 4096), REPEAT('x', 4096), REPEAT('x', 4096), REPEAT('x', 4096),
+REPEAT('x', 4096), REPEAT('x', 4096), REPEAT('x', 4096), REPEAT('x', 4096));
 CALL mtr.add_suppression("Out of sort memory");
+SET SESSION sort_buffer_size=32768;
 DELETE IGNORE FROM t1 ORDER BY c26,c7,c23,c4,c25,c5,c20,
 c19,c21,c8,c1,c27,c28,c3,c9,c22,c24,c6,c2,pk LIMIT 2;
 ERROR HY001: Out of sort memory, consider increasing server sort buffer size
@@ -86,6 +102,7 @@ SHOW WARNINGS;
 Level	Code	Message
 Error	1038	Out of sort memory, consider increasing server sort buffer size
 Error	1028	Sort aborted: Out of sort memory, consider increasing server sort buffer size
+SET SESSION sort_buffer_size=DEFAULT;
 DROP TABLE t1;
 #
 # Bug#17372396: PLEASE REMOVE SORT ABORTED ERRORS FROM THE ERROR LOG
@@ -145,7 +162,7 @@ DROP TABLE t1;
 #
 SET NAMES utf8,@@character_set_results=NULL;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TEMPORARY TABLE t1(a INT);
 INSERT INTO t1 VALUES(1);
 SELECT 1 FROM t1 ORDER BY @x:=makedate(a,a);

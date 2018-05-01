@@ -91,6 +91,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` fr
 EXPLAIN DELETE FROM t1 WHERE a = 4 OR b > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	p0,p1,p2	index_merge	a,b	a,b	4,4	NULL	#	100.00	Using sort_union(a,b); Using where
+Warnings:
+Note	1003	delete from `test`.`t1` where ((`test`.`t1`.`a` = 4) or (`test`.`t1`.`b` > 0))
 SELECT * FROM t1 WHERE a = 4 OR b > 0;
 a	b
 1	1
@@ -164,10 +166,14 @@ a	b
 EXPLAIN DELETE FROM t1 WHERE a = 4 OR b < 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	p0,p1,p2,p3,p4	index_merge	a,b	a,b	4,4	NULL	#	100.00	Using sort_union(a,b); Using where
+Warnings:
+Note	1003	delete from `test`.`t1` where ((`test`.`t1`.`a` = 4) or (`test`.`t1`.`b` < 3))
 DELETE FROM t1 WHERE a = 4 OR b < 3;
 EXPLAIN DELETE FROM t1 WHERE a BETWEEN 0 AND 20 OR b BETWEEN 10 AND 20;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	p0,p1,p2,p3,p4	index_merge	a,b	a,b	4,4	NULL	#	100.00	Using sort_union(a,b); Using where
+Warnings:
+Note	1003	delete from `test`.`t1` where ((`test`.`t1`.`a` between 0 and 20) or (`test`.`t1`.`b` between 10 and 20))
 SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 DELETE FROM t1 WHERE a BETWEEN 0 AND 20 OR b BETWEEN 10 AND 20;

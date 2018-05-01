@@ -1,0 +1,69 @@
+##############################################################################
+#
+# List the test cases that are to be disabled temporarily.
+#
+# Separate the test case name and the comment with ':'.
+#   <suitename>.<testcasename> : BUG#<xxxx> <date> <disabler> <comment>
+#
+# Note:
+#   - Do not use any TAB characters for whitespace.
+#
+##############################################################################
+
+# binlog suite tests
+binlog.binlog_xa_commit_failure : BUG#27588706 2018-02-23 Erlend Test has never worked correctly.
+
+# federated suite tests
+federated.federated_transactions : BUG#11746899 Transactions do not work.
+
+# func1 suite tests
+funcs_1.is_basics_mixed @darwin  : BUG#25882809 2017-04-12 INCORRECT RESULT WHEN USING SUBQUERY ON TOP OF VIEW.
+funcs_1.is_basics_mixed @windows : BUG#25882809 2017-04-12 INCORRECT RESULT WHEN USING SUBQUERY ON TOP OF VIEW.
+
+# innodb suite tests
+innodb.analyze_table @solaris         : BUG#22607584 2016-03-01 Shaohua Failing too often on PB2 due to timeout.
+innodb.log_corruption @darwin         : BUG#27760219 2018-03-27 Anitha Test fails consistently on freebsd and Mac after WL#11009.
+innodb.log_corruption @freebsd        : BUG#27760219 2018-03-27 Anitha Test fails consistently on freebsd and Mac after WL#11009.
+innodb.portability_tablespace_linux   : Sivert The maintainability of the zip files required by this test is not acceptable.
+innodb.portability_tablespace_windows : Sivert The maintainability of the zip files required by this test is not acceptable.
+
+# json suite tests
+json.json_ddl_ndb : BUG#26616564 FAILURE OF JSON_DDL_NDB TEST, Bug#26609059 2017-08-10 Bin, PB2 failures.
+
+# main suite tests
+main.archive-big           : BUG#11817185 2011-03-10 Anitha Disabled since this leads to timeout on Solaris Sparc.
+main.ds_mrr-big @solaris   : BUG#14168107 2012-04-03 Hemant disabled new test added by Olav Sandstå,since this leads to timeout on Solaris on slow sparc servers.
+main.read_many_rows_innodb : BUG#11748886 2010-11-15 mattiasj report already exists.
+
+# Disabled due to InnoDB issues
+main.internal_tmp_disk_storage_engine : BUG#26917416 2017-04-13 Allen Disabled it since it's failing on pb2.
+
+# max_parts suite tests
+max_parts.innodb-import-partition-1                         : BUG#27413612 Ashish Fails consistently on hudson jobs. Disabled until bug is fixed.
+# max_parts.innodb_partition_open_files_limit @linux          : BUG#27924122 2018-04-25 Horst Disabled on Linux, only.
+max_parts.innodb_partition_open_files_limit @solaris        : BUG#27423163 Ashish Times out on Solaris platform on Hudson. Disabled until bug is fixed.
+max_parts.partition_max_parts_hash_innodb @windows          : BUG#27681900 2018-02-20 Ashish Disabling max_parts tests on windows.
+max_parts.partition_max_parts_inv_innodb @windows           : BUG#27681900 2018-02-20 Ashish Disabling max_parts tests on windows.
+max_parts.partition_max_parts_key_innodb @windows           : BUG#27681900 2018-02-20 Ashish Disabling max_parts tests on windows.
+max_parts.partition_max_parts_list_innodb @windows          : BUG#27681900 2018-02-20 Ashish Disabling max_parts tests on windows.
+max_parts.partition_max_parts_range_innodb @windows         : BUG#27681900 2018-02-20 Ashish Disabling max_parts tests on windows.
+max_parts.partition_max_sub_parts_key_list_innodb @windows  : BUG#27681900 2018-02-20 Ashish Disabling max_parts tests on windows.
+max_parts.partition_max_sub_parts_key_range_innodb @windows : BUG#27681900 2018-02-20 Ashish Disabling max_parts tests on windows.
+max_parts.partition_max_sub_parts_list_innodb @windows      : BUG#27681900 2018-02-20 Ashish Disabling max_parts tests on windows.
+max_parts.partition_max_sub_parts_range_innodb @windows     : BUG#27681900 2018-02-20 Ashish Disabling max_parts tests on windows.
+
+# perfschema suite test
+perfschema.innodb_is_data_locks : BUG#27491547 2018-02-08 Marc Alff PERFSCHEMA.INNODB_IS_DATA_LOCKS FAILS SPORADICALLY ON PB2.
+
+# rpl_gtid suite tests
+rpl_gtid.rpl_gtid_delete_memory_table_after_start_server : BUG#24351040 2017-08-29 Ivo Roylev.
+
+# rpl_nogtid suite tests
+rpl_nogtid.rpl_row_binlog_max_cache_size : BUG#14126780 2012-05-29 Vasil Dimov timeout if est number of rows is 3 instead of 4.
+
+# rpl suite tests
+rpl.rpl_io_thd_wait_for_disk_space_stress : BUG#23581287 2017-09-22 Deepthi Disabled until bug is fixed.
+rpl.rpl_row_create_table                  : BUG#11759274 2010-02-27 andrei failed different way than earlier with bug#45576.
+
+# sysschema suite tests
+sysschema.v_wait_classes_global_by_avg_latency : BUG#21550054 2016-06-26 Erlend Test fails too often.

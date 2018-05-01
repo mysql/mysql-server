@@ -5470,7 +5470,7 @@ SELECT * FROM t1 WHERE _utf8'a' = ANY (SELECT s1 FROM t1);
 s1
 a
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP TABLE t1;
 CREATE TABLE t1(c INT, KEY(c));
 CREATE TABLE t2(a INT, b INT);
@@ -5925,7 +5925,7 @@ ERROR 42S22: Unknown column 'd1.a' in 'where clause'
 EXPLAIN SELECT DISTINCT 1 FROM t1,
 (SELECT DISTINCTROW a AS away FROM t1 GROUP BY a WITH ROLLUP) AS d1  
 WHERE t1.a = d1.a;
-ERROR HY000: Incorrect usage of WITH ROLLUP and DISTINCT
+ERROR 42S22: Unknown column 'd1.a' in 'where clause'
 DROP TABLE t1;
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
@@ -8063,7 +8063,7 @@ DROP TABLE t1, t2, t3;
 #
 CREATE TABLE t1(a MEDIUMTEXT CHARSET UTF8) ENGINE=INNODB;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES(0x6F76786E7875);
 SELECT NULL IN (SELECT 1 FROM t1);
 NULL IN (SELECT 1 FROM t1)

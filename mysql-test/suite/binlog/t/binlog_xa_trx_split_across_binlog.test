@@ -74,3 +74,5 @@ RESET MASTER;
 --echo #
 DROP TABLE t1,t2;
 SET GLOBAL max_binlog_size=@save_max_binlog_size;
+--remove_file $MYSQLTEST_VARDIR/tmp/xa_trx_part1.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/xa_trx_part2.sql

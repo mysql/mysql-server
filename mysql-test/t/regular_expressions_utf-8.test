@@ -686,4 +686,49 @@ SELECT regexp_like( soundex(@v1), 'abc' );
 SELECT regexp_like( left('', ''), 'abc' );
 SELECT regexp_like( repeat(@v1, 'abc'), 'abc' );
 
+--echo #
+--echo # Bug#27597980: ADD ERROR MESSAGE FOR INVALID CAPTURE GROUP NAME
+--echo #
+
+--error ER_REGEXP_INVALID_CAPTURE_GROUP_NAME
+SELECT regexp_replace( 'abc' , 'abc', '$abc' );
+
+--echo #
+--echo # Bug#27595368: ASSERTION FAILED: 0 IN ITEM_PARAM::VAL_REAL WITH
+--echo # PREPARED STATEMENT
+--echo #
+
+SET @s := "SELECT regexp_like( '', '', ? / '' )";
+PREPARE stmt FROM @s;
+--error ER_WRONG_ARGUMENTS
+EXECUTE stmt;
+--error ER_WRONG_ARGUMENTS
+EXECUTE stmt;
+
+CREATE TABLE t1 ( match_parameter CHAR(1) );
+INSERT INTO t1 VALUES ( 'i' ), ( 'c' ), ( 'i' ), ( 'c' );
+SELECT match_parameter, regexp_like ( 'a', 'A', match_parameter ) FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#27612255: VALGRIND WARNING ON INVALID CAPTURE GROUP
+--echo #
+
+--error ER_REGEXP_INVALID_CAPTURE_GROUP_NAME
+SELECT regexp_replace( ' F' , '^ ', '[,$' );
+
+--echo #
+--echo # Bug#27751277: ASSERTION FALSE IN REGEXP::CHECK_ICU_STATUS
+--echo #
+
+--error ER_REGEXP_INVALID_FLAG
+SELECT regexp_instr( 'abc', '(?-' );
+
+--echo #
+--echo # Bug#27743722 REGEXP::EVALEXPRTOCHARSET:
+--echo #              REFERENCE BINDING TO MISALIGNED ADDRESS
+--echo #
+
+select regexp_instr(char('313:50:35.199734'using utf16le),uuid());
+
 --source ../mysql-test/include/cleanup_icu_utils.inc

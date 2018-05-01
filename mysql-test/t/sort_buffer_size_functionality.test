@@ -26,14 +26,10 @@
 #   Checking default value                                         #
 ####################################################################
 SELECT COUNT(@@GLOBAL.sort_buffer_size);
---echo 1 Expected
 SELECT COUNT(@@SESSION.sort_buffer_size);
---echo 1 Expected
 
 SELECT @@GLOBAL.sort_buffer_size;
---echo 262144 Expected
 SELECT @@SESSION.sort_buffer_size;
---echo 262144 Expected
 
 
 --echo '#---------------------WL6372_VAR_8_02----------------------#'
@@ -42,20 +38,14 @@ SELECT @@SESSION.sort_buffer_size;
 #################################################################################
 --echo # Restart server with sort_buffer_size 9999999;
 
-let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
---exec echo "wait" > $restart_file
---shutdown_server 
---source include/wait_until_disconnected.inc
--- exec echo "restart:--sort_buffer_size=9999999 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- enable_reconnect
--- source include/wait_until_connected_again.inc
+
+-- let $restart_parameters= "restart:--sort_buffer_size=9999999"
+-- source include/restart_mysqld.inc
 
 SELECT @@GLOBAL.sort_buffer_size;
---echo 9999999 Expected
 
 SET @@GLOBAL.sort_buffer_size=DEFAULT;
 SELECT @@GLOBAL.sort_buffer_size;
---echo 262144 Expected
 
 --echo '#---------------------WL6372_VAR_8_03----------------------#'
 ####################################################################
@@ -75,14 +65,11 @@ SET @@session.sort_buffer_size=DEFAULT;
 SET @@GLOBAL.sort_buffer_size=DEFAULT;
 
 SELECT @@GLOBAL.sort_buffer_size;
---echo 262144 Expected
 
 # The below check is hashed until the BUG#14635304 is fixed
 #SELECT @@SESSION.sort_buffer_size;
-#--echo 262144 Expected
 
 #SELECT @@LOCAL.sort_buffer_size;
-#--echo 262144 Expected
 
 --echo '#---------------------WL6372_VAR_8_04----------------------#'
 #################################################################
@@ -92,20 +79,16 @@ SELECT @@GLOBAL.sort_buffer_size;
 SELECT @@GLOBAL.sort_buffer_size = VARIABLE_VALUE
 FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='sort_buffer_size';
---echo 1 Expected
 
 SELECT @@session.sort_buffer_size = VARIABLE_VALUE 
 FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='sort_buffer_size';
---echo 1 Expected
 
 SELECT COUNT(@@GLOBAL.sort_buffer_size);
---echo 1 Expected
 
 SELECT COUNT(VARIABLE_VALUE)
 FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='sort_buffer_size';
---echo 1 Expected
 --enable_warnings
 
 
@@ -115,23 +98,17 @@ WHERE VARIABLE_NAME='sort_buffer_size';
 #  Checking Variable Scope                                                     #
 ################################################################################
 SELECT @@sort_buffer_size = @@GLOBAL.sort_buffer_size;
---echo 0 Expected
 
 SELECT COUNT(@@sort_buffer_size);
---echo 1 Expected
 
 SELECT COUNT(@@local.sort_buffer_size);
---echo 1 Expected
 
 SELECT COUNT(@@SESSION.sort_buffer_size);
---echo 1 Expected
 
 SELECT COUNT(@@GLOBAL.sort_buffer_size);
---echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
 SELECT sort_buffer_size = @@SESSION.sort_buffer_size;
---echo Expected error 'Unknown column sort_buffer_size in field list'
 
 --echo '#---------------------WL6372_VAR_8_06----------------------#'
 ################################################################################
@@ -143,9 +120,7 @@ SET @@session.sort_buffer_size=32767;
 --enable_warnings
 
 SELECT @@GLOBAL.sort_buffer_size;
---echo 32768 Expected
 select @@session.sort_buffer_size;
---echo 32768 Expected
 
 --disable_warnings
 SET @@global.sort_buffer_size=-1;
@@ -153,9 +128,7 @@ SET @@session.sort_buffer_size=-1;
 --enable_warnings
 
 select @@session.sort_buffer_size;
---echo 32768 Expected
 SELECT @@GLOBAL.sort_buffer_size;
---echo 32768 Expected
 ################################################################################
 #  The MAX value is not being tested as would                                  #
 # differ on a 32 bit machine and a 64 bit machine                              #
@@ -167,7 +140,6 @@ SELECT @@GLOBAL.sort_buffer_size;
 #  Checking the /Var  directory size                                           #
 ################################################################################
 -- source include/vardir_size_check.inc
---echo TRUE Expected
 
 --echo '#---------------------WL6372_VAR_8_08----------------------#'
 ################################################################################
@@ -189,12 +161,9 @@ SET @@SESSION.sort_buffer_size=32768;
 
 --disable_warnings
 select variable_value from performance_schema.session_status where variable_name ='Sort_merge_passes';
---echo 0 Expected
 select variable_value from performance_schema.session_status where variable_name ='Sort_rows';
---echo 0 Expected
 select variable_value from performance_schema.session_status where variable_name ='Sort_scan';
 --enable_warnings
---echo 0 Expected
 
 --disable_warnings
 set @Sort_merge_passes = (select variable_value from performance_schema.session_status where variable_name ='Sort_merge_passes');
@@ -206,28 +175,20 @@ set @optimizer_switch_saved=@@optimizer_switch;
 set optimizer_switch='derived_merge=off';
 
 select count(1) from (select b.* from tab1 b inner join tab1 c inner join tab1 d inner join tab1 e inner join tab1 f order by 1) a;
---echo 100000 Expected
 
 --disable_warnings
-select ( select variable_value from performance_schema.global_status where variable_name ='Sort_merge_passes') = @Sort_merge_passes + 537;
---echo 1 Expected
-select (select variable_value from performance_schema.global_status where variable_name ='Sort_rows') = @Sort_rows + 100000;
---echo 1 Expected
-select (select variable_value from performance_schema.global_status where variable_name ='Sort_scan') = @Sort_scan + 1;
+select ( select variable_value from performance_schema.global_status where variable_name ='Sort_merge_passes') - @Sort_merge_passes;
+select (select variable_value from performance_schema.global_status where variable_name ='Sort_rows') - @Sort_rows;
+select (select variable_value from performance_schema.global_status where variable_name ='Sort_scan') - @Sort_scan;
 --enable_warnings
---echo 1 Expected
 
 select count(1) from (select b.* from tab1 b inner join tab1 c inner join tab1 d inner join tab1 e inner join tab1 f order by 1) a;
---echo 100000 Expected
 
 --disable_warnings
-select ( select variable_value from performance_schema.global_status where variable_name ='Sort_merge_passes') = @Sort_merge_passes + 1074;
---echo 1 Expected
-select (select variable_value from performance_schema.global_status where variable_name ='Sort_rows') = @Sort_rows + 200000;
---echo 1 Expected
-select (select variable_value from performance_schema.global_status where variable_name ='Sort_scan') = @Sort_scan + 2;
+select ( select variable_value from performance_schema.global_status where variable_name ='Sort_merge_passes') - @Sort_merge_passes;
+select (select variable_value from performance_schema.global_status where variable_name ='Sort_rows') - @Sort_rows;
+select (select variable_value from performance_schema.global_status where variable_name ='Sort_scan') - @Sort_scan;
 --enable_warnings
---echo 1 Expected
 
 set @@optimizer_switch=@optimizer_switch_saved;
 

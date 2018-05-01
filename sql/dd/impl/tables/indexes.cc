@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -79,7 +79,7 @@ Indexes::Indexes() {
   m_target_def.add_field(FIELD_TABLESPACE_ID, "FIELD_TABLESPACE_ID",
                          "tablespace_id BIGINT UNSIGNED");
   m_target_def.add_field(FIELD_ENGINE, "FIELD_ENGINE",
-                         "engine VARCHAR(64) NOT NULL");
+                         "engine VARCHAR(64) NOT NULL COLLATE utf8_general_ci");
 
   m_target_def.add_index(INDEX_PK_ID, "INDEX_PK_ID", "PRIMARY KEY(id)");
   m_target_def.add_index(INDEX_UK_TABLE_ID_NAME, "INDEX_UK_TABLE_ID_NAME",

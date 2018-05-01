@@ -37,7 +37,7 @@ SELECT search_error_log( '[Note]', "%Plugin Rewriter reported: " ||
 "'Statement \"SELECT 'nonrewritten'\"%" ) INTO @line;
 SELECT @line;
 @line
-[Note] [MY-011235] Plugin Rewriter reported: 'Statement "SELECT 'nonrewritten'" with digest "d1b44b0c19af710b5a679907e284acd2ddc285201794bc69a2389d77baedddae" did not match any rule.'
+[Note] [MY-011235] [Server] Plugin Rewriter reported: 'Statement "SELECT 'nonrewritten'" with digest "d1b44b0c19af710b5a679907e284acd2ddc285201794bc69a2389d77baedddae" did not match any rule.'
 SELECT digest INTO @pfs_digest
 FROM performance_schema.events_statements_history_long
 WHERE sql_text = "SELECT 'nonrewritten'"

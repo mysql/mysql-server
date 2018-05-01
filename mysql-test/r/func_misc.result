@@ -51,8 +51,8 @@ select length(uuid()), charset(uuid()), length(unhex(replace(uuid(),_utf8'-',_ut
 length(uuid())	charset(uuid())	length(unhex(replace(uuid(),_utf8'-',_utf8'')))
 36	utf8	16
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 set @a= uuid_short();
 set @b= uuid_short();
 select @b - @a;
@@ -91,7 +91,7 @@ select export_set(3, _latin1'foo', _utf8'bar', ',', 4);
 export_set(3, _latin1'foo', _utf8'bar', ',', 4)
 foo,foo,bar,bar
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 End of 4.1 tests
 create table t1 as select uuid(), length(uuid());
 show create table t1;
@@ -1103,6 +1103,15 @@ IS_IPV4_MAPPED(MIN(AES_ENCRYPT(1,2)))
 SELECT IS_IPV4_COMPAT(MIN(AES_ENCRYPT(1,2)));
 IS_IPV4_COMPAT(MIN(AES_ENCRYPT(1,2)))
 0
+#
+# Bug#27744557 UBSAN: COMPARE_BINARY_STRING NULL POINTER PASSED
+#
+select format('f','')<=replace(1,1,mid(0xd9,2,1));
+format('f','')<=replace(1,1,mid(0xd9,2,1))
+0
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect DOUBLE value: 'f'
 
 # -- Done.
 

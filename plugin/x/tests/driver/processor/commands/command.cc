@@ -237,7 +237,7 @@ Command::Result Command::cmd_recvtype(std::istream &input,
   std::vector<std::string> vargs;
   aux::split(vargs, args, " ", true);
 
-  if (1 != vargs.size() && 2 != vargs.size()) {
+  if (1 != vargs.size() && 2 != vargs.size() && 3 != vargs.size()) {
     std::stringstream error_message;
     error_message << "Received wrong number of arguments, got:" << vargs.size();
     throw std::logic_error(error_message.str());
@@ -249,8 +249,12 @@ Command::Result Command::cmd_recvtype(std::istream &input,
   Message_ptr msg(
       context->session()->get_protocol().recv_single_message(&msgid, &error));
 
+  int number_of_arguments = vargs.size() - 1;
   if (1 < vargs.size()) {
-    if (vargs[1] == CMD_ARG_BE_QUIET) be_quiet = true;
+    if (vargs[number_of_arguments] == CMD_ARG_BE_QUIET) {
+      be_quiet = true;
+      --number_of_arguments;
+    }
   }
 
   if (nullptr == msg.get())
@@ -258,20 +262,48 @@ Command::Result Command::cmd_recvtype(std::istream &input,
                                              : Result::Continue;
 
   try {
-    const std::string message_in_text =
-        context->m_variables->unreplace(formatter::message_to_text(*msg), true);
+    const std::string expected_message_name = vargs[0];
+    const std::string field_filter = number_of_arguments > 0 ? vargs[1] : "";
+    const std::string expected_field_value =
+        number_of_arguments > 1 ? vargs[2] : "";
+    bool is_ok = msg->GetDescriptor()->full_name() == expected_message_name;
 
-    if (msg->GetDescriptor()->full_name() != vargs[0]) {
+    if (!expected_field_value.empty()) {
+      const bool k_dont_show_message_name = false;
+      const std::string field_value =
+          context->m_variables->unreplace(formatter::message_to_text(
+              *msg, field_filter, k_dont_show_message_name));
+
+      if (field_value != expected_field_value) {
+        is_ok = false;
+      }
+    }
+
+    if (!is_ok) {
+      const std::string message_in_text = formatter::message_to_text(*msg);
+      std::string expected_message = expected_message_name;
+
+      if (!field_filter.empty()) expected_message += "(" + field_filter + ")";
+      if (!expected_field_value.empty())
+        expected_message += " = " + expected_field_value;
+
+      context->m_variables->clear_unreplace();
+
       context->print("Received unexpected message. Was expecting:\n    ",
-                     vargs[0], "\nbut got:\n");
+                     expected_message, "\nbut got:\n");
       context->print(message_in_text, "\n");
 
       return context->m_options.m_fatal_errors ? Result::Stop_with_failure
                                                : Result::Continue;
     }
 
-    if (context->m_options.m_show_query_result && !be_quiet)
+    if (context->m_options.m_show_query_result && !be_quiet) {
+      const std::string message_in_text = context->m_variables->unreplace(
+          formatter::message_to_text(*msg, field_filter));
       context->print(message_in_text, "\n");
+    }
+
+    context->m_variables->clear_unreplace();
   } catch (std::exception &e) {
     context->print_error_red(context->m_script_stack, e, '\n');
     if (context->m_options.m_fatal_errors) return Result::Stop_with_success;
@@ -1925,7 +1957,9 @@ void print_help_commands() {
   std::cout << "-->recverror <errno>\n";
   std::cout << "  Read a message and ensure that it's an error of the "
                "expected type\n";
-  std::cout << "-->recvtype <msgtype> [" << CMD_ARG_BE_QUIET << "]\n";
+  std::cout << "-->recvtype <msgtype> (<msg_fied>|" << CMD_ARG_BE_QUIET
+            << "|<msg_fied> " << CMD_ARG_BE_QUIET
+            << "|<msg_fied> <expected_field_value>|)\n";
   std::cout << "  Read one message and print it, checking that its type is "
                "the specified one\n";
   std::cout << "-->recvok\n";

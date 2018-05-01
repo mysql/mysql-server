@@ -1969,13 +1969,13 @@ CREATE        INDEX c_index USING btree ON t1( c );
 CREATE        INDEX c_index USING btree USING btree ON t1( c );
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'USING btree ON t1( c )' at line 1
 CREATE        INDEX d_index USING rtree ON t1( d );
-ERROR 42000: Too many key parts specified; max 1 parts allowed
+ERROR 42000: A SPATIAL index may only contain a geometrical type column
 CREATE        INDEX e_index TYPE  btree ON t1( e );
 CREATE        INDEX type TYPE  btree ON t1( f );
 CREATE        INDEX TYPE  btree ON t1( g );
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'btree ON t1( g )' at line 1
 CREATE        INDEX h_index TYPE  rtree ON t1( h );
-ERROR 42000: Too many key parts specified; max 1 parts allowed
+ERROR 42000: A SPATIAL index may only contain a geometrical type column
 CREATE        INDEX i_index             ON t1( i ) KEY_BLOCK_SIZE = 1;
 CREATE        INDEX j_index             ON t1( j ) KEY_BLOCK_SIZE = 1 KEY_BLOCK_SIZE = 1;
 CREATE        INDEX k_index             ON t1( k ) COMMENT 'A comment';
@@ -1986,7 +1986,7 @@ CREATE        INDEX l_index             ON t1( l ) USING btree;
 CREATE        INDEX m_index             ON t1( m ) TYPE btree;
 CREATE        INDEX n_index USING btree ON t1( n ) USING btree;
 CREATE        INDEX x_index USING btree ON t1( o ) USING rtree;
-ERROR 42000: Too many key parts specified; max 1 parts allowed
+ERROR 42000: A SPATIAL index may only contain a geometrical type column
 CREATE        INDEX o_index USING rtree ON t1( o ) USING btree;
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text

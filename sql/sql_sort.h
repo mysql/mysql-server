@@ -1,7 +1,7 @@
 #ifndef SQL_SORT_INCLUDED
 #define SQL_SORT_INCLUDED
 
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,8 +44,9 @@ constexpr size_t VARLEN_PREFIX = 4;
   temporary file. A Merge_chunk instance describes where this chunk is stored
   in the file, and where it is located when it is in memory.
 
-  It is a POD because
-   - we read/write them from/to files.
+  It is a POD because we read/write them from/to files (but note,
+  only m_file_position and m_rowcount are actually used in that
+  situation).
 
   We have accessors (getters/setters) for all struct members.
  */
@@ -74,7 +75,6 @@ struct Merge_chunk {
   void set_buffer_start(uchar *start) { m_buffer_start = start; }
   void set_buffer_end(uchar *end) {
     DBUG_ASSERT(m_buffer_end == NULL || end <= m_buffer_end);
-    DBUG_ASSERT(m_buffer_start != nullptr);
     m_buffer_end = end;
   }
 
@@ -206,25 +206,16 @@ class Filesort_info {
   /// Are we using "addon fields"?
   bool using_addon_fields() const { return addon_fields != nullptr; }
 
-  /**
-    Accessors for filesort_buffer (@see Filesort_buffer for documentation).
-  */
-  size_t space_used_for_data() const {
-    return filesort_buffer.space_used_for_data();
+  void reset() { filesort_buffer.reset(); }
+
+  void clear_peak_memory_used() { filesort_buffer.clear_peak_memory_used(); }
+
+  Bounds_checked_array<uchar> get_next_record_pointer(size_t min_size) {
+    return filesort_buffer.get_next_record_pointer(min_size);
   }
 
-  bool isfull() const { return filesort_buffer.isfull(); }
-
-  void init_next_record_pointer() {
-    filesort_buffer.init_next_record_pointer();
-  }
-
-  uchar *get_next_record_pointer() {
-    return filesort_buffer.get_next_record_pointer();
-  }
-
-  void adjust_next_record_pointer(uint32 val) {
-    filesort_buffer.adjust_next_record_pointer(val);
+  void commit_used_memory(size_t num_bytes) {
+    filesort_buffer.commit_used_memory(num_bytes);
   }
 
   uchar *get_sorted_record(uint idx) {
@@ -233,19 +224,25 @@ class Filesort_info {
 
   uchar **get_sort_keys() { return filesort_buffer.get_sort_keys(); }
 
-  Bounds_checked_array<uchar> get_raw_buf() {
-    return filesort_buffer.get_raw_buf();
+  Bounds_checked_array<uchar> get_contiguous_buffer() {
+    return filesort_buffer.get_contiguous_buffer();
   }
 
-  uchar *alloc_sort_buffer(uint num_records, uint record_length) {
-    return filesort_buffer.alloc_sort_buffer(num_records, record_length);
+  void set_max_size(size_t max_size, size_t record_length) {
+    filesort_buffer.set_max_size(max_size, record_length);
   }
 
   void free_sort_buffer() { filesort_buffer.free_sort_buffer(); }
 
-  void init_record_pointers() { filesort_buffer.init_record_pointers(); }
+  bool preallocate_records(size_t num_records) {
+    return filesort_buffer.preallocate_records(num_records);
+  }
 
-  size_t sort_buffer_size() const { return filesort_buffer.sort_buffer_size(); }
+  size_t peak_memory_used() const { return filesort_buffer.peak_memory_used(); }
+
+  size_t max_size_in_bytes() const {
+    return filesort_buffer.max_size_in_bytes();
+  }
 
   uint sort_length() const { return m_sort_length; }
   bool using_varlen_keys() const { return m_using_varlen_keys; }

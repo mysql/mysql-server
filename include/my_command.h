@@ -67,18 +67,18 @@ enum enum_server_command {
   COM_TIME,           /**< Currently refused by the server. */
   COM_DELAYED_INSERT, /**< Functionality removed. */
   COM_CHANGE_USER,    /**< See @ref page_protocol_com_change_user */
-  COM_BINLOG_DUMP,
+  COM_BINLOG_DUMP,    /**< See @ref page_protocol_com_binlog_dump */
   COM_TABLE_DUMP,
   COM_CONNECT_OUT,
   COM_REGISTER_SLAVE,
-  COM_STMT_PREPARE,        /**< See @ref page_protocol_com_stmt_prepare */
-  COM_STMT_EXECUTE,        /**< See @ref page_protocol_com_stmt_execute */
-  COM_STMT_SEND_LONG_DATA, /**< See @ref page_protocol_com_stmt_send_long_data
-                            */
-  COM_STMT_CLOSE,          /**< See @ref page_protocol_com_stmt_close */
-  COM_STMT_RESET,          /**< See @ref page_protocol_com_stmt_reset */
-  COM_SET_OPTION,
-  COM_STMT_FETCH,
+  COM_STMT_PREPARE, /**< See @ref page_protocol_com_stmt_prepare */
+  COM_STMT_EXECUTE, /**< See @ref page_protocol_com_stmt_execute */
+  /** See  @ref page_protocol_com_stmt_send_long_data */
+  COM_STMT_SEND_LONG_DATA,
+  COM_STMT_CLOSE, /**< See @ref page_protocol_com_stmt_close */
+  COM_STMT_RESET, /**< See @ref page_protocol_com_stmt_reset */
+  COM_SET_OPTION, /**< See @ref page_protocol_com_set_option */
+  COM_STMT_FETCH, /**< See @ref page_protocol_com_stmt_fetch */
   /**
     Currently refused by the server. See ::dispatch_command.
     Also used internally to mark the session as a "daemon",

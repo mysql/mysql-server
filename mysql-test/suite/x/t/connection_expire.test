@@ -16,7 +16,7 @@ alter user xplugin@localhost password expire;
 --echo Test: Expired password with no support for sandbox mode (should fail)
 --write_file $MYSQL_TMP_DIR/connection_expire.tmp
 
--->expecterror ER_ACCESS_DENIED_ERROR
+-->expecterror ER_MUST_CHANGE_PASSWORD_LOGIN
 -->login foo
 EOF
 --exec $MYSQLXTEST -hlocalhost --no-auth --file=$MYSQL_TMP_DIR/connection_expire.tmp 2>&1
@@ -88,7 +88,7 @@ Mysqlx.Connection.CapabilitiesSet {
 -->recv
 
 -->expecterror ER_ACCESS_DENIED_ERROR
--->login x_root x_root1
+-->login x_root	x_root1
 EOF
 
 --write_file $MYSQL_TMP_DIR/connection_expire_user.tmp
@@ -119,7 +119,7 @@ EOF
 
 
 --write_file $MYSQL_TMP_DIR/connection_expect_expired_user_xplugin.tmp
--->expecterror ER_ACCESS_DENIED_ERROR
+-->expecterror ER_MUST_CHANGE_PASSWORD_LOGIN
 -->newsession bla	xplugin	xplugin
 EOF
 
@@ -164,9 +164,7 @@ EOF
 
 --echo Test: try connecting with non-x_root user when its password expird and x_root user password expired,expect password expired notice
 alter user x_root@localhost password expire;
---let $expected_error_msg= Your password has expired. To log in you must change it using a client that supports expired passwords. \(code 1045\)
---source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST -ufoo --file $MYSQL_TMP_DIR/connection_expire_empty.tmp 2>&1
+--exec $MYSQLXTEST --expect-error ER_MUST_CHANGE_PASSWORD_LOGIN -ufoo --file $MYSQL_TMP_DIR/connection_expire_empty.tmp 2>&1
 
 --echo Test: try connecting with Expired password using x_root user and expect password expire notice
 --exec $MYSQLXTEST -hlocalhost --no-auth --file=$MYSQL_TMP_DIR/connection_expire_x_root.tmp 2>&1
@@ -180,14 +178,14 @@ alter user x_root@localhost password expire;
 ##try login with password expired user when server started with disconnect_on_expired_password=off option
 set password for x_root@localhost = '';
 let $restart_parameters = restart: --disconnect_on_expired_password=off;
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
+--source include/restart_mysqld.inc
 --echo Test: expect expired Notice for connection
 --exec $MYSQLXTEST -ufoo -v%EXPECT_ERROR%=ER_MUST_CHANGE_PASSWORD --file=$MYSQL_TMP_DIR/connection_expire_user.tmp 2>&1
 
 ##try login with password expired user when server started with skip-disconnect_on_expired_password option
 set password for x_root@localhost = '';
 let $restart_parameters = restart: --skip-disconnect_on_expired_password;
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
+--source include/restart_mysqld.inc
 --echo Test: expect expired Notice for connection
 --exec $MYSQLXTEST -ufoo -v%EXPECT_ERROR%=ER_MUST_CHANGE_PASSWORD --file=$MYSQL_TMP_DIR/connection_expire_user.tmp 2>&1
 
@@ -196,7 +194,7 @@ let $restart_parameters = restart: --skip-disconnect_on_expired_password;
 
 ###try execute statements with password exipired user once connected,connect should be successful with --disconnect_on_expired_password and statement execution should be failed until password reset
 let $restart_parameters = restart: --disconnect_on_expired_password;
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
+--source include/restart_mysqld.inc
 --exec $MYSQLXTEST --connect-expired-password -uxplugin -pxplugin -v%EXPECT_ERROR%=ER_MUST_CHANGE_PASSWORD --file=$MYSQL_TMP_DIR/connection_expire_user_xplugin.tmp 2>&1
 
 ## Connect with expired password without advertising connect on expired (should get kicked out)

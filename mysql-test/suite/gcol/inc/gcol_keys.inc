@@ -147,6 +147,7 @@ drop table t1;
 
 if($support_virtual_index)
 {
+create table t2 (a int primary key);
 --error ER_CANNOT_ADD_FOREIGN
 create table t1 (a int, b int generated always as (a+1) virtual,
                  foreign key (b) references t2(a));
@@ -154,7 +155,7 @@ create table t1 (a int, b int generated always as (a+1) virtual,
 create table t1 (a int, b int generated always as (a+1) virtual);
 --error ER_CANNOT_ADD_FOREIGN
 alter table t1 add foreign key (b) references t2(a);
-drop table t1;
+drop table t1, t2;
 }
 
 --echo # Allowed FK options.
@@ -948,5 +949,28 @@ WHERE EXISTS
 
 DROP TABLE t;
 }
+
+--echo #
+--echo # Bug#27403367: GENERATED COLUMN EXPRESSIONS IGNORED WITH PREFIX INDEX
+--echo #
+
+CREATE TABLE t (vc VARCHAR(100),
+                gc VARCHAR(100) GENERATED ALWAYS AS (REVERSE(vc)) STORED,
+                KEY (gc(3)));
+
+INSERT INTO t(vc) VALUES ('a'), ('abc'), ('abcabc'), ('abcdef');
+
+ANALYZE TABLE t;
+
+EXPLAIN SELECT * FROM t WHERE REVERSE(vc) = 'cba';
+SELECT * FROM t WHERE REVERSE(vc) = 'cba';
+
+EXPLAIN SELECT * FROM t WHERE REVERSE(vc) = 'cbacba';
+SELECT * FROM t WHERE REVERSE(vc) = 'cbacba';
+
+EXPLAIN SELECT * FROM t WHERE REVERSE(vc) BETWEEN 'c' AND 'e';
+SELECT * FROM t WHERE REVERSE(vc) BETWEEN 'c' AND 'e';
+
+DROP TABLE t;
 
 --echo #

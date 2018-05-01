@@ -60,8 +60,8 @@ FLUSH LOGS;
 # error to slave. 
 call mtr.add_suppression('Got fatal error 1236 from master when reading data from binary log: .*could not find next log');
 connection slave;
-# 1236 = ER_MASTER_FATAL_ERROR_READING_BINLOG
---let $slave_io_errno= 1236
+# 13114 = ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG
+--let $slave_io_errno= 13114
 --let $show_slave_io_error= 1
 # Mask line numbers
 --let $slave_io_error_replace= / at [0-9]*/ at XXX/
@@ -142,9 +142,9 @@ connection slave;
 --echo [ on slave ]
 CHANGE MASTER TO master_host='127.0.0.1', master_log_file='master-bin.000001';
 START SLAVE IO_THREAD;
---echo # Instead of EE_FILENOTFOUND, ER_MASTER_FATAL_ERROR_READING_BINLOG
+--echo # Instead of EE_FILENOTFOUND, ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG
 --echo # and the specific information are sent to slave.
---let $slave_io_errno= 1236
+--let $slave_io_errno= 13114
 --let $show_slave_io_error= 1
 --source include/wait_for_slave_io_error.inc
 

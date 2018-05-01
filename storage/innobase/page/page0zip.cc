@@ -2124,7 +2124,7 @@ void page_zip_write_trx_id_and_roll_ptr(
 #if DATA_TRX_ID + 1 != DATA_ROLL_PTR
 #error "DATA_TRX_ID + 1 != DATA_ROLL_PTR"
 #endif
-  field = rec_get_nth_field(rec, offsets, trx_id_col, &len);
+  field = const_cast<byte *>(rec_get_nth_field(rec, offsets, trx_id_col, &len));
   ut_ad(len == DATA_TRX_ID_LEN);
   ut_ad(field + DATA_TRX_ID_LEN ==
         rec_get_nth_field(rec, offsets, trx_id_col + 1, &len));

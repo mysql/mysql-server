@@ -83,7 +83,8 @@ Query_event::Query_event(
       table_map_for_update(table_map_for_update_arg),
       explicit_defaults_ts(TERNARY_UNSET),
       mts_accessed_dbs(0),
-      ddl_xid(INVALID_XID) {}
+      ddl_xid(INVALID_XID),
+      default_collation_for_utf8mb4_number(0) {}
 
 /**
   Utility function for the Query_event constructor.
@@ -148,7 +149,8 @@ Query_event::Query_event(const char *buf, unsigned int event_len,
       table_map_for_update(0),
       explicit_defaults_ts(TERNARY_UNSET),
       mts_accessed_dbs(OVER_MAX_DBS_IN_EVENT_MTS),
-      ddl_xid(INVALID_XID) {
+      ddl_xid(INVALID_XID),
+      default_collation_for_utf8mb4_number(0) {
   // buf is advanced in Binary_log_event constructor to point to
   // beginning of post-header
   uint32_t tmp;
@@ -371,6 +373,14 @@ Query_event::Query_event(const char *buf, unsigned int event_len,
         ddl_xid = le64toh(ddl_xid);
         pos += 8;
         break;
+      case Q_DEFAULT_COLLATION_FOR_UTF8MB4:
+        CHECK_SPACE(pos, end, 2);
+        memcpy(&default_collation_for_utf8mb4_number, pos,
+               sizeof(default_collation_for_utf8mb4_number));
+        default_collation_for_utf8mb4_number =
+            le16toh(default_collation_for_utf8mb4_number);
+        pos += 2;
+        break;
       default:
         /* That's why you must write status vars in growing order of code */
         pos = (const unsigned char *)end;  // Break loop
@@ -489,7 +499,7 @@ User_var_event::User_var_event(
   is_null = (bool)*buf;
   flags = User_var_event::UNDEF_F;  // defaults to UNDEF_F
   if (is_null) {
-    type = STRING_TYPE;
+    type = STRING_RESULT;
     /*
      *my_charset_bin.number= 63, and my_charset_bin is defined in server
      *so replacing it with its value.
@@ -621,7 +631,7 @@ void Query_event::print_long_info(std::ostream &info) {
 
 void User_var_event::print_event_info(std::ostream &info) {
   info << "@`" << name << "`=";
-  if (type == STRING_TYPE)
+  if (type == STRING_RESULT)
     info << val;
   else
     info << "<Binary encoded value>";
@@ -630,7 +640,7 @@ void User_var_event::print_event_info(std::ostream &info) {
 
 void User_var_event::print_long_info(std::ostream &info) {
   info << "Timestamp: " << header()->when.tv_sec;
-  info << "\tType: " << get_value_type_string(static_cast<Value_type>(type));
+  info << "\tType: " << get_value_type_string(type);
   info << "\n";
   this->print_event_info(info);
 }

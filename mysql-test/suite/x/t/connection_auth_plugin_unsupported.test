@@ -44,24 +44,16 @@ SELECT user, plugin FROM mysql.user WHERE user LIKE 'xuser%';
 --exec $MYSQLXTEST -ux_root          $XSSLPARAM
 
 --echo Ssl connection by test plugin  -> fail
---let $expected_error_msg= Invalid user or password \(code 1045\)
---source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST -uxuser_test -ptest $XSSLPARAM
+--exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR -uxuser_test -ptest $XSSLPARAM
 
 --echo Plain connection by test plugin  -> fail
---let $expected_error_msg= Invalid user or password \(code 1045\)
---source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST -uxuser_test -ptest $XBASIC
+--exec $MYSQLXTEST --expect-error 2510 -uxuser_test -ptest $XBASIC
 
 --echo Ssl connection by no_login plugin  -> fail
---let $expected_error_msg= Invalid user or password \(code 1045\)
---source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST -uxuser_nologin -pnologin $XSSLPARAM
+--exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR -uxuser_nologin -pnologin $XSSLPARAM
 
 --echo Ssl connection by no_login plugin  -> fail
---let $expected_error_msg= Invalid user or password \(code 1045\)
---source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST -uxuser_nologin -pnologin $XSSLPARAM
+--exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR -uxuser_nologin -pnologin $XSSLPARAM
 
 ## Cleanup
 DROP USER xuser_test@localhost;

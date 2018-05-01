@@ -41,14 +41,17 @@
 #include <cstring>
 #include <map>
 #include <memory>
+#include <new>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "binary_log_types.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "map_helpers.h"
 #include "memory_debugging.h"
+#include "memroot_allocator.h"
 #include "my_alloc.h"
 #include "my_bitmap.h"
 #include "my_byteorder.h"
@@ -100,6 +103,7 @@
 #include "sql/sql_tmp_table.h"  // create_tmp_table
 #include "sql/system_variables.h"
 #include "sql/table_function.h"
+#include "sql/temp_table_param.h"  // Memroot_vector
 #include "sql/thr_malloc.h"
 #include "sql/window.h"
 #include "sql/window_lex.h"
@@ -151,6 +155,7 @@ static int join_read_linked_first(QEP_TAB *tab);
 static int join_read_linked_next(READ_RECORD *info);
 static int do_sj_reset(SJ_TMP_TABLE *sj_tbl);
 static bool alloc_group_fields(JOIN *join, ORDER *group);
+static bool has_rollup_result(Item *item);
 
 /**
    Evaluates HAVING condition
@@ -170,12 +175,6 @@ static bool having_is_true(Item *h) {
 
 /// Maximum amount of space (in bytes) to allocate for a Record_buffer.
 static constexpr size_t MAX_RECORD_BUFFER_SIZE = 128 * 1024;  // 128KB
-
-void Temp_table_param::cleanup(void) {
-  destroy_array(copy_field, field_count);
-  copy_field = NULL;
-  copy_field_end = NULL;
-}
 
 /**
   Execute select, executor entry point.
@@ -217,9 +216,9 @@ void JOIN::exec() {
 
   if (m_windows.elements > 0 && !m_windowing_steps) {
     // Initialize state of window functions as end_write_wf() will be shortcut
-    List_iterator<Window> li(m_windows);
-    Window *w;
-    while ((w = li++)) w->reset_all_wf_state();
+    for (Window &w : m_windows) {
+      w.reset_all_wf_state();
+    }
   }
 
   Query_result *const query_result = select_lex->query_result();
@@ -432,7 +431,7 @@ bool JOIN::rollup_send_data(uint idx) {
   uint save_slice = current_ref_item_slice;
   for (uint i = send_group_parts; i-- > idx;) {
     // Get references to sum functions in place
-    copy_ref_item_slice(ref_items[REF_SLICE_BASE], rollup.ref_item_arrays[i]);
+    copy_ref_item_slice(ref_items[REF_SLICE_ACTIVE], rollup.ref_item_arrays[i]);
     current_ref_item_slice = -1;  // as we switched to a not-numbered slice
     if (having_is_true(having_cond)) {
       if (send_records < unit->select_limit_cnt && do_send_rows &&
@@ -443,6 +442,36 @@ bool JOIN::rollup_send_data(uint idx) {
   }
   // Restore ref_items array
   set_ref_item_slice(save_slice);
+  return false;
+}
+
+/**
+  Checks if an item has a ROLLUP NULL which needs to be written to
+  temp table.
+
+  @param item         Item for which we need to detect if ROLLUP
+                      NULL has to be written.
+
+  @returns false if ROLLUP NULL need not be written for this item.
+           true if it has to be written.
+*/
+
+bool has_rollup_result(Item *item) {
+  if (item->type() == Item::NULL_RESULT_ITEM) return true;
+
+  if (item->type() == Item::FUNC_ITEM) {
+    for (uint i = 0; i < ((Item_func *)item)->arg_count; i++) {
+      Item *real_item = ((Item_func *)item)->arguments()[i];
+      while (real_item->type() == Item::REF_ITEM)
+        real_item = *((down_cast<Item_ref *>(real_item))->ref);
+
+      if (real_item->type() == Item::NULL_RESULT_ITEM)
+        return true;
+      else if (real_item->type() == Item::FUNC_ITEM &&
+               has_rollup_result(real_item))
+        return true;
+    }
+  }
   return false;
 }
 
@@ -458,28 +487,24 @@ bool JOIN::rollup_send_data(uint idx) {
                                - 0 = Total sum level
                                - 1 = First group changed  (a)
                                - 2 = Second group changed (a,b)
-  @param table_arg           Reference to temp table
+  @param qep_tab             temp table
 
   @returns false if success, true if error
 */
 
-bool JOIN::rollup_write_data(uint idx, TABLE *table_arg) {
+bool JOIN::rollup_write_data(uint idx, QEP_TAB *qep_tab) {
   uint save_slice = current_ref_item_slice;
   for (uint i = send_group_parts; i-- > idx;) {
     // Get references to sum functions in place
-    copy_ref_item_slice(ref_items[REF_SLICE_BASE], rollup.ref_item_arrays[i]);
+    copy_ref_item_slice(ref_items[REF_SLICE_ACTIVE], rollup.ref_item_arrays[i]);
     current_ref_item_slice = -1;  // as we switched to a not-numbered slice
-    if (having_is_true(having_cond)) {
+    if (having_is_true(qep_tab->having)) {
       int write_error;
-      Item *item;
-      List_iterator_fast<Item> it(rollup.all_fields[i]);
-      while ((item = it++)) {
-        if ((item->type() == Item::NULL_ITEM ||
-             item->type() == Item::NULL_RESULT_ITEM) &&
-            item->is_result_field())
-          item->save_in_result_field(1);
+      for (Item &item : rollup.all_fields[i]) {
+        if (has_rollup_result(&item)) item.save_in_result_field(1);
       }
       copy_sum_funcs(sum_funcs_end[i + 1], sum_funcs_end[i]);
+      TABLE *table_arg = qep_tab->table();
       if ((write_error = table_arg->file->ha_write_row(table_arg->record[0]))) {
         if (create_ondisk_from_heap(
                 thd, table_arg, tmp_table_param.start_recinfo,
@@ -694,10 +719,8 @@ static enum_nested_loop_state end_sj_materialize(JOIN *join, QEP_TAB *qep_tab,
   if (!end_of_records) {
     TABLE *table = sjm->table;
 
-    List_iterator<Item> it(sjm->sj_nest->nested_join->sj_inner_exprs);
-    Item *item;
-    while ((item = it++)) {
-      if (item->is_null()) DBUG_RETURN(NESTED_LOOP_OK);
+    for (Item &item : sjm->sj_nest->nested_join->sj_inner_exprs) {
+      if (item.is_null()) DBUG_RETURN(NESTED_LOOP_OK);
     }
     fill_record(thd, table, table->visible_field_ptr(),
                 sjm->sj_nest->nested_join->sj_inner_exprs, NULL, NULL);
@@ -738,11 +761,8 @@ static bool update_const_equal_items(THD *thd, Item *cond, JOIN_TAB *tab) {
   if (!(cond->used_tables() & tab->table_ref->map())) return false;
 
   if (cond->type() == Item::COND_ITEM) {
-    List<Item> *cond_list = ((Item_cond *)cond)->argument_list();
-    List_iterator_fast<Item> li(*cond_list);
-    Item *item;
-    while ((item = li++)) {
-      if (update_const_equal_items(thd, item, tab)) return true;
+    for (Item &item : *(down_cast<Item_cond *>(cond))->argument_list()) {
+      if (update_const_equal_items(thd, &item, tab)) return true;
     }
   } else if (cond->type() == Item::FUNC_ITEM &&
              down_cast<Item_func *>(cond)->functype() ==
@@ -825,9 +845,9 @@ static void return_zero_rows(JOIN *join, List<Item> &fields) {
         that will be returned) because join->having may refer to
         fields that are not part of the result columns.
        */
-      List_iterator_fast<Item> it(join->all_fields);
-      Item *item;
-      while ((item = it++)) item->no_rows_in_result();
+      for (Item &item : join->all_fields) {
+        item.no_rows_in_result();
+      }
 
       if (having_is_true(join->having_cond))
         send_error = select->query_result()->send_data(fields);
@@ -1088,8 +1108,7 @@ static int do_select(JOIN *join) {
 
   join->send_records = 0;
 
-  if (join->plan_is_const()) {
-    DBUG_ASSERT(!join->need_tmp_before_win);
+  if (join->plan_is_const() && !join->need_tmp_before_win) {
     Next_select_func end_select = join->get_end_select_func();
     /*
       HAVING will be checked after processing aggregate functions,
@@ -1113,9 +1132,9 @@ static int do_select(JOIN *join) {
       table_map save_nullinfo = 0;
 
       // Calculate aggregate functions for no rows
-      List_iterator_fast<Item> it(*join->fields);
-      Item *item;
-      while ((item = it++)) item->no_rows_in_result();
+      for (Item &item : *join->fields) {
+        item.no_rows_in_result();
+      }
 
       /*
         Mark tables as containing only NULL values for processing
@@ -2602,7 +2621,7 @@ int join_init_read_record(QEP_TAB *tab) {
     (void)report_handler_error(tab->table(), error);
     return 1;
   }
-  if (init_read_record(&tab->read_record, tab->join()->thd, NULL, tab, 1, 1,
+  if (init_read_record(&tab->read_record, tab->join()->thd, NULL, tab, 1,
                        false))
     return 1;
 
@@ -2991,9 +3010,9 @@ static enum_nested_loop_state end_send(JOIN *join, QEP_TAB *qep_tab,
     int error;
     int sliceno;
     if (qep_tab) {
-      if (qep_tab - 1 == join->before_ref_item_slice_tmp3) {
-        // Read Items from pseudo-table REF_SLICE_TMP3
-        sliceno = REF_SLICE_TMP3;
+      if (qep_tab - 1 == join->ref_slice_immediately_before_group_by) {
+        // Read Items from pseudo-table REF_SLICE_ORDERED_GROUP_BY
+        sliceno = REF_SLICE_ORDERED_GROUP_BY;
       } else {
         sliceno = qep_tab[-1].ref_item_slice;
       }
@@ -3085,8 +3104,8 @@ enum_nested_loop_state end_send_group(JOIN *join, QEP_TAB *qep_tab,
 
   List<Item> *fields;
   if (qep_tab) {
-    DBUG_ASSERT(qep_tab - 1 == join->before_ref_item_slice_tmp3);
-    fields = &join->tmp_fields_list[REF_SLICE_TMP3];
+    DBUG_ASSERT(qep_tab - 1 == join->ref_slice_immediately_before_group_by);
+    fields = &join->tmp_fields_list[REF_SLICE_ORDERED_GROUP_BY];
   } else
     fields = join->fields;
 
@@ -3095,12 +3114,12 @@ enum_nested_loop_state end_send_group(JOIN *join, QEP_TAB *qep_tab,
     (2) Have seen all rows
     (3) GROUP expression are different from previous row's
   */
-  if (!join->first_record ||                                        // (1)
+  if (!join->seen_first_record ||                                   // (1)
       end_of_records ||                                             // (2)
       (idx = test_if_item_cache_changed(join->group_fields)) >= 0)  // (3)
   {
     if (!join->group_sent &&
-        (join->first_record ||
+        (join->seen_first_record ||
          (end_of_records && !join->grouped && !join->group_optimized_away))) {
       if (idx < (int)join->send_group_parts) {
         /*
@@ -3109,30 +3128,29 @@ enum_nested_loop_state end_send_group(JOIN *join, QEP_TAB *qep_tab,
           While end_write_group() has a real tmp table as output,
           end_send_group() has a pseudo-table, made of a list of Item_copy
           items (created by setup_copy_fields()) which are accessible through
-          REF_SLICE_TMP3. This is equivalent to one row where the current
-          group is accumulated. The creation of a new group in the
+          REF_SLICE_ORDERED_GROUP_BY. This is equivalent to one row where the
+          current group is accumulated. The creation of a new group in the
           pseudo-table happens in this function (call to
           init_sum_functions()); the update of an existing group also happens
           in this function (call to update_sum_func()); the reading of an
           existing group happens right below.
-          As we are now reading from pseudo-table REF_SLICE_TMP3, we switch to
-          this slice; we should not have switched when calculating group
-          expressions in test_if_item_cache_changed() above; indeed these
+          As we are now reading from pseudo-table REF_SLICE_ORDERED_GROUP_BY, we
+          switch to this slice; we should not have switched when calculating
+          group expressions in test_if_item_cache_changed() above; indeed these
           group expressions need the current row of the input table, not what
           is in this slice (which is generally the last completed group so is
           based on some previous row of the input table).
         */
-        Switch_ref_item_slice slice_switch(join, REF_SLICE_TMP3);
+        Switch_ref_item_slice slice_switch(join, REF_SLICE_ORDERED_GROUP_BY);
         DBUG_ASSERT(fields == join->get_current_fields());
         int error = 0;
         {
           table_map save_nullinfo = 0;
-          if (!join->first_record) {
+          if (!join->seen_first_record) {
             // Calculate aggregate functions for no rows
-            List_iterator_fast<Item> it(*fields);
-            Item *item;
-
-            while ((item = it++)) item->no_rows_in_result();
+            for (Item &item : *fields) {
+              item.no_rows_in_result();
+            }
 
             /*
               Mark tables as containing only NULL values for processing
@@ -3179,7 +3197,7 @@ enum_nested_loop_state end_send_group(JOIN *join, QEP_TAB *qep_tab,
       }
     } else {
       if (end_of_records) DBUG_RETURN(NESTED_LOOP_OK);
-      join->first_record = 1;
+      join->seen_first_record = true;
       // Initialize the cache of GROUP expressions with this 1st row's values
       (void)(test_if_item_cache_changed(join->group_fields));
     }
@@ -3193,21 +3211,19 @@ enum_nested_loop_state end_send_group(JOIN *join, QEP_TAB *qep_tab,
         (2) and reset group aggregate functions.
 
         About (1): some expressions to copy are not Item_fields and they are
-        copied by copy_fields() which evaluates them (see param->copy_funcs,
-        set up in setup_copy_fields()).
-        Thus, copy_fields() can evaluate functions. One of them, F2, may
-        reference another one F1, example:
-        SELECT expr AS F1 ... GROUP BY ... HAVING F2(F1)<=2 .
-        Assume F1 and F2 are not aggregate functions.
-        Then they are calculated by copy_fields() when starting a new group,
-        i.e. here.
-        As F2 uses an alias to F1, F1 is calculated first;
-        F2 must use that value (not evaluate expr again, as expr may not be
-        deterministic), so F2 uses a reference (Item_ref) to the
-        already-computed value of F1; that value is in Item_copy part of
-        REF_SLICE_TMP3. So, we switch to that slice.
+        copied by copy_fields() which evaluates them (see
+        param->grouped_expressions, set up in setup_copy_fields()). Thus,
+        copy_fields() can evaluate functions. One of them, F2, may reference
+        another one F1, example: SELECT expr AS F1 ... GROUP BY ... HAVING
+        F2(F1)<=2 . Assume F1 and F2 are not aggregate functions. Then they are
+        calculated by copy_fields() when starting a new group, i.e. here. As F2
+        uses an alias to F1, F1 is calculated first; F2 must use that value (not
+        evaluate expr again, as expr may not be deterministic), so F2 uses a
+        reference (Item_ref) to the already-computed value of F1; that value is
+        in Item_copy part of REF_SLICE_ORDERED_GROUP_BY. So, we switch to that
+        slice.
       */
-      Switch_ref_item_slice slice_switch(join, REF_SLICE_TMP3);
+      Switch_ref_item_slice slice_switch(join, REF_SLICE_ORDERED_GROUP_BY);
       if (copy_fields(&join->tmp_table_param, join->thd))  // (1)
         DBUG_RETURN(NESTED_LOOP_ERROR);
       if (init_sum_functions(join->sum_funcs,
@@ -3468,11 +3484,8 @@ static inline void reset_non_framing_wf_state(Func_ptr_array *func_ptr) {
 
   @param param  represents the frame buffer tmp file
 */
-static void swap_copy_field_direction(const Temp_table_param *param) {
-  Copy_field *ptr = param->copy_field;
-  Copy_field *end = param->copy_field_end;
-
-  for (; ptr < end; ptr++) ptr->swap_direction();
+static void swap_copy_field_direction(Temp_table_param *param) {
+  for (Copy_field &copy_field : param->copy_fields) copy_field.swap_direction();
 }
 
 /**
@@ -3739,18 +3752,14 @@ static bool read_frame_buffer_row(int64 rowno, Window *w,
 #if !defined(DBUG_OFF)
 inline static void dbug_allow_write_all_columns(
     Temp_table_param *param, std::map<TABLE *, my_bitmap_map *> &map) {
-  Copy_field *ptr = param->copy_field;
-  Copy_field *const end = param->copy_field_end;
-
-  while (ptr < end) {
-    TABLE *const t = ptr->from_field()->table;
+  for (auto &copy_field : param->copy_fields) {
+    TABLE *const t = copy_field.from_field()->table;
     if (t != nullptr) {
       auto it = map.find(t);
       if (it == map.end())
         map.insert(it, std::pair<TABLE *, my_bitmap_map *>(
                            t, dbug_tmp_use_all_columns(t, t->write_set)));
     }
-    ptr++;
   }
 }
 
@@ -4610,7 +4619,18 @@ static bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
                                    prev_first_rowno_in_frame + 1 - ++inverted)
                 .set_is_last_row_in_frame(true);  // pessimistic assumption
 
-            if (copy_funcs(param, thd, CFT_WF_FRAMING)) DBUG_RETURN(true);
+            /*
+              It may be that rowno is not in previous frame; for example if
+              column id contains 1, 3, 4 and 5 and frame is RANGE BETWEEN 2
+              FOLLOWING AND 2 FOLLOWING: we process id=1, frame of id=1 is
+              id=3; then we process id=3: id=3 is before frame (and was in
+              previous frame), id=4 is before frame too (and was not in
+              previous frame); so id=3 only should be inverted:
+            */
+            if (rowno >= prev_first_rowno_in_frame &&
+                rowno <= prev_last_rowno_in_frame) {
+              if (copy_funcs(param, thd, CFT_WF_FRAMING)) DBUG_RETURN(true);
+            }
 
             w.set_inverse(false).set_is_last_row_in_frame(false);
             found_first = false;
@@ -4846,7 +4866,7 @@ static enum_nested_loop_state end_write(JOIN *join, QEP_TAB *const qep_tab,
   if (!end_of_records) {
     Temp_table_param *const tmp_tbl = qep_tab->tmp_table_param;
     Switch_ref_item_slice slice_switch(join, qep_tab->ref_item_slice);
-    DBUG_ASSERT(qep_tab - 1 != join->before_ref_item_slice_tmp3);
+    DBUG_ASSERT(qep_tab - 1 != join->ref_slice_immediately_before_group_by);
 
     if (copy_fields(tmp_tbl, join->thd))
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
@@ -4993,8 +5013,8 @@ static enum_nested_loop_state end_write_wf(JOIN *join, QEP_TAB *const qep_tab,
     slice:
   */
   Switch_ref_item_slice slice_switch(join, qep_tab->ref_item_slice);
-  DBUG_ASSERT(qep_tab - 1 != join->before_ref_item_slice_tmp3 &&
-              qep_tab != join->before_ref_item_slice_tmp3);
+  DBUG_ASSERT(qep_tab - 1 != join->ref_slice_immediately_before_group_by &&
+              qep_tab != join->ref_slice_immediately_before_group_by);
 
   TABLE *const table = qep_tab->table();
   if (window_buffering) {
@@ -5134,7 +5154,8 @@ static enum_nested_loop_state end_update(JOIN *join, QEP_TAB *const qep_tab,
   Temp_table_param *const tmp_tbl = qep_tab->tmp_table_param;
   join->found_records++;
 
-  DBUG_ASSERT(tmp_tbl->copy_funcs.elements == 0);  // See comment below.
+  // See comment below.
+  DBUG_ASSERT(tmp_tbl->grouped_expressions.size() == 0);
 
   if (copy_fields(tmp_tbl, join->thd))  // Groups are copied twice.
     DBUG_RETURN(NESTED_LOOP_ERROR);     /* purecov: inspected */
@@ -5190,12 +5211,12 @@ static enum_nested_loop_state end_update(JOIN *join, QEP_TAB *const qep_tab,
     "SELECT a, a*a ... GROUP BY a": only the first/last row of the group,
     needs to evaluate a*a).
 
-    The assertion on tmp_tbl->copy_funcs is to make sure copy_fields() doesn't
-    suffer from the late switching.
+    The assertion on tmp_tbl->grouped_expressions.size() is to make sure
+    copy_fields() doesn't suffer from the late switching.
   */
   Switch_ref_item_slice slice_switch(join, qep_tab->ref_item_slice);
-  DBUG_ASSERT(qep_tab - 1 != join->before_ref_item_slice_tmp3 &&
-              qep_tab != join->before_ref_item_slice_tmp3);
+  DBUG_ASSERT(qep_tab - 1 != join->ref_slice_immediately_before_group_by &&
+              qep_tab != join->ref_slice_immediately_before_group_by);
 
   /*
     Copy null bits from group key to table
@@ -5242,21 +5263,22 @@ enum_nested_loop_state end_write_group(JOIN *join, QEP_TAB *const qep_tab,
     join->thd->send_kill_message();
     DBUG_RETURN(NESTED_LOOP_KILLED); /* purecov: inspected */
   }
-  if (!join->first_record || end_of_records ||
+  if (!join->seen_first_record || end_of_records ||
       (idx = test_if_item_cache_changed(join->group_fields)) >= 0) {
     Temp_table_param *const tmp_tbl = qep_tab->tmp_table_param;
-    if (join->first_record || (end_of_records && !join->grouped)) {
+    if (join->seen_first_record || (end_of_records && !join->grouped)) {
       int send_group_parts = join->send_group_parts;
       if (idx < send_group_parts) {
         Switch_ref_item_slice slice_switch(join, qep_tab->ref_item_slice);
-        DBUG_ASSERT(qep_tab - 1 != join->before_ref_item_slice_tmp3 &&
-                    qep_tab != join->before_ref_item_slice_tmp3);
+        DBUG_ASSERT(qep_tab - 1 !=
+                        join->ref_slice_immediately_before_group_by &&
+                    qep_tab != join->ref_slice_immediately_before_group_by);
         table_map save_nullinfo = 0;
-        if (!join->first_record) {
+        if (!join->seen_first_record) {
           // Calculate aggregate functions for no rows
-          List_iterator_fast<Item> it(*join->get_current_fields());
-          Item *item;
-          while ((item = it++)) item->no_rows_in_result();
+          for (Item &item : *join->get_current_fields()) {
+            item.no_rows_in_result();
+          }
 
           /*
             Mark tables as containing only NULL values for ha_write_row().
@@ -5275,7 +5297,7 @@ enum_nested_loop_state end_write_group(JOIN *join, QEP_TAB *const qep_tab,
             DBUG_RETURN(NESTED_LOOP_ERROR);
         }
         if (join->rollup.state != ROLLUP::STATE_NONE) {
-          if (join->rollup_write_data((uint)(idx + 1), table))
+          if (join->rollup_write_data((uint)(idx + 1), qep_tab))
             DBUG_RETURN(NESTED_LOOP_ERROR);
         }
         // Restore NULL values if needed.
@@ -5285,7 +5307,7 @@ enum_nested_loop_state end_write_group(JOIN *join, QEP_TAB *const qep_tab,
       }
     } else {
       if (end_of_records) DBUG_RETURN(NESTED_LOOP_OK);
-      join->first_record = 1;
+      join->seen_first_record = true;
 
       (void)(test_if_item_cache_changed(join->group_fields));
     }
@@ -5327,51 +5349,53 @@ enum_nested_loop_state end_write_group(JOIN *join, QEP_TAB *const qep_tab,
     1		No records
 */
 
-static int create_sort_index(THD *thd, JOIN *join, QEP_TAB *tab) {
-  ha_rows examined_rows, found_rows, returned_rows;
-  TABLE *table;
-  bool status;
-  Filesort *fsort = tab->filesort;
+static int create_sort_index(THD *thd, JOIN *join, QEP_TAB *qep_tab) {
   DBUG_ENTER("create_sort_index");
 
-  // One row, no need to sort. make_tmp_tables_info should already handle this.
-  DBUG_ASSERT(!join->plan_is_const() && fsort);
-  table = tab->table();
+  Filesort *fsort = qep_tab->filesort;
+  /*
+    One row, no need to sort. make_tmp_tables_info should already handle this.
+    ROLLUP generates one more row. So that is the only exception.
+  */
+  DBUG_ASSERT(
+      (!join->plan_is_const() || join->rollup.state != ROLLUP::STATE_NONE) &&
+      fsort);
 
+  TABLE *table = qep_tab->table();
   table->sort_result.io_cache =
       (IO_CACHE *)my_malloc(key_memory_TABLE_sort_io_cache, sizeof(IO_CACHE),
                             MYF(MY_WME | MY_ZEROFILL));
 
   // If table has a range, move it to select
-  if (tab->quick() && tab->ref().key >= 0) {
-    if (tab->type() != JT_REF_OR_NULL && tab->type() != JT_FT) {
-      DBUG_ASSERT(tab->type() == JT_REF || tab->type() == JT_EQ_REF);
+  if (qep_tab->quick() && qep_tab->ref().key >= 0) {
+    if (qep_tab->type() != JT_REF_OR_NULL && qep_tab->type() != JT_FT) {
+      DBUG_ASSERT(qep_tab->type() == JT_REF || qep_tab->type() == JT_EQ_REF);
       // Update ref value
-      if ((cp_buffer_from_ref(thd, table, &tab->ref()) && thd->is_fatal_error))
-        goto err;  // out of memory
+      if ((cp_buffer_from_ref(thd, table, &qep_tab->ref()) &&
+           thd->is_fatal_error))
+        DBUG_RETURN(-1);  // out of memory
     }
   }
 
   /* Fill schema tables with data before filesort if it's necessary */
   if ((join->select_lex->active_options() & OPTION_SCHEMA_TABLE) &&
       get_schema_tables_result(join, PROCESSED_BY_CREATE_SORT_INDEX))
-    goto err;
+    DBUG_RETURN(-1);
 
   if (table->s->tmp_table)
     table->file->info(HA_STATUS_VARIABLE);  // Get record count
-  status = filesort(thd, fsort, tab->keep_current_rowid, &examined_rows,
-                    &found_rows, &returned_rows);
+  ha_rows examined_rows, found_rows, returned_rows;
+  bool error = filesort(thd, fsort, qep_tab->keep_current_rowid, &examined_rows,
+                        &found_rows, &returned_rows);
   table->sort_result.found_records = returned_rows;
-  tab->set_records(found_rows);  // For SQL_CALC_ROWS
-  tab->join()->examined_rows += examined_rows;
+  qep_tab->set_records(found_rows);  // For SQL_CALC_ROWS
+  qep_tab->join()->examined_rows += examined_rows;
   table->set_keyread(false);  // Restore if we used indexes
-  if (tab->type() == JT_FT)
+  if (qep_tab->type() == JT_FT)
     table->file->ft_end();
   else
     table->file->ha_index_or_rnd_end();
-  DBUG_RETURN(status);
-err:
-  DBUG_RETURN(-1);
+  DBUG_RETURN(error);
 }
 
 /*****************************************************************************
@@ -5440,8 +5464,8 @@ static size_t compute_field_lengths(Field **first_field,
 
 bool QEP_TAB::remove_duplicates() {
   bool error;
-  DBUG_ASSERT(this - 1 != join()->before_ref_item_slice_tmp3 &&
-              this != join()->before_ref_item_slice_tmp3);
+  DBUG_ASSERT(this - 1 != join()->ref_slice_immediately_before_group_by &&
+              this != join()->ref_slice_immediately_before_group_by);
   THD *thd = join()->thd;
   DBUG_ENTER("remove_duplicates");
 
@@ -5556,10 +5580,8 @@ static bool remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
     error = file->ha_rnd_pos(record, file->ref);
   }
 
-  file->extra(HA_EXTRA_NO_CACHE);
   DBUG_RETURN(false);
 err:
-  file->extra(HA_EXTRA_NO_CACHE);
   if (file->inited) (void)file->ha_rnd_end();
   if (error) file->print_error(error, MYF(0));
   DBUG_RETURN(true);
@@ -5626,12 +5648,10 @@ static bool remove_dup_with_hash_index(THD *thd, TABLE *table,
     }
   }
 
-  file->extra(HA_EXTRA_NO_CACHE);
   (void)file->ha_rnd_end();
   DBUG_RETURN(false);
 
 err:
-  file->extra(HA_EXTRA_NO_CACHE);
   if (file->inited) (void)file->ha_rnd_end();
   if (error) file->print_error(error, MYF(0));
   DBUG_RETURN(true);
@@ -5733,9 +5753,12 @@ int test_if_item_cache_changed(List<Cached_item> &list) {
 }
 
 /**
-  Setup copy_fields to save fields at start of new group.
+  Sets up caches for holding the values of non-aggregated expressions. The
+  values are saved at the start of every new group.
 
-  Setup copy_fields to save fields at start of new group
+  This code path is used in the cases when aggregation can be performed
+  without a temporary table. Why it still uses a Temp_table_param is a
+  mystery.
 
   Only FIELD_ITEM:s and FUNC_ITEM:s needs to be saved between groups.
   Change old item_field to use a new field with points at saved fieldvalue
@@ -5767,27 +5790,32 @@ bool setup_copy_fields(THD *thd, Temp_table_param *param,
 
   Item *pos;
   List_iterator_fast<Item> li(all_fields);
-  Copy_field *copy = NULL;
-  Copy_field *copy_start MY_ATTRIBUTE((unused));
   res_selected_fields.empty();
   res_all_fields.empty();
   List_iterator_fast<Item> itr(res_all_fields);
-  List<Item> extra_funcs;
   uint i, border = all_fields.elements - elements;
+  Memroot_vector<Item_copy *> extra_funcs(
+      Memroot_allocator<Item_copy *>(thd->mem_root));
 
-  if (param->field_count && !(copy = param->copy_field = new (*THR_MALLOC)
-                                  Copy_field[param->field_count]))
-    goto err2;
+  param->grouped_expressions.clear();
+  DBUG_ASSERT(param->copy_fields.empty());
 
-  param->copy_funcs.empty();
-  copy_start = copy;
+  try {
+    param->grouped_expressions.reserve(all_fields.elements);
+    param->copy_fields.reserve(param->field_count);
+    extra_funcs.reserve(border);
+  } catch (std::bad_alloc &) {
+    DBUG_RETURN(true);
+  }
+
   for (i = 0; (pos = li++); i++) {
     Field *field;
     uchar *tmp;
     Item *real_pos = pos->real_item();
     if (real_pos->type() == Item::FIELD_ITEM) {
       Item_field *item;
-      if (!(item = new Item_field(thd, ((Item_field *)real_pos)))) goto err;
+      if (!(item = new Item_field(thd, ((Item_field *)real_pos))))
+        DBUG_RETURN(true);
       if (pos->type() == Item::REF_ITEM) {
         /* preserve the names of the ref when dereferncing */
         Item_ref *ref = (Item_ref *)pos;
@@ -5797,7 +5825,9 @@ bool setup_copy_fields(THD *thd, Temp_table_param *param,
       }
       pos = item;
       if (item->field->flags & BLOB_FLAG) {
-        if (!(pos = Item_copy::create(pos))) goto err;
+        Item_copy *item_copy = Item_copy::create(pos);
+        if (item_copy == nullptr) DBUG_RETURN(true);
+        pos = item_copy;
         /*
           Item_copy_string::copy for function can call
           Item_copy_string::val_int for blob via Item_ref.
@@ -5807,7 +5837,7 @@ bool setup_copy_fields(THD *thd, Temp_table_param *param,
           copy_funcs
           (to see full test case look at having.test, BUG #4358)
         */
-        if (param->copy_funcs.push_front(pos)) goto err;
+        param->grouped_expressions.push_back(item_copy);
       } else {
         /*
            set up save buffer and change result_field to point at
@@ -5819,34 +5849,35 @@ bool setup_copy_fields(THD *thd, Temp_table_param *param,
           We need to allocate one extra byte for null handling.
         */
         if (!(tmp = static_cast<uchar *>(sql_alloc(field->pack_length() + 1))))
-          goto err;
-        if (copy) {
-          DBUG_ASSERT(param->field_count > (uint)(copy - copy_start));
-          copy->set(tmp, item->result_field);
-          item->result_field->move_field(copy->to_ptr, copy->to_null_ptr, 1);
+          DBUG_RETURN(true);
 
-          /*
-            We have created a new Item_field; its field points into the
-            previous table; its result_field points into a memory area
-            (REF_SLICE_TMP3) which represents the pseudo-tmp-table from where
-            aggregates' values can be read. So does 'field'.
-            A Copy_field manages copying from 'field' to the memory area.
-          */
-          item->field = item->result_field;
-          /*
-            Even though the field doesn't point into field->table->record[0], we
-            must still link it to 'table' through field->table because that's an
-            existing way to access some type info (e.g. nullability from
-            table->nullable).
-          */
-          copy++;
-        }
+        DBUG_ASSERT(param->field_count > param->copy_fields.size());
+        param->copy_fields.emplace_back(tmp, item->result_field);
+        item->result_field->move_field(param->copy_fields.back().to_ptr,
+                                       param->copy_fields.back().to_null_ptr,
+                                       1);
+
+        /*
+          We have created a new Item_field; its field points into the
+          previous table; its result_field points into a memory area
+          (REF_SLICE_ORDERED_GROUP_BY) which represents the pseudo-tmp-table
+          from where aggregates' values can be read. So does 'field'. A
+          Copy_field manages copying from 'field' to the memory area.
+        */
+        item->field = item->result_field;
+        /*
+          Even though the field doesn't point into field->table->record[0], we
+          must still link it to 'table' through field->table because that's an
+          existing way to access some type info (e.g. nullability from
+          table->nullable).
+        */
       }
-    } else if ((real_pos->type() == Item::FUNC_ITEM ||
-                real_pos->type() == Item::SUBSELECT_ITEM ||
-                real_pos->type() == Item::CACHE_ITEM ||
-                real_pos->type() == Item::COND_ITEM) &&
-               !real_pos->has_aggregation()) {  // Save for send fields
+    } else if (((real_pos->type() == Item::FUNC_ITEM ||
+                 real_pos->type() == Item::SUBSELECT_ITEM ||
+                 real_pos->type() == Item::CACHE_ITEM ||
+                 real_pos->type() == Item::COND_ITEM) &&
+                !real_pos->has_aggregation() &&
+                !real_pos->has_rollup_field())) {  // Save for send fields
       pos = real_pos;
       /* TODO:
          In most cases this result will be sent to the user.
@@ -5854,18 +5885,18 @@ bool setup_copy_fields(THD *thd, Temp_table_param *param,
          on how the value is to be used: In some cases this may be an
          argument in a group function, like: IF(ISNULL(col),0,COUNT(*))
       */
-      if (!(pos = Item_copy::create(pos))) goto err;
+      Item_copy *item_copy = Item_copy::create(pos);
+      if (item_copy == nullptr) DBUG_RETURN(true);
+      pos = item_copy;
       if (i < border)  // HAVING, ORDER and GROUP BY
-      {
-        if (extra_funcs.push_back(pos)) goto err;
-      } else if (param->copy_funcs.push_back(pos))
-        goto err;
+        extra_funcs.push_back(item_copy);
+      else
+        param->grouped_expressions.push_back(item_copy);
     }
     res_all_fields.push_back(pos);
     ref_item_array[((i < border) ? all_fields.elements - i - 1 : i - border)] =
         pos;
   }
-  param->copy_field_end = copy;
 
   for (i = 0; i < border; i++) itr++;
   itr.sublist(res_selected_fields, elements);
@@ -5873,15 +5904,9 @@ bool setup_copy_fields(THD *thd, Temp_table_param *param,
     Put elements from HAVING, ORDER BY and GROUP BY last to ensure that any
     reference used in these will resolve to a item that is already calculated
   */
-  param->copy_funcs.concat(&extra_funcs);
-
-  DBUG_RETURN(0);
-
-err:
-  destroy_array(param->copy_field, param->field_count);
-  param->copy_field = nullptr;
-err2:
-  DBUG_RETURN(true);
+  param->grouped_expressions.insert(param->grouped_expressions.end(),
+                                    extra_funcs.begin(), extra_funcs.end());
+  DBUG_RETURN(false);
 }
 
 /**
@@ -5898,19 +5923,16 @@ err2:
 
 bool copy_fields(Temp_table_param *param, const THD *thd) {
   DBUG_ENTER("copy_fields");
-  Copy_field *ptr = param->copy_field;
-  Copy_field *end = param->copy_field_end;
 
-  DBUG_ASSERT((ptr != NULL && end >= ptr) || (ptr == NULL && end == NULL));
   DBUG_PRINT("enter", ("for param %p", param));
-  for (; ptr < end; ptr++) ptr->invoke_do_copy(ptr);
+  for (Copy_field &ptr : param->copy_fields) ptr.invoke_do_copy(&ptr);
 
-  List_iterator_fast<Item> it(param->copy_funcs);
-  Item_copy *item;
-  bool is_error = thd->is_error();
-  while (!is_error && (item = (Item_copy *)it++)) is_error = item->copy(thd);
+  if (thd->is_error()) DBUG_RETURN(true);
 
-  DBUG_RETURN(is_error);
+  for (Item_copy *item : param->grouped_expressions) {
+    if (item->copy(thd)) DBUG_RETURN(true);
+  }
+  DBUG_RETURN(false);
 }
 
 /**
@@ -6178,7 +6200,6 @@ bool QEP_tmp_table::prepare_tmp_table() {
                               join->select_lex->active_options(),
                               join->thd->variables.big_tables))
       DBUG_RETURN(true);
-    (void)table->file->extra(HA_EXTRA_WRITE_CACHE);
     empty_record(table);
   }
   /* If it wasn't already, start index scan for grouping using table index. */
@@ -6231,11 +6252,6 @@ enum_nested_loop_state QEP_tmp_table::end_send() {
 
   if ((rc = put_record(true)) < NESTED_LOOP_OK) return rc;
 
-  if (qep_tab->table()->file->inited &&
-      (tmp = table->file->extra(HA_EXTRA_NO_CACHE))) {
-    DBUG_PRINT("error", ("extra(HA_EXTRA_NO_CACHE) failed"));
-    new_errno = tmp;
-  }
   if ((tmp = table->file->ha_index_or_rnd_end())) {
     DBUG_PRINT("error", ("ha_index_or_rnd_end() failed"));
     new_errno = tmp;

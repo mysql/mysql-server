@@ -150,7 +150,7 @@ SET GLOBAL temptable_max_ram = 2097152;
 SET debug = '+d,temptable_fetch_from_disk_return_null';
 
 --disable_query_log
-call mtr.add_suppression("mysqld.*: The table '.*#sql.*' is full");
+call mtr.add_suppression("\\[ERROR\\] \\[MY-.*\\] The table '.*#sql.*' is full");
 --enable_query_log
 
 # Two same errors passed to change per-run response to static one

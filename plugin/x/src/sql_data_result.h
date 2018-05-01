@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _SQL_DATA_RESULT_H_
-#define _SQL_DATA_RESULT_H_
+#ifndef PLUGIN_X_SRC_SQL_DATA_RESULT_H_
+#define PLUGIN_X_SRC_SQL_DATA_RESULT_H_
 
 #include <initializer_list>
 
@@ -103,4 +103,4 @@ class Sql_data_result {
 
 }  // namespace xpl
 
-#endif  // _SQL_DATA_RESULT_H_
+#endif  // PLUGIN_X_SRC_SQL_DATA_RESULT_H_

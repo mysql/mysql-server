@@ -124,6 +124,68 @@ void check_sql_command_drop(Sql_service_interface *srvi) {
   }
 }
 
+void check_sql_command_persist(Sql_service_interface *srvi) {
+  Sql_resultset rset;
+  srvi->set_session_user(GROUPREPL_USER);
+  int srv_err = srvi->execute_query(
+      "SELECT @@GLOBAL.group_replication_member_weight", &rset);
+  DBUG_ASSERT(rset.get_rows() == 1);
+  longlong initial_member_weight = rset.getLong(0);
+  DBUG_ASSERT(initial_member_weight >= 0 && initial_member_weight <= 100);
+  longlong test_member_weight = initial_member_weight + 1;
+  std::string query;
+
+  query.assign("SET PERSIST_ONLY group_replication_member_weight=" +
+               std::to_string(test_member_weight) + ";");
+  srv_err = srvi->execute_query(query);
+  if (srv_err == 0) {
+    srvi->execute_query("SELECT @@GLOBAL.group_replication_member_weight",
+                        &rset);
+    DBUG_ASSERT(rset.get_rows() == 1);
+    DBUG_ASSERT(rset.getLong(0) == initial_member_weight);
+  } else {
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_QUERY_FAIL,
+                 srv_err); /* purecov: inspected */
+  }
+  DBUG_ASSERT(!srv_err);
+
+  query.assign("SET PERSIST group_replication_member_weight=" +
+               std::to_string(test_member_weight) + ";");
+  srv_err = srvi->execute_query(query);
+  if (srv_err == 0) {
+    srvi->execute_query("SELECT @@GLOBAL.group_replication_member_weight",
+                        &rset);
+    DBUG_ASSERT(rset.get_rows() == 1);
+    DBUG_ASSERT(rset.getLong(0) == test_member_weight);
+  } else {
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_QUERY_FAIL,
+                 srv_err); /* purecov: inspected */
+  }
+  DBUG_ASSERT(!srv_err);
+
+  srv_err =
+      srvi->execute_query("RESET PERSIST group_replication_member_weight;");
+  if (srv_err == 0) {
+    srvi->execute_query("SELECT @@GLOBAL.group_replication_member_weight",
+                        &rset);
+    DBUG_ASSERT(rset.get_rows() == 1);
+    DBUG_ASSERT(rset.getLong(0) == test_member_weight);
+  } else {
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_QUERY_FAIL,
+                 srv_err); /* purecov: inspected */
+  }
+  DBUG_ASSERT(!srv_err);
+
+  query.assign("SET GLOBAL group_replication_member_weight=" +
+               std::to_string(initial_member_weight) + ";");
+  srv_err = srvi->execute_query(query);
+  if (srv_err) {
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_QUERY_FAIL,
+                 srv_err); /* purecov: inspected */
+  }
+  DBUG_ASSERT(!srv_err);
+}
+
 int sql_command_check() {
   int error = 1;
   Sql_service_interface *srvi = new Sql_service_interface();
@@ -154,6 +216,10 @@ int sql_command_check() {
   /* Case 4 */
 
   check_sql_command_drop(srvi);
+
+  /* SET PERSIST test case */
+
+  check_sql_command_persist(srvi);
 
   delete srvi;
   return error;

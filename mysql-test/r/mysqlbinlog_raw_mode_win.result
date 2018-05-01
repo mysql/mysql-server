@@ -128,25 +128,25 @@ DELETE FROM t1 WHERE c36>'c';
 DROP TABLE t1;
 CREATE TABLE t1 (c37 NATIONAL CHAR);
 Warnings:
-Warning	11266	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
+Warning	3720	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('a');
 DELETE FROM t1 WHERE c37='a';
 DROP TABLE t1;
 CREATE TABLE t1 (c38 NATIONAL CHAR(0));
 Warnings:
-Warning	11266	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
+Warning	3720	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('');
 DELETE FROM t1 WHERE c38='';
 DROP TABLE t1;
 CREATE TABLE t1 (c39 NATIONAL CHAR(1));
 Warnings:
-Warning	11266	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
+Warning	3720	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('a');
 DELETE FROM t1 WHERE c39='a';
 DROP TABLE t1;
 CREATE TABLE t1 (c40 NATIONAL CHAR(255));
 Warnings:
-Warning	11266	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
+Warning	3720	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES (repeat('a', 255));
 INSERT INTO t1 VALUES (repeat(_latin1 0xDF, 255));
 DELETE FROM t1 WHERE c40>'a';
@@ -169,26 +169,26 @@ DELETE FROM t1 WHERE c48>'a';
 DROP TABLE t1;
 CREATE TABLE t1 (c49 NATIONAL VARCHAR(0));
 Warnings:
-Warning	11266	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
+Warning	3720	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('');
 DELETE FROM t1 WHERE c49='';
 DROP TABLE t1;
 CREATE TABLE t1 (c50 NATIONAL VARCHAR(1));
 Warnings:
-Warning	11266	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
+Warning	3720	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('a');
 DELETE FROM t1 WHERE c50='a';
 DROP TABLE t1;
 CREATE TABLE t1 (c51 NATIONAL VARCHAR(255));
 Warnings:
-Warning	11266	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
+Warning	3720	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES (repeat('a',255));
 INSERT INTO t1 VALUES (repeat(_latin1 0xDF, 255));
 DELETE FROM t1 WHERE c51>'a';
 DROP TABLE t1;
 CREATE TABLE t1 (c52 NATIONAL VARCHAR(261));
 Warnings:
-Warning	11266	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
+Warning	3720	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES (repeat('a',261));
 INSERT INTO t1 VALUES (repeat(_latin1 0xDF, 261));
 DELETE FROM t1 WHERE c52>'a';

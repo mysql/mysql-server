@@ -105,8 +105,9 @@ INSERT INTO t1 (doc) VALUES ('{"foo":"bar"}');
 UPDATE t1 SET doc='{"geojson":{"type":"Point","coordinates":[1,2]}}';
 --error ER_INVALID_GEOJSON_MISSING_MEMBER
 UPDATE t1 SET doc='{"geojson":{"type":"Point","invalid":[11.11,12.22]}}';
---error ER_INVALID_GEOJSON_MISSING_MEMBER
-DELETE FROM t1;
+# Commented out because of bug #27599073.
+#--error ER_INVALID_GEOJSON_MISSING_MEMBER
+#DELETE FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1 (doc JSON) ENGINE=InnoDB;
 INSERT INTO t1 (doc) VALUES (
@@ -124,8 +125,9 @@ SELECT doc FROM t1;
 SELECT ST_ASTEXT(g1) FROM t1;
 --error ER_BAD_NULL_ERROR_NOT_IGNORED
 INSERT INTO t1 (doc) VALUES ('{"foo":"bar"}');
---error ER_BAD_NULL_ERROR_NOT_IGNORED
-DELETE FROM t1;
+# Commented out because of bug #27599073.
+#--error ER_BAD_NULL_ERROR_NOT_IGNORED
+#DELETE FROM t1;
 DROP TABLE t1;
 
 # Virtual generated column with invalid geometry value or NULL in non-nullable

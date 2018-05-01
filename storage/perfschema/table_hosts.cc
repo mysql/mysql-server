@@ -51,7 +51,7 @@ Plugin_table table_hosts::m_table_def(
     /* Name */
     "hosts",
     /* Definition */
-    "  HOST CHAR(60) collate utf8_bin default null,\n"
+    "  HOST CHAR(60) collate utf8mb4_bin default null,\n"
     "  CURRENT_CONNECTIONS bigint not null,\n"
     "  TOTAL_CONNECTIONS bigint not null,\n"
     "  UNIQUE KEY (HOST) USING HASH\n",

@@ -31,7 +31,7 @@ if ($dir_bin =~ m|^/usr/|) {
       $dir_docs = $dir_docs[0];
       if (! -f "$dir_docs/INFO_BIN") {
         # Debian/ Ubuntu
-        $dir_docs = glob "$dir_bin/share/mysql/docs";
+        $dir_docs = glob "$dir_bin/share/mysql-*/docs";
       }
     }
   }
@@ -52,7 +52,7 @@ if ($dir_bin =~ m|^/usr/|) {
       $dir_docs = $dir_docs[0];
       if (! -f "$dir_docs/INFO_BIN") {
         # Debian/ Ubuntu
-        $dir_docs = glob "$dir_bin/share/mysql/docs";
+        $dir_docs = glob "$dir_bin/share/mysql-*/docs";
       }
     }
   }

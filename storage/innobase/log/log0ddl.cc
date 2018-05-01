@@ -46,7 +46,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0mem.h"
 #include "dict0stats.h"
 #include "ha_innodb.h"
-#include "lock0lock.h"
 #include "log0ddl.h"
 #include "pars0pars.h"
 #include "que0que.h"
@@ -516,7 +515,7 @@ ulint DDL_Log_Table::parse_id(const dict_index_t *index, rec_t *rec,
   ulint len;
   ulint index_offset = index->get_col_pos(s_id_col_no);
 
-  byte *data = rec_get_nth_field(rec, offsets, index_offset, &len);
+  const byte *data = rec_get_nth_field(rec, offsets, index_offset, &len);
   ut_ad(len == s_id_col_len);
 
   return (mach_read_from_8(data));
@@ -820,6 +819,14 @@ dberr_t Log_DDL::write_free_tree_log(trx_t *trx, const dict_index_t *index,
 
   if (index->type & DICT_FTS) {
     ut_ad(index->page == FIL_NULL);
+    return (DB_SUCCESS);
+  }
+
+  if (dict_index_get_online_status(index) != ONLINE_INDEX_COMPLETE) {
+    /* To skip any previously aborted index. This is because this kind
+    of index should be already freed in previous post_ddl. It's inproper
+    to log it and may free it again later, which may trigger some
+    double free page problem. */
     return (DB_SUCCESS);
   }
 

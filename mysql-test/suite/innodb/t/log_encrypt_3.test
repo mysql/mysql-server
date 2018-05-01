@@ -12,6 +12,7 @@ call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Encryption can't find master k
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
 call mtr.add_suppression("ibd can't be decrypted , please confirm the keyfile is match and keyring plugin is loaded.");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Ignoring tablespace .* because it could not be opened");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Plugin mysqlx reported.*");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Can't set redo log tablespace to be encrypted.");
 --enable_query_log
 

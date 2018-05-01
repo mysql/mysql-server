@@ -91,6 +91,7 @@ SELECT c1,GROUP_CONCAT(c2) cc FROM
   GROUP BY c1
   ORDER BY cc;
 --replace_result InnoDB TMP_TABLE_ENGINE MyISAM TMP_TABLE_ENGINE 
+--replace_regex /("peak_memory_used":) [0-9]+/\1 "NNN"/
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 DROP TABLE t1;
 --echo #

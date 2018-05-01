@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,10 +22,12 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _NGS_VIO_WRAPPER_H_
-#define _NGS_VIO_WRAPPER_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_VIO_WRAPPER_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_VIO_WRAPPER_H_
 
 #include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
+#include "plugin/x/ngs/include/ngs/thread.h"
+#include "plugin/x/ngs/include/ngs_common/connection_type.h"
 
 namespace ngs {
 
@@ -42,19 +44,21 @@ class Vio_wrapper : public Vio_interface {
   void set_thread_owner() override;
 
   my_socket get_fd() override;
-  enum_vio_type get_type() override;
+  Connection_type get_type() override;
   sockaddr_storage *peer_addr(std::string &address, uint16 &port) override;
 
   int shutdown() override;
 
   Vio *get_vio() override { return m_vio; }
+  MYSQL_SOCKET &get_mysql_socket() override { return m_vio->mysql_socket; }
 
   ~Vio_wrapper();
 
  private:
   Vio *m_vio;
+  Mutex m_shutdown_mutex;
 };
 
 }  // namespace ngs
 
-#endif  // _NGS_VIO_WRAPPER_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_VIO_WRAPPER_H_

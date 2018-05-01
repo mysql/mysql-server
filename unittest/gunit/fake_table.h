@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,6 +43,7 @@
 #include "sql/key.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_const.h"
+#include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/table.h"
 #include "sql/thr_malloc.h"
@@ -124,6 +125,10 @@ class Fake_TABLE : public TABLE {
   // Counter for creating unique table id's. See initialize().
   static int highest_table_id;
 
+ public:
+  SELECT_LEX select_lex{nullptr, nullptr};
+
+ private:
   void initialize() {
     TABLE *as_table = static_cast<TABLE *>(this);
     new (as_table) TABLE();
@@ -134,6 +139,7 @@ class Fake_TABLE : public TABLE {
     write_set = &write_set_struct;
     next_number_field = NULL;  // No autoinc column
     pos_in_table_list = &table_list;
+    pos_in_table_list->select_lex = &select_lex;
     table_list.table = this;
     EXPECT_EQ(0, bitmap_init(write_set, &write_set_buf, s->fields, false));
     EXPECT_EQ(0, bitmap_init(read_set, &read_set_buf, s->fields, false));

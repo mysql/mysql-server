@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _NGS_CLIENT_SESSION_H_
-#define _NGS_CLIENT_SESSION_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_CLIENT_SESSION_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_CLIENT_SESSION_H_
 
 #include <assert.h>
 
@@ -48,26 +48,27 @@ class Session : public Session_interface {
 
  public:
   void on_close(const bool update_old_state = false) override;
-  void on_kill() override;
   void on_auth_success(
       const Authentication_interface::Response &response) override;
   void on_auth_failure(
       const Authentication_interface::Response &response) override;
 
   // handle a single message, returns true if message was handled false if not
-  bool handle_message(ngs::Request &command) override;
+  bool handle_message(ngs::Message_request &command) override;
 
   Client_interface &client() override { return m_client; }
+  const Client_interface &client() const override { return m_client; }
 
   Protocol_encoder_interface &proto() override { return *m_encoder; }
 
  protected:
-  virtual bool handle_auth_message(ngs::Request &command);
-  virtual bool handle_ready_message(ngs::Request &command);
+  virtual bool handle_auth_message(ngs::Message_request &command);
+  virtual bool handle_ready_message(ngs::Message_request &command);
 
   void stop_auth();
 
   static bool can_forward_error_code_to_client(const int error_code);
+  Error_code get_authentication_access_denied_error() const;
 
  public:
   State state() const override { return m_state; }
@@ -102,4 +103,4 @@ class Session : public Session_interface {
 
 }  // namespace ngs
 
-#endif
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_CLIENT_SESSION_H_

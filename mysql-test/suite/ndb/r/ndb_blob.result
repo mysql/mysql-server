@@ -502,7 +502,7 @@ id int(11) unsigned primary key NOT NULL auto_increment,
 msg text NOT NULL
 ) engine=ndbcluster default charset=utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 (msg) values(
 'Tries to validate (8 byte length + inline bytes) as UTF8 :(
 Fast fix: removed validation for Text.  It is not yet indexable
@@ -618,14 +618,14 @@ create table `t1` (
 unique key `i1` (`f1`)
 ) engine=ndbcluster default charset=utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into `t1` values (123,null);
 create table `t2` (
 `f1` int(11) not null default -1,
 unique key `i2` (`f1`)
 ) engine=ndbcluster default charset=utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 begin;
 delete from t2 where f1=5;
 delete from t1 where f1=123;

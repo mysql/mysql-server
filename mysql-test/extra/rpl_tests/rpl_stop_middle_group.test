@@ -92,7 +92,7 @@ connection slave;
 # slave will catch the killed status, won't shut down immediately
 # but does it eventually having the whole group unfinished (not committed)
 
-let $slave_sql_errno= 1593; # ER_SLAVE_FATAL_ERROR
+let $slave_sql_errno= 13117; # ER_SLAVE_FATAL_ERROR
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error.inc
 
@@ -139,7 +139,7 @@ connection slave;
 # 
 
 # checking: the error and group unfinished 
-let $slave_sql_errno= 1593; # ER_SLAVE_FATAL_ERROR
+let $slave_sql_errno= 13117; # ER_SLAVE_FATAL_ERROR
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error.inc
 

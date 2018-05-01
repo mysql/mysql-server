@@ -79,7 +79,7 @@ DROP TABLE t1;
 DROP TABLE t2;
 SET @@foreign_key_checks= 1;
 CREATE TABLE t1(a INT PRIMARY KEY, b INT, FOREIGN KEY (b) REFERENCES non(a));
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Failed to open the referenced table 'non'
 CREATE TABLE t1(a INT PRIMARY KEY, b INT REFERENCES non(a));
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -89,12 +89,12 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD FOREIGN KEY (b) REFERENCES non(a);
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Failed to open the referenced table 'non'
 DROP TABLE t1;
 CREATE TABLE t1(a INT PRIMARY KEY);
 CREATE TABLE t2(a INT PRIMARY KEY, b INT, FOREIGN KEY (b) REFERENCES t1(a));
 DROP TABLE t1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR HY000: Cannot drop table 't1' referenced by a foreign key constraint 't2_ibfk_1' on table 't2'.
 DROP TABLE t2, t1;
 SET @@foreign_key_checks= DEFAULT;
 # Test coverage of identifier length related to foreign keys.
@@ -119,8 +119,8 @@ SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE REFERENCED
 CONSTRAINT_NAME
 name567890123456789012345678901234567890123456789012345678901234
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP TABLE t2;
 CREATE TABLE t2(a INT PRIMARY KEY, b INT);
 ALTER TABLE t2 ADD FOREIGN KEY
@@ -226,8 +226,8 @@ WHERE table_name = 't2' ORDER BY constraint_name;
 constraint_name
 t2_ibfk_1
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Add FK
 ALTER TABLE t2 ADD FOREIGN KEY(b) REFERENCES t1(a);
 SELECT constraint_name FROM information_schema.referential_constraints
@@ -241,8 +241,8 @@ constraint_name
 t2_ibfk_1
 t2_ibfk_2
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Remove first FK and add a new FK.
 ALTER TABLE t2 DROP FOREIGN KEY t2_ibfk_1;
 ALTER TABLE t2 ADD FOREIGN KEY(a) REFERENCES t1(a);
@@ -257,8 +257,8 @@ constraint_name
 t2_ibfk_2
 t2_ibfk_3
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Rename table in different ways.
 ALTER TABLE t2 RENAME TO t3;
 SELECT constraint_name FROM information_schema.referential_constraints
@@ -272,8 +272,8 @@ constraint_name
 t3_ibfk_2
 t3_ibfk_3
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ALTER TABLE t3 RENAME TO t4, ALGORITHM= INPLACE;
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't4' ORDER BY constraint_name;
@@ -286,8 +286,8 @@ constraint_name
 t4_ibfk_2
 t4_ibfk_3
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ALTER TABLE t4 RENAME TO t5;
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't5' ORDER BY constraint_name;
@@ -300,8 +300,8 @@ constraint_name
 t5_ibfk_2
 t5_ibfk_3
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 RENAME TABLE t5 TO t6;
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't6' ORDER BY constraint_name;
@@ -314,8 +314,8 @@ constraint_name
 t6_ibfk_2
 t6_ibfk_3
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Simulate dump+restore and test rename
 DROP TABLE t6;
 CREATE TABLE `t6` (
@@ -337,8 +337,8 @@ constraint_name
 t6_ibfk_2
 t6_ibfk_3
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 RENAME TABLE t6 TO t2;
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't2' ORDER BY constraint_name;
@@ -351,8 +351,8 @@ constraint_name
 t2_ibfk_2
 t2_ibfk_3
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Remove all FKs and add one back
 ALTER TABLE t2 DROP FOREIGN KEY t2_ibfk_2, DROP FOREIGN KEY t2_ibfk_3;
 ALTER TABLE t2 ADD FOREIGN KEY(a) REFERENCES t1(a);
@@ -365,8 +365,8 @@ WHERE table_name = 't2' ORDER BY constraint_name;
 constraint_name
 t2_ibfk_1
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Add a foreign key with close to generated name
 ALTER TABLE t2 ADD CONSTRAINT t3_ibfk_2 FOREIGN KEY(b) REFERENCES t1(a);
 SELECT constraint_name FROM information_schema.referential_constraints
@@ -380,8 +380,8 @@ constraint_name
 t2_ibfk_1
 t3_ibfk_2
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Then rename so that the given name now matches a generated name
 RENAME TABLE t2 TO t3;
 SELECT constraint_name FROM information_schema.referential_constraints
@@ -395,8 +395,8 @@ constraint_name
 t3_ibfk_1
 t3_ibfk_2
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Finally rename it again. The given name is now seen as generated and renamed.
 RENAME TABLE t3 TO t4;
 SELECT constraint_name FROM information_schema.referential_constraints
@@ -410,8 +410,8 @@ constraint_name
 t4_ibfk_1
 t4_ibfk_2
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP TABLE t4;
 # Make a foreign key with given name matching a generated name
 CREATE TABLE t2(a INT, b INT);
@@ -428,8 +428,8 @@ constraint_name
 t2_ibfk_1
 t2_ibfk_2
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP TABLE t2;
 # Test FK name case sensitivity
 CREATE TABLE t2(a INT, b INT);
@@ -443,8 +443,8 @@ WHERE table_name = 't2' ORDER BY constraint_name;
 constraint_name
 FK
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ALTER TABLE t2 ADD CONSTRAINT fk FOREIGN KEY(b) REFERENCES t1(a);
 ERROR 42000: Duplicate key name 'fk'
 ALTER TABLE t2 DROP FOREIGN KEY FK;
@@ -470,8 +470,8 @@ WHERE table_name = 't12345678901234567890123456789012345678901234567890123456'
 constraint_name
 t12345678901234567890123456789012345678901234567890123456_ibfk_1
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP TABLE t12345678901234567890123456789012345678901234567890123456;
 CREATE TABLE t123456789012345678901234567890123456789012345678901234567(
 a INT, FOREIGN KEY (a) REFERENCES t1(a));
@@ -484,10 +484,10 @@ DROP TABLE t1;
 CREATE TABLE t1(a INT PRIMARY KEY,
 b INT GENERATED ALWAYS AS (a+1) VIRTUAL UNIQUE);
 CREATE TABLE t2(a INT, FOREIGN KEY (a) REFERENCES t1(b));
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 't2_ibfk_1' in the referenced table 't1'
 CREATE TABLE t2(a INT);
 ALTER TABLE t2 ADD FOREIGN KEY(a) REFERENCES t1(b);
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 't2_ibfk_1' in the referenced table 't1'
 DROP TABLE t1, t2;
 # FK on generated stored column
 CREATE TABLE t1(a INT PRIMARY KEY);
@@ -1076,7 +1076,7 @@ connection con1;
 COMMIT;
 connection default;
 # Reap DROP TABLES
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR HY000: Cannot drop table 'parent' referenced by a foreign key constraint 'child_ibfk_1' on table 'child'.
 # 4.4) DROP TABLES which acquires lock on child table and fails
 #      due to lock timeout.
 connection con1;
@@ -1898,7 +1898,7 @@ SET @@session.foreign_key_checks= 1;
 # Drop only parent with FKC == 0.
 LOCK TABLE parent WRITE;
 DROP TABLES parent;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR HY000: Cannot drop table 'parent' referenced by a foreign key constraint 'child_ibfk_1' on table 'child'.
 UNLOCK TABLE;
 SET @@session.foreign_key_checks= 0;
 # Drop only parent.
@@ -1993,8 +1993,8 @@ constraint_name	table_name	column_name	referenced_column_name
 PRIMARY	t1	pk	NULL
 t1_ibfk_1	t1	fk	pk
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ALTER TABLE t1 CHANGE pk id INT;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
@@ -2003,8 +2003,8 @@ constraint_name	table_name	column_name	referenced_column_name
 PRIMARY	t1	id	NULL
 t1_ibfk_1	t1	fk	id
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Renaming of parent columns using COPY algorithm is not supported.
 ALTER TABLE t1 CHANGE id pk INT, ALGORITHM=COPY;
 ERROR 0A000: ALGORITHM=COPY is not supported. Reason: Columns participating in a foreign key are renamed. Try ALGORITHM=INPLACE.
@@ -2015,8 +2015,8 @@ constraint_name	table_name	column_name	referenced_column_name
 PRIMARY	t1	id	NULL
 t1_ibfk_1	t1	fk	id
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ALTER TABLE t1 CHANGE id pk INT, ALGORITHM=INPLACE;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
@@ -2025,8 +2025,8 @@ constraint_name	table_name	column_name	referenced_column_name
 PRIMARY	t1	pk	NULL
 t1_ibfk_1	t1	fk	pk
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ALTER TABLE t1 RENAME COLUMN pk TO id;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
@@ -2035,8 +2035,8 @@ constraint_name	table_name	column_name	referenced_column_name
 PRIMARY	t1	id	NULL
 t1_ibfk_1	t1	fk	id
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Renaming of parent columns using COPY algorithm is not supported.
 ALTER TABLE t1 RENAME COLUMN id TO pk, ALGORITHM=COPY;
 ERROR 0A000: ALGORITHM=COPY is not supported. Reason: Columns participating in a foreign key are renamed. Try ALGORITHM=INPLACE.
@@ -2047,8 +2047,8 @@ constraint_name	table_name	column_name	referenced_column_name
 PRIMARY	t1	id	NULL
 t1_ibfk_1	t1	fk	id
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ALTER TABLE t1 RENAME COLUMN id TO pk, ALGORITHM=INPLACE;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
@@ -2057,8 +2057,8 @@ constraint_name	table_name	column_name	referenced_column_name
 PRIMARY	t1	pk	NULL
 t1_ibfk_1	t1	fk	pk
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP TABLE t1;
 CREATE TABLE t1 (pk INT PRIMARY KEY);
 CREATE TABLE t2 (fk INT, FOREIGN KEY (fk) REFERENCES t1 (pk));
@@ -2068,8 +2068,8 @@ WHERE table_schema='test' AND table_name='t2';
 constraint_name	table_name	column_name	referenced_column_name
 t2_ibfk_1	t2	fk	pk
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ALTER TABLE t1 CHANGE pk id INT;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
@@ -2077,8 +2077,8 @@ WHERE table_schema='test' AND table_name='t2';
 constraint_name	table_name	column_name	referenced_column_name
 t2_ibfk_1	t2	fk	id
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Renaming of parent columns using COPY algorithm is not supported.
 ALTER TABLE t1 CHANGE id pk INT, ALGORITHM=COPY;
 ERROR 0A000: ALGORITHM=COPY is not supported. Reason: Columns participating in a foreign key are renamed. Try ALGORITHM=INPLACE.
@@ -2088,8 +2088,8 @@ WHERE table_schema='test' AND table_name='t2';
 constraint_name	table_name	column_name	referenced_column_name
 t2_ibfk_1	t2	fk	id
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ALTER TABLE t1 CHANGE id pk INT, ALGORITHM=INPLACE;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
@@ -2097,8 +2097,8 @@ WHERE table_schema='test' AND table_name='t2';
 constraint_name	table_name	column_name	referenced_column_name
 t2_ibfk_1	t2	fk	pk
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ALTER TABLE t1 RENAME COLUMN pk TO id;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
@@ -2106,8 +2106,8 @@ WHERE table_schema='test' AND table_name='t2';
 constraint_name	table_name	column_name	referenced_column_name
 t2_ibfk_1	t2	fk	id
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Renaming of parent columns using COPY algorithm is not supported.
 ALTER TABLE t1 RENAME COLUMN id TO pk, ALGORITHM=COPY;
 ERROR 0A000: ALGORITHM=COPY is not supported. Reason: Columns participating in a foreign key are renamed. Try ALGORITHM=INPLACE.
@@ -2117,8 +2117,8 @@ WHERE table_schema='test' AND table_name='t2';
 constraint_name	table_name	column_name	referenced_column_name
 t2_ibfk_1	t2	fk	id
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ALTER TABLE t1 RENAME COLUMN id TO pk, ALGORITHM=INPLACE;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
@@ -2126,8 +2126,8 @@ WHERE table_schema='test' AND table_name='t2';
 constraint_name	table_name	column_name	referenced_column_name
 t2_ibfk_1	t2	fk	pk
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP TABLES t2, t1;
 # Coverage for cases with multiple foreign keys.
 CREATE TABLE t1 (pk INT PRIMARY KEY, u1 INT, u2 INT, fk1 INT, fk2 INT,
@@ -2144,8 +2144,8 @@ u2	t1	u2	NULL
 t1_ibfk_1	t1	fk1	u1
 t1_ibfk_2	t1	fk2	u2
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ALTER TABLE t1 RENAME COLUMN u1 TO u3;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
@@ -2157,8 +2157,8 @@ u2	t1	u2	NULL
 t1_ibfk_1	t1	fk1	u3
 t1_ibfk_2	t1	fk2	u2
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ALTER TABLE t1 RENAME COLUMN u3 TO u4, RENAME COLUMN u2 TO u5;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
@@ -2170,8 +2170,8 @@ u2	t1	u5	NULL
 t1_ibfk_1	t1	fk1	u4
 t1_ibfk_2	t1	fk2	u5
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP TABLE t1;
 CREATE TABLE t1 (pk INT PRIMARY KEY, u1 INT, u2 INT, UNIQUE (u1), UNIQUE (u2));
 CREATE TABLE t2 (fk1 INT, fk2 INT,
@@ -2184,8 +2184,8 @@ constraint_name	table_name	column_name	referenced_column_name
 t2_ibfk_1	t2	fk1	u1
 t2_ibfk_2	t2	fk2	u2
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ALTER TABLE t1 RENAME COLUMN u1 TO u3;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
@@ -2194,8 +2194,8 @@ constraint_name	table_name	column_name	referenced_column_name
 t2_ibfk_1	t2	fk1	u3
 t2_ibfk_2	t2	fk2	u2
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ALTER TABLE t1 RENAME COLUMN u3 TO u4, RENAME COLUMN u2 TO u5;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
@@ -2204,8 +2204,8 @@ constraint_name	table_name	column_name	referenced_column_name
 t2_ibfk_1	t2	fk1	u4
 t2_ibfk_2	t2	fk2	u5
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP TABLES t2, t1;
 #
 # WL#6049, bug#26654674 "TABLE_CACHE_MANAGER::FREE_TABLE(THD*,
@@ -2977,15 +2977,15 @@ ERROR HY000: Duplicate foreign key constraint name 't3_ibfk_1'
 # Check that we detect potential conflicts resulting from
 # application of RENAME clause early.
 DROP TABLE t4;
-ALTER TABLE t3 ADD CONSTRAINT d FOREIGN KEY (fk) REFERENCES t1 (pk),
+ALTER TABLE t3 ADD CONSTRAINT d FOREIGN KEY (fk) REFERENCES test.t1 (pk),
 ADD UNIQUE KEY (u), RENAME TO mysqltest.t3,
 ALGORITHM=COPY;
 ERROR HY000: Duplicate foreign key constraint name 'd'
-ALTER TABLE t3 ADD FOREIGN KEY (fk) REFERENCES t1 (pk),
+ALTER TABLE t3 ADD FOREIGN KEY (fk) REFERENCES test.t1 (pk),
 ADD UNIQUE KEY (u), RENAME TO t8,
 ALGORITHM=COPY;
 ERROR HY000: Duplicate foreign key constraint name 't8_ibfk_1'
-ALTER TABLE t3 ADD FOREIGN KEY (fk) REFERENCES t1 (pk),
+ALTER TABLE t3 ADD FOREIGN KEY (fk) REFERENCES test.t1 (pk),
 ADD UNIQUE KEY (u), RENAME TO mysqltest.t8,
 ALGORITHM=COPY;
 ERROR HY000: Duplicate foreign key constraint name 't8_ibfk_1'
@@ -2999,3 +2999,353 @@ CREATE TABLE T2 (fk INT);
 ALTER TABLE T2 ADD FOREIGN KEY (fk) REFERENCES t1 (pk);
 RENAME TABLE T2 TO T3;
 DROP TABLES T3, t1;
+#
+# Bug #27821060 "NEWDD FK: DROP TABLES/DATABASE SHOULD CHECK FOR FKS".
+#
+#
+# 1) Attempt to DROP TABLE which serves as parent in FK without dropping
+#    child should fail with nice error message.
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+CREATE TABLE t2 (fk INT, FOREIGN KEY (fk) REFERENCES t1 (pk));
+DROP TABLE t1;
+ERROR HY000: Cannot drop table 't1' referenced by a foreign key constraint 't2_ibfk_1' on table 't2'.
+#
+# 2) However, same should be allowed in FOREIGN_KEY_CHECKS=0 mode.
+SET FOREIGN_KEY_CHECKS=0;
+DROP TABLE t1;
+SET FOREIGN_KEY_CHECKS=1;
+#
+# 3) Dropping of parent table along with child table should be allowed.
+#    Even if parent precedes child in table list.
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+DROP TABLES t1, t2;
+#
+# 4) Even if FKs form circular dependencies.
+CREATE TABLE t1 (pk INT PRIMARY KEY, fk INT);
+CREATE TABLE t2 (pk INT PRIMARY KEY, fk INT,
+FOREIGN KEY(fk) REFERENCES t1 (pk));
+ALTER TABLE t1 ADD FOREIGN KEY (fk) REFERENCES t2 (pk);
+DROP TABLES t1, t2;
+#
+# 5) Attempt to DROP SCHEMA which will remove parent without
+#    removing child should fail with nice error message.
+CREATE SCHEMA mysqltest;
+CREATE TABLE mysqltest.t1 (pk INT PRIMARY KEY);
+CREATE TABLE t2 (fk INT, FOREIGN KEY(fk) REFERENCES mysqltest.t1 (pk));
+DROP SCHEMA mysqltest;
+ERROR HY000: Cannot drop table 't1' referenced by a foreign key constraint 't2_ibfk_1' on table 't2'.
+#
+# 6) But the same should be allowed in FOREIGN_KEY_CHECKS=0 mode.
+SET FOREIGN_KEY_CHECKS=0;
+DROP SCHEMA mysqltest;
+SET FOREIGN_KEY_CHECKS=1;
+DROP TABLE t2;
+#
+# 7) Also dropping schema which drops both parent and child
+#    should be OK.
+CREATE SCHEMA mysqltest;
+USE mysqltest;
+CREATE TABLE t1 (pk INT PRIMARY KEY, fk INT);
+CREATE TABLE t2 (pk INT PRIMARY KEY, fk INT,
+FOREIGN KEY(fk) REFERENCES t1 (pk));
+ALTER TABLE t1 ADD FOREIGN KEY (fk) REFERENCES t2 (pk);
+USE test;
+DROP SCHEMA mysqltest;
+#
+# Bug#27506922 "DROPPING OF PARENT KEY FOR FOREIGN KEY IS ALLOWED".
+#
+#
+# 1) CREATE TABLE with FK and no parent key.
+#
+CREATE TABLE parent(pk INT PRIMARY KEY, a INT);
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(a));
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+SET FOREIGN_KEY_CHECKS = 0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(a));
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+SET FOREIGN_KEY_CHECKS = 1;
+CREATE TABLE self (pk INT PRIMARY KEY, a INT, fk INT,
+FOREIGN KEY (fk) REFERENCES self(a));
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'self_ibfk_1' in the referenced table 'self'
+SET FOREIGN_KEY_CHECKS = 0;
+CREATE TABLE self (pk INT PRIMARY KEY, a INT, fk INT,
+FOREIGN KEY (fk) REFERENCES self(a));
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'self_ibfk_1' in the referenced table 'self'
+# Missing parent table case.
+SET FOREIGN_KEY_CHECKS = 1;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES no_such_parent(pk));
+ERROR HY000: Failed to open the referenced table 'no_such_parent'
+# We allow creation of orphan FKs in FOREIGN_KEY_CHECKS = 0 mode.
+SET FOREIGN_KEY_CHECKS = 0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES no_such_parent(pk));
+SET FOREIGN_KEY_CHECKS = 1;
+DROP TABLE child;
+#
+# 2) ALTER TABLE which adds FK without parent key.
+#
+CREATE TABLE child (fk INT, fk2 INT);
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(a), ALGORITHM=COPY;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(a), ALGORITHM=INPLACE;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+SET FOREIGN_KEY_CHECKS = 0;
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(a), ALGORITHM=COPY;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(a), ALGORITHM=INPLACE;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+SET FOREIGN_KEY_CHECKS = 1;
+CREATE TABLE self (pk INT PRIMARY KEY, a INT, fk INT);
+ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(a), ALGORITHM=COPY;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'self_ibfk_1' in the referenced table 'self'
+ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(a), ALGORITHM=INPLACE;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'self_ibfk_1' in the referenced table 'self'
+SET FOREIGN_KEY_CHECKS = 0;
+ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(a), ALGORITHM=COPY;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'self_ibfk_1' in the referenced table 'self'
+ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(a), ALGORITHM=INPLACE;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'self_ibfk_1' in the referenced table 'self'
+# Missing parent table case.
+SET FOREIGN_KEY_CHECKS = 1;
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES no_such_parent(pk), ALGORITHM=COPY;
+ERROR HY000: Failed to open the referenced table 'no_such_parent'
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES no_such_parent(pk), ALGORITHM=INPLACE;
+ERROR HY000: Failed to open the referenced table 'no_such_parent'
+# We allow creation of orphan FKs in FOREIGN_KEY_CHECKS = 0 mode.
+SET FOREIGN_KEY_CHECKS = 0;
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES no_such_parent(pk), ALGORITHM=COPY;
+ALTER TABLE child ADD FOREIGN KEY (fk2) REFERENCES no_such_parent(pk), ALGORITHM=INPLACE;
+SET FOREIGN_KEY_CHECKS = 1;
+DROP TABLE child, self, parent;
+#
+# 3) ALTER TABLE which drops parent key.
+#
+CREATE TABLE parent (pk INT PRIMARY KEY, u INT NOT NULL, UNIQUE(u));
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(u));
+ALTER TABLE parent DROP KEY u, ALGORITHM=COPY;
+ERROR HY000: Cannot drop index 'u': needed in a foreign key constraint
+ALTER TABLE parent DROP KEY u, ALGORITHM=INPLACE;
+ERROR HY000: Cannot drop index 'u': needed in a foreign key constraint
+SET FOREIGN_KEY_CHECKS = 0;
+ALTER TABLE parent DROP KEY u, ALGORITHM=COPY;
+ERROR HY000: Cannot drop index 'u': needed in a foreign key constraint
+ALTER TABLE parent DROP KEY u, ALGORITHM=INPLACE;
+ERROR HY000: Cannot drop index 'u': needed in a foreign key constraint
+SET FOREIGN_KEY_CHECKS = 1;
+CREATE TABLE self (pk INT PRIMARY KEY, u INT NOT NULL, fk INT, UNIQUE(u),
+FOREIGN KEY (fk) REFERENCES self(u));
+ALTER TABLE self DROP KEY u, ALGORITHM=COPY;
+ERROR HY000: Cannot drop index 'u': needed in a foreign key constraint
+ALTER TABLE self DROP KEY u, ALGORITHM=INPLACE;
+ERROR HY000: Cannot drop index 'u': needed in a foreign key constraint
+SET FOREIGN_KEY_CHECKS = 0;
+ALTER TABLE self DROP KEY u, ALGORITHM=COPY;
+ERROR HY000: Cannot drop index 'u': needed in a foreign key constraint
+ALTER TABLE self DROP KEY u, ALGORITHM=INPLACE;
+ERROR HY000: Cannot drop index 'u': needed in a foreign key constraint
+SET FOREIGN_KEY_CHECKS = 1;
+# Check case which requires additional handling during error-reporting.
+# Attempt to drop non-unique parent key.
+ALTER TABLE parent DROP KEY u, ADD KEY nu(u);
+ALTER TABLE parent DROP KEY nu, ALGORITHM=COPY;
+ERROR HY000: Cannot drop index 'nu': needed in a foreign key constraint
+ALTER TABLE parent DROP KEY nu, ALGORITHM=INPLACE;
+ERROR HY000: Cannot drop index 'nu': needed in a foreign key constraint
+SET FOREIGN_KEY_CHECKS = 0;
+ALTER TABLE parent DROP KEY nu, ALGORITHM=COPY;
+ERROR HY000: Cannot drop index 'nu': needed in a foreign key constraint
+ALTER TABLE parent DROP KEY nu, ALGORITHM=INPLACE;
+ERROR HY000: Cannot drop index 'nu': needed in a foreign key constraint
+SET FOREIGN_KEY_CHECKS = 1;
+ALTER TABLE self DROP KEY u, ADD KEY nu(u);
+ALTER TABLE self DROP KEY nu, ALGORITHM=COPY;
+ERROR HY000: Cannot drop index 'nu': needed in a foreign key constraint
+ALTER TABLE self DROP KEY nu, ALGORITHM=INPLACE;
+ERROR HY000: Cannot drop index 'nu': needed in a foreign key constraint
+SET FOREIGN_KEY_CHECKS = 0;
+ALTER TABLE self DROP KEY nu, ALGORITHM=COPY;
+ERROR HY000: Cannot drop index 'nu': needed in a foreign key constraint
+ALTER TABLE self DROP KEY nu, ALGORITHM=INPLACE;
+ERROR HY000: Cannot drop index 'nu': needed in a foreign key constraint
+SET FOREIGN_KEY_CHECKS = 1;
+DROP TABLES self, child, parent;
+#
+# 4) CREATE, RENAME and ALTER TABLE RENAME which create new
+#    parent for previously orphan child table.
+#
+SET FOREIGN_KEY_CHECKS = 0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(a));
+SET FOREIGN_KEY_CHECKS = 1;
+CREATE TABLE parent (pk INT PRIMARY KEY, a INT);
+ERROR HY000: Cannot add foreign key constraint
+SET FOREIGN_KEY_CHECKS = 0;
+CREATE TABLE parent (pk INT PRIMARY KEY, a INT);
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+SET FOREIGN_KEY_CHECKS = 1;
+CREATE TABLE parent1 (pk INT PRIMARY KEY, a INT);
+RENAME TABLE parent1 TO parent;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+SET FOREIGN_KEY_CHECKS = 0;
+RENAME TABLE parent1 TO parent;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+SET FOREIGN_KEY_CHECKS = 1;
+ALTER TABLE parent1 RENAME TO parent;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+SET FOREIGN_KEY_CHECKS = 0;
+ALTER TABLE parent1 RENAME TO parent;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+SET FOREIGN_KEY_CHECKS = 1;
+ALTER TABLE parent1 ADD COLUMN b INT, RENAME TO parent, ALGORITHM=INPLACE;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+SET FOREIGN_KEY_CHECKS = 0;
+ALTER TABLE parent1 RENAME TO parent;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+SET FOREIGN_KEY_CHECKS = 1;
+ALTER TABLE parent1 ADD COLUMN b INT, RENAME TO parent, ALGORITHM=COPY;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+SET FOREIGN_KEY_CHECKS = 0;
+ALTER TABLE parent1 RENAME TO parent;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+SET FOREIGN_KEY_CHECKS = 1;
+DROP TABLE parent1, child;
+#
+# 5) Special case. ALTER TABLE which replaces parent key with another
+#    one due to new key creation. Old key is generated so it is
+#    automagically replaced with a new explicit key or more universal
+#    generated key.
+#
+CREATE TABLE grandparent (pk INT PRIMARY KEY);
+CREATE TABLE parent (pkfk INT, FOREIGN KEY (pkfk) REFERENCES grandparent(pk));
+SHOW CREATE TABLE parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `pkfk` int(11) DEFAULT NULL,
+  KEY `pkfk` (`pkfk`),
+  CONSTRAINT `parent_ibfk_1` FOREIGN KEY (`pkfk`) REFERENCES `grandparent` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pkfk));
+SELECT referenced_table_name, unique_constraint_name FROM
+information_schema.referential_constraints WHERE table_name = 'child';
+REFERENCED_TABLE_NAME	UNIQUE_CONSTRAINT_NAME
+parent	NULL
+ALTER TABLE parent ADD UNIQUE KEY u (pkfk);
+SHOW CREATE TABLE parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `pkfk` int(11) DEFAULT NULL,
+  UNIQUE KEY `u` (`pkfk`),
+  CONSTRAINT `parent_ibfk_1` FOREIGN KEY (`pkfk`) REFERENCES `grandparent` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT referenced_table_name, unique_constraint_name FROM
+information_schema.referential_constraints WHERE table_name = 'child';
+REFERENCED_TABLE_NAME	UNIQUE_CONSTRAINT_NAME
+parent	u
+DROP TABLE child, parent;
+CREATE TABLE self (fk INT, pkfk INT,
+FOREIGN KEY (fk) REFERENCES self (pkfk),
+FOREIGN KEY (pkfk) REFERENCES grandparent(pk));
+SHOW CREATE TABLE self;
+Table	Create Table
+self	CREATE TABLE `self` (
+  `fk` int(11) DEFAULT NULL,
+  `pkfk` int(11) DEFAULT NULL,
+  KEY `fk` (`fk`),
+  KEY `pkfk` (`pkfk`),
+  CONSTRAINT `self_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `self` (`pkfk`),
+  CONSTRAINT `self_ibfk_2` FOREIGN KEY (`pkfk`) REFERENCES `grandparent` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT referenced_table_name, unique_constraint_name FROM
+information_schema.referential_constraints WHERE table_name = 'self'
+  ORDER BY referenced_table_name;
+REFERENCED_TABLE_NAME	UNIQUE_CONSTRAINT_NAME
+grandparent	PRIMARY
+self	NULL
+ALTER TABLE self ADD UNIQUE KEY u (pkfk);
+SHOW CREATE TABLE self;
+Table	Create Table
+self	CREATE TABLE `self` (
+  `fk` int(11) DEFAULT NULL,
+  `pkfk` int(11) DEFAULT NULL,
+  UNIQUE KEY `u` (`pkfk`),
+  KEY `fk` (`fk`),
+  CONSTRAINT `self_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `self` (`pkfk`),
+  CONSTRAINT `self_ibfk_2` FOREIGN KEY (`pkfk`) REFERENCES `grandparent` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT referenced_table_name, unique_constraint_name FROM
+information_schema.referential_constraints WHERE table_name = 'self'
+  ORDER BY referenced_table_name;
+REFERENCED_TABLE_NAME	UNIQUE_CONSTRAINT_NAME
+grandparent	PRIMARY
+self	u
+DROP TABLE self, grandparent;
+CREATE TABLE grandparent1 (pk INT PRIMARY KEY);
+CREATE TABLE grandparent2 (pk1 INT , pk2 INT, PRIMARY KEY(pk1, pk2));
+CREATE TABLE parent (pkfk1 INT, pkfk2 INT, FOREIGN KEY (pkfk1) REFERENCES grandparent1(pk));
+SHOW CREATE TABLE parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `pkfk1` int(11) DEFAULT NULL,
+  `pkfk2` int(11) DEFAULT NULL,
+  KEY `pkfk1` (`pkfk1`),
+  CONSTRAINT `parent_ibfk_1` FOREIGN KEY (`pkfk1`) REFERENCES `grandparent1` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pkfk1));
+SELECT referenced_table_name, unique_constraint_name FROM
+information_schema.referential_constraints WHERE table_name = 'child';
+REFERENCED_TABLE_NAME	UNIQUE_CONSTRAINT_NAME
+parent	NULL
+ALTER TABLE parent ADD FOREIGN KEY (pkfk1, pkfk2) REFERENCES grandparent2(pk1, pk2);
+SHOW CREATE TABLE parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `pkfk1` int(11) DEFAULT NULL,
+  `pkfk2` int(11) DEFAULT NULL,
+  KEY `pkfk1` (`pkfk1`,`pkfk2`),
+  CONSTRAINT `parent_ibfk_1` FOREIGN KEY (`pkfk1`) REFERENCES `grandparent1` (`pk`),
+  CONSTRAINT `parent_ibfk_2` FOREIGN KEY (`pkfk1`, `pkfk2`) REFERENCES `grandparent2` (`pk1`, `pk2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT referenced_table_name, unique_constraint_name FROM
+information_schema.referential_constraints WHERE table_name = 'child';
+REFERENCED_TABLE_NAME	UNIQUE_CONSTRAINT_NAME
+parent	NULL
+DROP TABLE child, parent;
+CREATE TABLE self (fk INT, pkfk1 INT, pkfk2 INT,
+FOREIGN KEY (fk) REFERENCES self (pkfk1),
+FOREIGN KEY (pkfk1) REFERENCES grandparent1(pk));
+SHOW CREATE TABLE self;
+Table	Create Table
+self	CREATE TABLE `self` (
+  `fk` int(11) DEFAULT NULL,
+  `pkfk1` int(11) DEFAULT NULL,
+  `pkfk2` int(11) DEFAULT NULL,
+  KEY `fk` (`fk`),
+  KEY `pkfk1` (`pkfk1`),
+  CONSTRAINT `self_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `self` (`pkfk1`),
+  CONSTRAINT `self_ibfk_2` FOREIGN KEY (`pkfk1`) REFERENCES `grandparent1` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT referenced_table_name, unique_constraint_name FROM
+information_schema.referential_constraints WHERE table_name = 'self'
+  ORDER BY referenced_table_name;
+REFERENCED_TABLE_NAME	UNIQUE_CONSTRAINT_NAME
+grandparent1	PRIMARY
+self	NULL
+ALTER TABLE self ADD FOREIGN KEY (pkfk1, pkfk2) REFERENCES grandparent2(pk1, pk2);
+SHOW CREATE TABLE self;
+Table	Create Table
+self	CREATE TABLE `self` (
+  `fk` int(11) DEFAULT NULL,
+  `pkfk1` int(11) DEFAULT NULL,
+  `pkfk2` int(11) DEFAULT NULL,
+  KEY `fk` (`fk`),
+  KEY `pkfk1` (`pkfk1`,`pkfk2`),
+  CONSTRAINT `self_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `self` (`pkfk1`),
+  CONSTRAINT `self_ibfk_2` FOREIGN KEY (`pkfk1`) REFERENCES `grandparent1` (`pk`),
+  CONSTRAINT `self_ibfk_3` FOREIGN KEY (`pkfk1`, `pkfk2`) REFERENCES `grandparent2` (`pk1`, `pk2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT referenced_table_name, unique_constraint_name FROM
+information_schema.referential_constraints WHERE table_name = 'self'
+  ORDER BY referenced_table_name;
+REFERENCED_TABLE_NAME	UNIQUE_CONSTRAINT_NAME
+grandparent1	PRIMARY
+grandparent2	PRIMARY
+self	NULL
+DROP TABLE self, grandparent1, grandparent2;

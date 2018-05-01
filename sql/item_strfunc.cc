@@ -1973,8 +1973,8 @@ MY_LOCALE *Item_func_format::get_locale(Item *) {
   THD *thd = current_thd;
   String tmp, *locale_name = args[2]->val_str_ascii(&tmp);
   MY_LOCALE *lc;
-  if (!locale_name ||
-      !(lc = my_locale_by_name(thd, locale_name->c_ptr_safe()))) {
+  if (!locale_name || !(lc = my_locale_by_name(thd, locale_name->ptr(),
+                                               locale_name->length()))) {
     push_warning_printf(thd, Sql_condition::SL_WARNING, ER_UNKNOWN_LOCALE,
                         ER_THD(thd, ER_UNKNOWN_LOCALE),
                         locale_name ? locale_name->c_ptr_safe() : "NULL");
@@ -2041,13 +2041,14 @@ String *Item_func_format::val_str_ascii(String *str) {
   /* We need this test to handle 'nan' and short values */
   if (lc->grouping[0] > 0 && str_length >= dec_length + 1 + lc->grouping[0]) {
     /* We need space for ',' between each group of digits as well. */
-    char buf[2 * FLOATING_POINT_BUFFER];
+    char buf[2 * FLOATING_POINT_BUFFER + 2] = {0};
     int count;
     const char *grouping = lc->grouping;
     char sign_length = *str->ptr() == '-' ? 1 : 0;
     const char *src = str->ptr() + str_length - dec_length - 1;
     const char *src_begin = str->ptr() + sign_length;
-    char *dst = buf + sizeof(buf);
+    char *dst = buf + 2 * FLOATING_POINT_BUFFER;
+    char *start_dst = dst;
 
     /* Put the fractional part */
     if (dec) {
@@ -2076,7 +2077,8 @@ String *Item_func_format::val_str_ascii(String *str) {
       *--dst = *str->ptr();
 
     /* Put the rest of the integer part without grouping */
-    str->copy(dst, buf + sizeof(buf) - dst, &my_charset_latin1);
+    size_t result_length = start_dst - dst;
+    str->copy(dst, result_length, &my_charset_latin1);
   } else if (dec_length && lc->decimal_point != '.') {
     /*
       For short values without thousands (<1000)
@@ -2265,6 +2267,7 @@ void Item_func_make_set::print(String *str, enum_query_type query_type) {
 
 String *Item_func_char::val_str(String *str) {
   DBUG_ASSERT(fixed == 1);
+  null_value = false;
   str->length(0);
   str->set_charset(collation.collation);
   for (uint i = 0; i < arg_count; i++) {
@@ -2287,9 +2290,12 @@ String *Item_func_char::val_str(String *str) {
     }
   }
   str->mem_realloc(str->length());  // Add end 0 (for Purify)
-  return check_well_formed_result(str,
-                                  false,  // send warning
-                                  true);  // truncate
+  String *res = check_well_formed_result(str,
+                                         false,  // send warning
+                                         true);  // truncate
+  if (!res) null_value = true;
+
+  return res;
 }
 
 inline String *alloc_buffer(String *res, String *str, String *tmp_value,

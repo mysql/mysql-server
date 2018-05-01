@@ -873,6 +873,8 @@ test.t	analyze	status	OK
 EXPLAIN UPDATE t SET b = 10 WHERE (a+1) = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
+Warnings:
+Note	1003	update `test`.`t` set `test`.`t`.`b` = 10 where ((`test`.`t`.`a` + 1) = 3)
 UPDATE t SET b = 10 WHERE (a+1) = 3;
 SELECT * FROM t ORDER BY a, b;
 a	b	gc
@@ -892,6 +894,8 @@ test.t	analyze	status	OK
 EXPLAIN UPDATE t SET b = 9 ORDER BY (a+1) LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	10	100.00	Using filesort
+Warnings:
+Note	1003	update `test`.`t` set `test`.`t`.`b` = 9 order by (`test`.`t`.`a` + 1) limit 1
 UPDATE t SET b = 9 ORDER BY (a+1) LIMIT 1;
 SELECT * FROM t ORDER BY a, b;
 a	b	gc
@@ -911,6 +915,8 @@ test.t	analyze	status	OK
 EXPLAIN DELETE FROM t WHERE (a+1) = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
+Warnings:
+Note	1003	delete from `test`.`t` where ((`test`.`t`.`a` + 1) = 2)
 DELETE FROM t WHERE (a+1) = 2;
 SELECT * FROM t ORDER BY a, b;
 a	b	gc
@@ -928,6 +934,8 @@ test.t	analyze	status	OK
 EXPLAIN DELETE FROM t ORDER BY (a+1) LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	100.00	Using filesort
+Warnings:
+Note	1003	delete from `test`.`t` order by (`test`.`t`.`a` + 1) limit 1
 DELETE FROM t ORDER BY (a+1) LIMIT 1;
 SELECT * FROM t ORDER BY a, b;
 a	b	gc
@@ -972,6 +980,42 @@ SELECT * FROM t1 STRAIGHT_JOIN t2 ON b WHERE (b AND b) = 1;
 a1	a2	b
 0	NULL	1
 DROP TABLE t1, t2;
+#
+# Bug#27403367: GENERATED COLUMN EXPRESSIONS IGNORED WITH PREFIX INDEX
+#
+CREATE TABLE t (vc VARCHAR(100),
+gc VARCHAR(100) GENERATED ALWAYS AS (REVERSE(vc)) STORED,
+KEY (gc(3)));
+INSERT INTO t(vc) VALUES ('a'), ('abc'), ('abcabc'), ('abcdef');
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN SELECT * FROM t WHERE REVERSE(vc) = 'cba';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`vc` AS `vc`,`test`.`t`.`gc` AS `gc` from `test`.`t` where (reverse(`test`.`t`.`vc`) = 'cba')
+SELECT * FROM t WHERE REVERSE(vc) = 'cba';
+vc	gc
+abc	cba
+EXPLAIN SELECT * FROM t WHERE REVERSE(vc) = 'cbacba';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`vc` AS `vc`,`test`.`t`.`gc` AS `gc` from `test`.`t` where (reverse(`test`.`t`.`vc`) = 'cbacba')
+SELECT * FROM t WHERE REVERSE(vc) = 'cbacba';
+vc	gc
+abcabc	cbacba
+EXPLAIN SELECT * FROM t WHERE REVERSE(vc) BETWEEN 'c' AND 'e';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`vc` AS `vc`,`test`.`t`.`gc` AS `gc` from `test`.`t` where (reverse(`test`.`t`.`vc`) between 'c' and 'e')
+SELECT * FROM t WHERE REVERSE(vc) BETWEEN 'c' AND 'e';
+vc	gc
+abcabc	cbacba
+abc	cba
+DROP TABLE t;
 #
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;

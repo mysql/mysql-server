@@ -21,8 +21,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef X_SHA256_SCRAMBLE_GENERATOR_H_
-#define X_SHA256_SCRAMBLE_GENERATOR_H_
+#ifndef PLUGIN_X_CLIENT_SHA256_SCRAMBLE_GENERATOR_H_
+#define PLUGIN_X_CLIENT_SHA256_SCRAMBLE_GENERATOR_H_
 
 #include <memory>
 #include <string>
@@ -115,4 +115,4 @@ bool generate_sha256_scramble(unsigned char *out_scramble,
 
 }  // namespace xcl
 
-#endif  // X_SHA256_SCRAMBLE_GENERATOR_H_
+#endif  // PLUGIN_X_CLIENT_SHA256_SCRAMBLE_GENERATOR_H_

@@ -7,8 +7,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 include/start_and_bootstrap_group_replication.inc
 include/stop_group_replication.inc
 
-# Test#1: Basic check that there are 44 GR variables.
-include/assert.inc [There are 44 GR variables at present.]
+# Test#1: Basic check that there are 45 GR variables.
+include/assert.inc [There are 45 GR variables at present.]
 
 # Test#2: Verify that all the group replication variables are GLOBAL variables.
 SET @@SESSION.group_replication_allow_local_lower_version_join= 1;
@@ -79,6 +79,8 @@ SET @@SESSION.group_replication_recovery_public_key_path= "";
 ERROR HY000: Variable 'group_replication_recovery_public_key_path' is a GLOBAL variable and should be set with SET GLOBAL
 SET @@SESSION.group_replication_recovery_get_public_key= 1;
 ERROR HY000: Variable 'group_replication_recovery_get_public_key' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_exit_state_action= "READ_ONLY";
+ERROR HY000: Variable 'group_replication_exit_state_action' is a GLOBAL variable and should be set with SET GLOBAL
 
 # Test#3: Verify GLOBAL and SESSION variables
 include/start_group_replication.inc
@@ -218,6 +220,10 @@ include/assert.inc [Verify GLOBAL value of group_replication_recovery_get_public
 include/assert.inc [Verify GLOBAL value of group_replication_recovery_get_public_key]
 include/assert.inc [Verify SESSION value of group_replication_recovery_get_public_key]
 include/assert.inc [Verify SESSION value of group_replication_recovery_get_public_key]
+include/assert.inc [Verify GLOBAL value of group_replication_exit_state_action]
+include/assert.inc [Verify GLOBAL value of group_replication_exit_state_action]
+include/assert.inc [Verify SESSION value of group_replication_exit_state_action]
+include/assert.inc [Verify SESSION value of group_replication_exit_state_action]
 
 # Clean up
 include/stop_group_replication.inc

@@ -66,7 +66,50 @@ Data dictionary interface */
 #include "sql_base.h"
 #include "sql_table.h"
 #endif /* !UNIV_HOTBACKUP */
-#include <bitset>
+
+const char *DD_instant_col_val_coder::encode(const byte *stream, size_t in_len,
+                                             size_t *out_len) {
+  cleanup();
+
+  m_result = UT_NEW_ARRAY_NOKEY(byte, in_len * 2);
+  char *result = reinterpret_cast<char *>(m_result);
+
+  for (size_t i = 0; i < in_len; ++i) {
+    uint8_t v1 = ((stream[i] & 0xF0) >> 4);
+    uint8_t v2 = (stream[i] & 0x0F);
+
+    result[i * 2] = (v1 < 10 ? '0' + v1 : 'a' + v1 - 10);
+    result[i * 2 + 1] = (v2 < 10 ? '0' + v2 : 'a' + v2 - 10);
+  }
+
+  *out_len = in_len * 2;
+
+  return (result);
+}
+
+const byte *DD_instant_col_val_coder::decode(const char *stream, size_t in_len,
+                                             size_t *out_len) {
+  ut_ad(in_len % 2 == 0);
+
+  cleanup();
+
+  m_result = UT_NEW_ARRAY_NOKEY(byte, in_len / 2);
+
+  for (size_t i = 0; i < in_len / 2; ++i) {
+    char c1 = stream[i * 2];
+    char c2 = stream[i * 2 + 1];
+
+    ut_ad(isdigit(c1) || (c1 >= 'a' && c1 <= 'f'));
+    ut_ad(isdigit(c2) || (c2 >= 'a' && c2 <= 'f'));
+
+    m_result[i] = ((isdigit(c1) ? c1 - '0' : c1 - 'a' + 10) << 4) +
+                  ((isdigit(c2) ? c2 - '0' : c2 - 'a' + 10));
+  }
+
+  *out_len = in_len / 2;
+
+  return (m_result);
+}
 
 #ifndef UNIV_HOTBACKUP
 /** Check if the InnoDB index is consistent with dd::Index
@@ -672,7 +715,7 @@ reopen:
 #endif /* !UNIV_HOTBACKUP */
           goto reopen;
         } else {
-          ib_table->acquire();
+          ib_table->acquire_with_lock();
         }
       }
 
@@ -745,13 +788,12 @@ bool dd_table_discard_tablespace(THD *thd, const dict_table_t *table,
     }
 
     /* Set index root page. */
-    const dict_index_t *index = table->first_index();
     for (auto dd_index : *table_def->indexes()) {
+      const dict_index_t *index = dd_find_index(table, dd_index);
       ut_ad(index != nullptr);
 
       dd::Properties &p = dd_index->se_private_data();
       p.set_uint32(dd_index_key_strings[DD_INDEX_ROOT], index->page);
-      index = index->next();
     }
 
     /* Set new table id for dd columns when it's importing
@@ -858,7 +900,7 @@ dict_table_t *dd_table_open_on_name(THD *thd, MDL_ticket **mdl,
   table = dict_table_check_if_in_cache_low(name);
 
   if (table != nullptr) {
-    table->acquire();
+    table->acquire_with_lock();
     if (!dict_locked) {
       mutex_exit(&dict_sys->mutex);
     }
@@ -981,17 +1023,17 @@ dberr_t dd_rename_tablespace(dd::Object_id dd_space_id,
   }
 
   ut_a(dd_space != nullptr);
-
-  if (dd::acquire_exclusive_tablespace_mdl(thd, dd_space->name().c_str(),
-                                           false)) {
+  MDL_ticket *src_ticket = nullptr;
+  if (dd::acquire_exclusive_tablespace_mdl(thd, dd_space->name().c_str(), false,
+                                           &src_ticket)) {
     ut_ad(false);
     DBUG_RETURN(DB_ERROR);
   }
 
   dd_filename_to_spacename(new_space_name, &tablespace_name);
-
-  if (dd::acquire_exclusive_tablespace_mdl(thd, tablespace_name.c_str(),
-                                           false)) {
+  MDL_ticket *dst_ticket = nullptr;
+  if (dd::acquire_exclusive_tablespace_mdl(thd, tablespace_name.c_str(), false,
+                                           &dst_ticket)) {
     ut_ad(false);
     DBUG_RETURN(DB_ERROR);
   }
@@ -1027,7 +1069,7 @@ dberr_t dd_rename_tablespace(dd::Object_id dd_space_id,
 
   bool fail = client->update(new_space);
   ut_ad(!fail);
-
+  dd::rename_tablespace_mdl_hook(thd, src_ticket, dst_ticket);
   DBUG_RETURN(fail ? DB_ERROR : DB_SUCCESS);
 }
 
@@ -1356,9 +1398,36 @@ void dd_copy_autoinc(const dd::Properties &src, dd::Properties &dest) {
   dest.set_uint64(dd_table_key_strings[DD_TABLE_AUTOINC], autoinc);
 }
 
-/** Copy the engine-private parts of a table definition
-when the change does not affect InnoDB. Keep the already set
-AUTOINC counter related information if exist
+/** Copy the metadata of a table definition if there was an instant
+ADD COLUMN happened. This should be done when it's not an ALTER TABLE
+with rebuild.
+@param[in,out]	new_table	New table definition
+@param[in]	old_table	Old table definition */
+void dd_copy_instant_n_cols(dd::Table &new_table, const dd::Table &old_table) {
+  ut_ad(dd_table_has_instant_cols(old_table));
+
+  if (!dd_table_has_instant_cols(new_table)) {
+    uint32_t cols;
+    old_table.se_private_data().get_uint32(
+        dd_table_key_strings[DD_TABLE_INSTANT_COLS], &cols);
+    new_table.se_private_data().set_uint32(
+        dd_table_key_strings[DD_TABLE_INSTANT_COLS], cols);
+  }
+#ifdef UNIV_DEBUG
+  else {
+    uint32_t old_cols, new_cols;
+    old_table.se_private_data().get_uint32(
+        dd_table_key_strings[DD_TABLE_INSTANT_COLS], &old_cols);
+    new_table.se_private_data().get_uint32(
+        dd_table_key_strings[DD_TABLE_INSTANT_COLS], &new_cols);
+    ut_ad(old_cols == new_cols);
+  }
+#endif /* UNIV_DEBUG */
+}
+
+/** Copy the engine-private parts of a table or partition definition
+when the change does not affect InnoDB. This mainly copies the common
+private data between dd::Table and dd::Partition
 @tparam		Table		dd::Table or dd::Partition
 @param[in,out]	new_table	Copy of old table or partition definition
 @param[in]	old_table	Old table or partition definition */
@@ -1423,6 +1492,361 @@ template void dd_copy_private<dd::Table>(dd::Table &, const dd::Table &);
 template void dd_copy_private<dd::Partition>(dd::Partition &,
                                              const dd::Partition &);
 
+/** Copy the engine-private parts of column definitions of a table.
+@param[in,out]	new_table	Copy of old table
+@param[in]	old_table	Old table */
+void dd_copy_table_columns(dd::Table &new_table, const dd::Table &old_table) {
+  /* Columns in new table maybe more than old tables, when this is
+  called for adding instant columns. Also adding and dropping
+  virtual columns instantly is another case. */
+  for (const auto old_col : old_table.columns()) {
+    dd::Column *new_col = const_cast<dd::Column *>(
+        dd_find_column(&new_table, old_col->name().c_str()));
+
+    if (new_col == nullptr) {
+      ut_ad(old_col->is_virtual());
+      continue;
+    }
+
+    if (!old_col->se_private_data().empty()) {
+      new_col->se_private_data().clear();
+      new_col->se_private_data().assign(old_col->se_private_data());
+    }
+  }
+}
+
+/** Clear the instant ADD COLUMN information of a table
+@param[in,out]	dd_table	dd::Table */
+void dd_clear_instant_table(dd::Table &dd_table) {
+  ut_ad(dd_table_has_instant_cols(dd_table));
+  dd_table.se_private_data().remove(
+      dd_table_key_strings[DD_TABLE_INSTANT_COLS]);
+
+  ut_d(bool found = false);
+  for (auto col : *dd_table.columns()) {
+    dd::Properties &col_private = col->se_private_data();
+    if (col_private.exists(
+            dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT_NULL])) {
+      ut_d(found = true);
+      col_private.remove(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT_NULL]);
+    } else if (col_private.exists(
+                   dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT])) {
+      ut_d(found = true);
+      col_private.remove(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT]);
+    }
+  }
+
+  ut_ad(found);
+}
+
+/** Clear the instant ADD COLUMN information of a partition, to make it
+as a normal partition
+@param[in,out]	dd_part		dd::Partition */
+void dd_clear_instant_part(dd::Partition &dd_part) {
+  ut_ad(dd_part_has_instant_cols(dd_part));
+
+  dd_part.se_private_data().remove(
+      dd_partition_key_strings[DD_PARTITION_INSTANT_COLS]);
+}
+
+#ifdef UNIV_DEBUG
+bool dd_instant_columns_exist(const dd::Table &dd_table) {
+  uint32_t n_cols = 0;
+  uint32_t non_instant_cols = 0;
+  bool found = false;
+
+  ut_ad(dd_table.se_private_data().exists(
+      dd_table_key_strings[DD_TABLE_INSTANT_COLS]));
+
+  dd_table.se_private_data().get_uint32(
+      dd_table_key_strings[DD_TABLE_INSTANT_COLS], &n_cols);
+  ut_ad(n_cols > 0);
+
+  for (auto col : dd_table.columns()) {
+    if (col->is_virtual() || col->is_se_hidden()) {
+      continue;
+    }
+
+    const dd::Properties &col_private = col->se_private_data();
+    if (col_private.exists(
+            dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT_NULL]) ||
+        col_private.exists(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT])) {
+      found = true;
+      continue;
+    }
+
+    ++non_instant_cols;
+  }
+
+  ut_ad(found);
+  ut_ad(non_instant_cols == n_cols);
+  return (found && non_instant_cols == n_cols);
+}
+#endif /* UNIV_DEBUG */
+
+/** Add column default values for new instantly added columns
+@param[in]	old_table	MySQL table as it is before the ALTER operation
+@param[in]	altered_table	MySQL table that is being altered
+@param[in,out]	new_dd_table	New dd::Table
+@param[in]	new_table	New InnoDB table object */
+void dd_add_instant_columns(const TABLE *old_table, const TABLE *altered_table,
+                            dd::Table *new_dd_table,
+                            const dict_table_t *new_table) {
+  ut_ad(altered_table->s->fields > old_table->s->fields);
+
+#ifdef UNIV_DEBUG
+  for (uint32_t i = 0; i < old_table->s->fields; ++i) {
+    ut_ad(strcmp(old_table->field[i]->field_name,
+                 altered_table->field[i]->field_name) == 0);
+  }
+#endif /* UNIV_DEBUG */
+
+  DD_instant_col_val_coder coder;
+  ut_d(uint16_t num_instant_cols = 0);
+
+  for (uint32_t i = old_table->s->fields; i < altered_table->s->fields; ++i) {
+    Field *field = altered_table->field[i];
+
+    if (innobase_is_v_fld(field)) {
+      continue;
+    }
+
+    /* The MySQL type code has to fit in 8 bits
+    in the metadata stored in the InnoDB change buffer. */
+    ut_ad(field->charset() == nullptr ||
+          field->charset()->number <= MAX_CHAR_COLL_NUM);
+    ut_ad(field->charset() == nullptr || field->charset()->number > 0);
+
+    dd::Column *column = const_cast<dd::Column *>(
+        dd_find_column(new_dd_table, field->field_name));
+    ut_ad(column != nullptr);
+    dd::Properties &se_private = column->se_private_data();
+
+    ut_d(++num_instant_cols);
+
+    se_private.set_uint64(dd_index_key_strings[DD_TABLE_ID], new_table->id);
+
+    if (field->is_real_null()) {
+      se_private.set_bool(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT_NULL],
+                          true);
+      continue;
+    }
+
+    /* Get the mtype and prtype of this field. Keep this same
+    with the code in dd_fill_dict_table(), except FTS check */
+    ulint prtype = 0;
+    unsigned col_len = field->pack_length();
+    ulint nulls_allowed;
+    ulint unsigned_type;
+    ulint binary_type;
+    ulint long_true_varchar;
+    ulint charset_no;
+    ulint mtype = get_innobase_type_from_mysql_type(&unsigned_type, field);
+
+    nulls_allowed = field->real_maybe_null() ? 0 : DATA_NOT_NULL;
+
+    binary_type = field->binary() ? DATA_BINARY_TYPE : 0;
+
+    charset_no = 0;
+    if (dtype_is_string_type(mtype)) {
+      charset_no = static_cast<ulint>(field->charset()->number);
+    }
+
+    long_true_varchar = 0;
+    if (field->type() == MYSQL_TYPE_VARCHAR) {
+      col_len -= ((Field_varstring *)field)->length_bytes;
+
+      if (((Field_varstring *)field)->length_bytes == 2) {
+        long_true_varchar = DATA_LONG_TRUE_VARCHAR;
+      }
+    }
+
+    prtype =
+        dtype_form_prtype((ulint)field->type() | nulls_allowed | unsigned_type |
+                              binary_type | long_true_varchar,
+                          charset_no);
+
+    dict_col_t col;
+    memset(&col, 0, sizeof(dict_col_t));
+    /* Set a fake col_pos, since this should be useless */
+    dict_mem_fill_column_struct(&col, 0, mtype, prtype, col_len);
+    dfield_t dfield;
+    col.copy_type(dfield_get_type(&dfield));
+
+    ulint size = field->pack_length();
+    uint64_t buf;
+    const byte *mysql_data = field->ptr;
+
+    row_mysql_store_col_in_innobase_format(
+        &dfield, reinterpret_cast<byte *>(&buf), true, mysql_data, size,
+        dict_table_is_comp(new_table));
+
+    size_t length = 0;
+    const char *value = coder.encode(reinterpret_cast<byte *>(dfield.data),
+                                     dfield.len, &length);
+
+    dd::String_type default_value;
+    default_value.assign(dd::String_type(value, length));
+    se_private.set(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT],
+                   default_value);
+  }
+
+  ut_ad(num_instant_cols > 0);
+}
+
+/** Compare the default values between imported column and column defined
+in the server. Note that it's absolutely OK if there is no default value
+in the column defined in server, since it can be filled in later.
+@param[in]	dd_col	dd::Column
+@param[in]	col	InnoDB column object
+@return	true	The default values match
+@retval	false	Not match */
+bool dd_match_default_value(const dd::Column *dd_col, const dict_col_t *col) {
+  ut_ad(col->instant_default != nullptr);
+
+  const dd::Properties &private_data = dd_col->se_private_data();
+
+  if (private_data.exists(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT])) {
+    dd::String_type value;
+    const byte *default_value;
+    size_t len;
+    bool match;
+    DD_instant_col_val_coder coder;
+
+    private_data.get(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT], value);
+    default_value = coder.decode(value.c_str(), value.length(), &len);
+
+    match = col->instant_default->len == len &&
+            memcmp(col->instant_default->value, default_value, len) == 0;
+
+    return (match);
+
+  } else if (private_data.exists(
+                 dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT_NULL])) {
+    return (col->instant_default->len == UNIV_SQL_NULL);
+  }
+
+  return (true);
+}
+
+/** Write default value of a column to dd::Column
+@param[in]	col	default value of this column to write
+@param[in,out]	dd_col	where to store the default value */
+void dd_write_default_value(const dict_col_t *col, dd::Column *dd_col) {
+  if (col->instant_default->len == UNIV_SQL_NULL) {
+    dd_col->se_private_data().set_uint32(
+        dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT_NULL], true);
+  } else {
+    dd::String_type default_value;
+    size_t length = 0;
+    DD_instant_col_val_coder coder;
+    const char *value = coder.encode(col->instant_default->value,
+                                     col->instant_default->len, &length);
+
+    default_value.assign(dd::String_type(value, length));
+    dd_col->se_private_data().set(
+        dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT], default_value);
+  }
+}
+
+/** Parse the default value from dd::Column::se_private to dict_col_t
+@param[in]	se_private_data	dd::Column::se_private
+@param[in,out]	col		InnoDB column object
+@param[in,out]	heap		Heap to store the default value */
+static void dd_parse_default_value(const dd::Properties &se_private_data,
+                                   dict_col_t *col, mem_heap_t *heap) {
+  if (se_private_data.exists(
+          dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT_NULL])) {
+    col->set_default(nullptr, UNIV_SQL_NULL, heap);
+  } else if (se_private_data.exists(
+                 dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT])) {
+    const byte *default_value;
+    size_t len;
+    dd::String_type value;
+    DD_instant_col_val_coder coder;
+
+    se_private_data.get(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT],
+                        value);
+
+    default_value = coder.decode(value.c_str(), value.length(), &len);
+
+    col->set_default(default_value, len, heap);
+  }
+}
+
+/** Import all metadata which is related to instant ADD COLUMN of a table
+to dd::Table. This is used for IMPORT.
+@param[in]	table		InnoDB table object
+@param[in,out]	dd_table	dd::Table */
+void dd_import_instant_add_columns(const dict_table_t *table,
+                                   dd::Table *dd_table) {
+  ut_ad(table->has_instant_cols());
+  ut_ad(dict_table_is_partition(table) == dd_table_is_partitioned(*dd_table));
+
+  if (!dd_table_is_partitioned(*dd_table)) {
+    dd_table->se_private_data().set_uint32(
+        dd_table_key_strings[DD_TABLE_INSTANT_COLS], table->get_instant_cols());
+  } else {
+    uint32_t instant_cols = std::numeric_limits<uint32_t>::max();
+
+    if (dd_table->se_private_data().exists(
+            dd_table_key_strings[DD_TABLE_INSTANT_COLS])) {
+      dd_table->se_private_data().get_uint32(
+          dd_table_key_strings[DD_TABLE_INSTANT_COLS], &instant_cols);
+    }
+
+    if (instant_cols > table->get_instant_cols()) {
+      dd_table->se_private_data().set_uint32(
+          dd_table_key_strings[DD_TABLE_INSTANT_COLS],
+          table->get_instant_cols());
+    }
+
+    char postfix_name[FN_REFLEN];
+    dd::Partition *partition = nullptr;
+    for (const auto dd_part : *dd_table->leaf_partitions()) {
+      ut_d(size_t len =) Ha_innopart_share::create_partition_postfix(
+          postfix_name, FN_REFLEN, dd_part);
+      ut_ad(len < FN_REFLEN);
+
+      if (strstr(table->name.m_name, postfix_name) != 0) {
+        partition = dd_part;
+        break;
+      }
+    }
+
+    ut_ad(partition != nullptr);
+
+    partition->se_private_data().set_uint32(
+        dd_partition_key_strings[DD_PARTITION_INSTANT_COLS],
+        table->get_instant_cols());
+  }
+
+  /* Copy all default values if necessary */
+  ut_d(bool first_instant = false);
+  for (uint16_t i = 0; i < table->get_n_user_cols(); ++i) {
+    dict_col_t *col = table->get_col(i);
+    if (col->instant_default == nullptr) {
+      ut_ad(!first_instant);
+      continue;
+    }
+
+    ut_d(first_instant = true);
+
+    dd::Column *dd_col = const_cast<dd::Column *>(
+        dd_find_column(dd_table, table->get_col_name(i)));
+    ut_ad(dd_col != nullptr);
+
+    /* Default values mismatch should have been done.
+    So only write default value when it's not ever recorded */
+    if (!dd_col->se_private_data().exists(
+            dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT_NULL]) &&
+        !dd_col->se_private_data().exists(
+            dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT])) {
+      dd_write_default_value(col, dd_col);
+    }
+  }
+}
+
 /** Write metadata of a index to dd::Index
 @param[in]	dd_space_id	Tablespace id, which server allocates
 @param[in,out]	dd_index	dd::Index
@@ -1480,9 +1904,12 @@ void dd_write_table(dd::Object_id dd_space_id, Table *dd_table,
     dd_write_index(dd_space_id, dd_index, index);
   }
 
-  for (auto dd_column : *dd_table->table().columns()) {
-    dd_column->se_private_data().set_uint64(dd_index_key_strings[DD_TABLE_ID],
-                                            table->id);
+  if (!dd_table_is_partitioned(dd_table->table()) ||
+      dd_part_is_first(reinterpret_cast<dd::Partition *>(dd_table))) {
+    for (auto dd_column : *dd_table->table().columns()) {
+      dd_column->se_private_data().set_uint64(dd_index_key_strings[DD_TABLE_ID],
+                                              table->id);
+    }
   }
 }
 
@@ -1556,6 +1983,20 @@ template void dd_set_table_options<dd::Table>(dd::Table *,
                                               const dict_table_t *);
 template void dd_set_table_options<dd::Partition>(dd::Partition *,
                                                   const dict_table_t *);
+
+void dd_update_v_cols(dd::Table *dd_table, table_id_t id) {
+  for (auto dd_column : *dd_table->columns()) {
+    if (!dd_column->is_virtual()) {
+      continue;
+    }
+
+    dd::Properties &p = dd_column->se_private_data();
+
+    if (!p.exists(dd_index_key_strings[DD_TABLE_ID])) {
+      p.set_uint64(dd_index_key_strings[DD_TABLE_ID], id);
+    }
+  }
+}
 
 /** Write metadata of a tablespace to dd::Tablespace
 @param[in,out]	dd_space	dd::Tablespace
@@ -1662,7 +2103,6 @@ static MY_ATTRIBUTE((warn_unused_result)) int dd_fill_one_dict_index(
   ulint type = 0;
   unsigned n_fields = key.user_defined_key_parts;
   unsigned n_uniq = n_fields;
-  std::bitset<REC_MAX_N_FIELDS> indexed;
 
   ut_ad(!mutex_own(&dict_sys->mutex));
   /* This name cannot be used for a non-primary index */
@@ -2080,6 +2520,83 @@ inline bool dd_table_contains_fulltext(const dd::Table &table) {
   return (false);
 }
 
+/** Read the metadata of default values for all columns added instantly
+@param[in]	dd_table	dd::Table
+@param[in,out]	table		InnoDB table object */
+static void dd_fill_instant_columns(const dd::Table &dd_table,
+                                    dict_table_t *table) {
+  ut_ad(table->has_instant_cols());
+  ut_ad(dd_table_has_instant_cols(dd_table));
+
+#ifdef UNIV_DEBUG
+  for (uint16_t i = 0; i < table->get_n_cols(); ++i) {
+    ut_ad(table->get_col(i)->instant_default == nullptr);
+  }
+#endif /* UNIV_DEBUG */
+
+  uint32_t skip = 0;
+
+  if (dd_table_is_partitioned(dd_table)) {
+    uint32_t cols;
+
+    dd_table.se_private_data().get_uint32(
+        dd_table_key_strings[DD_TABLE_INSTANT_COLS], &cols);
+    ut_ad(cols <= table->get_instant_cols());
+
+    /* The dd::Columns should have `cols` default values,
+    however, this partition table only needs
+    `table->get_instant_cols()` default values. */
+    skip = table->get_instant_cols() - cols;
+  }
+
+  /* Assume the order of non-virtual columns are the same */
+  uint32_t innodb_pos = 0;
+  for (const auto col : dd_table.columns()) {
+    if (col->is_virtual() || col->is_se_hidden()) {
+      continue;
+    }
+
+    dict_col_t *column = table->get_col(innodb_pos++);
+    ut_ad(!column->is_virtual());
+
+#ifdef UNIV_DEBUG
+    const char *name = table->col_names;
+    for (uint32_t i = 0; i < innodb_pos - 1; ++i) {
+      name += strlen(name) + 1;
+    }
+    ut_ad(col->name() == name);
+#endif /* UNIV_DEBUG */
+
+    const dd::Properties &private_data = col->se_private_data();
+    if (!private_data.exists(
+            dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT_NULL]) &&
+        !private_data.exists(
+            dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT])) {
+      continue;
+    }
+
+    if (skip > 0) {
+      --skip;
+      continue;
+    }
+
+    /* Note that it's before dict_table_add_to_cache(),
+    don't worry about the dict_sys->size. */
+    dd_parse_default_value(private_data, column, table->heap);
+  }
+
+#ifdef UNIV_DEBUG
+  uint16_t n_default = 0;
+  for (uint16_t i = 0; i < table->get_n_user_cols(); ++i) {
+    if (table->get_col(i)->instant_default != nullptr) {
+      ++n_default;
+    }
+  }
+
+  ut_ad(n_default + table->get_instant_cols() == table->get_n_user_cols());
+#endif /* UNIV_DEBUG */
+}
+
 /** Instantiate in-memory InnoDB table metadata (dict_table_t),
 without any indexes.
 @tparam		Table		dd::Table or dd::Partition
@@ -2094,12 +2611,12 @@ without any indexes.
 @param[in]	is_implicit	if it is an implicit tablespace
 @return created dict_table_t on success or nullptr */
 template <typename Table>
-inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
-                                        const TABLE *m_form,
-                                        const char *norm_name,
-                                        HA_CREATE_INFO *create_info,
-                                        bool zip_allowed, bool strict,
-                                        THD *m_thd, bool is_implicit) {
+static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
+                                               const TABLE *m_form,
+                                               const char *norm_name,
+                                               HA_CREATE_INFO *create_info,
+                                               bool zip_allowed, bool strict,
+                                               THD *m_thd, bool is_implicit) {
   mem_heap_t *heap;
   bool is_encrypted = false;
   bool is_discard = false;
@@ -2128,9 +2645,9 @@ inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
   }
 
   /* Check discard flag. */
-  const dd::Properties &p = dd_tab->table().se_private_data();
-  if (p.exists(dd_table_key_strings[DD_TABLE_DISCARD])) {
-    p.get_bool(dd_table_key_strings[DD_TABLE_DISCARD], &is_discard);
+  const dd::Properties &table_private = dd_tab->table().se_private_data();
+  if (table_private.exists(dd_table_key_strings[DD_TABLE_DISCARD])) {
+    table_private.get_bool(dd_table_key_strings[DD_TABLE_DISCARD], &is_discard);
   }
 
   const unsigned n_mysql_cols = m_form->s->fields;
@@ -2231,6 +2748,28 @@ inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
     m_table->flags |= DICT_TF_MASK_DATA_DIR;
   }
 
+  /* If the table has instantly added columns, it's necessary to read
+  the number of instant columns for either normal table(from dd::Table),
+  or partitioned table(from dd::Partition). One partition may have no
+  instant columns, which is fine. */
+  if (dd_table_has_instant_cols(dd_tab->table())) {
+    uint32_t instant_cols;
+
+    if (!dd_table_is_partitioned(dd_tab->table())) {
+      table_private.get_uint32(dd_table_key_strings[DD_TABLE_INSTANT_COLS],
+                               &instant_cols);
+      m_table->set_instant_cols(instant_cols);
+      ut_ad(m_table->has_instant_cols());
+    } else if (dd_part_has_instant_cols(
+                   *reinterpret_cast<const dd::Partition *>(dd_tab))) {
+      dd_tab->se_private_data().get_uint32(
+          dd_partition_key_strings[DD_PARTITION_INSTANT_COLS], &instant_cols);
+
+      m_table->set_instant_cols(instant_cols);
+      ut_ad(m_table->has_instant_cols());
+    }
+  }
+
   /* Check if this table is FTS AUX table, if so, set DICT_TF2_AUX flag */
   fts_aux_table_t aux_table;
   if (fts_is_aux_table_name(&aux_table, norm_name, strlen(norm_name))) {
@@ -2277,8 +2816,7 @@ inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
     }
   }
 
-  bool is_temp = !dd_tab->is_persistent() &&
-                 !dict_sys_t::is_dd_table_id(dd_tab->se_private_id());
+  bool is_temp = (m_form->s->tmp_table_def != nullptr);
   if (is_temp) {
     m_table->flags2 |= DICT_TF2_TEMPORARY;
   }
@@ -2406,6 +2944,10 @@ inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
 
   /* Add system columns to make adding index work */
   dict_table_add_system_columns(m_table, heap);
+
+  if (m_table->has_instant_cols()) {
+    dd_fill_instant_columns(dd_tab->table(), m_table);
+  }
 
   mem_heap_free(heap);
 
@@ -4035,6 +4577,11 @@ bool dd_process_dd_columns_rec(mem_heap_t *heap, const rec_t *rec,
       col->mtype = t_col->mtype;
       col->prtype = t_col->prtype;
       col->len = t_col->len;
+    }
+
+    if (p->exists(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT_NULL]) ||
+        p->exists(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT])) {
+      dd_parse_default_value(*p, col, heap);
     }
 
     dd_table_close(table, thd, &mdl, true);

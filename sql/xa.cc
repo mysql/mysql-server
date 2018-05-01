@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1291,6 +1291,13 @@ static void attach_native_trx(THD *thd) {
       ha_info_next = ha_info->next();
       ha_info->reset();
     }
+  } else {
+    /*
+      Although the current `Ha_trx_info` object is null, we need to make sure
+      that the data engine plugins have the oportunity to attach their internal
+      transactions and clean up the session.
+     */
+    thd->rpl_reattach_engine_ha_data();
   }
 }
 
@@ -1306,8 +1313,10 @@ static void attach_native_trx(THD *thd) {
 */
 
 bool applier_reset_xa_trans(THD *thd) {
+  DBUG_ENTER("applier_reset_xa_trans");
   Transaction_ctx *trn_ctx = thd->get_transaction();
   XID_STATE *xid_state = trn_ctx->xid_state();
+
   /*
     In the following the server transaction state gets reset for
     a slave applier thread similarly to xa_commit logics
@@ -1345,7 +1354,7 @@ bool applier_reset_xa_trans(THD *thd) {
   */
   trans_reset_one_shot_chistics(thd);
 
-  return thd->is_error();
+  DBUG_RETURN(thd->is_error());
 }
 
 /**
@@ -1363,6 +1372,7 @@ bool applier_reset_xa_trans(THD *thd) {
 */
 
 bool detach_native_trx(THD *thd, plugin_ref plugin, void *) {
+  DBUG_ENTER("detach_native_trx");
   handlerton *hton = plugin_data<handlerton *>(plugin);
 
   if (hton->replace_native_transaction_in_thd) {
@@ -1373,5 +1383,19 @@ bool detach_native_trx(THD *thd, plugin_ref plugin, void *) {
         thd, NULL, &thd->get_ha_data(hton->slot)->ha_ptr_backup);
   }
 
-  return false;
+  DBUG_RETURN(false);
+}
+
+bool reattach_native_trx(THD *thd, plugin_ref plugin, void *) {
+  DBUG_ENTER("reattach_native_trx");
+  handlerton *hton = plugin_data<handlerton *>(plugin);
+
+  if (hton->replace_native_transaction_in_thd) {
+    /* restore the saved original engine transaction's link with thd */
+    void **trx_backup = &thd->get_ha_data(hton->slot)->ha_ptr_backup;
+
+    hton->replace_native_transaction_in_thd(thd, *trx_backup, NULL);
+    *trx_backup = NULL;
+  }
+  DBUG_RETURN(false);
 }

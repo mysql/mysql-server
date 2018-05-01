@@ -1086,10 +1086,12 @@ ulint buf_pool_size_align(ulint size);
 
 /** Calculate the checksum of a page from compressed table and update the
 page.
-@param[in,out]	page	page to update
-@param[in]	size	compressed page size
-@param[in]	lsn	LSN to stamp on the page */
-void buf_flush_update_zip_checksum(buf_frame_t *page, ulint size, lsn_t lsn);
+@param[in,out]  page              page to update
+@param[in]      size              compressed page size
+@param[in]      lsn               LSN to stamp on the page
+@param[in]      skip_lsn_check    true to skip check for lsn (in DEBUG) */
+void buf_flush_update_zip_checksum(buf_frame_t *page, ulint size, lsn_t lsn,
+                                   bool skip_lsn_check);
 
 #endif /* !UNIV_HOTBACKUP */
 

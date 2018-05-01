@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _NGS_SCHEDULER_H_
-#define _NGS_SCHEDULER_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_SCHEDULER_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_SCHEDULER_H_
 
 #include <atomic>
 #include <list>
@@ -155,4 +155,4 @@ class Scheduler_dynamic {
 };
 }  // namespace ngs
 
-#endif
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_SCHEDULER_H_

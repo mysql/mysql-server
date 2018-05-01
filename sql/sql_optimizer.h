@@ -203,7 +203,7 @@ class JOIN {
         tmp_tables(0),
         send_group_parts(0),
         sort_and_group(false),
-        first_record(false),
+        seen_first_record(false),
         // @todo Can this be substituted with select->is_explicitly_grouped()?
         grouped(select->is_explicitly_grouped()),
         do_send_rows(true),
@@ -231,7 +231,7 @@ class JOIN {
         group_fields_cache(),
         sum_funcs(NULL),
         sum_funcs_end(),
-        tmp_table_param(),
+        tmp_table_param(thd_arg->mem_root),
         lock(thd->lock),
         rollup(),
         // @todo Can this be substituted with select->is_implicitly_grouped()?
@@ -267,8 +267,8 @@ class JOIN {
         cond_equal(NULL),
         return_tab(0),
         ref_items(nullptr),
-        before_ref_item_slice_tmp3(nullptr),
-        current_ref_item_slice(REF_SLICE_SAVE),
+        ref_slice_immediately_before_group_by(nullptr),
+        current_ref_item_slice(REF_SLICE_SAVED_BASE),
         recursive_iteration_count(0),
         zero_result_cause(NULL),
         child_subquery_can_materialize(false),
@@ -358,7 +358,7 @@ class JOIN {
     @see make_group_fields, alloc_group_fields, JOIN::exec
   */
   bool sort_and_group;
-  bool first_record;
+  bool seen_first_record;   ///< Whether we've seen at least one row already
   bool grouped;             ///< If query contains GROUP BY clause
   bool do_send_rows;        ///< If true, send produced rows using query_result
   table_map all_table_map;  ///< Set of tables contained in query
@@ -429,7 +429,7 @@ class JOIN {
      - is transiently used as a model by create_intermediate_table(), to build
      the tmp table's own tmp_table_param.
      - is also used as description of the pseudo-tmp-table of grouping
-     (REF_SLICE_TMP3) (e.g. in end_send_group()).
+     (REF_SLICE_ORDERED_GROUP_BY) (e.g. in end_send_group()).
   */
   Temp_table_param tmp_table_param;
   MYSQL_LOCK *lock;
@@ -627,13 +627,14 @@ class JOIN {
     are associated with a single optimization. The size of slice 0 determines
     the slice size used when allocating the other slices.
    */
-  Ref_item_array *ref_items;  // cardinality: REF_SLICE_SAVE + 1 + #windows*2
+  Ref_item_array
+      *ref_items;  // cardinality: REF_SLICE_SAVED_BASE + 1 + #windows*2
 
   /**
-     If slice REF_SLICE_TMP3 has been created, this is the QEP_TAB which is
-     right before calculation of items in this slice.
+     If slice REF_SLICE_ORDERED_GROUP_BY has been created, this is the QEP_TAB
+     which is right before calculation of items in this slice.
   */
-  QEP_TAB *before_ref_item_slice_tmp3;
+  QEP_TAB *ref_slice_immediately_before_group_by;
 
   /**
     The slice currently stored in ref_items[0].
@@ -752,7 +753,7 @@ class JOIN {
   void set_ref_item_slice(uint sliceno) {
     DBUG_ASSERT((int)sliceno >= 1);
     if (current_ref_item_slice != sliceno) {
-      copy_ref_item_slice(REF_SLICE_BASE, sliceno);
+      copy_ref_item_slice(REF_SLICE_ACTIVE, sliceno);
       DBUG_PRINT("info",
                  ("ref slice %u -> %u", current_ref_item_slice, sliceno));
       current_ref_item_slice = sliceno;
@@ -773,8 +774,10 @@ class JOIN {
   bool rollup_process_const_fields();
   bool rollup_make_fields(List<Item> &all_fields, List<Item> &fields,
                           Item_sum ***func);
+  bool switch_slice_for_rollup_fields(List<Item> &all_fields,
+                                      List<Item> &fields);
   bool rollup_send_data(uint idx);
-  bool rollup_write_data(uint idx, TABLE *table);
+  bool rollup_write_data(uint idx, QEP_TAB *qep_tab);
   void remove_subq_pushed_predicates();
   /**
     Release memory and, if possible, the open tables held by this execution
@@ -1070,7 +1073,7 @@ bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
 bool optimize_cond(THD *thd, Item **conds, COND_EQUAL **cond_equal,
                    List<TABLE_LIST> *join_list, Item::cond_result *cond_value);
 Item *substitute_for_best_equal_field(Item *cond, COND_EQUAL *cond_equal,
-                                      void *table_join_idx);
+                                      JOIN_TAB **table_join_idx);
 bool build_equal_items(THD *thd, Item *cond, Item **retcond,
                        COND_EQUAL *inherited, bool do_inherit,
                        List<TABLE_LIST> *join_list,

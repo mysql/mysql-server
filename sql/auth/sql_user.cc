@@ -114,7 +114,8 @@ void log_user(THD *thd, String *str, LEX_USER *user, bool comma = true) {
   append_query_string(thd, system_charset_info, &from_host, str);
 }
 
-void append_user_new(THD *thd, String *str, LEX_USER *user, bool comma = true) {
+void append_user_new(THD *thd, String *str, LEX_USER *user, bool comma,
+                     bool hide_password_hash) {
   String from_user(user->user.str, user->user.length, system_charset_info);
   String from_plugin(user->plugin.str, user->plugin.length,
                      system_charset_info);
@@ -153,7 +154,7 @@ void append_user_new(THD *thd, String *str, LEX_USER *user, bool comma = true) {
         append_query_string(thd, system_charset_info, &default_plugin, str);
       if (user->auth.length > 0) {
         str->append(STRING_WITH_LEN(" AS "));
-        if (thd->lex->contains_plaintext_password) {
+        if (thd->lex->contains_plaintext_password || hide_password_hash) {
           str->append("'");
           str->append(STRING_WITH_LEN("<secret>"));
           str->append("'");
@@ -215,7 +216,8 @@ int check_change_password(THD *thd, const char *host, const char *user) {
     1         Error.
  */
 
-bool mysql_show_create_user(THD *thd, LEX_USER *user_name) {
+bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
+                            bool are_both_users_same) {
   int error = 0;
   ACL_USER *acl_user;
   LEX *lex = thd->lex;
@@ -230,8 +232,17 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name) {
   LEX_ALTER alter_info;
   List_of_auth_id_refs default_roles;
   List<LEX_USER> *old_default_roles = lex->default_roles;
+  bool hide_password_hash = false;
 
   DBUG_ENTER("mysql_show_create_user");
+  if (are_both_users_same) {
+    TABLE_LIST t1;
+    t1.init_one_table(C_STRING_WITH_LEN("mysql"), C_STRING_WITH_LEN("user"),
+                      "user", TL_READ);
+    hide_password_hash =
+        check_table_access(thd, SELECT_ACL, &t1, false, UINT_MAX, true);
+  }
+
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
   if (!acl_cache_lock.lock()) DBUG_RETURN(true);
 
@@ -320,7 +331,7 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name) {
       by rewrite_default_roles() called from mysql_rewrite_create_alter_user()
       below.
     */
-    get_default_roles(create_authid_from(acl_user), &default_roles);
+    get_default_roles(create_authid_from(acl_user), default_roles);
     if (default_roles.size() > 0) {
       LEX_STRING *tmp_user = nullptr;
       LEX_STRING *tmp_host = nullptr;
@@ -347,7 +358,8 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name) {
     }
   }
   lex->users_list.push_back(user_name);
-  mysql_rewrite_create_alter_user(thd, &sql_text);
+  mysql_rewrite_create_alter_user(thd, &sql_text, NULL, false,
+                                  hide_password_hash);
   /* send the result row to client */
   protocol->start_row();
   protocol->store(sql_text.ptr(), sql_text.length(), sql_text.charset());
@@ -1769,14 +1781,12 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
       List_iterator<LEX_USER> role_it(*(thd->lex->default_roles));
       LEX_USER *role;
       while ((role = role_it++) && result == 0) {
-        ACL_USER *acl_user;
-        ACL_USER *acl_role = nullptr;
-        bool not_granted = !is_granted_role(
-            tmp_user_name->user, tmp_user_name->host, role->user, role->host);
-        if (not_granted) {
-          acl_role = find_acl_user(role->host.str, role->user.str, true);
-          acl_user = find_acl_user(tmp_user_name->host.str,
-                                   tmp_user_name->user.str, true);
+        if (!is_granted_role(tmp_user_name->user, tmp_user_name->host,
+                             role->user, role->host)) {
+          ACL_USER *acl_role =
+              find_acl_user(role->host.str, role->user.str, true);
+          const ACL_USER *acl_user = find_acl_user(
+              tmp_user_name->host.str, tmp_user_name->user.str, true);
           if (acl_role == nullptr) {
             std::string authid = create_authid_str_from(role);
             my_error(ER_USER_DOES_NOT_EXIST, MYF(0), authid.c_str());
@@ -1789,17 +1799,16 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
             my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
                      "WITH ADMIN, ROLE_ADMIN, SUPER");
             result = 1;
+          } else {
+            DBUG_ASSERT(result == 0);
+            grant_role(acl_role, acl_user, false);
+            Auth_id_ref from_user = create_authid_from(role);
+            Auth_id_ref to_user = create_authid_from(tmp_user_name);
+            result = modify_role_edges_in_table(
+                thd, tables[ACL_TABLES::TABLE_ROLE_EDGES].table, from_user,
+                to_user, false, false);
           }
-        }  // end if not_granted
-
-        if (result == 0 && not_granted) {
-          grant_role(acl_role, acl_user, false);
-          Auth_id_ref from_user = create_authid_from(role);
-          Auth_id_ref to_user = create_authid_from(tmp_user_name);
-          result = modify_role_edges_in_table(
-              thd, tables[ACL_TABLES::TABLE_ROLE_EDGES].table, from_user,
-              to_user, false, false);
-        }
+        }  // end if !is_granted_role()
 
         default_roles.push_back(create_authid_from(role));
       }

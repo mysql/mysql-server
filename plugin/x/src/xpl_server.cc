@@ -25,8 +25,6 @@
 #include "plugin/x/src/xpl_server.h"
 #include "plugin/x/generated/mysqlx_version.h"
 
-#define LOG_SUBSYSTEM_TAG MYSQLX_PLUGIN_NAME
-
 #include "my_config.h"
 
 #include "my_inttypes.h"
@@ -39,6 +37,7 @@
 #include "plugin/x/ngs/include/ngs/scheduler.h"
 #include "plugin/x/ngs/include/ngs/server_acceptors.h"
 #include "plugin/x/ngs/include/ngs_common/config.h"
+#include "plugin/x/ngs/include/ngs_common/ssl_context.h"
 #include "plugin/x/src/auth_challenge_response.h"
 #include "plugin/x/src/auth_plain.h"
 #include "plugin/x/src/io/xpl_listener_factory.h"
@@ -203,7 +202,7 @@ bool xpl::Server::on_verify_server_state() {
 }
 
 ngs::shared_ptr<ngs::Client_interface> xpl::Server::create_client(
-    ngs::Connection_ptr connection) {
+    std::shared_ptr<ngs::Vio_interface> connection) {
   ngs::shared_ptr<ngs::Client_interface> result;
   auto global_timeouts = m_config->get_global_timeouts();
   result = ngs::allocate_shared<xpl::Client>(
@@ -576,8 +575,7 @@ bool xpl::Server::on_net_startup() {
 
     instance->start_verify_server_state_timer();
 
-    ngs::Ssl_context_unique_ptr ssl_ctx(
-        ngs::allocate_object<ngs::Ssl_context>());
+    std::unique_ptr<ngs::Ssl_context> ssl_ctx(new ngs::Ssl_context());
 
     ssl_config = choose_ssl_config(mysqld_have_ssl, ssl_config,
                                    xpl::Plugin_system_variables::ssl_config);
@@ -724,31 +722,6 @@ std::string xpl::Server::get_tcp_bind_address() {
   return ::STATUS_VALUE_FOR_NOT_CONFIGURED_INTERFACE;
 }
 
-struct Client_check_handler_thd {
-  Client_check_handler_thd(THD *thd) : m_thd(thd) {}
-
-  bool operator()(ngs::Client_ptr &client) {
-    xpl::Client *xpl_client = (xpl::Client *)client.get();
-
-    return xpl_client->is_handler_thd(m_thd);
-  }
-
-  THD *m_thd;
-};
-
-xpl::Client_ptr xpl::Server::get_client_by_thd(Server_ptr &server, THD *thd) {
-  std::vector<ngs::Client_ptr> clients;
-  Client_check_handler_thd client_check_thd(thd);
-
-  (*server)->server().get_client_list().get_all_clients(clients);
-
-  std::vector<ngs::Client_ptr>::iterator i =
-      std::find_if(clients.begin(), clients.end(), client_check_thd);
-  if (clients.end() != i) return ngs::dynamic_pointer_cast<Client>(*i);
-
-  return Client_ptr();
-}
-
 void xpl::Server::register_udfs() {
   udf::Registrator r;
   r.registration(udf::get_mysqlx_error_record(), &m_udf_names);
@@ -769,9 +742,7 @@ void xpl::Server::unregister_services() const {
     Service_registrator r;
     r.unregister_service(SERVICE_ID(mysql_server, mysqlx_maintenance));
   } catch (const std::exception &e) {
-    my_plugin_log_message(&xpl::plugin_handle, MY_ERROR_LEVEL,
-                          "Stopping services failed with error \"%s\"",
-                          e.what());
+    LogPluginErr(ERROR_LEVEL, ER_XPLUGIN_FAILED_TO_STOP_SERVICES, e.what());
   }
 }
 
@@ -790,4 +761,9 @@ bool xpl::Server::reset() {
   if (r) instance->reset_globals();
   instance_rwl.unlock();
   return r;
+}
+
+void xpl::Server::stop() {
+  exiting = true;
+  if (instance) instance->server().stop();
 }

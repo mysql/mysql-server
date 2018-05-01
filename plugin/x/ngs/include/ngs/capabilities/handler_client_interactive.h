@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _NGS_CAPABILITY_CLIENT_INTERACTIVE_H_
-#define _NGS_CAPABILITY_CLIENT_INTERACTIVE_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_CAPABILITIES_HANDLER_CLIENT_INTERACTIVE_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_CAPABILITIES_HANDLER_CLIENT_INTERACTIVE_H_
 
 #include "plugin/x/ngs/include/ngs/capabilities/handler.h"
 #include "plugin/x/src/xpl_client.h"
@@ -51,4 +51,4 @@ class Capability_client_interactive : public Capability_handler {
 
 }  // namespace ngs
 
-#endif  // _NGS_CAPABILITY_CLIENT_INTERACTIVE_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_CAPABILITIES_HANDLER_CLIENT_INTERACTIVE_H_

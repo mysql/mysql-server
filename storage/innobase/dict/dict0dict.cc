@@ -509,10 +509,9 @@ void dict_table_close(dict_table_t *table, /*!< in/out: table */
 #endif /* !UNIV_HOTBACKUP */
 
   if (!table->is_intrinsic()) {
-    /* Ask for mutex to prevent concurrent ha_innobase::open(),
+    /* Ask for lock to prevent concurrent table open,
     in case the race of n_ref_count and stat_initialized in
-    dict_stats_deinit(). As long as we protect change to
-    n_ref_count in ha_innobase:open() too, there should be no race.
+    dict_stats_deinit(). See dict_table_t::acquire_with_lock() too.
     We don't actually need dict_sys mutex any more here. */
     table->lock();
   }
@@ -2510,6 +2509,15 @@ dberr_t dict_index_add_to_cache_w_vcol(dict_table_t *table, dict_index_t *index,
         }
       }
     }
+  }
+
+  if (new_index->table->has_instant_cols() && new_index->is_clustered()) {
+    new_index->instant_cols = true;
+    new_index->n_instant_nullable =
+        new_index->get_n_nullable_before(new_index->get_instant_fields());
+  } else {
+    new_index->instant_cols = false;
+    new_index->n_instant_nullable = new_index->n_nullable;
   }
 
   dict_mem_index_free(index);
@@ -4800,7 +4808,7 @@ dtuple_t *dict_index_build_node_ptr(
     contains the page number of the child page */
 
     ut_a(!dict_table_is_comp(index->table));
-    n_unique = rec_get_n_fields_old(rec);
+    n_unique = rec_get_n_fields_old_raw(rec);
 
     if (level > 0) {
       ut_a(n_unique > 1);
@@ -4858,7 +4866,7 @@ rec_t *dict_index_copy_rec_order_prefix(
 
   if (dict_index_is_ibuf(index)) {
     ut_a(!dict_table_is_comp(index->table));
-    n = rec_get_n_fields_old(rec);
+    n = rec_get_n_fields_old_raw(rec);
   } else {
     if (page_is_leaf(page_align(rec))) {
       n = dict_index_get_n_unique_in_tree(index);
@@ -4888,7 +4896,7 @@ dtuple_t *dict_index_build_data_tuple(
   dtuple_t *tuple;
 
   ut_ad(dict_table_is_comp(index->table) ||
-        n_fields <= rec_get_n_fields_old(rec));
+        n_fields <= rec_get_n_fields_old(rec, index));
 
   tuple = dtuple_create(heap, n_fields);
 
@@ -6258,7 +6266,6 @@ const char *dict_tf_to_row_format_string(
   }
 
   ut_error;
-  return (0);
 }
 
 /** Determine the extent size (in pages) for the given table
@@ -6661,7 +6668,7 @@ std::string *DDTableBuffer::get(table_id_t id, uint64 *version) {
   btr_cur_t cursor;
   mtr_t mtr;
   ulint len;
-  byte *field = NULL;
+  const byte *field = NULL;
 
   ut_ad(mutex_own(&dict_persist->mutex));
 
@@ -7167,16 +7174,24 @@ void dict_upgrade_evict_tables_cache() {
 
 /** Build the table_id array of SYS_* tables. This
 array is used to determine if a table is InnoDB SYSTEM
-table or not. */
-void dict_sys_table_id_build() {
+table or not.
+@return true if successful, false otherwise */
+bool dict_sys_table_id_build() {
   mutex_enter(&dict_sys->mutex);
   for (uint32_t i = 0; i < SYS_NUM_SYSTEM_TABLES; i++) {
     dict_table_t *system_table = dict_table_get_low(SYSTEM_TABLE_NAME[i]);
 
-    ut_a(system_table != nullptr);
+    if (system_table == nullptr) {
+      /* Cannot find a system table, this happens only if user trying
+      to boot server earlier than 5.7 */
+      mutex_exit(&dict_sys->mutex);
+      LogErr(ERROR_LEVEL, ER_IB_MSG_1271);
+      return (false);
+    }
     dict_sys_table_id[i] = system_table->id;
   }
   mutex_exit(&dict_sys->mutex);
+  return (true);
 }
 
 /** @return true if table is InnoDB SYS_* table

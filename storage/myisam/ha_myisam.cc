@@ -79,7 +79,7 @@ TYPELIB myisam_stats_method_typelib = {
     myisam_stats_method_names, NULL};
 
 static MYSQL_SYSVAR_ULONG(block_size, opt_myisam_block_size,
-                          PLUGIN_VAR_EXPERIMENTAL | PLUGIN_VAR_RQCMDARG,
+                          PLUGIN_VAR_NOSYSVAR | PLUGIN_VAR_RQCMDARG,
                           "Block size to be used for MyISAM index pages", NULL,
                           NULL, MI_KEY_BLOCK_LENGTH, MI_MIN_KEY_BLOCK_LENGTH,
                           MI_MAX_KEY_BLOCK_LENGTH, MI_MIN_KEY_BLOCK_LENGTH);
@@ -727,24 +727,6 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked,
   MYISAM_SHARE *share = NULL;
   uint recs;
   uint i;
-
-  /*
-    If the user wants to have memory mapped data files, add an
-    open_flag. Do not memory map temporary tables because they are
-    expected to be inserted and thus extended a lot. Memory mapping is
-    efficient for files that keep their size, but very inefficient for
-    growing files. Using an open_flag instead of calling mi_extra(...
-    HA_EXTRA_MMAP ...) after mi_open() has the advantage that the
-    mapping is not repeated for every open, but just done on the initial
-    open, when the MyISAM share is created. Everytime the server
-    requires to open a new instance of a table it calls this method. We
-    will always supply HA_OPEN_MMAP for a permanent table. However, the
-    MyISAM storage engine will ignore this flag if this is a secondary
-    open of a table that is in use by other threads already (if the
-    MyISAM share exists already).
-  */
-  if (!(test_if_locked & HA_OPEN_TMP_TABLE) && opt_myisam_use_mmap)
-    test_if_locked |= HA_OPEN_MMAP;
 
   /*
      We are allocating the handler share only in case of normal MyISAM tables
@@ -1446,14 +1428,6 @@ int ha_myisam::indexes_are_disabled(void) {
 void ha_myisam::start_bulk_insert(ha_rows rows) {
   DBUG_ENTER("ha_myisam::start_bulk_insert");
   THD *thd = current_thd;
-  ulong size = min(thd->variables.read_buff_size,
-                   (ulong)(table->s->avg_row_length * rows));
-  DBUG_PRINT("info",
-             ("start_bulk_insert: rows %lu size %lu", (ulong)rows, size));
-
-  /* don't enable row cache if too few rows */
-  if (!rows || (rows > MI_MIN_ROWS_TO_USE_WRITE_CACHE))
-    mi_extra(file, HA_EXTRA_WRITE_CACHE, (void *)&size);
 
   can_enable_indexes =
       mi_is_all_keys_active(file->s->state.key_map, file->s->base.keys);
@@ -1490,22 +1464,20 @@ void ha_myisam::start_bulk_insert(ha_rows rows) {
 
 int ha_myisam::end_bulk_insert() {
   mi_end_bulk_insert(file);
-  int err = mi_extra(file, HA_EXTRA_NO_CACHE, 0);
-  if (!err) {
-    if (can_enable_indexes) {
-      /*
-        Truncate the table when enable index operation is killed.
-        After truncating the table we don't need to enable the
-        indexes, because the last repair operation is aborted after
-        setting the indexes as active and  trying to recreate them.
-     */
+  int err = 0;
+  if (can_enable_indexes) {
+    /*
+      Truncate the table when enable index operation is killed.
+      After truncating the table we don't need to enable the
+      indexes, because the last repair operation is aborted after
+      setting the indexes as active and  trying to recreate them.
+   */
 
-      if (((err = enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE)) != 0) &&
-          current_thd->killed) {
-        delete_all_rows();
-        /* not crashed, despite being killed during repair */
-        file->s->state.changed &= ~(STATE_CRASHED | STATE_CRASHED_ON_REPAIR);
-      }
+    if (((err = enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE)) != 0) &&
+        current_thd->killed) {
+      delete_all_rows();
+      /* not crashed, despite being killed during repair */
+      file->s->state.changed &= ~(STATE_CRASHED | STATE_CRASHED_ON_REPAIR);
     }
   }
   return err;
@@ -1751,7 +1723,6 @@ int ha_myisam::info(uint flag) {
 }
 
 int ha_myisam::extra(enum ha_extra_function operation) {
-  if (operation == HA_EXTRA_MMAP && !opt_myisam_use_mmap) return 0;
   return mi_extra(file, operation, 0);
 }
 

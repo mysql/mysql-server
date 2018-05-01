@@ -1,7 +1,7 @@
 #ifndef ITEM_CMPFUNC_INCLUDED
 #define ITEM_CMPFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,8 +66,6 @@ class THD;
 struct MY_BITMAP;
 
 typedef int (Arg_comparator::*arg_cmp_func)();
-
-typedef int (*Item_field_cmpfunc)(Item_field *f1, Item_field *f2, void *arg);
 
 class Arg_comparator {
   Item **a, **b;
@@ -1861,6 +1859,18 @@ class Item_func_like final : public Item_bool_func2 {
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
+
+ private:
+  /**
+    The method updates covering keys depending on the
+    length of wild string prefix.
+
+    @param thd Pointer to THD object.
+
+    @retval true if error happens during wild string prefix claculation,
+            false otherwise.
+  */
+  bool check_covering_prefix_keys(THD *thd);
 };
 
 class Item_cond : public Item_bool_func {
@@ -2036,7 +2046,25 @@ class Item_equal final : public Item_bool_func {
   longlong val_int() override;
   const char *func_name() const override { return "multiple equal"; }
   optimize_type select_optimize() const override { return OPTIMIZE_EQUAL; }
-  void sort(Item_field_cmpfunc compare, void *arg);
+  /**
+    Order field items in multiple equality according to a sorting criteria.
+
+    The function perform ordering of the field items in the Item_equal
+    object according to the criteria determined by the cmp callback parameter.
+    If cmp(item_field1,item_field2,arg)<0 than item_field1 must be
+    placed after item_field2.
+
+    The function sorts field items by the exchange sort algorithm.
+    The list of field items is looked through and whenever two neighboring
+    members follow in a wrong order they are swapped. This is performed
+    again and again until we get all members in a right order.
+
+    @param compare      function to compare field item
+  */
+  template <typename Node_cmp_func>
+  void sort(Node_cmp_func compare) {
+    fields.sort(compare);
+  }
   friend class Item_equal_iterator;
   bool resolve_type(THD *) override;
   bool fix_fields(THD *thd, Item **ref) override;
@@ -2056,6 +2084,9 @@ class Item_equal final : public Item_bool_func {
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
+
+ private:
+  void check_covering_prefix_keys();
 };
 
 class COND_EQUAL {

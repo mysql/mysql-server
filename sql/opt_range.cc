@@ -10245,9 +10245,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
   if (quick->init()) goto err;
   quick->records = records;
 
-  if ((cp_buffer_from_ref(thd, table, ref) && thd->is_fatal_error) ||
-      !(range = new (alloc) QUICK_RANGE()))
-    goto err;  // out of memory
+  if (!(range = new (alloc) QUICK_RANGE())) goto err;  // out of memory
 
   range->min_key = range->max_key = ref->key_buff;
   range->min_length = range->max_length = ref->key_length;
@@ -10408,8 +10406,7 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge() {
   doing_pk_scan = false;
   /* index_merge currently doesn't support "using index" at all */
   head->set_keyread(false);
-  if (init_read_record(&read_record, thd, head, NULL, 1, 1, true))
-    DBUG_RETURN(1);
+  if (init_read_record(&read_record, thd, head, NULL, 1, true)) DBUG_RETURN(1);
   DBUG_RETURN(result);
 }
 

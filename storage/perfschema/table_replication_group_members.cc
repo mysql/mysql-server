@@ -127,13 +127,13 @@ Plugin_table table_replication_group_members::m_table_def(
     /* Name */
     "replication_group_members",
     /* Definition */
-    "  CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,\n"
-    "  MEMBER_ID CHAR(36) collate utf8_bin not null,\n"
-    "  MEMBER_HOST CHAR(60) collate utf8_bin not null,\n"
+    "  CHANNEL_NAME CHAR(64) not null,\n"
+    "  MEMBER_ID CHAR(36) collate utf8mb4_bin not null,\n"
+    "  MEMBER_HOST CHAR(60) collate utf8mb4_bin not null,\n"
     "  MEMBER_PORT INTEGER,\n"
-    "  MEMBER_STATE CHAR(64) collate utf8_bin not null,\n"
-    "  MEMBER_ROLE CHAR(64) collate utf8_bin not null,\n"
-    "  MEMBER_VERSION CHAR(64) collate utf8_bin not null\n",
+    "  MEMBER_STATE CHAR(64) collate utf8mb4_bin not null,\n"
+    "  MEMBER_ROLE CHAR(64) collate utf8mb4_bin not null,\n"
+    "  MEMBER_VERSION CHAR(64) collate utf8mb4_bin not null\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
     /* Tablespace */

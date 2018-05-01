@@ -53,6 +53,25 @@ dberr_t replace(InsertContext &ctx, trx_t *trx, dict_index_t *index, ref_t ref,
                 first_page_t &first_page, ulint offset, ulint len, byte *buf,
                 int count);
 
+/** Replace a small portion of large object (LOB) with the given new data of
+equal length.
+@param[in]	ctx		replace operation context.
+@param[in]	trx		the transaction that is doing the read.
+@param[in]	index		the clustered index containing the LOB.
+@param[in]	ref		the LOB reference identifying the LOB.
+@param[in]	first_page	the first page of the LOB.
+@param[in]	offset		replace the LOB from the given offset.
+@param[in]	len		the length of LOB data that needs to be
+                                replaced.
+@param[in]	buf		the buffer (owned by caller) with new data
+                                (len bytes).
+@param[in]	count		number of replace done on current LOB.
+@return DB_SUCCESS on success, error code on failure. */
+static dberr_t replace_inline(InsertContext &ctx, trx_t *trx,
+                              dict_index_t *index, ref_t ref,
+                              first_page_t &first_page, ulint offset, ulint len,
+                              byte *buf, int count);
+
 #ifdef UNIV_DEBUG
 /** Print an information message in the server log file, informing
 that the LOB partial update feature code is hit.
@@ -82,6 +101,12 @@ dberr_t update(InsertContext &ctx, trx_t *trx, dict_index_t *index,
   const Binary_diff_vector *bdiff_vector =
       upd->get_binary_diff_by_field_no(field_no);
 
+  const ulint bytes_changed = upd_t::get_total_modified_bytes(*bdiff_vector);
+
+  /* Whether the update to the LOB can be considered as a small change. */
+  const bool small_change =
+      (bytes_changed <= ref_t::LOB_SMALL_CHANGE_THRESHOLD);
+
   upd_field_t *uf = upd->get_field_by_field_no(field_no, index);
 
 #ifdef UNIV_DEBUG
@@ -101,16 +126,29 @@ dberr_t update(InsertContext &ctx, trx_t *trx, dict_index_t *index,
   first_page.load_x(first_page_id, page_size);
   first_page.set_last_trx_id(trx->id);
   first_page.set_last_trx_undo_no(undo_no);
-  const uint32_t lob_version = first_page.incr_lob_version();
+  uint32_t lob_version = 0;
+
+  if (small_change) {
+    lob_version = first_page.get_lob_version();
+  } else {
+    lob_version = first_page.incr_lob_version();
+  }
 
   int count = 0;
   for (Binary_diff_vector::const_iterator iter = bdiff_vector->begin();
        iter != bdiff_vector->end(); ++iter, ++count) {
     const Binary_diff *bdiff = iter;
 
-    err = replace(ctx, trx, index, blobref, first_page, bdiff->offset(),
-                  bdiff->length(), (byte *)bdiff->new_data(uf->mysql_field),
-                  count);
+    if (small_change) {
+      err = replace_inline(ctx, trx, index, blobref, first_page,
+                           bdiff->offset(), bdiff->length(),
+                           (byte *)bdiff->new_data(uf->mysql_field), count);
+
+    } else {
+      err = replace(ctx, trx, index, blobref, first_page, bdiff->offset(),
+                    bdiff->length(), (byte *)bdiff->new_data(uf->mysql_field),
+                    count);
+    }
 
     if (err != DB_SUCCESS) {
       break;
@@ -121,6 +159,49 @@ dberr_t update(InsertContext &ctx, trx_t *trx, dict_index_t *index,
 
   DBUG_RETURN(err);
 }
+
+#ifdef UNIV_DEBUG
+/** Validate the size of a BLOB.
+@param[in]	lob_size	the given lob size.
+@param[in]	index		the index to which BLOB belongs.
+@param[in]	node_loc	the file node location of BLOB.
+@param[in]	mtr		the latching context.
+@return true if LOB size is valid, false otherwise. */
+bool validate_size(const ulint lob_size, dict_index_t *index,
+                   fil_addr_t node_loc, mtr_t *mtr) {
+  buf_block_t *block = nullptr;
+
+  ulint total_len = 0;
+
+  index_entry_t entry(mtr, index);
+
+  while (!fil_addr_is_null(node_loc)) {
+    if (block == nullptr) {
+      block = entry.load_x(node_loc);
+    } else if (block->page.id.page_no() != node_loc.page) {
+      block = entry.load_x(node_loc);
+    } else {
+      /* Next entry in the same page. */
+      ut_ad(block == entry.get_block());
+      entry.reset(node_loc);
+    }
+
+    /* Get the amount of data */
+    ulint data_len = entry.get_data_len();
+
+    total_len += data_len;
+
+    /* The next node should not be the same as the current node. */
+    ut_ad(!node_loc.is_equal(entry.get_next()));
+
+    node_loc = entry.get_next();
+  }
+
+  ut_ad(lob_size == total_len);
+
+  return (lob_size == total_len);
+}
+#endif /* UNIV_DEBUG */
 
 /** Find the file location of the index entry which gives the portion of LOB
 containing the requested offset.
@@ -133,6 +214,7 @@ containing the requested offset.
 fil_addr_t find_offset(trx_t *trx, dict_index_t *index, fil_addr_t node_loc,
                        ulint &offset, mtr_t *mtr) {
   DBUG_ENTER("find_offset");
+  ut_ad(!fil_addr_is_null(node_loc));
 
   buf_block_t *block = nullptr;
 
@@ -385,6 +467,231 @@ dberr_t replace(InsertContext &ctx, trx_t *trx, dict_index_t *index, ref_t ref,
 #ifdef LOB_DEBUG
   first_page.print_index_entries(std::cout);
 #endif /* LOB_DEBUG */
+
+  DBUG_RETURN(DB_SUCCESS);
+}
+
+static dberr_t replace_inline(InsertContext &ctx, trx_t *trx,
+                              dict_index_t *index, ref_t ref,
+                              first_page_t &first_page, ulint offset, ulint len,
+                              byte *buf, int count) {
+  DBUG_ENTER("lob::replace_inline");
+
+  mtr_t *mtr = ctx.get_mtr();
+  const undo_no_t undo_no = (trx == nullptr ? 0 : trx->undo_no - 1);
+
+  ut_ad(offset >= DICT_ANTELOPE_MAX_INDEX_COL_LEN ||
+        dict_table_has_atomic_blobs(index->table));
+
+  if (!dict_table_has_atomic_blobs(index->table)) {
+    /* For compact and redundant row format, remove the local
+    prefix length from the offset. */
+
+    ut_ad(offset >= DICT_ANTELOPE_MAX_INDEX_COL_LEN);
+    offset -= DICT_ANTELOPE_MAX_INDEX_COL_LEN;
+  }
+
+  DBUG_LOG("lob", "adjusted offset=" << offset << ", len=" << len);
+
+  first_page.set_last_trx_id(trx->id);
+  first_page.set_last_trx_undo_no(undo_no);
+
+  page_no_t first_page_no = ref.page_no();
+  space_id_t space_id = ref.space_id();
+
+  const page_size_t page_size = dict_table_page_size(index->table);
+  const page_id_t first_page_id(space_id, first_page_no);
+
+  flst_base_node_t *base_node = first_page.index_list();
+  fil_addr_t node_loc = flst_get_first(base_node, mtr);
+
+  ulint page_offset = offset;
+
+  node_loc = find_offset(trx, index, node_loc, page_offset, mtr);
+  ulint want = len; /* want to be replaced. */
+
+  /* This code is only meant for small changes to LOB. */
+  ut_ad(want <= ref_t::LOB_SMALL_CHANGE_THRESHOLD);
+
+  const byte *ptr = buf;
+
+  index_entry_t cur_entry(mtr, index);
+
+  ulint loop_count = 0;
+
+  while (!fil_addr_is_null(node_loc) && want > 0) {
+    ut_ad(loop_count <= 1);
+
+    /* Part of the page contents needs to be changed.  So the
+    old data must be read. */
+
+    buf_block_t *tmp_block = cur_entry.load_x(node_loc);
+
+    page_no_t cur_page_no = cur_entry.get_page_no();
+
+    if (cur_page_no == first_page_no) {
+      /* If current page number is the same as first page
+      number, then first page is already loaded. Just update
+      the pointer. */
+      first_page.set_block(tmp_block);
+      first_page.replace_inline(trx, page_offset, ptr, want, mtr);
+
+    } else {
+      /* If current page number is NOT the same as first page
+      number, then load first page here. */
+      first_page.load_x(first_page_id, page_size);
+      data_page_t page(mtr, index);
+      page.load_x(cur_page_no);
+      page.replace_inline(trx, page_offset, ptr, want, mtr);
+    }
+
+    /* Even the LOB index is just updated in place itself. If a
+    rollback happens, the old value will be available in the undo
+    log record. */
+    cur_entry.set_trx_id_modifier(trx->id);
+    cur_entry.set_trx_undo_no_modifier(undo_no);
+
+    page_offset = 0;
+    node_loc = cur_entry.get_next();
+
+    loop_count++;
+  }
+
+  ut_ad(want == 0);
+
+#ifdef UNIV_DEBUG
+  {
+    fil_addr_t first_node_loc = flst_get_first(base_node, mtr);
+    const ulint lob_size = ref.length();
+    ut_ad(validate_size(lob_size, index, first_node_loc, mtr));
+  }
+#endif /* UNIV_DEBUG */
+
+  DBUG_RETURN(DB_SUCCESS);
+}
+
+dberr_t apply_undolog(mtr_t *mtr, trx_t *trx, dict_index_t *index, ref_t ref,
+                      const upd_field_t *uf) {
+  DBUG_ENTER("lob::apply_undolog");
+
+  const Lob_diff_vector &lob_diffs = *uf->lob_diffs;
+
+  page_no_t first_page_no = ref.page_no();
+  space_id_t space_id = ref.space_id();
+
+#ifdef UNIV_DEBUG
+  const ulint lob_size = ref.length();
+#endif /* UNIV_DEBUG */
+
+  const page_size_t page_size = dict_table_page_size(index->table);
+
+  /* Cannot do this for compressed blobs. */
+  ut_ad(!page_size.is_compressed());
+
+  const page_id_t first_page_id(space_id, first_page_no);
+
+  first_page_t first_page(mtr, index);
+  first_page.load_x(first_page_id, page_size);
+
+  first_page.set_last_trx_id(uf->last_trx_id);
+  first_page.set_last_trx_undo_no(uf->last_undo_no);
+
+  flst_base_node_t *base_node = first_page.index_list();
+  fil_addr_t node_loc = flst_get_first(base_node, mtr);
+
+  if (!dict_table_has_atomic_blobs(index->table)) {
+    for (auto iter = lob_diffs.begin(); iter != lob_diffs.end(); ++iter) {
+      const Lob_diff &lob_diff = *iter;
+      ulint offset = lob_diff.m_offset;
+
+      if (offset < DICT_ANTELOPE_MAX_INDEX_COL_LEN) {
+        /* In this case, partial update was not done.
+        It is possible to do it, but not yet done.*/
+        DBUG_RETURN(DB_SUCCESS);
+      }
+    }
+  }
+
+  for (auto iter = lob_diffs.begin(); iter != lob_diffs.end(); ++iter) {
+    const Lob_diff &lob_diff = *iter;
+
+    ulint page_offset = lob_diff.m_offset;
+
+    ut_ad(lob_diff.m_offset >= DICT_ANTELOPE_MAX_INDEX_COL_LEN ||
+          dict_table_has_atomic_blobs(index->table));
+
+    if (!dict_table_has_atomic_blobs(index->table)) {
+      /* For compact and redundant row format, remove the
+      local prefix length from the offset. */
+
+      ut_ad(page_offset >= DICT_ANTELOPE_MAX_INDEX_COL_LEN);
+      page_offset -= DICT_ANTELOPE_MAX_INDEX_COL_LEN;
+    }
+
+    ut_ad(page_offset < lob_size);
+
+    /* Initially, point the node_loc to the first entry. */
+    node_loc = flst_get_first(base_node, mtr);
+
+    ut_ad(validate_size(lob_size, index, node_loc, mtr));
+
+    node_loc = find_offset(nullptr, index, node_loc, page_offset, mtr);
+
+    ut_ad(!node_loc.is_null());
+
+    ulint want = lob_diff.m_length; /* want to be replaced. */
+
+    /* This code is only meant for small changes to LOB. */
+    ut_ad(want <= ref_t::LOB_SMALL_CHANGE_THRESHOLD);
+
+    const byte *ptr = lob_diff.m_old_data;
+
+    index_entry_t cur_entry(mtr, index);
+
+    ulint count = 0;
+
+    while (!fil_addr_is_null(node_loc) && want > 0) {
+      buf_block_t *tmp_block = cur_entry.load_x(node_loc);
+
+      page_no_t cur_page_no = cur_entry.get_page_no();
+
+      if (cur_page_no == first_page_no) {
+        /* If current page number is the same as first
+        page number, then first page is already loaded.
+        Just update the pointer. */
+
+        first_page.set_block(tmp_block);
+        first_page.replace_inline(trx, page_offset, ptr, want, mtr);
+
+      } else {
+        /* If current page number is NOT the same as
+        first page number, then load first page here.*/
+        first_page.load_x(first_page_id, page_size);
+        data_page_t page(mtr, index);
+        page.load_x(cur_page_no);
+        page.replace_inline(trx, page_offset, ptr, want, mtr);
+      }
+
+      /* Ensure that only 1 or 2 index entries will be modified.*/
+      ut_ad(count <= 1);
+
+      lob_index_diff_t &tmp = lob_diff.m_idx_diffs->at(count);
+      trx_id_t t1 = tmp.m_modifier_trxid;
+
+      cur_entry.set_trx_id_modifier(t1);
+
+      undo_no_t u1 = tmp.m_modifier_undo_no;
+
+      cur_entry.set_trx_undo_no_modifier(u1);
+
+      page_offset = 0;
+      node_loc = cur_entry.get_next();
+
+      count++;
+    }
+
+    ut_ad(want == 0);
+  }
 
   DBUG_RETURN(DB_SUCCESS);
 }

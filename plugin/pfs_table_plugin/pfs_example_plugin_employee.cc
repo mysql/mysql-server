@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,13 +20,23 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#define LOG_COMPONENT_TAG "pfs_example_plugin_employee"
+
 #include <mysql/plugin.h>
 #include <mysql_version.h>
+
+#include <mysql/components/my_service.h>
+#include <mysql/components/services/log_builtins.h>
+#include <mysqld_error.h>
 
 #include "plugin/pfs_table_plugin/pfs_example_employee_name.h"
 #include "plugin/pfs_table_plugin/pfs_example_employee_salary.h"
 #include "plugin/pfs_table_plugin/pfs_example_machine.h"
 #include "plugin/pfs_table_plugin/pfs_example_machines_by_emp_by_mtype.h"
+
+static SERVICE_TYPE(registry) *reg_srv = nullptr;
+SERVICE_TYPE(log_builtins) *log_bi = nullptr;
+SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
 
 /**
   @page EXAMPLE_PLUGIN An example plugin
@@ -78,13 +88,32 @@ SERVICE_TYPE(pfs_plugin_table) *table_svc = NULL;
 PFS_engine_table_share_proxy* share_list[4]= {NULL, NULL, NULL, NULL};
 unsigned int share_list_count= 4;
 
+/* Mutex info definitions for the table mutexes */
+static PSI_mutex_key key_mutex_name;
+static PSI_mutex_key key_mutex_salary;
+static PSI_mutex_key key_mutex_machine;
+
+static PSI_mutex_info mutex_info[] = {
+  {&key_mutex_name, "LOCK_ename_records_array",
+   PSI_FLAG_SINGLETON, PSI_VOLATILITY_PERMANENT,
+   "Mutex for the pfs_example_employee_name table."},
+
+  {&key_mutex_salary, "LOCK_esalary_records_array",
+   0, PSI_VOLATILITY_PERMANENT,
+   "Mutex for the pfs_example_employee_salary table."},
+
+  {&key_mutex_machine, "LOCK_machine_records_array",
+   0, PSI_VOLATILITY_PERMANENT,
+   "Mutex for the pfs_example_machine table."}
+};
+
 /**
 * acquire_service_handles does following:
 *   - Acquire the registry service for mysql_server.
 *   - Acquire pfs_plugin_table service implementation.
 */
 bool
-acquire_service_handles(MYSQL_PLUGIN p)
+acquire_service_handles(MYSQL_PLUGIN p MY_ATTRIBUTE((unused)))
 {
   bool result = false;
 
@@ -92,8 +121,8 @@ acquire_service_handles(MYSQL_PLUGIN p)
   r = mysql_plugin_registry_acquire();
   if (!r)
   {
-    my_plugin_log_message(
-      &p, MY_ERROR_LEVEL, "mysql_plugin_registry_acquire() returns empty");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "mysql_plugin_registry_acquire() returns empty");
     result = true;
     goto error;
   }
@@ -101,8 +130,8 @@ acquire_service_handles(MYSQL_PLUGIN p)
   /* Acquire pfs_plugin_table service */
   if (r->acquire("pfs_plugin_table", &h_ret_table_svc))
   {
-    my_plugin_log_message(
-      &p, MY_ERROR_LEVEL, "can't find pfs_plugin_table service");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "can't find pfs_plugin_table service");
     result = true;
     goto error;
   }
@@ -256,8 +285,8 @@ pfs_example_func(MYSQL_PLUGIN p)
       esalary_prepare_insert_row() ||
       machine_prepare_insert_row())
   {
-    my_plugin_log_message(
-      &p, MY_ERROR_LEVEL, "Error returned during prepare and insert row.");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "Error returned during prepare and insert row.");
     result = true;
     goto error;
   }
@@ -279,8 +308,8 @@ pfs_example_func(MYSQL_PLUGIN p)
    */
   if (table_svc->add_tables(&share_list[0], share_list_count))
   {
-    my_plugin_log_message(
-      &p, MY_ERROR_LEVEL, "Error returned from add_tables()");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "Error returned from add_tables()");
     result = true;
     goto error;
   }
@@ -306,10 +335,19 @@ pfs_example_plugin_employee_init(void *p)
   DBUG_ENTER("pfs_example_plugin_employee_init");
   int result = 0;
 
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
+    DBUG_RETURN(1);
+
+  /* Register the mutex classes */
+  PSI_MUTEX_CALL(register_mutex)("pfs_example2", mutex_info, 3);
+
   /* Initialize mutexes to be used for table records */
-  mysql_mutex_init(0, &LOCK_ename_records_array, MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(0, &LOCK_esalary_records_array, MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(0, &LOCK_machine_records_array, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_mutex_name, &LOCK_ename_records_array,
+                   MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_mutex_salary, &LOCK_esalary_records_array,
+                   MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_mutex_machine, &LOCK_machine_records_array,
+                   MY_MUTEX_INIT_FAST);
 
   /* In case the plugin has been unloaded, and reloaded */
   ename_delete_all_rows();
@@ -354,7 +392,7 @@ pfs_example_plugin_employee_check(void *)
 *   - Release pfs_plugin_table service handle.
 */
 static int
-pfs_example_plugin_employee_deinit(void *p)
+pfs_example_plugin_employee_deinit(void *p  MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("pfs_example_plugin_employee_deinit");
 
@@ -366,13 +404,15 @@ pfs_example_plugin_employee_deinit(void *p)
   {
     if (table_svc->delete_tables(&share_list[0], share_list_count))
     {
-      my_plugin_log_message(
-        &p, MY_ERROR_LEVEL, "Error returned from delete_tables()");
+      LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                   "Error returned from delete_tables()");
+      deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
       DBUG_RETURN(1);
     }
   }
   else /* Service not found or released */
   {
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     DBUG_RETURN(1);
   }
 
@@ -380,6 +420,8 @@ pfs_example_plugin_employee_deinit(void *p)
   mysql_mutex_destroy(&LOCK_ename_records_array);
   mysql_mutex_destroy(&LOCK_esalary_records_array);
   mysql_mutex_destroy(&LOCK_machine_records_array);
+
+  deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
 
   /* Release service handles. */
   release_service_handles();

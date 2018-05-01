@@ -3,8 +3,8 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-call mtr.add_suppression("Slave: Can\'t find record in \'t\' Error_code: 1032");
-call mtr.add_suppression("Slave SQL for channel '': .*Could not execute Update_rows event on table test.t; Can.t find record in .t.* Error_code: 1032");
+call mtr.add_suppression("Slave: Can\'t find record in \'t\' Error_code: MY-001032");
+call mtr.add_suppression("Slave SQL for channel '': .*Could not execute Update_rows event on table test.t; Can.t find record in .t.* Error_code: MY-001032");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
@@ -770,6 +770,8 @@ SET sql_mode = default;
 EXPLAIN UPDATE t1 SET a=a+1 WHERE id < 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = (`test`.`t1`.`a` + 1) where (`test`.`t1`.`id` < 2)
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 UPDATE t1 SET a=a+1 WHERE id < 2;
 SET sql_mode = default;
@@ -793,6 +795,8 @@ binlog_row_image	NOBLOB
 EXPLAIN UPDATE t1 SET a=a+1 WHERE id < 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = (`test`.`t1`.`a` + 1) where (`test`.`t1`.`id` < 2)
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 UPDATE t1 SET a=a+1 WHERE id < 2;
 SET sql_mode = default;
@@ -815,6 +819,8 @@ binlog_row_image	MINIMAL
 EXPLAIN UPDATE t1 SET a=a+1 WHERE id < 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = (`test`.`t1`.`a` + 1) where (`test`.`t1`.`id` < 2)
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 UPDATE t1 SET a=a+1 WHERE id < 2;
 SET sql_mode = default;

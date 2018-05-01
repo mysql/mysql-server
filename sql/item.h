@@ -872,6 +872,7 @@ class Item : public Parse_tree_node {
     complete fix_fields() procedure.
   */
   inline void quick_fix_field() { fixed = 1; }
+  virtual void set_can_use_prefix_key() {}
 
  protected:
   /**
@@ -2485,6 +2486,12 @@ class Item : public Parse_tree_node {
   }
   virtual Field *get_orig_field() { return NULL; }
   virtual void set_orig_field(Field *){};
+  void set_has_rollup_field() {
+    m_has_rollup_field = true;
+    return;
+  }
+  bool has_rollup_field() { return m_has_rollup_field; }
+  virtual bool has_grouping_func_processor(uchar *) { return false; }
 
  private:
   virtual bool subq_opt_away_processor(uchar *) { return false; }
@@ -2605,6 +2612,7 @@ class Item : public Parse_tree_node {
     which is actually used by outer query.
   */
   bool derived_used;
+  bool m_has_rollup_field;
 
  protected:
   /**
@@ -3169,6 +3177,12 @@ class Item_field : public Item_ident {
   uint have_privileges;
   /* field need any privileges (for VIEW creation) */
   bool any_privileges;
+  /*
+    if this field is used in a context where covering prefix keys
+    are supported.
+  */
+  bool can_use_prefix_key{false};
+
   Item_field(Name_resolution_context *context_arg, const char *db_arg,
              const char *table_name_arg, const char *field_name_arg);
   Item_field(const POS &pos, const char *db_arg, const char *table_name_arg,
@@ -3334,6 +3348,7 @@ class Item_field : public Item_ident {
   void set_orig_field(Field *orig_field_arg) override {
     if (orig_field_arg) orig_field = orig_field_arg;
   }
+  void set_can_use_prefix_key() override { can_use_prefix_key = true; }
 };
 
 class Item_null : public Item_basic_constant {

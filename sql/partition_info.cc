@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -314,9 +314,6 @@ bool partition_info::can_prune_insert(THD *thd, enum_duplicates duplic,
                                       enum_can_prune *can_prune_partitions,
                                       bool *prune_needs_default_values,
                                       MY_BITMAP *used_partitions) {
-  uint32 *bitmap_buf;
-  uint bitmap_bytes;
-  uint num_partitions = 0;
   *can_prune_partitions = PRUNE_NO;
   DBUG_ASSERT(bitmaps_are_initialized);
   DBUG_ENTER("partition_info::can_prune_insert");
@@ -424,21 +421,12 @@ bool partition_info::can_prune_insert(THD *thd, enum_duplicates duplic,
     */
   }
 
-  /* Pruning possible, have to initialize the used_partitions bitmap. */
-  num_partitions = lock_partitions.n_bits;
-  bitmap_bytes = bitmap_buffer_size(num_partitions);
-  if (!(bitmap_buf = (uint32 *)thd->alloc(bitmap_bytes))) {
-    mem_alloc_error(bitmap_bytes);
-    DBUG_RETURN(true);
-  }
-  /* Also clears all bits. */
-  if (bitmap_init(used_partitions, bitmap_buf, num_partitions, false)) {
-    /* purecov: begin deadcode */
-    /* Cannot happen, due to pre-alloc. */
-    mem_alloc_error(bitmap_bytes);
-    DBUG_RETURN(true);
-    /* purecov: end */
-  }
+  /*
+    Pruning possible, have to initialize the used_partitions bitmap.
+    This also clears all bits.
+  */
+  if (init_partition_bitmap(used_partitions, thd->mem_root)) DBUG_RETURN(true);
+
   /*
     If no partitioning field in set (e.g. defaults) check pruning only once.
   */
@@ -2876,5 +2864,19 @@ bool validate_partition_tablespace_names(partition_info *part_info,
     }
   }
 
+  return false;
+}
+
+bool partition_info::init_partition_bitmap(MY_BITMAP *bitmap,
+                                           MEM_ROOT *mem_root) {
+  uint32 *bitmap_buf;
+  uint bitmap_bits = num_subparts ? (num_subparts * num_parts) : num_parts;
+  uint bitmap_bytes = bitmap_buffer_size(bitmap_bits);
+
+  if (!(bitmap_buf = (uint32 *)alloc_root(mem_root, bitmap_bytes))) {
+    mem_alloc_error(bitmap_bytes);
+    return true;
+  }
+  bitmap_init(bitmap, bitmap_buf, bitmap_bits, false);
   return false;
 }

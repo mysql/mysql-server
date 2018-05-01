@@ -31,8 +31,6 @@
 
 #include <openssl/rand.h>
 #include <openssl/sha.h>
-#include <wolfssl_fix_namespace_pollution.h>
-#include <wolfssl_fix_namespace_pollution_pre.h>
 
 #include "my_dbug.h"
 #include "plugin/x/client/mysql41_hash.h"

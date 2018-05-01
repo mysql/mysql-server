@@ -352,7 +352,7 @@ VARIABLE_VALUE
 0
 CREATE TABLE t1(f1 CHAR(255) CHARSET utf8);
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES('1'),('2'),('3'),('4'),('5'),('6'),('7'),('8'),('9'),('0');
 SET @optimizer_switch_saved= @@optimizer_switch;
 SET @@optimizer_switch="derived_merge=off";
@@ -414,21 +414,6 @@ VARIABLE_VALUE
 1
 VARIABLE_VALUE
 DEFAULT
-CREATE TABLE t1 (f1 VARCHAR(10));
-INSERT INTO t1 VALUES ('aaaaac'), ('aaaaab'), ('aaaaaa');
-SELECT /*+ SET_VAR(max_sort_length=4) */ f1 FROM t1 ORDER BY f1;
-f1
-aaaaac
-aaaaab
-aaaaaa
-DROP TABLE t1;
-CALL test_hint("SET_VAR(max_sort_length=4)", "max_sort_length");
-VARIABLE_VALUE
-1024
-VARIABLE_VALUE
-4
-VARIABLE_VALUE
-1024
 CREATE TABLE t1 (a INT, b INT, PRIMARY KEY (a));
 CREATE TABLE t2 (a INT, INDEX a (a));
 CREATE TABLE t3 (a INT, b INT, INDEX a (a,b));

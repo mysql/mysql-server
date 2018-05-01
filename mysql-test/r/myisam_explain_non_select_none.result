@@ -11,6 +11,8 @@ INSERT INTO t1 VALUES (1), (2), (3);
 EXPLAIN UPDATE t1 SET a = 10 WHERE a < 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where (`test`.`t1`.`a` < 10)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -38,6 +40,8 @@ INSERT INTO t1 VALUES (1), (2), (3);
 EXPLAIN DELETE   FROM t1 WHERE a < 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+Warnings:
+Note	1003	delete from `test`.`t1` where (`test`.`t1`.`a` < 10)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -65,6 +69,8 @@ INSERT INTO t1 VALUES (1), (2), (3);
 EXPLAIN DELETE   FROM t1 USING t1 WHERE a = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	delete `test`.`t1` from `test`.`t1` where (`test`.`t1`.`a` = 1)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -95,6 +101,8 @@ EXPLAIN UPDATE        t1, t2 SET t1.a = 10 WHERE t1.a = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+Warnings:
+Note	1003	update `test`.`t1` join `test`.`t2` set `test`.`t1`.`a` = 10 where (`test`.`t1`.`a` = 1)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -125,6 +133,8 @@ EXPLAIN UPDATE        t1 t11, (SELECT * FROM t2) t12 SET t11.a = 10 WHERE t11.a 
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+Warnings:
+Note	1003	update `test`.`t1` `t11` join `test`.`t2` set `test`.`t11`.`a` = 10 where (`test`.`t11`.`a` = 1)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -155,6 +165,8 @@ EXPLAIN UPDATE        t1 SET a = 10 WHERE 1 IN (SELECT 1 FROM t2 WHERE t2.b < 3)
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where <in_optimizer>(1,<exists>(/* select#2 */ select 1 from `test`.`t2` where (`test`.`t2`.`b` < 3)))
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -187,6 +199,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`a` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -218,6 +231,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	update `test`.`t1` join `test`.`t2` set `test`.`t1`.`a` = 10 where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`b` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -248,6 +263,8 @@ EXPLAIN UPDATE        t1 t11, (SELECT * FROM t2) t12 SET t11.a = t11.a + 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+Warnings:
+Note	1003	update `test`.`t1` `t11` join `test`.`t2` set `test`.`t11`.`a` = (`test`.`t11`.`a` + 10)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -279,6 +296,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	update `test`.`t1` `t11` join (/* select#2 */ select straight_join 1 AS `1`) `t12` set `test`.`t11`.`a` = (`test`.`t11`.`a` + 10)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -314,6 +333,8 @@ EXPLAIN UPDATE        t1 t11, (SELECT * FROM t2) t12 SET t11.a = 10 WHERE t11.a 
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+Warnings:
+Note	1003	update `test`.`t1` `t11` join `test`.`t2` set `test`.`t11`.`a` = 10 where (`test`.`t11`.`a` > 1)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -341,6 +362,8 @@ INSERT INTO t1 VALUES (1), (2), (3);
 EXPLAIN DELETE   FROM t1 WHERE a > 1 LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+Warnings:
+Note	1003	delete from `test`.`t1` where (`test`.`t1`.`a` > 1) limit 1
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -368,6 +391,8 @@ INSERT INTO t1 VALUES (1), (2), (3);
 EXPLAIN DELETE   FROM t1 WHERE 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	delete from `test`.`t1` where 0
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -392,6 +417,8 @@ INSERT INTO t1 VALUES (1), (2), (3);
 EXPLAIN DELETE   FROM t1 USING t1 WHERE 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	delete `test`.`t1` from `test`.`t1` where 0
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -416,6 +443,8 @@ INSERT INTO t1 VALUES (3, 3), (7, 7);
 EXPLAIN DELETE   FROM t1 WHERE a = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	range	a	a	5	const	1	100.00	Using where
+Warnings:
+Note	1003	delete from `test`.`t1` where (`test`.`t1`.`a` = 3)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -441,6 +470,8 @@ INSERT INTO t1 VALUES (3, 3), (7, 7);
 EXPLAIN DELETE   FROM t1 WHERE a < 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	range	a	a	5	const	1	100.00	Using where
+Warnings:
+Note	1003	delete from `test`.`t1` where (`test`.`t1`.`a` < 3)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -464,6 +495,8 @@ CREATE TABLE t1 ( a int PRIMARY KEY );
 EXPLAIN DELETE   FROM t1 WHERE t1.a > 0 ORDER BY t1.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+Warnings:
+Note	1003	delete from `test`.`t1` where (`test`.`t1`.`a` > 0) order by `test`.`t1`.`a`
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -487,6 +520,8 @@ INSERT INTO t1 VALUES (1), (2), (3);
 EXPLAIN DELETE   FROM t1 WHERE t1.a > 0 ORDER BY t1.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	range	PRIMARY	PRIMARY	4	const	3	100.00	Using where
+Warnings:
+Note	1003	delete from `test`.`t1` where (`test`.`t1`.`a` > 0) order by `test`.`t1`.`a`
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -515,6 +550,8 @@ INSERT INTO t1 VALUES (4),(3),(1),(2);
 EXPLAIN DELETE   FROM t1 WHERE (@a:= a) ORDER BY a LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	index	NULL	PRIMARY	4	NULL	4	100.00	Using where
+Warnings:
+Note	1003	delete from `test`.`t1` where (@a:=`test`.`t1`.`a`) order by `test`.`t1`.`a` limit 1
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -543,6 +580,8 @@ UPDATE t1 SET a = c, b = c;
 EXPLAIN DELETE   FROM t1 ORDER BY a ASC, b ASC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using filesort
+Warnings:
+Note	1003	delete from `test`.`t1` order by `test`.`t1`.`a` asc,`test`.`t1`.`b` asc limit 1
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -581,6 +620,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 1	DELETE	t2	NULL	ref	PRIMARY	PRIMARY	4	test.t1.a1	1	100.00	NULL
 1	DELETE	t3	NULL	eq_ref	PRIMARY	PRIMARY	8	test.t2.b2,test.t1.b1	1	100.00	NULL
+Warnings:
+Note	1003	delete `test`.`t1`, `test`.`t2`, `test`.`t3` from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t3`.`b3` = `test`.`t1`.`b1`) and (`test`.`t3`.`a3` = `test`.`t2`.`b2`) and (`test`.`t2`.`a2` = `test`.`t1`.`a1`))
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -614,6 +655,8 @@ EXPLAIN UPDATE t1 SET a = 10 WHERE a IN (SELECT a FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -645,6 +688,8 @@ EXPLAIN DELETE   FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
+Warnings:
+Note	1003	delete from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -672,6 +717,8 @@ EXPLAIN DELETE   FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
+Warnings:
+Note	1003	delete from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -699,6 +746,8 @@ INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
 EXPLAIN UPDATE t1 SET i = 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`i` = 10
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -726,6 +775,8 @@ INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
 EXPLAIN DELETE FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Deleting all rows
+Warnings:
+Note	1003	delete from `test`.`t1`
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -756,6 +807,8 @@ INSERT INTO t2 (a, b, c) SELECT t1.i, t1.i, t1.i FROM t1, t1 x1, t1 x2;
 EXPLAIN DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t2	NULL	index	NULL	a	15	NULL	17602	100.00	Using where
+Warnings:
+Note	1003	delete from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -787,6 +840,8 @@ EXPLAIN INSERT INTO t2 SELECT * FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+Warnings:
+Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -812,6 +867,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 1	SIMPLE	tt	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` join `test`.`t1` `tt` where (`test`.`tt`.`i` = `test`.`t1`.`i`)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -841,6 +898,8 @@ EXPLAIN REPLACE INTO t2 SELECT * FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	REPLACE	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+Warnings:
+Note	1003	replace into `test`.`t2` /* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -867,6 +926,8 @@ CREATE TABLE t1 (i INT);
 EXPLAIN INSERT INTO t1 SET i = 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`t1` (`test`.`t1`.`i`) values (10)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -885,6 +946,8 @@ CREATE TABLE t1 (i INT);
 EXPLAIN REPLACE INTO t1 SET i = 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	REPLACE	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	replace into `test`.`t1` (`test`.`t1`.`i`) values (10)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -906,6 +969,8 @@ INSERT INTO t1 (i) VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 EXPLAIN DELETE   FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	range	PRIMARY	PRIMARY	4	const	8	100.00	Using where
+Warnings:
+Note	1003	delete from `test`.`t1` where ((`test`.`t1`.`i` > 10) and (`test`.`t1`.`i` <= 18)) order by `test`.`t1`.`i` limit 1
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -936,6 +1001,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
+Note	1003	delete from `test`.`t1` where ((`test`.`t1`.`i` > 10) and (`test`.`t1`.`i` <= 18)) order by `test`.`t1`.`i` limit 5
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -972,6 +1038,8 @@ INSERT INTO t2 (a, b, c) SELECT i, i, i FROM t1;
 EXPLAIN DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+Warnings:
+Note	1003	delete from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1008,6 +1076,8 @@ INSERT INTO t2 (a, b, c) SELECT t1.i, t1.i, t1.i FROM t1, t1 x1, t1 x2;
 EXPLAIN DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t2	NULL	index	NULL	a	15	NULL	17602	100.00	Using where
+Warnings:
+Note	1003	delete from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1044,6 +1114,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 Warnings:
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
+Note	1003	delete from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1083,6 +1154,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 Warnings:
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
+Note	1003	delete from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1121,6 +1193,8 @@ INSERT INTO t2 (key1, key2) SELECT i, i FROM t1;
 EXPLAIN DELETE   FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t2	NULL	index_merge	key1,key2	key1,key2	5,5	NULL	7	100.00	Using sort_union(key1,key2); Using where; Using filesort
+Warnings:
+Note	1003	delete from `test`.`t2` where ((`test`.`t2`.`key1` < 13) or (`test`.`t2`.`key2` < 14)) order by `test`.`t2`.`key1`
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1158,6 +1232,8 @@ INSERT INTO t2 (i) SELECT i FROM t1;
 EXPLAIN DELETE   FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t2	NULL	range	PRIMARY	PRIMARY	4	const	8	100.00	Using where; Backward index scan
+Warnings:
+Note	1003	delete from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` desc limit 1
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1187,6 +1263,8 @@ INSERT INTO t2 SELECT i, i, i FROM t1;
 EXPLAIN DELETE   FROM t2 ORDER BY a, b DESC LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using filesort
+Warnings:
+Note	1003	delete from `test`.`t2` order by `test`.`t2`.`a`,`test`.`t2`.`b` desc limit 5
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1224,6 +1302,8 @@ INSERT INTO t2 (a, b) SELECT t1.i, t1.i FROM t1, t1 x1, t1 x2;
 EXPLAIN DELETE   FROM t2 ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t2	NULL	index	NULL	a	18	NULL	5	100.00	NULL
+Warnings:
+Note	1003	delete from `test`.`t2` order by `test`.`t2`.`a` desc,`test`.`t2`.`b` desc limit 5
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1257,6 +1337,8 @@ INSERT INTO t2 (i) SELECT i FROM t1;
 EXPLAIN UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	NULL	range	PRIMARY	PRIMARY	4	const	8	100.00	Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t2` set `test`.`t2`.`a` = 10 where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` limit 1
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1290,6 +1372,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
+Note	1003	update `test`.`t2` set `test`.`t2`.`a` = 10 where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` limit 5
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1326,6 +1409,8 @@ INSERT INTO t2 (a, b, c) SELECT i, i, i FROM t1;
 EXPLAIN UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+Warnings:
+Note	1003	update `test`.`t2` set `test`.`t2`.`d` = 10 where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1362,6 +1447,8 @@ INSERT INTO t2 (a, b, c) SELECT t1.i, t1.i, t1.i FROM t1, t1 x1, t1 x2;
 EXPLAIN UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	NULL	index	NULL	a	15	NULL	17602	100.00	Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t2` set `test`.`t2`.`d` = 10 where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1399,6 +1486,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 Warnings:
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
+Note	1003	update `test`.`t2` set `test`.`t2`.`d` = 10 where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1437,6 +1525,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 Warnings:
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
+Note	1003	update `test`.`t2` set `test`.`t2`.`d` = 10 where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1474,6 +1563,8 @@ INSERT INTO t2 (key1, key2) SELECT i, i FROM t1;
 EXPLAIN UPDATE t2 SET i = 123 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	NULL	index_merge	key1,key2	key1,key2	5,5	NULL	7	100.00	Using sort_union(key1,key2); Using where; Using filesort
+Warnings:
+Note	1003	update `test`.`t2` set `test`.`t2`.`i` = 123 where ((`test`.`t2`.`key1` < 13) or (`test`.`t2`.`key2` < 14)) order by `test`.`t2`.`key1`
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1511,6 +1602,8 @@ INSERT INTO t2 (i) SELECT i FROM t1;
 EXPLAIN UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	NULL	range	PRIMARY	PRIMARY	4	const	8	100.00	Using where; Backward index scan; Using temporary
+Warnings:
+Note	1003	update `test`.`t2` set `test`.`t2`.`a` = 10 where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` desc limit 1
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1541,6 +1634,8 @@ INSERT INTO t2 SELECT i, i, i FROM t1;
 EXPLAIN UPDATE t2 SET c = 10 ORDER BY a, b DESC LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using filesort
+Warnings:
+Note	1003	update `test`.`t2` set `test`.`t2`.`c` = 10 order by `test`.`t2`.`a`,`test`.`t2`.`b` desc limit 5
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1578,6 +1673,8 @@ INSERT INTO t2 (a, b) SELECT t1.i, t1.i FROM t1, t1 x1, t1 x2;
 EXPLAIN UPDATE t2 SET c = 10 ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	NULL	index	NULL	a	18	NULL	5	100.00	Using temporary
+Warnings:
+Note	1003	update `test`.`t2` set `test`.`t2`.`c` = 10 order by `test`.`t2`.`a` desc,`test`.`t2`.`b` desc limit 5
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1614,6 +1711,8 @@ INSERT INTO t1 VALUES (1,'y',1), (2,'n',2), (3,'y',3), (4,'n',4);
 EXPLAIN UPDATE t1 SET c2 = 0 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	range	c1_idx	c1_idx	5	const	2	100.00	Using where; Using filesort
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`c2` = 0 where (`test`.`t1`.`c1_idx` = 'y') order by `test`.`t1`.`pk` desc limit 2
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1642,6 +1741,8 @@ Sort_rows	2
 EXPLAIN DELETE   FROM t1 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	range	c1_idx	c1_idx	5	const	2	100.00	Using where; Using filesort
+Warnings:
+Note	1003	delete from `test`.`t1` where (`test`.`t1`.`c1_idx` = 'y') order by `test`.`t1`.`pk` desc limit 2
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1674,6 +1775,8 @@ INSERT INTO t1 VALUES (),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(
 EXPLAIN UPDATE t1 SET a=a+10 WHERE a > 34;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	range	PRIMARY	PRIMARY	4	const	3	100.00	Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = (`test`.`t1`.`a` + 10) where (`test`.`t1`.`a` > 34)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1704,6 +1807,8 @@ EXPLAIN UPDATE        t1 LEFT JOIN t2 ON t1.c1 = t2.c1 SET t2.c2 = 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	NULL	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	update `test`.`t1` left join `test`.`t2` on(multiple equal(`test`.`t1`.`c1`, `test`.`t2`.`c1`)) set `test`.`t2`.`c2` = 10 where 1
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1729,6 +1834,8 @@ EXPLAIN UPDATE        t1 LEFT JOIN t2 ON t1.c1 = t2.c1 SET t2.c2 = 10 WHERE t1.c
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	NULL	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1003	update `test`.`t1` left join `test`.`t2` on(multiple equal(`test`.`t1`.`c1`, `test`.`t2`.`c1`)) set `test`.`t2`.`c2` = 10 where (`test`.`t1`.`c3` = 10)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1763,6 +1870,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ref	IDX	IDX	5	test.t1.f1	1	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+Note	1003	update `test`.`t1` set `test`.`t1`.`f2` = (/* select#2 */ select max(`test`.`t2`.`f4`) from `test`.`t2` where (`test`.`t2`.`f3` = `test`.`t1`.`f1`))
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1789,6 +1897,8 @@ SET @a = NULL;
 EXPLAIN DELETE FROM t1 WHERE (@a:= a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	delete from `test`.`t1` where (@a:=`test`.`t1`.`a`)
 DROP TABLE t1;
 #56
 CREATE TABLE t1 (a INT);
@@ -1829,6 +1939,8 @@ EXPLAIN UPDATE        v1 SET a = 1 WHERE a > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	update (`test`.`t1` `t11` join `test`.`t1` `t12`) set `t11`.`a` = 1 where (`t11`.`a` > 0)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1855,6 +1967,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	update `test`.`t1` join `test`.`t1` `t11` join `test`.`t1` `t12` set `test`.`t11`.`a` = 1 where (`test`.`t11`.`a` = `test`.`t1`.`a`)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1886,6 +2000,8 @@ CREATE VIEW v1 (a) AS SELECT a FROM t1;
 EXPLAIN DELETE   FROM v1 WHERE a < 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	range	PRIMARY	PRIMARY	4	const	3	100.00	Using where
+Warnings:
+Note	1003	delete from (`test`.`t1`) where (`test`.`t1`.`a` < 4)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1920,6 +2036,8 @@ EXPLAIN DELETE v1 FROM t2, v1 WHERE t2.x = v1.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 1	DELETE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.x	1	100.00	NULL
+Warnings:
+Note	1003	delete `test`.`t1` from `test`.`t2` join `test`.`t1` where (`test`.`t1`.`a` = `test`.`t2`.`x`)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1953,6 +2071,8 @@ EXPLAIN DELETE v1 FROM t2, v1 WHERE t2.x = v1.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 1	DELETE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.x	1	100.00	NULL
+Warnings:
+Note	1003	delete `test`.`t1` from `test`.`t2` join `test`.`t1` where (`test`.`t1`.`a` = `test`.`t2`.`x`)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1982,6 +2102,8 @@ CREATE VIEW v1 (x) AS SELECT a FROM t1;
 EXPLAIN INSERT INTO v1 VALUES (10);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`t1` (`test`.`t1`.`a`) values (10)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -2009,6 +2131,8 @@ CREATE VIEW v1 (x) AS SELECT b FROM t2;
 EXPLAIN INSERT INTO v1 SELECT * FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	insert into `test`.`t2` (`test`.`t2`.`b`) /* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -2042,6 +2166,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	<derived3>	NULL	index_subquery	<auto_key0>	<auto_key0>	5	func	2	100.00	Using index
 3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where <in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on <auto_key0>)))
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -2074,6 +2200,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 2	DEPENDENT SUBQUERY	<derived3>	NULL	index_subquery	<auto_key0>	<auto_key0>	5	func	2	100.00	Using index
 3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
+Warnings:
+Note	1003	update `test`.`t1` join `test`.`t2` set `test`.`t1`.`a` = 10 where <in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on <auto_key0>)))
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -2105,6 +2233,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 3	DEPENDENT SUBQUERY	<derived4>	NULL	index_subquery	<auto_key0>	<auto_key0>	5	func	2	100.00	Using index
 4	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
+Warnings:
+Note	1003	update `test`.`t1` join `test`.`t2` set `test`.`t1`.`a` = 10 where <in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on <auto_key0>)))
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -2143,6 +2273,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	100.00	NULL
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 3	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	update `test`.`t3` set `test`.`t3`.`c3` = (/* select#2 */ select count(NULL) from (/* select#3 */ select NULL AS `c1` from `test`.`t1` `a11` straight_join `test`.`t2` `a21` join `test`.`t1` `a12` where multiple equal(NULL, NULL, NULL)) `d1`)
 DROP TABLE t1, t2, t3;
 #71
 CREATE TABLE t1 (c1 INT NOT NULL, c2 INT NOT NULL, INDEX i1(c1));
@@ -2152,6 +2284,8 @@ EXPLAIN INSERT INTO t2 SELECT * FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	X	NULL	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	X	100.00	NULL
+Warnings:
+Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2` from `test`.`t1`
 INSERT INTO t2 SELECT * FROM t1;
 SELECT * FROM t1 LEFT JOIN t2 ON t1.c1 = t2.c1;
 DROP TABLE t1, t2;
@@ -2177,6 +2311,8 @@ INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 EXPLAIN UPDATE t1 SET a=a+1 WHERE a>10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = (`test`.`t1`.`a` + 1) where (`test`.`t1`.`a` > 10)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -2198,6 +2334,8 @@ Handler_read_key	2
 EXPLAIN UPDATE t1 SET a=a+1 WHERE a>10 ORDER BY a+20;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where; Using filesort
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = (`test`.`t1`.`a` + 1) where (`test`.`t1`.`a` > 10) order by (`test`.`t1`.`a` + 20)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -2245,6 +2383,8 @@ DROP PROCEDURE p16;
 CALL p15();
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	delete `test`.`t1` from `test`.`t1`
 DROP PROCEDURE p15;
 CALL p14();
 DROP PROCEDURE p14;
@@ -2257,36 +2397,48 @@ DROP PROCEDURE p12;
 CALL p11();
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	update `test`.`t1` join `test`.`t2` set `test`.`t1`.`i` = 10 where multiple equal(`test`.`t1`.`i`, `test`.`t2`.`i`)
 DROP PROCEDURE p11;
 CALL p10();
 DROP PROCEDURE p10;
 CALL p9();
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	0	100.00	NULL
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`i` = 10
 DROP PROCEDURE p9;
 CALL p8();
 DROP PROCEDURE p8;
 CALL p7();
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	REPLACE	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	replace into `test`.`t1` /* select#1 */ select 1 AS `1` from dual
 DROP PROCEDURE p7;
 CALL p6();
 DROP PROCEDURE p6;
 CALL p5();
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	REPLACE	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	replace into `test`.`t1` values (1)
 DROP PROCEDURE p5;
 CALL p4();
 DROP PROCEDURE p4;
 CALL p3();
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`t1` /* select#1 */ select 1 AS `1` from dual
 DROP PROCEDURE p3;
 CALL p2();
 DROP PROCEDURE p2;
 CALL p1();
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`t1` values (1)
 DROP PROCEDURE p1;
 DROP TABLE t1, t2;
 #

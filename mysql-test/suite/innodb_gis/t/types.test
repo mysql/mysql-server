@@ -49,6 +49,7 @@ INSERT INTO t_wl6455 VALUES(9, ST_GeomFromText(@gc));
 SELECT ST_AsText(g) FROM t_wl6455;
 
 # Test create prefix index.
+--error ER_WRONG_SUB_KEY
 CREATE INDEX i_p ON t_wl6455 (g(10));
 
 # Select on prefix index.

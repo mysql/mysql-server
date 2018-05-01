@@ -477,23 +477,24 @@ PRIMARY KEY (pk)
 );
 INSERT INTO bb (col_varchar_nokey) VALUES ('j'),('h');
 EXPLAIN UPDATE
-d AS OUTR1, b AS OUTR2
-SET OUTR1.col_varchar_nokey = NULL
+d AS outr1, b AS outr2
+SET outr1.col_varchar_nokey = NULL
 WHERE
 ( 't', 'b' )  IN
 (
 SELECT
-INNR1.col_varchar_nokey AS x,
-INNR1.col_varchar_key AS y
-FROM bb AS INNR1
-WHERE OUTR1.pk = 1
+innr1.col_varchar_nokey AS x,
+innr1.col_varchar_key AS y
+FROM bb AS innr1
+WHERE outr1.pk = 1
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	OUTR1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
-1	SIMPLE	INNR1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(OUTR1)
-1	SIMPLE	OUTR2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
+1	UPDATE	outr1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+1	SIMPLE	innr1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(outr1)
+1	SIMPLE	outr2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
 Warnings:
-Note	1276	Field or reference 'test.OUTR1.pk' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.outr1.pk' of SELECT #2 was resolved in SELECT #1
+Note	1003	update `test`.`d` `outr1` semi join (`test`.`bb` `innr1`) join `test`.`b` `outr2` set `test`.`outr1`.`col_varchar_nokey` = NULL where ((`test`.`innr1`.`col_varchar_key` = 'b') and (`test`.`innr1`.`col_varchar_nokey` = 't'))
 DROP TABLE IF EXISTS b,bb,d;
 #
 # Bug#21216067 ASSERTION FAILED ROW_UPD_SEC_INDEX_ENTRY (INNOBASE/ROW/ROW0UPD.CC:2103)
@@ -520,87 +521,95 @@ gc
 2
 DROP TABLE t;
 # stored
-CREATE TABLE C (
+CREATE TABLE c (
 col_varchar_nokey VARCHAR(1),
 col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
 (CONCAT(col_varchar_nokey, col_varchar_nokey)) STORED
 );
-INSERT INTO C (col_varchar_nokey) VALUES ('c');
-EXPLAIN UPDATE C AS OUTR1, C AS OUTR2
-SET OUTR1.`col_varchar_nokey` = 'f',
-OUTR2.`col_varchar_nokey` = "a";
+INSERT INTO c (col_varchar_nokey) VALUES ('c');
+EXPLAIN UPDATE c AS outr1, c AS outr2
+SET outr1.`col_varchar_nokey` = 'f',
+outr2.`col_varchar_nokey` = "a";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	OUTR1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	UPDATE	OUTR2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-UPDATE C AS OUTR1, C AS OUTR2
-SET OUTR1.`col_varchar_nokey` = 'f',
-OUTR2.`col_varchar_nokey` = "a";
-SELECT * from C;
+1	UPDATE	outr1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	UPDATE	outr2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	update `test`.`c` `outr1` join `test`.`c` `outr2` set `test`.`outr1`.`col_varchar_nokey` = 'f',`test`.`outr2`.`col_varchar_nokey` = 'a'
+UPDATE c AS outr1, c AS outr2
+SET outr1.`col_varchar_nokey` = 'f',
+outr2.`col_varchar_nokey` = "a";
+SELECT * from c;
 col_varchar_nokey	col_varchar_key
 a	aa
-DROP TABLE C;
+DROP TABLE c;
 # stored, indexed
-CREATE TABLE C (
+CREATE TABLE c (
 col_varchar_nokey VARCHAR(1),
 col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
 (CONCAT(col_varchar_nokey, col_varchar_nokey)) STORED,
 KEY (col_varchar_key, col_varchar_nokey)
 );
-INSERT INTO C (col_varchar_nokey) VALUES ('c');
-EXPLAIN UPDATE C AS OUTR1, C AS OUTR2
-SET OUTR1.`col_varchar_nokey` = 'f',
-OUTR2.`col_varchar_nokey` = "a";
+INSERT INTO c (col_varchar_nokey) VALUES ('c');
+EXPLAIN UPDATE c AS outr1, c AS outr2
+SET outr1.`col_varchar_nokey` = 'f',
+outr2.`col_varchar_nokey` = "a";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	OUTR1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	UPDATE	OUTR2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-UPDATE C AS OUTR1, C AS OUTR2
-SET OUTR1.`col_varchar_nokey` = 'f',
-OUTR2.`col_varchar_nokey` = "a";
-SELECT * from C;
+1	UPDATE	outr1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	UPDATE	outr2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	update `test`.`c` `outr1` join `test`.`c` `outr2` set `test`.`outr1`.`col_varchar_nokey` = 'f',`test`.`outr2`.`col_varchar_nokey` = 'a'
+UPDATE c AS outr1, c AS outr2
+SET outr1.`col_varchar_nokey` = 'f',
+outr2.`col_varchar_nokey` = "a";
+SELECT * from c;
 col_varchar_nokey	col_varchar_key
 a	aa
-DROP TABLE C;
+DROP TABLE c;
 # virtual
-CREATE TABLE C (
+CREATE TABLE c (
 col_varchar_nokey VARCHAR(1),
 col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
 (CONCAT(col_varchar_nokey, col_varchar_nokey)) VIRTUAL
 );
-INSERT INTO C (col_varchar_nokey) VALUES ('c');
-EXPLAIN UPDATE C AS OUTR1, C AS OUTR2
-SET OUTR1.`col_varchar_nokey` = 'f',
-OUTR2.`col_varchar_nokey` = "a";
+INSERT INTO c (col_varchar_nokey) VALUES ('c');
+EXPLAIN UPDATE c AS outr1, c AS outr2
+SET outr1.`col_varchar_nokey` = 'f',
+outr2.`col_varchar_nokey` = "a";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	OUTR1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	UPDATE	OUTR2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-UPDATE C AS OUTR1, C AS OUTR2
-SET OUTR1.`col_varchar_nokey` = 'f',
-OUTR2.`col_varchar_nokey` = "a";
-SELECT * from C;
+1	UPDATE	outr1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	UPDATE	outr2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	update `test`.`c` `outr1` join `test`.`c` `outr2` set `test`.`outr1`.`col_varchar_nokey` = 'f',`test`.`outr2`.`col_varchar_nokey` = 'a'
+UPDATE c AS outr1, c AS outr2
+SET outr1.`col_varchar_nokey` = 'f',
+outr2.`col_varchar_nokey` = "a";
+SELECT * from c;
 col_varchar_nokey	col_varchar_key
 a	aa
-DROP TABLE C;
+DROP TABLE c;
 # virtual, indexed
-CREATE TABLE C (
+CREATE TABLE c (
 col_varchar_nokey VARCHAR(1),
 col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
 (CONCAT(col_varchar_nokey, col_varchar_nokey)) VIRTUAL,
 KEY (col_varchar_key, col_varchar_nokey)
 );
-INSERT INTO C (col_varchar_nokey) VALUES ('c');
-EXPLAIN UPDATE C AS OUTR1, C AS OUTR2
-SET OUTR1.`col_varchar_nokey` = 'f',
-OUTR2.`col_varchar_nokey` = "a";
+INSERT INTO c (col_varchar_nokey) VALUES ('c');
+EXPLAIN UPDATE c AS outr1, c AS outr2
+SET outr1.`col_varchar_nokey` = 'f',
+outr2.`col_varchar_nokey` = "a";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	OUTR1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	UPDATE	OUTR2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-UPDATE C AS OUTR1, C AS OUTR2
-SET OUTR1.`col_varchar_nokey` = 'f',
-OUTR2.`col_varchar_nokey` = "a";
-SELECT * from C;
+1	UPDATE	outr1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	UPDATE	outr2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	update `test`.`c` `outr1` join `test`.`c` `outr2` set `test`.`outr1`.`col_varchar_nokey` = 'f',`test`.`outr2`.`col_varchar_nokey` = 'a'
+UPDATE c AS outr1, c AS outr2
+SET outr1.`col_varchar_nokey` = 'f',
+outr2.`col_varchar_nokey` = "a";
+SELECT * from c;
 col_varchar_nokey	col_varchar_key
 a	aa
-DROP TABLE C;
+DROP TABLE c;
 #
 # Bug #21530366 CRASH/ASSERTION, CORRUPTION WITH INDEXES + 
 #               VIRTUAL COLUMNS, BLOB

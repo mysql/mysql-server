@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -21,7 +21,8 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <gtest/gtest.h>
-#include <stddef.h>
+#include <cstddef>
+#include <thread>
 
 #include "plugin/x/ngs/include/ngs/thread.h"
 
@@ -60,17 +61,8 @@ class Ngs_sync_variable : public ::testing::Test {
     m_sut.set(EXPECTED_VALUE_SET);
   }
 
-  void run_thread_set() { thread_create(0, &m_thr, &start_routine_set, this); }
-
-  void run_thread_set_and_expect() {
-    thread_create(0, &m_thr, &start_routine_set_and_expect, this);
-  }
-
-  void join_thread() { thread_join(&m_thr, NULL); }
-
   Sync_variable<int> m_sut;
 
-  Thread_t m_thr;
   volatile bool m_thread_ended;
 };
 
@@ -134,27 +126,24 @@ TEST_F(Ngs_sync_variable,
 
 TEST_F(Ngs_sync_variable,
        wait_returnsDelayed_whenThreadChangesValueAndItsExpected) {
-  run_thread_set();
+  std::thread t(&Ngs_sync_variable::start_routine_set, this);
   m_sut.wait_for(EXPECTED_VALUE_SET);
+  t.join();
 
   ASSERT_TRUE(m_thread_ended);  // Verify that the exit was triggerd by thread
-
-  join_thread();
 }
 
 TEST_F(
     Ngs_sync_variable,
     wait_returnsDelayed_whenThreadChangesValueAndItsInArrayOfExpectedValues) {
-  run_thread_set_and_expect();
+  std::thread t(&Ngs_sync_variable::start_routine_set_and_expect, this);
   int VALUES[] = {EXPECTED_VALUE_SET};
   m_sut.wait_for_and_set(VALUES, EXPECTED_VALUE_SET_EXPECT);
+  t.join();
 
   ASSERT_TRUE(m_thread_ended);  // Verify that the exit was triggerd by thread
   ASSERT_TRUE(m_sut.is(EXPECTED_VALUE_SET_EXPECT));
-
-  join_thread();
 }
 
 }  // namespace test
-
 }  // namespace ngs

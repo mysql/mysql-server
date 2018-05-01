@@ -5,7 +5,7 @@
 # Run all default suites without specifying any replication mode. This will run
 # rpl tests in all 3 modes row, stmt and mixed
 # Run with --big-test option so that longer tests are also run
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90  --parallel=auto --experimental=collections/default.experimental --comment=normal-big  --vardir=var-normal-big  --report-features --unit-tests-report --no-skip
+perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90  --parallel=auto --experimental=collections/default.experimental --comment=all-default-big  --vardir=var-all-default-big  --report-features --unit-tests-report --no-skip
 
 # Run all default suites with ps-protocol
 perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=ps --vardir=var-ps --ps-protocol --no-skip
@@ -16,7 +16,7 @@ perl mysql-test-run.pl --timer  --force --parallel=auto --comment=innodb_4k_size
 
 
 # Run default suites with innodb_undo_tablespace set to > 0
-perl mysql-test-run.pl --timer --force --parallel=auto --comment=innodb_undo-2-debug  --vardir=innodb-undo-2-debug --experimental=collections/default.experimental --mysqld=--innodb_undo_tablespaces=2 --bootstrap --innodb_undo_tablespaces=2 --no-skip
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=innodb_undo-2  --vardir=innodb-undo-2 --experimental=collections/default.experimental --mysqld=--innodb_undo_tablespaces=2 --bootstrap --innodb_undo_tablespaces=2 --no-skip
 # Run innodb suites with innodb_undo_table_spaces >0  and different pagesizes
 perl mysql-test-run.pl --timer  --force --parallel=auto --comment=innodb_undo_5_64k --vardir=var-innodb-undo-5-64k --experimental=collections/default.experimental --suite=innodb_undo,innodb_zip,innodb --mysqld=--innodb_undo_tablespaces=5 --mysqld=--innodb-page-size=64k --no-skip --max-test-fail=30
 
@@ -39,4 +39,4 @@ perl mysql-test-run.pl --timer --force  --parallel=auto --comment=eits-tests-inn
 perl mysql-test-run.pl --timer --force  --comment=memcached --vardir=var-memcached --experimental=collections/default.experimental --parallel=auto --suite=memcached --no-skip
 
 # Group Replication
-perl mysql-test-run.pl --timer --debug-server --force --parallel=6 --comment=group_replication-debug --vardir=var-group_replication-debug --suite=group_replication --experimental=collections/default.experimental
+perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication --vardir=var-group_replication --suite=group_replication --experimental=collections/default.experimental

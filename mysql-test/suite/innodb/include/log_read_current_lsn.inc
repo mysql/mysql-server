@@ -1,0 +1,1 @@
+let $current_lsn = `SELECT COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME = 'log_lsn_current';`;

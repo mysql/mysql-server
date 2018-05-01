@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlbinlog\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 02/07/2018
+.\"      Date: 04/04/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLBINLOG\FR" "1" "02/07/2018" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLBINLOG\FR" "1" "04/04/2018" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -296,35 +296,40 @@ On a computer having multiple network interfaces, use this option to select whic
 \fB\-\-binlog\-row\-event\-max\-size=\fR\fB\fIN\fR\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-binlog\-row\-event\-max\-size=#
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--binlog-row-event-max-size=#
 T}
 T{
-\fBPermitted Values\fR (64\-bit platforms)
-T}:T{
-\fBType\fR
+\fBType\fR (64-bit platforms)
 T}:T{
 numeric
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault\fR (64-bit platforms)
 T}:T{
 4294967040
 T}
-:T{
-\fBMinimum\fR
+T{
+\fBMinimum\fR (64-bit platforms)
 T}:T{
 256
 T}
-:T{
-\fBMaximum\fR
+T{
+\fBMaximum\fR (64-bit platforms)
 T}:T{
 18446744073709547520
 T}
@@ -344,7 +349,7 @@ Specify the maximum size of a row\-based binary log event, in bytes\&. Rows are 
 \fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
 The directory where character sets are installed\&. See
-Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1903,36 +1908,36 @@ T{
 T}:T{
 UNKNOWN_EVENT
 T}:T{
-This event should never be present in the log\&.
+This event should never be present in the log.
 T}
 T{
 01
 T}:T{
 START_EVENT_V3
 T}:T{
-This indicates the start of a log file written by MySQL 4 or earlier\&.
+This indicates the start of a log file written by MySQL 4 or earlier.
 T}
 T{
 02
 T}:T{
 QUERY_EVENT
 T}:T{
-The most common type of events\&. These contain statements executed on the
-                    master\&.
+The most common type of events. These contain statements executed on the
+                  master.
 T}
 T{
 03
 T}:T{
 STOP_EVENT
 T}:T{
-Indicates that master has stopped\&.
+Indicates that master has stopped.
 T}
 T{
 04
 T}:T{
 ROTATE_EVENT
 T}:T{
-Written when the master switches to a new log file\&.
+Written when the master switches to a new log file.
 T}
 T{
 05
@@ -1940,8 +1945,8 @@ T}:T{
 INTVAR_EVENT
 T}:T{
 Used for AUTO_INCREMENT values or when the
-                    LAST_INSERT_ID()
-                    function is used in the statement\&.
+                  LAST_INSERT_ID()
+                  function is used in the statement.
 T}
 T{
 06
@@ -1949,14 +1954,14 @@ T}:T{
 LOAD_EVENT
 T}:T{
 Used for LOAD DATA
-                    INFILE in MySQL 3\&.23\&.
+                  INFILE in MySQL 3.23.
 T}
 T{
 07
 T}:T{
 SLAVE_EVENT
 T}:T{
-Reserved for future use\&.
+Reserved for future use.
 T}
 T{
 08
@@ -1964,9 +1969,9 @@ T}:T{
 CREATE_FILE_EVENT
 T}:T{
 Used for LOAD DATA
-                    INFILE statements\&. This indicates the
-                    start of execution of such a statement\&. A temporary
-                    file is created on the slave\&. Used in MySQL 4 only\&.
+                  INFILE statements. This indicates the start
+                  of execution of such a statement. A temporary file is
+                  created on the slave. Used in MySQL 4 only.
 T}
 T{
 09
@@ -1974,9 +1979,9 @@ T}:T{
 APPEND_BLOCK_EVENT
 T}:T{
 Contains data for use in a
-                    LOAD DATA
-                    INFILE statement\&. The data is stored in
-                    the temporary file on the slave\&.
+                  LOAD DATA
+                  INFILE statement. The data is stored in the
+                  temporary file on the slave.
 T}
 T{
 0a
@@ -1984,9 +1989,9 @@ T}:T{
 EXEC_LOAD_EVENT
 T}:T{
 Used for LOAD DATA
-                    INFILE statements\&. The contents of the
-                    temporary file is stored in the table on the slave\&.
-                    Used in MySQL 4 only\&.
+                  INFILE statements. The contents of the
+                  temporary file is stored in the table on the slave.
+                  Used in MySQL 4 only.
 T}
 T{
 0b
@@ -1994,8 +1999,8 @@ T}:T{
 DELETE_FILE_EVENT
 T}:T{
 Rollback of a LOAD DATA
-                    INFILE statement\&. The temporary file
-                    should be deleted on the slave\&.
+                  INFILE statement. The temporary file should
+                  be deleted on the slave.
 T}
 T{
 0c
@@ -2003,7 +2008,7 @@ T}:T{
 NEW_LOAD_EVENT
 T}:T{
 Used for LOAD DATA
-                    INFILE in MySQL 4 and earlier\&.
+                  INFILE in MySQL 4 and earlier.
 T}
 T{
 0d
@@ -2011,29 +2016,29 @@ T}:T{
 RAND_EVENT
 T}:T{
 Used to send information about random values if the
-                    RAND() function is
-                    used in the statement\&.
+                  RAND() function is used
+                  in the statement.
 T}
 T{
 0e
 T}:T{
 USER_VAR_EVENT
 T}:T{
-Used to replicate user variables\&.
+Used to replicate user variables.
 T}
 T{
 0f
 T}:T{
 FORMAT_DESCRIPTION_EVENT
 T}:T{
-This indicates the start of a log file written by MySQL 5 or later\&.
+This indicates the start of a log file written by MySQL 5 or later.
 T}
 T{
 10
 T}:T{
 XID_EVENT
 T}:T{
-Event indicating commit of an XA transaction\&.
+Event indicating commit of an XA transaction.
 T}
 T{
 11
@@ -2041,7 +2046,7 @@ T}:T{
 BEGIN_LOAD_QUERY_EVENT
 T}:T{
 Used for LOAD DATA
-                    INFILE statements in MySQL 5 and later\&.
+                  INFILE statements in MySQL 5 and later.
 T}
 T{
 12
@@ -2049,69 +2054,69 @@ T}:T{
 EXECUTE_LOAD_QUERY_EVENT
 T}:T{
 Used for LOAD DATA
-                    INFILE statements in MySQL 5 and later\&.
+                  INFILE statements in MySQL 5 and later.
 T}
 T{
 13
 T}:T{
 TABLE_MAP_EVENT
 T}:T{
-Information about a table definition\&. Used in MySQL 5\&.1\&.5 and later\&.
+Information about a table definition. Used in MySQL 5.1.5 and later.
 T}
 T{
 14
 T}:T{
 PRE_GA_WRITE_ROWS_EVENT
 T}:T{
-Row data for a single table that should be created\&. Used in MySQL 5\&.1\&.5
-                    to 5\&.1\&.17\&.
+Row data for a single table that should be created. Used in MySQL 5.1.5
+                  to 5.1.17.
 T}
 T{
 15
 T}:T{
 PRE_GA_UPDATE_ROWS_EVENT
 T}:T{
-Row data for a single table that needs to be updated\&. Used in MySQL
-                    5\&.1\&.5 to 5\&.1\&.17\&.
+Row data for a single table that needs to be updated. Used in MySQL
+                  5.1.5 to 5.1.17.
 T}
 T{
 16
 T}:T{
 PRE_GA_DELETE_ROWS_EVENT
 T}:T{
-Row data for a single table that should be deleted\&. Used in MySQL 5\&.1\&.5
-                    to 5\&.1\&.17\&.
+Row data for a single table that should be deleted. Used in MySQL 5.1.5
+                  to 5.1.17.
 T}
 T{
 17
 T}:T{
 WRITE_ROWS_EVENT
 T}:T{
-Row data for a single table that should be created\&. Used in MySQL 5\&.1\&.18
-                    and later\&.
+Row data for a single table that should be created. Used in MySQL 5.1.18
+                  and later.
 T}
 T{
 18
 T}:T{
 UPDATE_ROWS_EVENT
 T}:T{
-Row data for a single table that needs to be updated\&. Used in MySQL
-                    5\&.1\&.18 and later\&.
+Row data for a single table that needs to be updated. Used in MySQL
+                  5.1.18 and later.
 T}
 T{
 19
 T}:T{
 DELETE_ROWS_EVENT
 T}:T{
-Row data for a single table that should be deleted\&. Used in MySQL 5\&.1\&.18
-                    and later\&.
+Row data for a single table that should be deleted. Used in MySQL 5.1.18
+                  and later.
 T}
 T{
 1a
 T}:T{
 INCIDENT_EVENT
 T}:T{
-Something out of the ordinary happened\&. Added in MySQL 5\&.1\&.18\&.
+Something out of the ordinary happened. Added in MySQL 5.1.18.
 T}
 .TE
 .sp 1
@@ -2179,21 +2184,20 @@ T{
 T}:T{
 LOG_EVENT_BINLOG_IN_USE_F
 T}:T{
-Log file correctly closed\&. (Used only in
-                    FORMAT_DESCRIPTION_EVENT\&.) If
-                    this flag is set (if the flags are, for example,
-                    \*(Aq01 00\*(Aq) in a
-                    FORMAT_DESCRIPTION_EVENT, the log
-                    file has not been properly closed\&. Most probably
-                    this is because of a master crash (for example, due
-                    to power failure)\&.
+Log file correctly closed. (Used only in
+                  FORMAT_DESCRIPTION_EVENT.) If this
+                  flag is set (if the flags are, for example,
+                  '01 00') in a
+                  FORMAT_DESCRIPTION_EVENT, the log
+                  file has not been properly closed. Most probably this
+                  is because of a master crash (for example, due to
+                  power failure).
 T}
 T{
 02
 T}:T{
-\ \&
 T}:T{
-Reserved for future use\&.
+Reserved for future use.
 T}
 T{
 04
@@ -2201,8 +2205,8 @@ T}:T{
 LOG_EVENT_THREAD_SPECIFIC_F
 T}:T{
 Set if the event is dependent on the connection it was executed in (for
-                    example, \*(Aq04 00\*(Aq), for example,
-                    if the event uses temporary tables\&.
+                  example, '04 00'), for example, if
+                  the event uses temporary tables.
 T}
 T{
 08
@@ -2210,7 +2214,7 @@ T}:T{
 LOG_EVENT_SUPPRESS_USE_F
 T}:T{
 Set in some circumstances when the event is not dependent on the default
-                    database\&.
+                  database.
 T}
 .TE
 .sp 1
@@ -2825,7 +2829,7 @@ value consists only of a directory name, the value must end with the pathname se
 allbox tab(:);
 lB lB.
 T{
-\fB\-\-result\-file\fR Option
+\fB--result-file\fR Option
 T}:T{
 Output File Names
 T}
@@ -2834,19 +2838,19 @@ l l
 l l
 l l.
 T{
-\fB\-\-result\-file=x\fR
+\fB--result-file=x\fR
 T}:T{
-xbinlog\&.000999 and up
+xbinlog.000999 and up
 T}
 T{
-\fB\-\-result\-file=/tmp/\fR
+\fB--result-file=/tmp/\fR
 T}:T{
-/tmp/binlog\&.000999 and up
+/tmp/binlog.000999 and up
 T}
 T{
-\fB\-\-result\-file=/tmp/x\fR
+\fB--result-file=/tmp/x\fR
 T}:T{
-/tmp/xbinlog\&.000999 and up
+/tmp/xbinlog.000999 and up
 T}
 .TE
 .sp 1

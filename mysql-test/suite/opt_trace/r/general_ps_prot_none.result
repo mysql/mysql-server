@@ -5681,7 +5681,7 @@ update t6 set d=5 where d is NULL	{
       "update_preparation": {
         "select#": 1,
         "steps": [
-          "/* select#1 */ select `t6`.`d` AS `d` from `t6` where isnull(`t6`.`d`)"
+          "update `t6` set `t6`.`d` = 5 where isnull(`t6`.`d`)"
         ] /* steps */
       } /* update_preparation */
     },
@@ -5778,7 +5778,7 @@ delete from t6 where d=5	{
       "delete_preparation": {
         "select#": 1,
         "steps": [
-          "/* select#1 */ select  from `t6` where (`t6`.`d` = 5)"
+          "delete from `t6` where (`t6`.`d` = 5)"
         ] /* steps */
       } /* delete_preparation */
     },
@@ -5879,7 +5879,7 @@ insert into t6 select * from t6 where d>7	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select sql_buffer_result `t6`.`d` AS `d` from `t6` where (`t6`.`d` > 7)"
+            "expanded_query": "insert into `t6` /* select#1 */ select sql_buffer_result `t6`.`d` AS `d` from `t6` where (`t6`.`d` > 7)"
           }
         ] /* steps */
       } /* join_preparation */
@@ -6085,7 +6085,7 @@ update t5, t6 set t6.d=t6.d+t5.c+4-t5.c-4 where d>7000	{
       "update_preparation": {
         "select#": 1,
         "steps": [
-          "/* select#1 */ select `t6`.`d` AS `d` from `t5` join `t6` where (`t6`.`d` > 7000)"
+          "update `t5` join `t6` set `t6`.`d` = ((((`t6`.`d` + `t5`.`c`) + 4) - `t5`.`c`) - 4) where (`t6`.`d` > 7000)"
         ] /* steps */
       } /* update_preparation */
     },
@@ -6294,7 +6294,7 @@ delete t6 from t5, t6 where d>7000	{
       "delete_preparation": {
         "select#": 1,
         "steps": [
-          "/* select#1 */ select  from `t5` join `t6` where (`t6`.`d` > 7000)"
+          "delete `t6` from `t5` join `t6` where (`t6`.`d` > 7000)"
         ] /* steps */
       } /* delete_preparation */
     },
@@ -7030,7 +7030,7 @@ delete from t1 where id="z"	{
       "delete_preparation": {
         "select#": 1,
         "steps": [
-          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+          "delete from `t1` where (`t1`.`id` = 'z')"
         ] /* steps */
       } /* delete_preparation */
     },
@@ -7189,7 +7189,7 @@ delete from t1 where id="z"	{
       "delete_preparation": {
         "select#": 1,
         "steps": [
-          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+          "delete from `t1` where (`t1`.`id` = 'z')"
         ] /* steps */
       } /* delete_preparation */
     },
@@ -7348,7 +7348,7 @@ delete from t1 where id="z"	{
       "delete_preparation": {
         "select#": 1,
         "steps": [
-          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+          "delete from `t1` where (`t1`.`id` = 'z')"
         ] /* steps */
       } /* delete_preparation */
     },
@@ -7507,7 +7507,7 @@ delete from t1 where id="z"	{
       "delete_preparation": {
         "select#": 1,
         "steps": [
-          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+          "delete from `t1` where (`t1`.`id` = 'z')"
         ] /* steps */
       } /* delete_preparation */
     },
@@ -8019,7 +8019,7 @@ delete from t1 where id="z"	{
       "delete_preparation": {
         "select#": 1,
         "steps": [
-          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+          "delete from `t1` where (`t1`.`id` = 'z')"
         ] /* steps */
       } /* delete_preparation */
     },
@@ -8178,7 +8178,7 @@ delete from t1 where id="z"	{
       "delete_preparation": {
         "select#": 1,
         "steps": [
-          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+          "delete from `t1` where (`t1`.`id` = 'z')"
         ] /* steps */
       } /* delete_preparation */
     },
@@ -8337,7 +8337,7 @@ delete from t1 where id="z"	{
       "delete_preparation": {
         "select#": 1,
         "steps": [
-          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+          "delete from `t1` where (`t1`.`id` = 'z')"
         ] /* steps */
       } /* delete_preparation */
     },
@@ -8496,7 +8496,7 @@ delete from t1 where id="z"	{
       "delete_preparation": {
         "select#": 1,
         "steps": [
-          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+          "delete from `t1` where (`t1`.`id` = 'z')"
         ] /* steps */
       } /* delete_preparation */
     },
@@ -8771,7 +8771,7 @@ insert into t2 select d,100,200 from t6 where d is not null	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `t6`.`d` AS `d`,100 AS `100`,200 AS `200` from `t6` where (`t6`.`d` is not null)"
+            "expanded_query": "insert into `t2` /* select#1 */ select `t6`.`d` AS `d`,100 AS `100`,200 AS `200` from `t6` where (`t6`.`d` is not null)"
           }
         ] /* steps */
       } /* join_preparation */
@@ -8785,7 +8785,7 @@ insert into t2 select d,100,200 from t6 where d is not null	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `t6`.`d` AS `d`,100 AS `100`,200 AS `200` from `t6` where (`t6`.`d` is not null)"
+            "expanded_query": "insert into `t2` /* select#1 */ select `t6`.`d` AS `d`,100 AS `100`,200 AS `200` from `t6` where (`t6`.`d` is not null)"
           }
         ] /* steps */
       } /* join_preparation */
@@ -8962,7 +8962,7 @@ delete from t1 where id="z"	{
       "delete_preparation": {
         "select#": 1,
         "steps": [
-          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+          "delete from `t1` where (`t1`.`id` = 'z')"
         ] /* steps */
       } /* delete_preparation */
     },
@@ -9125,7 +9125,7 @@ delete from t1 where id="z"	{
       "delete_preparation": {
         "select#": 1,
         "steps": [
-          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+          "delete from `t1` where (`t1`.`id` = 'z')"
         ] /* steps */
       } /* delete_preparation */
     },
@@ -9288,7 +9288,7 @@ delete from t1 where id="z"	{
       "delete_preparation": {
         "select#": 1,
         "steps": [
-          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+          "delete from `t1` where (`t1`.`id` = 'z')"
         ] /* steps */
       } /* delete_preparation */
     },
@@ -9451,7 +9451,7 @@ delete from t1 where id="z"	{
       "delete_preparation": {
         "select#": 1,
         "steps": [
-          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+          "delete from `t1` where (`t1`.`id` = 'z')"
         ] /* steps */
       } /* delete_preparation */
     },
@@ -10109,7 +10109,7 @@ delete from t1 where id="z"	{
       "delete_preparation": {
         "select#": 1,
         "steps": [
-          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+          "delete from `t1` where (`t1`.`id` = 'z')"
         ] /* steps */
       } /* delete_preparation */
     },
@@ -10268,7 +10268,7 @@ delete from t1 where id="z"	{
       "delete_preparation": {
         "select#": 1,
         "steps": [
-          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+          "delete from `t1` where (`t1`.`id` = 'z')"
         ] /* steps */
       } /* delete_preparation */
     },
@@ -10427,7 +10427,7 @@ delete from t1 where id="z"	{
       "delete_preparation": {
         "select#": 1,
         "steps": [
-          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+          "delete from `t1` where (`t1`.`id` = 'z')"
         ] /* steps */
       } /* delete_preparation */
     },
@@ -10586,7 +10586,7 @@ delete from t1 where id="z"	{
       "delete_preparation": {
         "select#": 1,
         "steps": [
-          "/* select#1 */ select  from `t1` where (`t1`.`id` = 'z')"
+          "delete from `t1` where (`t1`.`id` = 'z')"
         ] /* steps */
       } /* delete_preparation */
     },
@@ -10914,7 +10914,7 @@ delete from v1 where data=100	{
       "delete_preparation": {
         "select#": 1,
         "steps": [
-          "/* select#1 */ select  from `t1` where ((`t1`.`data` = 100) and (`t1`.`id` < 'c'))"
+          "delete from (`t1`) where ((`t1`.`data` = 100) and (`t1`.`id` < 'c'))"
         ] /* steps */
       } /* delete_preparation */
     },

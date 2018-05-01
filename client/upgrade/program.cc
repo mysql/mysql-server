@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -244,8 +244,8 @@ class Program : public Base::Abstract_connection_program {
       return this->print_error(
           EXIT_UPGRADING_QUERIES_ERROR,
           "The mysql.session exists but is not correctly configured."
-          " The mysql.session needs SELECT privileges in the"
-          " performance_schema database and the mysql.db table and also"
+          " On previous versions the mysql.session must have SELECT privileges"
+          " in the performance_schema database and the mysql.db table and also"
           " SUPER privileges.");
     }
 

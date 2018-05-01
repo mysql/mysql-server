@@ -252,7 +252,7 @@ int JOIN::optimize() {
   if (alloc_indirection_slices()) DBUG_RETURN(1);
 
   // The base ref items from query block are assigned as JOIN's ref items
-  ref_items[REF_SLICE_BASE] = select_lex->base_ref_items;
+  ref_items[REF_SLICE_ACTIVE] = select_lex->base_ref_items;
 
   /* dump_TABLE_LIST_graph(select_lex, select_lex->leaf_tables); */
   /*
@@ -431,22 +431,7 @@ int JOIN::optimize() {
 
   if (zero_result_cause) goto setup_subq_exit;
 
-  if (rollup.state != ROLLUP::STATE_NONE) {
-    if (rollup_process_const_fields()) {
-      DBUG_PRINT("error", ("Error: rollup_process_fields() failed"));
-      DBUG_RETURN(1);
-    }
-    /*
-      Fields may have been replaced by Item_func_rollup_const, so
-      recalculate the number of fields and functions for this query block.
-    */
-
-    // JOIN::optimize_rollup() may set quick_group=0, and we must not undo that.
-    const uint save_quick_group = tmp_table_param.quick_group;
-
-    count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
-    tmp_table_param.quick_group = save_quick_group;
-  } else {
+  if (rollup.state == ROLLUP::STATE_NONE) {
     /* Remove distinct if only const tables */
     select_distinct &= !plan_is_const();
   }
@@ -569,6 +554,23 @@ int JOIN::optimize() {
     }
   }
 
+  if (rollup.state != ROLLUP::STATE_NONE) {
+    if (rollup_process_const_fields()) {
+      DBUG_PRINT("error", ("Error: rollup_process_fields() failed"));
+      DBUG_RETURN(1);
+    }
+    /*
+      Fields may have been replaced by Item_func_rollup_const, so
+      recalculate the number of fields and functions for this query block.
+    */
+
+    // JOIN::optimize_rollup() may set quick_group=0, and we must not undo that.
+    const uint save_quick_group = tmp_table_param.quick_group;
+
+    count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
+    tmp_table_param.quick_group = save_quick_group;
+  }
+
   /* Cache constant expressions in WHERE, HAVING, ON clauses. */
   if (!plan_is_const() && cache_const_exprs()) DBUG_RETURN(1);
 
@@ -636,8 +638,7 @@ int JOIN::optimize() {
     Check if we need to create a temporary table prior to any windowing.
 
     (1) If there is ROLLUP, which happens before DISTINCT, windowing and ORDER
-    BY, any of those clauses needs the result of ROLLUP in a tmp table. We
-    needn't test ORDER BY in the condition as it's forbidden with ROLLUP.
+    BY, any of those clauses needs the result of ROLLUP in a tmp table.
 
     Rows which ROLLUP adds to the result are visible only to DISTINCT,
     windowing and ORDER BY which we handled above. So for the rest of
@@ -675,7 +676,7 @@ int JOIN::optimize() {
   */
 
   if (rollup.state != ROLLUP::STATE_NONE &&  // (1)
-      (select_distinct || has_windows))
+      (select_distinct || has_windows || order))
     need_tmp_before_win = true;
 
   if (!plan_is_const())  // (2)
@@ -839,7 +840,9 @@ bool substitute_gc(THD *thd, SELECT_LEX *select_lex, Item *where_cond,
     if (tl->table->s->keys == 0) continue;
     for (uint i = 0; i < tl->table->s->fields; i++) {
       Field *fld = tl->table->field[i];
-      if (fld->is_gcol() && !fld->part_of_key.is_clear_all() &&
+      if (fld->is_gcol() &&
+          !(fld->part_of_key.is_clear_all() &&
+            fld->part_of_prefixkey.is_clear_all()) &&
           fld->gcol_info->expr_item->can_be_substituted_for_gc()) {
         // Don't check allowed keys here as conditions/group/order use
         // different keymaps for that.
@@ -1096,7 +1099,9 @@ bool JOIN::optimize_distinct_group_order() {
   {
     ORDER *org_order = order;
     order = ORDER_with_src(
-        remove_const(order, where_cond, 1, &simple_order, false), order.src);
+        remove_const(order, where_cond, rollup.state == ROLLUP::STATE_NONE,
+                     &simple_order, false),
+        order.src);
     if (thd->is_error()) {
       error = 1;
       DBUG_PRINT("error", ("Error from remove_const"));
@@ -1207,7 +1212,7 @@ bool JOIN::optimize_distinct_group_order() {
     }
     ORDER *o;
     bool all_order_fields_used;
-    if ((o = create_distinct_group(thd, ref_items[REF_SLICE_BASE], order,
+    if ((o = create_distinct_group(thd, ref_items[REF_SLICE_ACTIVE], order,
                                    fields_list, &all_order_fields_used))) {
       group_list = ORDER_with_src(o, ESC_DISTINCT);
       const bool skip_group =
@@ -1265,11 +1270,12 @@ bool JOIN::optimize_distinct_group_order() {
   send_group_parts = tmp_table_param.group_parts; /* Save org parts */
 
   /*
-    Grouping orders row; so if windowing doesn't change this order, and
-    ORDER BY is a prefix of GROUP BY, ORDER BY is useless.
+    Grouping orders row; so if windowing or ROLLUP doesn't change this
+    order, and ORDER BY is a prefix of GROUP BY, ORDER BY is useless.
     Also true if the result is one row.
-    */
-  if ((test_if_subpart(group_list, order) && !m_windows_sort) ||
+  */
+  if ((test_if_subpart(group_list, order) && !m_windows_sort &&
+       select_lex->olap != ROLLUP_TYPE) ||
       (!group_list && tmp_table_param.sum_func_count)) {
     if (order) {
       order = 0;
@@ -3901,7 +3907,7 @@ bool build_equal_items(THD *thd, Item *cond, Item **retcond,
 */
 
 static int compare_fields_by_table_order(Item_field *field1, Item_field *field2,
-                                         void *table_join_idx) {
+                                         JOIN_TAB **table_join_idx) {
   int cmp = 0;
   bool outer_ref = 0;
   if (field1->used_tables() & OUTER_REF_TABLE_BIT) {
@@ -3913,19 +3919,18 @@ static int compare_fields_by_table_order(Item_field *field1, Item_field *field2,
     cmp++;
   }
   if (outer_ref) return cmp;
-  JOIN_TAB **idx = (JOIN_TAB **)table_join_idx;
 
   /*
-    idx is NULL if this function was not called from JOIN::optimize()
+    table_join_idx is NULL if this function was not called from JOIN::optimize()
     but from e.g. mysql_delete() or mysql_update(). In these cases
     there is only one table and both fields belong to it. Example
     condition where this is the case: t1.fld1=t1.fld2
   */
-  if (!idx) return 0;
+  if (!table_join_idx) return 0;
 
   // Locate JOIN_TABs thanks to table_join_idx, then compare their index.
-  cmp = idx[field1->table_ref->tableno()]->idx() -
-        idx[field2->table_ref->tableno()]->idx();
+  cmp = table_join_idx[field1->table_ref->tableno()]->idx() -
+        table_join_idx[field2->table_ref->tableno()]->idx();
   return cmp < 0 ? -1 : (cmp ? 1 : 0);
 }
 
@@ -4112,7 +4117,7 @@ static Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
 */
 
 Item *substitute_for_best_equal_field(Item *cond, COND_EQUAL *cond_equal,
-                                      void *table_join_idx) {
+                                      JOIN_TAB **table_join_idx) {
   Item_equal *item_equal;
 
   if (cond->type() == Item::COND_ITEM) {
@@ -4125,8 +4130,11 @@ Item *substitute_for_best_equal_field(Item *cond, COND_EQUAL *cond_equal,
       cond_list->disjoin((List<Item> *)&cond_equal->current_level);
 
       List_iterator_fast<Item_equal> it(cond_equal->current_level);
+      auto cmp = [table_join_idx](Item_field *f1, Item_field *f2) {
+        return compare_fields_by_table_order(f1, f2, table_join_idx);
+      };
       while ((item_equal = it++)) {
-        item_equal->sort(&compare_fields_by_table_order, table_join_idx);
+        item_equal->sort(cmp);
       }
     }
 
@@ -4162,7 +4170,9 @@ Item *substitute_for_best_equal_field(Item *cond, COND_EQUAL *cond_equal,
              (down_cast<Item_func *>(cond))->functype() ==
                  Item_func::MULT_EQUAL_FUNC) {
     item_equal = (Item_equal *)cond;
-    item_equal->sort(&compare_fields_by_table_order, table_join_idx);
+    item_equal->sort([table_join_idx](Item_field *f1, Item_field *f2) {
+      return compare_fields_by_table_order(f1, f2, table_join_idx);
+    });
     if (cond_equal && cond_equal->current_level.head() == item_equal)
       cond_equal = cond_equal->upper_levels;
     return eliminate_item_equal(0, cond_equal, item_equal);
@@ -9749,7 +9759,7 @@ static Item_cond_and *create_cond_for_const_ref(THD *thd, JOIN_TAB *join_tab) {
     if (!item) DBUG_RETURN(NULL);
     if (cond->add(item)) DBUG_RETURN(NULL);
   }
-  cond->fix_fields(thd, (Item **)&cond);
+  if (cond->fix_fields(thd, (Item **)&cond)) DBUG_RETURN(NULL);
 
   DBUG_RETURN(cond);
 }
@@ -10389,7 +10399,7 @@ void JOIN::refine_best_rowcount() {
 
 List<Item> *JOIN::get_current_fields() {
   DBUG_ASSERT((int)current_ref_item_slice >= 0);
-  if (current_ref_item_slice == REF_SLICE_SAVE) return fields;
+  if (current_ref_item_slice == REF_SLICE_SAVED_BASE) return fields;
   return &tmp_fields_list[current_ref_item_slice];
 }
 

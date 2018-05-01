@@ -36,8 +36,8 @@ let $wait_condition=
 --let $assert_cond= [SHOW GLOBAL VARIABLES LIKE "Mysqlx_idle_worker_thread_timeout", Value, 1] = 60
 --source include/assert.inc
 
---let $assert_text= Mysqlx_max_allowed_packet must be 1M, the default value
---let $assert_cond= [SHOW GLOBAL VARIABLES LIKE "Mysqlx_max_allowed_packet", Value, 1] = 1048576
+--let $assert_text= Mysqlx_max_allowed_packet must be 64M, the default value
+--let $assert_cond= [SHOW GLOBAL VARIABLES LIKE "Mysqlx_max_allowed_packet", Value, 1] = 67108864
 --source include/assert.inc
 
 --let $assert_text= Mysqlx_connect_timeout must be 30 seconds, the default value
@@ -99,3 +99,4 @@ let $wait_condition=
 --let $assert_text= Mysqlx_document_id_unique_prefix must be 0, the default value
 --let $assert_cond= [SHOW GLOBAL VARIABLES LIKE "Mysqlx_document_id_unique_prefix", Value, 1] = 0
 --source include/assert.inc
+

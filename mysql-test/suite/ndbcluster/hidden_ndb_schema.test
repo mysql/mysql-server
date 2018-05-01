@@ -10,6 +10,8 @@
 # table is also not available in neither DML nor DML queries
 #
 
+--source include/have_ndb.inc
+
 --echo # Check that mysql.ndb_schema does not show up in SHOW TABLES
 SHOW TABLES FROM mysql LIKE 'ndb_schema';
 

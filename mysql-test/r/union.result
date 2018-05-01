@@ -1321,8 +1321,8 @@ b ENUM("one", "two") character set utf8,
 c ENUM("one", "two")
 );
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1508,7 +1508,7 @@ drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1(f1 char(1), f2 char(5), f3 binary(1), f4 binary(5), f5 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00', f6 varchar(1) character set utf8 collate utf8_general_ci, f7 text);
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t2 as select *, f6 as f8 from t1 union select *, f7 from t1;
 show create table t2;
 Table	Create Table
@@ -1574,7 +1574,7 @@ select _utf8'12' union select _latin1'12345';
 12
 12345
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (3),(1),(2),(4),(1);
 SELECT a FROM (SELECT a FROM t1 UNION SELECT a FROM t1 ORDER BY a) AS test;
@@ -1637,7 +1637,7 @@ NULL	3
 SELECT a,1 FROM t1
 UNION 
 (SELECT b, COUNT(*) FROM t2 GROUP BY b WITH ROLLUP ORDER BY a);
-ERROR HY000: Incorrect usage of CUBE/ROLLUP and ORDER BY
+ERROR 42S22: Unknown column 'a' in 'order clause'
 SELECT a,1 FROM t1
 UNION ALL
 SELECT b, COUNT(*) FROM t2 GROUP BY b WITH ROLLUP ORDER BY a
@@ -3078,3 +3078,10 @@ i1	i2	i3	i4	i5	d1	d2	d3	d4	d5	g1
 DROP TEMPORARY TABLE t2;
 SET SQL_MODE=DEFAULT;
 DROP TABLE t1;
+#
+# Bug #27903792 [MYSQL 8.0 GA DEBUG BUILD] ASSERTION `DATA_TYPE() ==
+# MYSQL_TYPE_GEOMETRY' FAILED
+#
+SELECT ST_GEOMFROMTEXT('POINT(0 0)')
+UNION
+SELECT * FROM (SELECT NULL) AS a;

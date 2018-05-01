@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef X_PROTOCOL_PLUGIN_FILE_OUTPUT_H
-#define X_PROTOCOL_PLUGIN_FILE_OUTPUT_H
+#ifndef PLUGIN_X_PROTOCOL_PLUGIN_CHAIN_FILE_OUTPUT_H_
+#define PLUGIN_X_PROTOCOL_PLUGIN_CHAIN_FILE_OUTPUT_H_
 
 #include <google/protobuf/compiler/code_generator.h>
 #include <google/protobuf/descriptor.h>
@@ -46,6 +46,10 @@ class Chain_file_output {
 
   void close() {
     if (nullptr != m_chain_file) {
+      writeln("    };");
+      writeln("");
+      writeln("    for(unsigned int i = 0; i < sizeof(v)/sizeof(v[0]); ++i)");
+      writeln("      m_allowed_tag_chains.insert(v[i]);");
       writeln("  };");
       writeln("};");
       writeln("");
@@ -83,7 +87,14 @@ class Chain_file_output {
       writeln("  }");
       writeln("");
       writeln(" private:");
-      writeln("  std::set<std::string> m_allowed_tag_chains {");
+      writeln("  std::set<std::string> m_allowed_tag_chains;");
+      writeln(" public:");
+      writeln("  XProtocol_tags() {");
+      writeln("    // Workaround for crash at FreeBSD 11");
+      writeln(
+          "    // It crashes when using std::set<std::string> and "
+          "initialization list");
+      writeln("    const char *v[] = {");
     }
   }
 
@@ -127,4 +138,4 @@ class Chain_file_output {
   std::string m_name;
 };
 
-#endif  // X_PROTOCOL_PLUGIN_FILE_OUTPUT_H
+#endif  // PLUGIN_X_PROTOCOL_PLUGIN_CHAIN_FILE_OUTPUT_H_

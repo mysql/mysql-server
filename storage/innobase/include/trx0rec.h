@@ -37,6 +37,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "data0data.h"
 #include "dict0types.h"
+#include "lob0undo.h"
 #include "mtr0mtr.h"
 #include "page0types.h"
 #include "rem0types.h"
@@ -81,19 +82,6 @@ undo_no_t trx_undo_rec_get_undo_no(
 #define trx_undo_rec_get_ptr(undo_rec, undo_no) \
   ((undo_rec) + trx_undo_rec_get_offset(undo_no))
 
-/** Reads from an undo log record the general parameters.
- @return remaining part of undo log record after reading these values */
-byte *trx_undo_rec_get_pars(
-    trx_undo_rec_t *undo_rec, /*!< in: undo log record */
-    ulint *type,              /*!< out: undo record type:
-                              TRX_UNDO_INSERT_REC, ... */
-    ulint *cmpl_info,         /*!< out: compiler info, relevant only
-                              for update type records */
-    bool *updated_extern,     /*!< out: true if we updated an
-                              externally stored fild */
-    undo_no_t *undo_no,       /*!< out: undo log record number */
-    table_id_t *table_id);    /*!< out: table id */
-
 /** Reads from an undo log record the table ID
 @param[in]	undo_rec	Undo log record
 @return the table ID */
@@ -123,29 +111,35 @@ byte *trx_undo_update_rec_get_sys_cols(
     trx_id_t *trx_id,     /*!< out: trx id */
     roll_ptr_t *roll_ptr, /*!< out: roll ptr */
     ulint *info_bits);    /*!< out: info bits state */
+
+struct type_cmpl_t;
+
 /** Builds an update vector based on a remaining part of an undo log record.
  @return remaining part of the record, NULL if an error detected, which
- means that the record is corrupted */
+ means that the record is corrupted. */
 byte *trx_undo_update_rec_get_update(
-    const byte *ptr,     /*!< in: remaining part in update undo log
-                         record, after reading the row reference
-                         NOTE that this copy of the undo log record must
-                         be preserved as long as the update vector is
-                         used, as we do NOT copy the data in the
-                         record! */
-    dict_index_t *index, /*!< in: clustered index */
-    ulint type,          /*!< in: TRX_UNDO_UPD_EXIST_REC,
-                         TRX_UNDO_UPD_DEL_REC, or
-                         TRX_UNDO_DEL_MARK_REC; in the last case,
-                         only trx id and roll ptr fields are added to
-                         the update vector */
-    trx_id_t trx_id,     /*!< in: transaction id from this undorecord */
-    roll_ptr_t roll_ptr, /*!< in: roll pointer from this undo record */
-    ulint info_bits,     /*!< in: info bits from this undo record */
-    trx_t *trx,          /*!< in: transaction */
-    mem_heap_t *heap,    /*!< in: memory heap from which the memory
-                         needed is allocated */
-    upd_t **upd);        /*!< out, own: update vector */
+    const byte *ptr,            /*!< in: remaining part in update undo log
+                                record, after reading the row reference
+                                NOTE that this copy of the undo log record must
+                                be preserved as long as the update vector is
+                                used, as we do NOT copy the data in the
+                                record! */
+    dict_index_t *index,        /*!< in: clustered index */
+    ulint type,                 /*!< in: TRX_UNDO_UPD_EXIST_REC,
+                                TRX_UNDO_UPD_DEL_REC, or
+                                TRX_UNDO_DEL_MARK_REC; in the last case,
+                                only trx id and roll ptr fields are added to
+                                the update vector */
+    trx_id_t trx_id,            /*!< in: transaction id from this undorecord */
+    roll_ptr_t roll_ptr,        /*!< in: roll pointer from this undo record */
+    ulint info_bits,            /*!< in: info bits from this undo record */
+    trx_t *trx,                 /*!< in: transaction */
+    mem_heap_t *heap,           /*!< in: memory heap from which the memory
+                                needed is allocated */
+    upd_t **upd,                /*!< out, own: update vector */
+    lob::undo_vers_t *lob_undo, /*!< out: LOB undo information. */
+    type_cmpl_t &type_cmpl);    /*!< out: type compilation info */
+
 /** Builds a partial row from an update undo log record, for purge.
  It contains the columns which occur as ordering in any index of the table.
  Any missing columns are indicated by col->mtype == DATA_MISSING.
@@ -234,7 +228,8 @@ bool trx_undo_prev_version_build(const rec_t *index_rec, mtr_t *index_mtr,
                                  const rec_t *rec, dict_index_t *index,
                                  ulint *offsets, mem_heap_t *heap,
                                  rec_t **old_vers, mem_heap_t *v_heap,
-                                 const dtuple_t **vrow, ulint v_status);
+                                 const dtuple_t **vrow, ulint v_status,
+                                 lob::undo_vers_t *lob_undo);
 
 #endif /* !UNIV_HOTBACKUP */
 /** Parses a redo log record of adding an undo log record.
@@ -306,6 +301,15 @@ record */
 #define TRX_UNDO_CMPL_INFO_MULT           \
   16 /* compilation info is multiplied by \
      this and ORed to the type above */
+
+#define TRX_UNDO_MODIFY_BLOB              \
+  64 /* If this bit is set in type_cmpl,  \
+     then the undo log record has support \
+     for partial update of BLOBs. Also to \
+     make the undo log format extensible, \
+     introducing a new flag next to the   \
+     type_cmpl flag. */
+
 #define TRX_UNDO_UPD_EXTERN                \
   128 /* This bit can be ORed to type_cmpl \
       to denote that we updated external   \
@@ -315,6 +319,87 @@ record */
 /* Operation type flags used in trx_undo_report_row_operation */
 #define TRX_UNDO_INSERT_OP 1
 #define TRX_UNDO_MODIFY_OP 2
+
+/** The type and compilation info flag in the undo record for update.
+For easier understanding let the 8 bits be numbered as
+7, 6, 5, 4, 3, 2, 1, 0. */
+struct type_cmpl_t {
+  type_cmpl_t() : m_flag(0) {}
+
+  const byte *read(const byte *ptr) {
+    m_flag = mach_read_from_1(ptr);
+    return (ptr + 1);
+  }
+
+  ulint type_info() {
+    /* Get 0-3 */
+    return (m_flag & 0x0F);
+  }
+
+  ulint cmpl_info() {
+    /* Get bits 5 and 4 */
+    return ((m_flag >> 4) & 0x03);
+  }
+
+  /** Is an LOB updated by this update operation.
+  @return true if LOB is updated, false otherwise. */
+  bool is_lob_updated() {
+    /* Check if bit 7 is set. */
+    return (m_flag & TRX_UNDO_UPD_EXTERN);
+  }
+
+  /** Does the undo log record contains information about LOB partial
+  update vector.
+  @return true if undo contains LOB update info. */
+  bool is_lob_undo() const {
+    /* Check if bit 6 is set. */
+    return (m_flag & TRX_UNDO_MODIFY_BLOB);
+  }
+
+ private:
+  uint8_t m_flag;
+};
+
+/*******************************************************************/ /**
+ Builds an update vector based on a remaining part of an undo log record.
+ @return remaining part of the record, NULL if an error detected, which
+ means that the record is corrupted */
+byte *trx_undo_update_rec_get_update(
+    /*===========================*/
+    const byte *ptr,     /*!< in: remaining part in update undo log
+                         record, after reading the row reference
+                         NOTE that this copy of the undo log record must
+                         be preserved as long as the update vector is
+                         used, as we do NOT copy the data in the
+                         record! */
+    dict_index_t *index, /*!< in: clustered index */
+    ulint type,          /*!< in: TRX_UNDO_UPD_EXIST_REC,
+                         TRX_UNDO_UPD_DEL_REC, or
+                         TRX_UNDO_DEL_MARK_REC; in the last case,
+                         only trx id and roll ptr fields are added to
+                         the update vector */
+    trx_id_t trx_id,     /*!< in: transaction id from this undorecord */
+    roll_ptr_t roll_ptr, /*!< in: roll pointer from this undo record */
+    ulint info_bits,     /*!< in: info bits from this undo record */
+    trx_t *trx,          /*!< in: transaction */
+    mem_heap_t *heap,    /*!< in: memory heap from which the memory
+                         needed is allocated */
+    upd_t **upd,         /*!< out, own: update vector */
+    lob::undo_vers_t *lob_undo, type_cmpl_t &type_cmpl);
+
+/** Reads from an undo log record the general parameters.
+ @return remaining part of undo log record after reading these values */
+byte *trx_undo_rec_get_pars(
+    trx_undo_rec_t *undo_rec, /*!< in: undo log record */
+    ulint *type,              /*!< out: undo record type:
+                              TRX_UNDO_INSERT_REC, ... */
+    ulint *cmpl_info,         /*!< out: compiler info, relevant only
+                              for update type records */
+    bool *updated_extern,     /*!< out: true if we updated an
+                              externally stored fild */
+    undo_no_t *undo_no,       /*!< out: undo log record number */
+    table_id_t *table_id,     /*!< out: table id */
+    type_cmpl_t &type_cmpl);  /*!< out: type compilation info. */
 
 #include "trx0rec.ic"
 

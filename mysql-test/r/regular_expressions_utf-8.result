@@ -338,7 +338,7 @@ CREATE TABLE t2 ( g GEOMETRY NOT NULL );
 INSERT INTO t2 VALUES ( POINT(1,2) );
 SELECT concat( regexp_like(g, g), 'x' ) FROM t2;
 concat( regexp_like(g, g), 'x' )
-1x
+0x
 SET sql_mode = DEFAULT;
 DROP TABLE t2;
 #
@@ -373,7 +373,7 @@ regexp_instr( _utf8mb4'aöb', _utf8mb4'ö' )
 2
 SET NAMES utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT regexp_instr( 'aöb', 'ö' );
 regexp_instr( 'aöb', 'ö' )
 2
@@ -383,7 +383,7 @@ SET NAMES DEFAULT;
 #
 SET NAMES utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT regexp_instr( 'אב רק', /*k*/'^[^ב]' );
 regexp_instr( 'אב רק', /*k*/'^[^ב]' )
 1
@@ -662,7 +662,7 @@ SELECT @buf_sz_utf16;
 512.000000000
 SELECT length(regexp_replace( repeat('a', @buf_sz_utf16), 'a', 'b' ));
 length(regexp_replace( repeat('a', @buf_sz_utf16), 'a', 'b' ))
-1022
+1024
 SELECT length(regexp_replace( repeat('a', @buf_sz_utf16 + 1), 'a', 'b' ));
 ERROR HY000: The result string is larger than the result buffer.
 SELECT length(regexp_replace( repeat('a', @buf_sz_utf16), 'a', 'bb' ));
@@ -810,3 +810,46 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: 'abc'
 Warning	1292	Truncated incorrect INTEGER value: 'abc'
+#
+# Bug#27597980: ADD ERROR MESSAGE FOR INVALID CAPTURE GROUP NAME
+#
+SELECT regexp_replace( 'abc' , 'abc', '$abc' );
+ERROR HY000: A capture group has an invalid name.
+#
+# Bug#27595368: ASSERTION FAILED: 0 IN ITEM_PARAM::VAL_REAL WITH
+# PREPARED STATEMENT
+#
+SET @s := "SELECT regexp_like( '', '', ? / '' )";
+PREPARE stmt FROM @s;
+EXECUTE stmt;
+ERROR HY000: Incorrect arguments to EXECUTE
+EXECUTE stmt;
+ERROR HY000: Incorrect arguments to EXECUTE
+CREATE TABLE t1 ( match_parameter CHAR(1) );
+INSERT INTO t1 VALUES ( 'i' ), ( 'c' ), ( 'i' ), ( 'c' );
+SELECT match_parameter, regexp_like ( 'a', 'A', match_parameter ) FROM t1;
+match_parameter	regexp_like ( 'a', 'A', match_parameter )
+i	1
+c	0
+i	1
+c	0
+DROP TABLE t1;
+#
+# Bug#27612255: VALGRIND WARNING ON INVALID CAPTURE GROUP
+#
+SELECT regexp_replace( ' F' , '^ ', '[,$' );
+ERROR HY000: A capture group has an invalid name.
+#
+# Bug#27751277: ASSERTION FALSE IN REGEXP::CHECK_ICU_STATUS
+#
+SELECT regexp_instr( 'abc', '(?-' );
+ERROR HY000: Invalid match mode flag in regular expression.
+#
+# Bug#27743722 REGEXP::EVALEXPRTOCHARSET:
+#              REFERENCE BINDING TO MISALIGNED ADDRESS
+#
+select regexp_instr(char('313:50:35.199734'using utf16le),uuid());
+regexp_instr(char('313:50:35.199734'using utf16le),uuid())
+0
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '313:50:35.199734'

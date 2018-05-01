@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -1043,7 +1043,6 @@ int ha_tina::init_data_file() {
   ha_tina::info
   ha_tina::rnd_init
   ha_tina::extra
-  ENUM HA_EXTRA_CACHE   Cash record in HA_rrnd()
   ha_tina::rnd_next
   ha_tina::rnd_next
   ha_tina::rnd_next
@@ -1054,7 +1053,6 @@ int ha_tina::init_data_file() {
   ha_tina::rnd_next
   ha_tina::rnd_next
   ha_tina::extra
-  ENUM HA_EXTRA_NO_CACHE   End cacheing of records (def)
   ha_tina::external_lock
   ha_tina::extra
   ENUM HA_EXTRA_RESET   Reset database to after open

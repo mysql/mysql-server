@@ -50,11 +50,11 @@ Plugin_table table_replication_connection_configuration::m_table_def(
     /* Name */
     "replication_connection_configuration",
     /* Definition */
-    "  CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,\n"
-    "  HOST CHAR(60) collate utf8_bin not null,\n"
+    "  CHANNEL_NAME CHAR(64) not null,\n"
+    "  HOST CHAR(60) collate utf8mb4_bin not null,\n"
     "  PORT INTEGER not null,\n"
-    "  USER CHAR(32) collate utf8_bin not null,\n"
-    "  NETWORK_INTERFACE CHAR(60) collate utf8_bin not null,\n"
+    "  USER CHAR(32) collate utf8mb4_bin not null,\n"
+    "  NETWORK_INTERFACE CHAR(60) collate utf8mb4_bin not null,\n"
     "  AUTO_POSITION ENUM('1','0') not null,\n"
     "  SSL_ALLOWED ENUM('YES','NO','IGNORED') not null,\n"
     "  SSL_CA_FILE VARCHAR(512) not null,\n"

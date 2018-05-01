@@ -1,3 +1,5 @@
+--source include/have_ndb.inc
+
 # ----------------------------------------
 # Test 1
 # DEMONSTRATE CASCADING UPDATE WITH NDB

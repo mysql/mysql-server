@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -135,9 +135,6 @@ bool init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
       'table' is inferred from 'qep_tab'; if non-NULL, 'qep_tab' must be NULL.
       qep_tab           QEP_TAB for 'table', if there is one; we may use
       qep_tab->quick() as data source
-      use_record_cache  Call file->extra_opt(HA_EXTRA_CACHE,...)
-                        if we're going to do sequential read and some
-                        additional conditions are satisfied.
       print_error       Copy this to info->print_error
       disable_rr_cache  Don't use rr_from_cache (used by sort-union
                         index-merge which produces rowid sequences that
@@ -203,7 +200,7 @@ bool init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
   @retval false  success
 */
 bool init_read_record(READ_RECORD *info, THD *thd, TABLE *table,
-                      QEP_TAB *qep_tab, int use_record_cache, bool print_error,
+                      QEP_TAB *qep_tab, bool print_error,
                       bool disable_rr_cache) {
   int error = 0;
   DBUG_ENTER("init_read_record");
@@ -216,10 +213,6 @@ bool init_read_record(READ_RECORD *info, THD *thd, TABLE *table,
   info->thd = thd;
   info->table = table;
   info->forms = &info->table; /* Only one table */
-
-  if (table->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE &&
-      !table->sort.using_addon_fields())
-    (void)table->file->extra(HA_EXTRA_MMAP);
 
   if (table->sort_result.has_result() && table->sort.using_addon_fields()) {
     info->rec_buf = table->sort.addon_fields->get_addon_buf();
@@ -344,15 +337,6 @@ bool init_read_record(READ_RECORD *info, THD *thd, TABLE *table,
     DBUG_PRINT("info", ("using rr_sequential"));
     info->read_record = rr_sequential;
     if ((error = table->file->ha_rnd_init(1))) goto err;
-    /* We can use record cache if we don't update dynamic length tables */
-    if (!table->no_cache &&
-        (use_record_cache > 0 ||
-         (int)table->reginfo.lock_type <= (int)TL_READ_HIGH_PRIORITY ||
-         !(table->s->db_options_in_use & HA_OPTION_PACK_RECORD) ||
-         (use_record_cache < 0 &&
-          !(table->file->ha_table_flags() & HA_NOT_DELETE_WITH_CACHE))))
-      (void)table->file->extra_opt(HA_EXTRA_CACHE,
-                                   thd->variables.read_buff_size);
   }
 
 skip_caching:
@@ -389,7 +373,6 @@ void end_read_record(READ_RECORD *info) {
     info->table->set_keyread(false);
   }
   if (info->table && info->table->is_created()) {
-    (void)info->table->file->extra(HA_EXTRA_NO_CACHE);
     if (info->read_record != rr_quick)  // otherwise quick_range does it
       (void)info->table->file->ha_index_or_rnd_end();
     info->table = 0;

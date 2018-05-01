@@ -6,7 +6,7 @@
 
 # X Plugins thread management needs to be reinitialized
 # to be able to test status variables like 'Mysqlx_worker_threads%'
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
+--source include/restart_mysqld.inc
 
 # Please update the test case when the variable count changes
 # add/remove variable

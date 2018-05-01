@@ -292,9 +292,11 @@ drop table t1;
 #
 # Bug#36001: Partitions: spelling and using some error messages
 #
+CREATE TABLE t0 (a INT PRIMARY KEY);
 --error ER_FOREIGN_KEY_ON_PARTITIONED
 CREATE TABLE t1 (a INT, FOREIGN KEY (a) REFERENCES t0 (a))
 PARTITION BY HASH (a);
+DROP TABLE t0;
 
 #
 # Bug#40954: Crash if range search and order by.
@@ -2765,3 +2767,6 @@ CREATE TABLE t (a BIGINT NOT NULL)
 INSERT INTO t VALUES(0);
 SELECT 1 FROM t WHERE a = 0x8000000000000000;
 DROP TABLE t;
+
+# Cleanup
+--force-rmdir $MYSQLTEST_VARDIR/tmp/test/

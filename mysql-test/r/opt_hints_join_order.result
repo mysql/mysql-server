@@ -567,6 +567,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	ta1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f1	1	100.00	Using where
 1	SIMPLE	ta2	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(ta2)
+Warnings:
+Note	1003	delete `test`.`t1` from `test`.`t2` semi join (`test`.`t3`) left join (`test`.`t1` `ta1` join `test`.`t1` `ta2`) on(((`test`.`ta1`.`f1` = `test`.`t2`.`f1`) and 1)) where (`test`.`t3`.`f1` = 9)
 # Applicable hint
 EXPLAIN DELETE /*+ JOIN_PREFIX(t2, t3, ta2) */
 FROM ta1.* USING t1 AS ta1 JOIN t1 AS ta2 ON 1
@@ -577,6 +579,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t2)
 1	SIMPLE	ta2	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using where; Using index
 1	DELETE	ta1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f1	1	100.00	NULL
+Warnings:
+Note	1003	delete /*+ JOIN_PREFIX(@`select#1` `t2`,`t3`,`ta2`) */ `test`.`t1` from `test`.`t2` semi join (`test`.`t3`) left join (`test`.`t1` `ta1` join `test`.`t1` `ta2`) on(((`test`.`ta1`.`f1` = `test`.`t2`.`f1`) and 1)) where (`test`.`t3`.`f1` = 9)
 # Applicable hint
 EXPLAIN DELETE /*+ JOIN_PREFIX(t2, t3, ta1, ta2) */
 FROM ta1.* USING t1 AS ta1 JOIN t1 AS ta2 ON 1
@@ -587,6 +591,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t2)
 1	DELETE	ta1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f1	1	100.00	Using where
 1	SIMPLE	ta2	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
+Warnings:
+Note	1003	delete /*+ JOIN_PREFIX(@`select#1` `t2`,`t3`,`ta1`,`ta2`) */ `test`.`t1` from `test`.`t2` semi join (`test`.`t3`) left join (`test`.`t1` `ta1` join `test`.`t1` `ta2`) on(((`test`.`ta1`.`f1` = `test`.`t2`.`f1`) and 1)) where (`test`.`t3`.`f1` = 9)
 # Applicable hint
 EXPLAIN DELETE /*+ JOIN_PREFIX(t2, t3, ta2, ta1) */
 FROM ta1.* USING t1 AS ta1 JOIN t1 AS ta2 ON 1
@@ -597,6 +603,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t2)
 1	SIMPLE	ta2	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using where; Using index
 1	DELETE	ta1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f1	1	100.00	NULL
+Warnings:
+Note	1003	delete /*+ JOIN_PREFIX(@`select#1` `t2`,`t3`,`ta2`,`ta1`) */ `test`.`t1` from `test`.`t2` semi join (`test`.`t3`) left join (`test`.`t1` `ta1` join `test`.`t1` `ta2`) on(((`test`.`ta1`.`f1` = `test`.`t2`.`f1`) and 1)) where (`test`.`t3`.`f1` = 9)
 # Hint should be ignored
 EXPLAIN DELETE /*+ JOIN_SUFFIX(ta2, t3, ta1) */
 FROM ta1.* USING t1 AS ta1 JOIN t1 AS ta2 ON 1
@@ -607,6 +615,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	ta1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f1	1	100.00	Using where
 1	SIMPLE	ta2	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(ta2)
+Warnings:
+Note	1003	delete `test`.`t1` from `test`.`t2` semi join (`test`.`t3`) left join (`test`.`t1` `ta1` join `test`.`t1` `ta2`) on(((`test`.`ta1`.`f1` = `test`.`t2`.`f1`) and 1)) where (`test`.`t3`.`f1` = 9)
 # Both hints are ignored
 EXPLAIN DELETE /*+ JOIN_PREFIX(ta1, t2, t3) JOIN_SUFFIX(t3, ta2) */
 FROM ta1.* USING t1 AS ta1 JOIN t1 AS ta2 ON 1
@@ -617,6 +627,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	ta1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f1	1	100.00	Using where
 1	SIMPLE	ta2	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(ta2)
+Warnings:
+Note	1003	delete `test`.`t1` from `test`.`t2` semi join (`test`.`t3`) left join (`test`.`t1` `ta1` join `test`.`t1` `ta2`) on(((`test`.`ta1`.`f1` = `test`.`t2`.`f1`) and 1)) where (`test`.`t3`.`f1` = 9)
 DROP TABLE t1, t2, t3;
 CREATE TABLE t1(f1 INT) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (1);
@@ -649,7 +661,7 @@ f3 varchar(10) DEFAULT NULL,
 PRIMARY KEY (f1),
 KEY f3(f3));
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 EXPLAIN SELECT /*+ JOIN_SUFFIX(t1, t2) */ t2.f3 FROM t2 LEFT JOIN t1
 ON t2.f1 = t1.f1 WHERE t1.f2 NOT LIKE ('FMGAU') OR t2.f2 > 't';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -671,7 +683,7 @@ KEY f2 (f2),
 KEY f1 (f1)
 );
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t3 (
 f1 int(11) DEFAULT NULL,
 f2 varchar(255) CHARACTER SET cp932 DEFAULT NULL,
@@ -746,6 +758,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Warning	3126	Hint JOIN_FIXED_ORDER( ) is ignored as conflicting/duplicated
 Note	1276	Field or reference 'test.als2.f2' of SELECT #2 was resolved in SELECT #1
+Note	1003	update /*+ JOIN_ORDER(@`select#1` `t2`,`als1`,`als3`) */ `test`.`t3` `als4` semi join (`test`.`t2`) left join (`test`.`t3` `als1` join `test`.`t1` `als2` join `test`.`t1` `als3`) on(((`test`.`als1`.`f3` = `test`.`als4`.`f2`) and multiple equal(`test`.`als1`.`f1`, `test`.`als3`.`f3`) and multiple equal(`test`.`als1`.`f3`, `test`.`als2`.`f1`))) set `test`.`als1`.`f4` = 'eogqjvbhzodzimqahyzlktkbexkhdwxwgifikhcgblhgswxyutepc' where ((`test`.`t2`.`f2` <> `test`.`t2`.`f2`) and isnull(`test`.`als2`.`f2`) and multiple equal('i', `test`.`t2`.`f3`) and multiple equal('b', `test`.`t2`.`f1`))
 DROP TABLE t1, t2, t3;
 CREATE TABLE t1(
 f1 VARCHAR(1)) ENGINE=myisam;
@@ -783,6 +796,8 @@ WHERE ( 'v', 'o' )  IN
 WHERE t2.f3 BETWEEN '2001-10-04' AND '2003-05-15');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	update /*+ JOIN_ORDER(@`select#1` `t4`,`alias1`,`alias3`) */ `test`.`t1` semi join (`test`.`t2` left join `test`.`t4` on((`test`.`t4`.`f1` = `test`.`t2`.`f1`))) left join (`test`.`t3` `alias1` join `test`.`t5` join `test`.`t3` `alias3`) on((multiple equal(`test`.`alias1`.`f3`, `test`.`t1`.`f1`, `test`.`t5`.`f1`) and multiple equal(`test`.`alias1`.`f2`, `test`.`alias3`.`f2`))) set `test`.`alias1`.`f1` = -(1) where ((`test`.`t2`.`f3` between '2001-10-04' and '2003-05-15') and multiple equal('v', `test`.`t2`.`f1`) and multiple equal('o', `test`.`t2`.`f2`))
 DROP TABLE t1, t2, t3, t4, t5;
 CREATE TABLE t1 (
 f1 INT(11) DEFAULT NULL,
@@ -806,6 +821,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Note	1276	Field or reference 'test.ta2.f3' of SELECT #2 was resolved in SELECT #1
+Note	1003	update /*+ JOIN_SUFFIX(@`select#1` `ta1`,`t2`) */ `test`.`t2` semi join (`test`.`t3`) left join (`test`.`t1` `ta1` join `test`.`t1` `ta2`) on((multiple equal(`test`.`ta1`.`f1`, `test`.`t2`.`f1`, `test`.`ta2`.`f1`))) set `test`.`ta1`.`f2` = '',`test`.`ta2`.`f3` = '' where (((`test`.`t3`.`f1` <> `test`.`t3`.`f2`) xor isnull(`test`.`ta2`.`f3`)) and multiple equal('n', `test`.`t3`.`f2`) and multiple equal('r', `test`.`t3`.`f1`))
 DROP TABLE t1, t2, t3;
 CREATE TABLE t2(f1 VARCHAR(255) DEFAULT NULL, f2 INT(11) DEFAULT NULL,
 KEY (f1), KEY (f2)) charset latin1 ENGINE=MyISAM;

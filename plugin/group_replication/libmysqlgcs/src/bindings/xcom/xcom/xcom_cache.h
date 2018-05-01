@@ -83,6 +83,10 @@ struct pax_machine {
   pax_op op;
   int force_delivery;
   int enforcer;
+
+#ifndef XCOM_STANDALONE
+  char is_instrumented;
+#endif
 };
 
 int is_busy_machine(pax_machine *p);
@@ -100,11 +104,31 @@ void shrink_cache();
 size_t pax_machine_size(pax_machine const *p);
 
 void init_cache_size();
-size_t add_cache_size(size_t x);
-size_t sub_cache_size(size_t x);
+size_t add_cache_size(pax_machine *p);
+size_t sub_cache_size(pax_machine *p);
 int above_cache_limit();
 size_t set_max_cache_size(size_t x);
 int was_removed_from_cache(synode_no x);
+
+#ifndef XCOM_STANDALONE
+void psi_set_cache_resetting(int is_resetting);
+void psi_report_cache_shutdown();
+void psi_report_mem_free(size_t size, int is_instrumented);
+int psi_report_mem_alloc(size_t size);
+#else
+#define psi_set_cache_resetting(x) \
+  do {                             \
+  } while (0)
+#define psi_report_cache_shutdown(x) \
+  do {                               \
+  } while (0)
+#define psi_report_mem_free(x) \
+  do {                         \
+  } while (0)
+#define psi_report_mem_alloc(x) \
+  do {                          \
+  } while (0)
+#endif
 
 #ifdef __cplusplus
 }

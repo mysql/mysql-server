@@ -246,7 +246,7 @@ ngs::Error_code Admin_command_handler::kill_client(
 
   uint64_t cid = 0;
 
-  ngs::Error_code error = args->uint_arg("id", &cid).end();
+  ngs::Error_code error = args->uint_arg({"id"}, &cid).end();
   if (error) return error;
 
   {
@@ -295,8 +295,9 @@ ngs::Error_code Admin_command_handler::create_collection(
   std::string schema;
   std::string collection;
 
-  ngs::Error_code error =
-      args->string_arg("schema", &schema).string_arg("name", &collection).end();
+  ngs::Error_code error = args->string_arg({"schema"}, &schema)
+                              .string_arg({"name"}, &collection)
+                              .end();
   if (error) return error;
 
   if (schema.empty()) return ngs::Error_code(ER_X_BAD_SCHEMA, "Invalid schema");
@@ -324,8 +325,9 @@ ngs::Error_code Admin_command_handler::drop_collection(
   std::string schema;
   std::string collection;
 
-  ngs::Error_code error =
-      args->string_arg("schema", &schema).string_arg("name", &collection).end();
+  ngs::Error_code error = args->string_arg({"schema"}, &schema)
+                              .string_arg({"name"}, &collection)
+                              .end();
   if (error) return error;
 
   if (schema.empty()) return ngs::Error_code(ER_X_BAD_SCHEMA, "Invalid schema");
@@ -354,9 +356,10 @@ ngs::Error_code Admin_command_handler::drop_collection(
  * - schema: string - name of collection's schema
  * - unique: bool - whether the index should be a unique index
  * - type: string, optional - name of index's type {"INDEX"|"SPATIAL"}
- * - constraint: object, list - detailed information for the generated column
- *   - member: string - path to document member for which the index will be
- *     created
+ * - fields|constraint: object, list - detailed information for the generated
+ *   column
+ *   - field|member: string - path to document member for which the index
+ *     will be created
  *   - required: bool - whether the generated column will be created as NOT NULL
  *   - type: string - data type of the generated column
  *   - options: int, optional - parameter for generation spatial column
@@ -423,7 +426,7 @@ ngs::Error_code Admin_command_handler::enable_notices(
       ->update_status<&ngs::Common_status_variables::m_stmt_enable_notices>();
 
   std::vector<std::string> notices;
-  ngs::Error_code error = args->string_list("notice", &notices).end();
+  ngs::Error_code error = args->string_list({"notice"}, &notices).end();
   if (error) return error;
 
   bool enable_warnings = false;
@@ -450,7 +453,7 @@ ngs::Error_code Admin_command_handler::disable_notices(
       ->update_status<&ngs::Common_status_variables::m_stmt_disable_notices>();
 
   std::vector<std::string> notices;
-  ngs::Error_code error = args->string_list("notice", &notices).end();
+  ngs::Error_code error = args->string_list({"notice"}, &notices).end();
   if (error) return error;
 
   bool disable_warnings = false;
@@ -574,8 +577,8 @@ ngs::Error_code Admin_command_handler::list_objects(
           : "";
 
   std::string schema, pattern;
-  ngs::Error_code error = args->string_arg("schema", &schema, true)
-                              .string_arg("pattern", &pattern, true)
+  ngs::Error_code error = args->string_arg({"schema"}, &schema, true)
+                              .string_arg({"pattern"}, &pattern, true)
                               .end();
   if (error) return error;
 
@@ -687,8 +690,8 @@ ngs::Error_code Admin_command_handler::ensure_collection(
   std::string schema;
   std::string collection;
 
-  ngs::Error_code error = args->string_arg("schema", &schema, true)
-                              .string_arg("name", &collection)
+  ngs::Error_code error = args->string_arg({"schema"}, &schema, true)
+                              .string_arg({"name"}, &collection)
                               .end();
   if (error) return error;
 

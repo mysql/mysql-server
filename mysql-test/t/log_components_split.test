@@ -16,7 +16,8 @@
 call mtr.add_suppression("filter_rules: *");
 call mtr.add_suppression(".*No error message, or error message of non-string type. This is almost certainly a bug!");
 call mtr.add_suppression(".*using log_message.. with .*");
-call mtr.add_suppression(".* YES");
+call mtr.add_suppression(".*System schema directory does not exist.");
+call mtr.add_suppression(".* Simulated");
 
 let GREP_START=`SELECT DATE_FORMAT(CONVERT_TZ(SYSDATE(6),'SYSTEM','UTC'),'%Y%m%d%H%i%s%f');`;
 

@@ -225,3 +225,25 @@ INSERT INTO t1 VALUES('abc', 'abc', 1), ('AbC', 'aBc', 1), ('_bc', 'abc', 1),
 SELECT wildstr, str, like_result FROM t1 WHERE (str LIKE wildstr) <>
 like_result;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #12635103: VALGRIND WARNINGS IN MY_WILDCMP_MB AND
+--echo #                MY_WILDCMP_8BIT WITH LIKE AND CONVERT
+--echo #
+# This bug is visible only with valgrind.
+# Multibyte wildcmp
+SELECT 'aa' LIKE CONVERT('%a' USING big5);
+# UCA wildcmp
+SELECT 'aa' LIKE CONVERT('%a' USING utf8mb4);
+# GB18030 wildcmp
+SELECT 'aa' LIKE CONVERT('%a' USING gb18030);
+# Binary wildcmp
+SELECT 'aa' LIKE CONVERT('%a' USING binary);
+# 8bit wildcmp
+SELECT 'aa' LIKE CONVERT('%a' USING latin1);
+# Multibyte binary wildcmp
+SET NAMES gb2312;
+SELECT 'aa' LIKE '%a' COLLATE gb2312_bin;
+SET NAMES DEFAULT;
+# Unicode wildcmp
+SELECT 'aa' LIKE CONVERT('%a' USING utf8);

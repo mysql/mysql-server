@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -19,8 +19,6 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
-#define LOG_SUBSYSTEM_TAG "bootstrap"
 
 #include "sql/bootstrap.h"
 
@@ -146,6 +144,36 @@ static bool handle_bootstrap_impl(THD *thd) {
     int rc;
 
     rc = Command_iterator::current_iterator->next(query, &error, &query_source);
+
+    /*
+      Execution of statements included in the binary is only supported during
+      initial start.
+    */
+    DBUG_ASSERT(opt_initialize || query_source != QUERY_SOURCE_COMPILED);
+
+    /*
+      The statements included in the binary should be executed before any
+      statement from an init file.
+    */
+    DBUG_ASSERT(query_source == last_query_source || last_query_source == -1 ||
+                query_source != QUERY_SOURCE_COMPILED);
+
+    /*
+      During --initialize, the server will also read SQL statements from a
+      file submitted with --init-file. While processing the compiled-in
+      statements, DD table access is permitted. This is needed as a short
+      term solution to allow SRS data to be entered by INSERT statements
+      instead of CREATE statements. However, we must not allow the statements
+      from an init file to access the DD tables. Thus, whenever we execute a
+      statement from an init file, we must make sure that the thread type is
+      set to the appropriate value. We check this on purpose for each query
+      to avoid side effects from thread type being set elsewhere in the
+      server code.
+    */
+    if (query_source == QUERY_SOURCE_FILE &&
+        thd->system_thread != SYSTEM_THREAD_INIT_FILE) {
+      thd->system_thread = SYSTEM_THREAD_INIT_FILE;
+    }
 
     /*
       The server must avoid logging compiled statements into the binary log

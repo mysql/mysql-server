@@ -588,9 +588,9 @@ The following options may be given as the first argument:
  --max-seeks-for-key=# 
  Limit assumed max number of seeks when looking up rows
  based on a key
- --max-sort-length=# The number of bytes to use when sorting BLOB or TEXT
- values (only the first max_sort_length bytes of each
- value are used; the rest are ignored)
+ --max-sort-length=# The number of bytes to use when sorting long values with
+ PAD SPACE collations (only the first max_sort_length
+ bytes of each value are used; the rest are ignored)
  --max-sp-recursion-depth[=#] 
  Maximum stored procedure recursion depth
  --max-user-connections=# 
@@ -655,6 +655,7 @@ The following options may be given as the first argument:
  -n, --new           Use very new possible "unsafe" functions
  --no-dd-upgrade     Abort restart if automatic upgrade or downgrade of the
  data dictionary is needed.
+ --no-monitor        Disable monitor process.
  --offline-mode      Make the server into offline mode
  --old               Use compatible behavior
  --old-alter-table   Use old, non-optimized alter table
@@ -1497,6 +1498,7 @@ net-retry-count 10
 net-write-timeout 60
 new FALSE
 no-dd-upgrade FALSE
+no-monitor FALSE
 offline-mode FALSE
 old FALSE
 old-alter-table FALSE
@@ -1551,7 +1553,7 @@ performance-schema-max-file-instances -1
 performance-schema-max-index-stat -1
 performance-schema-max-memory-classes 450
 performance-schema-max-metadata-locks -1
-performance-schema-max-mutex-classes 250
+performance-schema-max-mutex-classes 300
 performance-schema-max-mutex-instances -1
 performance-schema-max-prepared-statements-instances -1
 performance-schema-max-program-instances -1
@@ -1630,7 +1632,7 @@ slave-max-allowed-packet 1073741824
 slave-net-timeout 60
 slave-parallel-type DATABASE
 slave-parallel-workers 0
-slave-pending-jobs-size-max 16777216
+slave-pending-jobs-size-max 134217728
 slave-preserve-commit-order FALSE
 slave-rows-search-algorithms INDEX_SCAN,HASH_SCAN
 slave-skip-errors (No default value)

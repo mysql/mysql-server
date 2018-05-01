@@ -117,7 +117,7 @@ drop table t1;
 CREATE TABLE t1(c1 TEXT, UNIQUE (c1(1)), cnt INT DEFAULT 1)
 ENGINE=INNODB CHARACTER SET UTF8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 (c1) VALUES ('1a');
 SELECT * FROM t1;
 c1	cnt
@@ -130,7 +130,7 @@ DROP TABLE t1;
 CREATE TABLE t1(c1 VARCHAR(2), UNIQUE (c1(1)), cnt INT DEFAULT 1)
 ENGINE=INNODB CHARACTER SET UTF8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 (c1) VALUES ('1a');
 SELECT * FROM t1;
 c1	cnt
@@ -143,7 +143,7 @@ DROP TABLE t1;
 CREATE TABLE t1(c1 CHAR(2), UNIQUE (c1(1)), cnt INT DEFAULT 1)
 ENGINE=INNODB CHARACTER SET UTF8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 (c1) VALUES ('1a');
 SELECT * FROM t1;
 c1	cnt
@@ -593,7 +593,7 @@ t1	CREATE TABLE `t1` (
 drop table t1;
 CREATE TABLE t1 (a CHAR(2), KEY (a)) ENGINE = InnoDB DEFAULT CHARSET=UTF8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('uk'),('bg');
 SELECT * FROM t1 WHERE a = 'uk';
 a
@@ -1196,7 +1196,7 @@ DROP TABLE t1;
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
 create table t1(a text) engine=innodb row_format=dynamic default charset=utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values('aaa');
 alter table t1 add index(a(1025));
 Warnings:
@@ -2192,7 +2192,7 @@ INSERT INTO t2 VALUES (3,2);
 SET AUTOCOMMIT = 0;
 START TRANSACTION;
 TRUNCATE TABLE t1;
-ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`t1_id`) REFERENCES `test`.`t1` (`id`))
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1`)
 SELECT * FROM t1;
 id
 1
@@ -2204,7 +2204,7 @@ id
 2
 START TRANSACTION;
 TRUNCATE TABLE t1;
-ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`t1_id`) REFERENCES `test`.`t1` (`id`))
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1`)
 SELECT * FROM t1;
 id
 1
@@ -2222,7 +2222,7 @@ id
 2
 COMMIT;
 TRUNCATE TABLE t1;
-ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`t1_id`) REFERENCES `test`.`t1` (`id`))
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1`)
 SELECT * FROM t1;
 id
 1
@@ -2234,7 +2234,7 @@ id
 1
 2
 TRUNCATE TABLE t1;
-ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`t1_id`) REFERENCES `test`.`t1` (`id`))
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1`)
 ROLLBACK;
 SELECT * FROM t1;
 id

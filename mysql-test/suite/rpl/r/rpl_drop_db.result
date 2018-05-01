@@ -15,27 +15,23 @@ CREATE TABLE test1.t3 (n INT);
 DROP DATABASE test1;
 ERROR HY000: Error dropping database (can't rmdir './test1/', errno: 17 - File exists)
 include/assert.inc [Tables in test1 database are not dropped]
-CREATE TABLE test1.t4 (pk INT PRIMARY KEY);
-Wait until test1.t4 is created on slave
-include/sync_slave_sql_with_master.inc
-[connection master]
-CREATE TABLE test2.t2 (fk INT, FOREIGN KEY (fk) REFERENCES test1.t4(pk));
+SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
 DROP DATABASE test1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR HY000: Unknown error
+SET SESSION DEBUG='-d,rm_table_no_locks_abort_after_atomic_tables';
 USE test1;
 include/assert.inc [Tables in test1 database are not dropped]
 CREATE TABLE test1.t5(n INT) ENGINE=MyISAM;
+SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
 DROP DATABASE test1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR HY000: Unknown error
+SET SESSION DEBUG='-d,rm_table_no_locks_abort_after_atomic_tables';
 include/assert.inc [MyISAM table t5 is dropped]
 include/assert.inc [InnoDB tables in test1 database are not dropped]
 USE test2;
 CREATE TABLE t1 (n INT);
 INSERT INTO t1 VALUES (1234);
 DROP TABLE t1;
-DROP TABLE t2;
-Wait until test2.t2 is deleted on slave
-include/sync_slave_sql_with_master.inc
 [connection master]
 DROP DATABASE test1;
 DROP DATABASE test2;

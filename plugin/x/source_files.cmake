@@ -39,6 +39,7 @@ FILE(GLOB ngs_SRC
 SET(xplugin_HDRS
   "${MYSQLX_PROJECT_DIR}/src/io/xpl_listener_tcp.h"
   "${MYSQLX_PROJECT_DIR}/src/io/xpl_listener_unix_socket.h"
+  "${MYSQLX_PROJECT_DIR}/src/io/vio_input_stream.h"
   "${MYSQLX_PROJECT_DIR}/src/xpl_server.h"
   "${MYSQLX_PROJECT_DIR}/src/xpl_session.h"
   "${MYSQLX_PROJECT_DIR}/src/xpl_client.h"
@@ -99,6 +100,7 @@ SET(xplugin_SRC
   "${MYSQLX_PROJECT_DIR}/src/xpl_log.cc"
   "${MYSQLX_PROJECT_DIR}/src/io/xpl_listener_tcp.cc"
   "${MYSQLX_PROJECT_DIR}/src/io/xpl_listener_unix_socket.cc"
+  "${MYSQLX_PROJECT_DIR}/src/io/vio_input_stream.cc"
   "${MYSQLX_PROJECT_DIR}/src/xpl_server.cc"
   "${MYSQLX_PROJECT_DIR}/src/xpl_session.cc"
   "${MYSQLX_PROJECT_DIR}/src/xpl_client.cc"
@@ -147,17 +149,9 @@ SET(xplugin_SRC
   "${MYSQLX_PROJECT_DIR}/src/services/mysqlx_maintenance.cc"
   "${MYSQLX_PROJECT_DIR}/src/udf/registrator.cc"
   "${MYSQLX_PROJECT_DIR}/src/udf/mysqlx_error.cc"
-  ${ngs_SRC}
-)
-
-SET(xplugin_stubbed_SRC
   "${MYSQLX_PROJECT_DIR}/src/xpl_plugin.cc"
   "${MYSQLX_PROJECT_DIR}/src/xpl_performance_schema.cc"
-)
-
-SET(xplugin_all_SRC
-  ${xplugin_SRC}
-  ${xplugin_stubbed_SRC}
+  ${ngs_SRC}
 )
 
 SET(xplugin_global_reset_SRC

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,8 @@ const char *const ER_TEXT_RECEIVE_BUFFER_TO_SMALL = "Receive buffer to small";
 namespace details {
 
 XError make_xerror(const Mysqlx::Error &error) {
-  return XError{static_cast<int>(error.code()), error.msg()};
+  bool is_fatal = error.severity() == Mysqlx::Error::FATAL;
+  return XError{static_cast<int>(error.code()), error.msg(), is_fatal};
 }
 
 class Query_sequencer : public Query_instances {
@@ -92,6 +93,7 @@ Protocol_impl::Protocol_impl(std::shared_ptr<Context> context,
   assert(nullptr != factory);
   m_sync_connection = factory->create_connection(context);
   m_query_instances.reset(new details::Query_sequencer);
+  m_static_recv_buffer.resize(VIO_READ_BUFFER_SIZE);
 }
 
 XError Protocol_impl::execute_set_capability(
@@ -356,16 +358,31 @@ XError Protocol_impl::send(const Client_message_type_id mid,
                            const Message &msg) {
   if (m_context->m_global_error) return m_context->m_global_error;
 
-  std::string message_buffer;
+  std::string msg_buffer;
+  const std::uint8_t header_size = 5;
+  const std::size_t msg_size = msg.ByteSize();
+  msg_buffer.resize(msg_size + header_size);
+
+  if (msg_size > std::numeric_limits<uint32>::max() - header_size)
+    return XError{CR_MALFORMED_PACKET, ER_TEXT_DATA_TOO_LARGE};
 
   dispatch_send_message(mid, msg);
 
-  if (!msg.SerializeToString(&message_buffer)) {
+  if (!msg.SerializeToArray(&msg_buffer[0] + header_size, msg_size)) {
     return XError{CR_MALFORMED_PACKET, ER_TEXT_PB_SERIALIZATION_FAILED};
   }
 
-  return send(mid, reinterpret_cast<const uchar *>(message_buffer.data()),
-              message_buffer.length());
+  std::uint32_t *buf_ptr = reinterpret_cast<std::uint32_t *>(&msg_buffer[0]);
+  *buf_ptr = static_cast<std::uint32_t>(msg_size + 1);
+#ifdef WORDS_BIGENDIAN
+  std::swap(msg_buffer[0], msg_buffer[3]);
+  std::swap(msg_buffer[1], msg_buffer[2]);
+#endif
+  msg_buffer[4] = mid;
+
+  return m_sync_connection->write(
+      reinterpret_cast<const std::uint8_t *>(msg_buffer.data()),
+      msg_buffer.size());
 }
 
 XProtocol::Handler_id Protocol_impl::add_notice_handler(
@@ -497,9 +514,8 @@ void Protocol_impl::dispatch_send_message(const Client_message_type_id id,
 
 XError Protocol_impl::recv_ok() { return recv_id(Mysqlx::ServerMessages::OK); }
 
-XError Protocol_impl::recv(Header_message_type_id *out_mid, uint8_t **buffer,
-                           std::size_t *buffer_size) {
-  std::unique_ptr<uint8_t[]> payload_buffer;
+XError Protocol_impl::recv_header(Header_message_type_id *out_mid,
+                                  std::size_t *out_buffer_size) {
   XError error;
 
   union {
@@ -507,11 +523,6 @@ XError Protocol_impl::recv(Header_message_type_id *out_mid, uint8_t **buffer,
     uint32_t payload_size;
   };
 
-  /*
-    Use dummy, otherwise g++ 4.4 reports: unused variable 'dummy'
-    MY_ATTRIBUTE((unused)) did not work, so we must use it.
-  */
-  payload_size = 0;
   *out_mid = 0;
 
   error = m_sync_connection->read(header_buffer, 5);
@@ -525,8 +536,21 @@ XError Protocol_impl::recv(Header_message_type_id *out_mid, uint8_t **buffer,
   std::swap(header_buffer[1], header_buffer[2]);
 #endif
 
-  const uint32_t msglen = payload_size - 1;
+  *out_buffer_size = payload_size - 1;
   *out_mid = header_buffer[4];
+
+  return {};
+}
+
+XError Protocol_impl::recv(Header_message_type_id *out_mid, uint8_t **buffer,
+                           std::size_t *buffer_size) {
+  std::unique_ptr<uint8_t[]> payload_buffer;
+  std::size_t msglen = 0;
+  XError error = recv_header(out_mid, &msglen);
+
+  if (error) {
+    return error;
+  }
 
   if (*buffer && *buffer_size < msglen) {
     return XError{CR_X_RECEIVE_BUFFER_TO_SMALL,
@@ -724,23 +748,29 @@ XProtocol::Message *Protocol_impl::recv_id(
 
 XProtocol::Message *Protocol_impl::recv_message_with_header(
     Server_message_type_id *mid, XError *out_error) {
-  // XProtocol::recv must allocate the buffer
-  uint8_t *payload = nullptr;
-  std::size_t payload_size = 0;
+  std::size_t payload_size;
   Header_message_type_id header_mid;
-
-  *out_error = recv(&header_mid, &payload, &payload_size);
-
+  *out_error = recv_header(&header_mid, &payload_size);
   if (*out_error) return nullptr;
 
-  *mid = static_cast<Mysqlx::ServerMessages::Type>(header_mid);
+  std::unique_ptr<std::uint8_t[]> allocated_payload_buffer;
+  std::uint8_t *payload = nullptr;
+  if (payload_size > 0) {
+    if (payload_size > m_static_recv_buffer.size()) {
+      allocated_payload_buffer.reset(new uint8_t[payload_size]);
+      payload = allocated_payload_buffer.get();
+    } else {
+      payload = &m_static_recv_buffer[0];
+    }
+    *out_error = m_sync_connection->read(payload, payload_size);
+    if (*out_error) return nullptr;
+  }
 
-  auto result = deserialize_received_message(header_mid, payload, payload_size,
-                                             out_error);
+  *mid = static_cast<Server_message_type_id>(header_mid);
 
-  delete[] payload;
-
-  return result.release();
+  return deserialize_received_message(header_mid, payload, payload_size,
+                                      out_error)
+      .release();
 }
 
 }  // namespace xcl

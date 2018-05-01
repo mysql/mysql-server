@@ -1,4 +1,4 @@
-// Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -1043,7 +1043,7 @@ static bool create_projected_srs(gis::srid_t srid,
 
 bool gis::srs::parse_wkt(gis::srid_t srid, const char *begin, const char *end,
                          Spatial_reference_system **result) {
-  if (begin == nullptr || begin == end) {
+  if (begin == nullptr || begin >= (end - 1)) {
     my_error(ER_SRS_PARSE_ERROR, MYF(0), srid);
     return true;
   }

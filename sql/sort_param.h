@@ -83,9 +83,12 @@ inline const char *addon_fields_text(Addon_fields_status afs) {
 
 /// Struct that holds information about a sort field.
 struct st_sort_field {
-  Field *field;                 ///< Field to sort
-  Item *item;                   ///< Item if not sorting fields
-  uint length;                  ///< Length of sort field
+  Field *field;  ///< Field to sort
+  Item *item;    ///< Item if not sorting fields
+
+  /// Length of sort field. Beware, can be 0xFFFFFFFFu (infinite)!
+  uint length;
+
   uint suffix_length;           ///< Length suffix (0-4)
   Item_result result_type;      ///< Type of item (not used for fields)
   enum_field_types field_type;  ///< Field type of the field or item
@@ -329,13 +332,19 @@ class Sort_param {
   bool using_addon_fields() const { return addon_fields != NULL; }
 
   /**
-    Stores key fields in *to.
+    Stores key fields in *dst.
     Then appends either *ref_pos (the @<rowid@>) or the "addon fields".
-    @param  to      out Where to store the result
+    @param  dst     out Where to store the result
     @param  ref_pos in  Where to find the @<rowid@>
-    @returns Number of bytes stored.
+    @returns Number of bytes stored, or UINT_MAX if the result could not
+      provably fit within the destination buffer.
    */
-  uint make_sortkey(uchar *to, const uchar *ref_pos);
+  uint make_sortkey(Bounds_checked_array<uchar> dst, const uchar *ref_pos);
+
+  // Adapter for Bounded_queue.
+  uint make_sortkey(uchar *dst, size_t dst_len, const uchar *ref_pos) {
+    return make_sortkey(Bounds_checked_array<uchar>(dst, dst_len), ref_pos);
+  }
 
   /// Stores the length of a variable-sized key.
   static void store_varlen_key_length(uchar *p, uint sz) { int4store(p, sz); }

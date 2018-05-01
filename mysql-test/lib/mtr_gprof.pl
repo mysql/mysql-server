@@ -1,6 +1,6 @@
 # -*- cperl -*-
-# Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
-# 
+# Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -28,21 +28,18 @@
 use strict;
 
 sub gprof_collect ($@) {
-  my ($exe_mysqld, @gprof_dirs)= @_;
+  my ($exe_mysqld, @gprof_dirs) = @_;
 
-  print ("Collecting gprof reports.....\n");
+  print("Collecting gprof reports.....\n");
 
-  foreach my $datadir (@gprof_dirs)
-  {
-    my $gprof_msg= "$datadir/gprof.msg";
-    my $gprof_err= "$datadir/gprof.err";
-    if ( -f "$datadir/gmon.out" )
-    {
-      system("gprof $exe_mysqld $datadir/gmon.out 2>$gprof_err >$gprof_msg");
-      print ("GPROF output in $gprof_msg, errors in $gprof_err\n");
+  foreach my $datadir (@gprof_dirs) {
+    my $gprof_msg = "$datadir/gprof.msg";
+    my $gprof_err = "$datadir/gprof.err";
+    if (-f "$datadir/gmon.out") {
+      system("gprof $exe_mysqld $datadir/gmon.out 2 > $gprof_err > $gprof_msg");
+      print("GPROF output in $gprof_msg, errors in $gprof_err\n");
     }
   }
 }
-
 
 1;

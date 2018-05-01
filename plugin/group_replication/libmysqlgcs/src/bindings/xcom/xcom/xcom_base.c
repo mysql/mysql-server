@@ -2862,7 +2862,7 @@ static void do_learn(site_def const *site MY_ATTRIBUTE((unused)),
      it is only necessary to compute the added memory when we
      record the outcome of a consensus round.
   */
-  add_cache_size(pax_machine_size(p));
+  add_cache_size(p);
   /* Shrink the cache size if necessary */
   shrink_cache();
 }
@@ -3330,13 +3330,64 @@ static u_int allow_remove_node(app_data_ptr a) {
   return 1;
 }
 
+/**
+ * Logs the fact that an add/remove node request is aimed at another group.
+ *
+ * @param a a pointer to the app_data of the configuration command
+ * @param message_fmt a formatted message to log, containing a single %s that
+ * will be replaced by the node's address
+ */
+static void log_cfgchange_wrong_group(app_data_ptr a,
+                                      const char *const message_fmt) {
+  u_int const nr_nodes = a->body.app_u_u.nodes.node_list_len;
+  u_int i;
+  for (i = 0; i < nr_nodes; i++) {
+    char const *const address = a->body.app_u_u.nodes.node_list_val[i].address;
+    G_WARNING(message_fmt, address);
+  }
+}
+
+/**
+ * Validates if a configuration command can be executed.
+ * Checks whether the configuration command is aimed at the correct group.
+ * Checks whether the configuration command pertains to a node reincarnation.
+ *
+ * @param p a pointer to the pax_msg of the configuration command
+ * @retval REQUEST_OK if the reconfiguration command can be executed
+ * @retval REQUEST_RETRY if XCom is still booting
+ * @retval REQUEST_FAIL if the configuration command cannot be executed
+ */
 static client_reply_code can_execute_cfgchange(pax_msg *p) {
   app_data_ptr a = p->a;
 
   if (executed_msg.msgno <= 2) return REQUEST_RETRY;
 
-  if (a && a->group_id != 0 && a->group_id != executed_msg.group_id)
+  if (a && a->group_id != 0 && a->group_id != executed_msg.group_id) {
+    switch (a->body.c_t) {
+      case add_node_type:
+        log_cfgchange_wrong_group(
+            a,
+            "The request to add %s to the group has been rejected because it "
+            "is aimed at another group");
+        break;
+      case remove_node_type:
+        log_cfgchange_wrong_group(
+            a,
+            "The request to remove %s from the group has been rejected because "
+            "it is aimed at another group");
+        break;
+      case force_config_type:
+        G_WARNING(
+            "The request to force the group membership has been rejected "
+            "because it is aimed at another group");
+        break;
+      default:
+        assert(0 &&
+               "A cargo_type different from {add_node_type, remove_node_type, "
+               "force_config_type} should not have hit this code path");
+    }
     return REQUEST_FAIL;
+  }
 
   if (a && a->body.c_t == add_node_type && !allow_add_node(a))
     return REQUEST_FAIL;

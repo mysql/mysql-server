@@ -54,6 +54,11 @@ upd_t *upd_create(ulint n,          /*!< in: number of fields */
   update->fields = reinterpret_cast<upd_field_t *>(&update[1]);
   update->heap = heap;
 
+  for (ulint i = 0; i < n; ++i) {
+    upd_field_t *uf = &update->fields[i];
+    uf->heap = heap;
+  }
+
   return (update);
 }
 

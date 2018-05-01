@@ -430,7 +430,8 @@ static void row_merge_buf_redundant_convert_func(
                 field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE));
 
     byte *data = lob::btr_copy_externally_stored_field(
-        clust_index, &ext_len, field_data, page_size, field_len, is_sdi, heap);
+        clust_index, &ext_len, nullptr, field_data, page_size, field_len,
+        is_sdi, heap);
 
     ut_ad(ext_len < len);
 
@@ -1810,7 +1811,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
         row_vers_build_for_consistent_read(rec, &mtr, clust_index, &offsets,
                                            trx->read_view, &row_heap, row_heap,
-                                           &old_vers, NULL);
+                                           &old_vers, NULL, nullptr);
 
         rec = old_vers;
 
@@ -2818,10 +2819,10 @@ static void row_merge_copy_blobs_func(trx_t *trx, const dict_index_t *index,
                   field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE));
 
       data = lob::btr_copy_externally_stored_field(
-          index, &len, field_data, page_size, field_len, is_sdi, heap);
+          index, &len, nullptr, field_data, page_size, field_len, is_sdi, heap);
     } else {
       data = lob::btr_rec_copy_externally_stored_field(
-          index, mrec, offsets, page_size, i, &len, is_sdi, heap);
+          index, mrec, offsets, page_size, i, &len, nullptr, is_sdi, heap);
     }
 
     /* Because we have locked the table, any records
@@ -3423,8 +3424,7 @@ dberr_t row_merge_drop_table(trx_t *trx,          /*!< in: transaction */
   /* There must be no open transactions on the table. */
   ut_a(table->get_ref_count() == 0);
 
-  return (row_drop_table_for_mysql(table->name.m_name, trx, SQLCOM_DROP_TABLE,
-                                   false, NULL));
+  return (row_drop_table_for_mysql(table->name.m_name, trx, false, NULL));
 }
 
 /** Write an MLOG_INDEX_LOAD record to indicate in the redo-log

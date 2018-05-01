@@ -31,7 +31,7 @@ Field	Type	Null	Key	Default	Extra
 TABLE_CATALOG	varchar(64)	YES		NULL	
 TABLE_SCHEMA	varchar(64)	YES		NULL	
 TABLE_NAME	varchar(64)	YES		NULL	
-NON_UNIQUE	varchar(1)	NO			
+NON_UNIQUE	int(1)	NO		0	
 INDEX_SCHEMA	varchar(64)	YES		NULL	
 INDEX_NAME	varchar(64)	YES		NULL	
 SEQ_IN_INDEX	int(10) unsigned	NO		NULL	
@@ -47,13 +47,13 @@ INDEX_COMMENT	varchar(2048)	NO		NULL
 IS_VISIBLE	varchar(3)	NO			
 SHOW CREATE TABLE information_schema.STATISTICS;
 View	Create View	character_set_client	collation_connection
-STATISTICS	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`STATISTICS` AS select (`cat`.`name` collate utf8_tolower_ci) AS `TABLE_CATALOG`,(`sch`.`name` collate utf8_tolower_ci) AS `TABLE_SCHEMA`,(`tbl`.`name` collate utf8_tolower_ci) AS `TABLE_NAME`,if(((`idx`.`type` = 'PRIMARY') or (`idx`.`type` = 'UNIQUE')),'0','1') AS `NON_UNIQUE`,(`sch`.`name` collate utf8_tolower_ci) AS `INDEX_SCHEMA`,(`idx`.`name` collate utf8_tolower_ci) AS `INDEX_NAME`,`icu`.`ordinal_position` AS `SEQ_IN_INDEX`,(`col`.`name` collate utf8_tolower_ci) AS `COLUMN_NAME`,(case when (`icu`.`order` = 'DESC') then 'D' when (`icu`.`order` = 'ASC') then 'A' else NULL end) AS `COLLATION`,internal_index_column_cardinality(`sch`.`name`,`tbl`.`name`,`idx`.`name`,`col`.`name`,`idx`.`ordinal_position`,`icu`.`ordinal_position`,`tbl`.`engine`,`tbl`.`se_private_id`,((`tbl`.`hidden` <> 'Visible') or `idx`.`hidden` or `icu`.`hidden`),coalesce(`stat`.`cardinality`,cast(-(1) as unsigned)),coalesce(cast(`stat`.`cached_time` as unsigned),0)) AS `CARDINALITY`,get_dd_index_sub_part_length(`icu`.`length`,`col`.`type`,`col`.`char_length`,`col`.`collation_id`,`idx`.`type`) AS `SUB_PART`,NULL AS `PACKED`,if((`col`.`is_nullable` = 1),'YES','') AS `NULLABLE`,(case when (`idx`.`type` = 'SPATIAL') then 'SPATIAL' when (`idx`.`algorithm` = 'SE_PRIVATE') then '' else `idx`.`algorithm` end) AS `INDEX_TYPE`,if(((`idx`.`type` = 'PRIMARY') or (`idx`.`type` = 'UNIQUE')),'',if(internal_keys_disabled(`tbl`.`options`),'disabled','')) AS `COMMENT`,`idx`.`comment` AS `INDEX_COMMENT`,if(`idx`.`is_visible`,'YES','NO') AS `IS_VISIBLE` from (((((((`mysql`.`index_column_usage` `icu` join `mysql`.`indexes` `idx` on((`idx`.`id` = `icu`.`index_id`))) join `mysql`.`tables` `tbl` on((`idx`.`table_id` = `tbl`.`id`))) join `mysql`.`columns` `col` on((`icu`.`column_id` = `col`.`id`))) join `mysql`.`schemata` `sch` on((`tbl`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) join `mysql`.`collations` `coll` on((`tbl`.`collation_id` = `coll`.`id`))) left join `mysql`.`index_stats` `stat` on(((`tbl`.`name` = `stat`.`table_name`) and (`sch`.`name` = `stat`.`schema_name`) and (`idx`.`name` = `stat`.`index_name`) and (`col`.`name` = `stat`.`column_name`)))) where (can_access_table(`sch`.`name`,`tbl`.`name`) and is_visible_dd_object(`tbl`.`hidden`,(`idx`.`hidden` or `icu`.`hidden`)))	utf8	utf8_general_ci
+STATISTICS	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`STATISTICS` AS select (`cat`.`name` collate utf8_tolower_ci) AS `TABLE_CATALOG`,(`sch`.`name` collate utf8_tolower_ci) AS `TABLE_SCHEMA`,(`tbl`.`name` collate utf8_tolower_ci) AS `TABLE_NAME`,if(((`idx`.`type` = 'PRIMARY') or (`idx`.`type` = 'UNIQUE')),0,1) AS `NON_UNIQUE`,(`sch`.`name` collate utf8_tolower_ci) AS `INDEX_SCHEMA`,(`idx`.`name` collate utf8_tolower_ci) AS `INDEX_NAME`,`icu`.`ordinal_position` AS `SEQ_IN_INDEX`,(`col`.`name` collate utf8_tolower_ci) AS `COLUMN_NAME`,(case when (`icu`.`order` = 'DESC') then 'D' when (`icu`.`order` = 'ASC') then 'A' else NULL end) AS `COLLATION`,internal_index_column_cardinality(`sch`.`name`,`tbl`.`name`,`idx`.`name`,`col`.`name`,`idx`.`ordinal_position`,`icu`.`ordinal_position`,`tbl`.`engine`,`tbl`.`se_private_id`,((`tbl`.`hidden` <> 'Visible') or `idx`.`hidden` or `icu`.`hidden`),coalesce(`stat`.`cardinality`,cast(-(1) as unsigned)),coalesce(cast(`stat`.`cached_time` as unsigned),0)) AS `CARDINALITY`,get_dd_index_sub_part_length(`icu`.`length`,`col`.`type`,`col`.`char_length`,`col`.`collation_id`,`idx`.`type`) AS `SUB_PART`,NULL AS `PACKED`,if((`col`.`is_nullable` = 1),'YES','') AS `NULLABLE`,(case when (`idx`.`type` = 'SPATIAL') then 'SPATIAL' when (`idx`.`algorithm` = 'SE_PRIVATE') then '' else `idx`.`algorithm` end) AS `INDEX_TYPE`,if(((`idx`.`type` = 'PRIMARY') or (`idx`.`type` = 'UNIQUE')),'',if(internal_keys_disabled(`tbl`.`options`),'disabled','')) AS `COMMENT`,`idx`.`comment` AS `INDEX_COMMENT`,if(`idx`.`is_visible`,'YES','NO') AS `IS_VISIBLE` from (((((((`mysql`.`index_column_usage` `icu` join `mysql`.`indexes` `idx` on((`idx`.`id` = `icu`.`index_id`))) join `mysql`.`tables` `tbl` on((`idx`.`table_id` = `tbl`.`id`))) join `mysql`.`columns` `col` on((`icu`.`column_id` = `col`.`id`))) join `mysql`.`schemata` `sch` on((`tbl`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) join `mysql`.`collations` `coll` on((`tbl`.`collation_id` = `coll`.`id`))) left join `mysql`.`index_stats` `stat` on(((`tbl`.`name` = `stat`.`table_name`) and (`sch`.`name` = `stat`.`schema_name`) and (`idx`.`name` = `stat`.`index_name`) and (`col`.`name` = `stat`.`column_name`)))) where (can_access_table(`sch`.`name`,`tbl`.`name`) and is_visible_dd_object(`tbl`.`hidden`,(`idx`.`hidden` or `icu`.`hidden`)))	utf8	utf8_general_ci
 SHOW COLUMNS FROM information_schema.STATISTICS;
 Field	Type	Null	Key	Default	Extra
 TABLE_CATALOG	varchar(64)	YES		NULL	
 TABLE_SCHEMA	varchar(64)	YES		NULL	
 TABLE_NAME	varchar(64)	YES		NULL	
-NON_UNIQUE	varchar(1)	NO			
+NON_UNIQUE	int(1)	NO		0	
 INDEX_SCHEMA	varchar(64)	YES		NULL	
 INDEX_NAME	varchar(64)	YES		NULL	
 SEQ_IN_INDEX	int(10) unsigned	NO		NULL	
@@ -103,9 +103,6 @@ def	mysql	help_relation	mysql	PRIMARY
 def	mysql	help_relation	mysql	PRIMARY
 def	mysql	help_topic	mysql	PRIMARY
 def	mysql	help_topic	mysql	name
-def	mysql	innodb_ddl_log	mysql	PRIMARY
-def	mysql	innodb_ddl_log	mysql	thread_id
-def	mysql	innodb_dynamic_metadata	mysql	PRIMARY
 def	mysql	innodb_index_stats	mysql	PRIMARY
 def	mysql	innodb_index_stats	mysql	PRIMARY
 def	mysql	innodb_index_stats	mysql	PRIMARY

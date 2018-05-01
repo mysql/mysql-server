@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -215,7 +215,8 @@ struct z_first_page_t {
     return (mach_read_from_4(frame() + FIL_PAGE_OFFSET));
   }
 
-  /** Get the page id. */
+  /** Get the page id of the first page of compressed LOB.
+  @return page id of the first page of compressed LOB. */
   page_id_t get_page_id() const {
     ut_ad(m_block != nullptr);
 
@@ -464,6 +465,10 @@ struct z_first_page_t {
 #ifdef UNIV_DEBUG
   bool validate();
 #endif /* UNIV_DEBUG */
+
+  /** Get the buffer block of the first page of LOB.
+  @return the buffer block of the first page of LOB. */
+  buf_block_t *get_block() const { return (m_block); }
 
  private:
   /** The buffer block of the first page. */

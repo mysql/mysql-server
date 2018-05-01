@@ -25,7 +25,7 @@
 --source include/master-slave.inc
 
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
-call mtr.add_suppression("Slave SQL for channel '': The incident LOST_EVENTS occured on the master.");
+call mtr.add_suppression("Slave SQL for channel '': The incident LOST_EVENTS occurred on the master.");
 call mtr.add_suppression("The content of the statement cache is corrupted "
                          "while writing a rollback record of the transaction "
                          "to the binary log. An incident event has been "

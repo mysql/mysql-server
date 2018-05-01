@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -48,6 +48,7 @@
 #define HAVE_PSI_IDLE_INTERFACE
 #define HAVE_PSI_METADATA_INTERFACE
 #define HAVE_PSI_DATA_LOCK_INTERFACE
+#define HAVE_PSI_SYSTEM_INTERFACE
 
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
@@ -74,6 +75,7 @@
 #include "mysql/psi/psi_socket.h"
 #include "mysql/psi/psi_stage.h"
 #include "mysql/psi/psi_statement.h"
+#include "mysql/psi/psi_system.h"
 #include "mysql/psi/psi_table.h"
 #include "mysql/psi/psi_thread.h"
 #include "mysql/psi/psi_transaction.h"
@@ -901,3 +903,14 @@ void set_psi_data_lock_service(void *psi) {
 }
 
 // ===========================================================================
+
+static void unload_plugin_noop(const char *) { return; }
+
+static PSI_system_service_t psi_system_noop = {unload_plugin_noop};
+
+struct PSI_system_bootstrap *psi_system_hook = NULL;
+PSI_system_service_t *psi_system_service = &psi_system_noop;
+
+void set_psi_system_service(void *psi) {
+  psi_system_service = (PSI_system_service_t *)psi;
+}

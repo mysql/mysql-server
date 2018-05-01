@@ -1192,6 +1192,23 @@
    ...
 }
 
+{
+   General protobuf globals
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:_Znwm
+   ...
+   fun:_Z41__static_initialization_and_destruction_0ii
+}
+
+{
+   General protobuf globals
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:_Znwm
+   ...
+   fun:_ZN6Mysqlx23protobuf_mysqlx_2eproto27StaticDescriptorInitializerC1Ev
+}
 
 {
    mysqlx plugin install

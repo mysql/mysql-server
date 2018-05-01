@@ -9,6 +9,7 @@ eval CREATE TABLE t1 (
 ) ENGINE=InnoDB ROW_FORMAT=$row_format;
 
 if ($index == 'spatial_none') {
+  --error ER_WRONG_SUB_KEY
   eval ALTER TABLE t1 ADD INDEX prefix_idx (g($prefix_size));
 }
 
@@ -18,6 +19,7 @@ if ($index == 'spatial_only') {
 
 if ($index == 'spatial_mixed') {
   ALTER TABLE t1 ADD SPATIAL INDEX spatial_idx (g);
+  --error ER_WRONG_SUB_KEY
   eval ALTER TABLE t1 ADD INDEX prefix_idx (g($prefix_size));
 }
 
@@ -48,11 +50,12 @@ if ($index == 'spatial_none') {
 }
 
 if ($index == 'spatial_only') {
+  --error ER_WRONG_SUB_KEY
   eval ALTER TABLE t1 ADD INDEX prefix_idx (g($prefix_size));
 }
 
 if ($index == 'spatial_mixed') {
-  ALTER TABLE t1 DROP INDEX spatial_idx, DROP INDEX prefix_idx;
+  ALTER TABLE t1 DROP INDEX spatial_idx;
 }
 
 connection con1;

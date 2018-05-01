@@ -6,6 +6,7 @@
 ## Test starts here
 --let $xtest_file= $MYSQL_TMP_DIR/admin_create_index_spatial.tmp
 --write_file $xtest_file
+-->import use_of_index.macro
 -->quiet
 
 ## Test data
@@ -103,6 +104,9 @@ SHOW STATUS LIKE 'Mysqlx_stmt_execute_mysqlx';
 -->callmacro Insert	spatial1	'{"_id": "seven", "first":{"type": "GeometryCollection", "geometries": [{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [10, 20]}]}]}}'	ER_SUCCESS
 -->stmtsql SELECT doc,_id,ST_ASGEOJSON($ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B) FROM xtest.spatial1;
 -->recvresult
+-->echo Using of index give an unexpected result and it caused by another bug
+-->callmacro Show_use_of_index	spatial1	MBRContains(st_geomfromgeojson(doc->'$.first',1,4326),st_geomfromtext('point(10 11)',4326))
+
 -->stmtadmin drop_collection_index	{"schema":"xtest", "collection":"spatial1", "name":"one"}
 -->recvresult
 -->stmtsql DELETE FROM xtest.spatial1;
@@ -167,17 +171,17 @@ SHOW STATUS LIKE 'Mysqlx_stmt_execute_mysqlx';
 
 -->title =Try to create "regular" index on geometry member
 -->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial2", "type":"index", "name":"regular", "unique":false, "constraint":{"member":"$.first", "type":"geojson", "required":false}}
--->expecterror ER_BLOB_KEY_WITHOUT_LENGTH
+-->expecterror ER_X_DOC_REQUIRED_FIELD_MISSING
 -->recvresult
 
 -->title =Try to create spatial index with negative options
 -->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial2", "type":"spatial", "name":"four", "unique":false, "constraint":{"member":"$.first", "type":"geojson", "required":true, "options":-1}}
--->expecterror ER_X_CMD_ARGUMENT_TYPE
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
 -->recvresult
 
 -->title =Try to create spatial index with negative srid
 -->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial2", "type":"spatial", "name":"four", "unique":false, "constraint":{"member":"$.first", "type":"geojson", "required":true, "srid":-1}}
--->expecterror ER_X_CMD_ARGUMENT_TYPE
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
 -->recvresult
 
 -->title =Try to insert invalid value to collection with spatial index

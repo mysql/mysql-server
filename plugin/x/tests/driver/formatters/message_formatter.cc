@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -316,7 +316,8 @@ std::string message_to_text(const Message &message) {
     selected)
 */
 std::string message_to_text(const Message &message,
-                            const std::string &field_path) {
+                            const std::string &field_path,
+                            const bool show_message_name) {
   if (field_path.empty()) return message_to_text(message);
 
   const FieldDescriptor *field_descriptor = NULL;
@@ -389,10 +390,12 @@ std::string message_to_text(const Message &message,
 
   if (field_descriptor->is_repeated() &&
       !fields[index_of_last_element].m_has_index)
-    throw std::logic_error("Last selected element is an repeated field");
+    throw std::logic_error("Last selected element is a repeated field");
 
-  std::string prefix =
-      message.GetDescriptor()->full_name() + "(" + field_path + ") = ";
+  std::string prefix = "";
+
+  if (show_message_name)
+    prefix = message.GetDescriptor()->full_name() + "(" + field_path + ") = ";
 
   if (!field_descriptor->is_repeated())
     return prefix + messages_field_to_text(*msg, field_descriptor);

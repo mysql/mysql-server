@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -621,6 +621,12 @@ TEST(xpl_expr_generator, cast_scalar_to_multichar) {
 TEST(xpl_expr_generator, cast_scalar_to_binary) {
   EXPECT_EQ("CAST('one' AS BINARY)",
             generate_expression(Operator("cast", "one", "BINARY"), EMPTY_SCHEMA,
+                                DM_TABLE));
+}
+
+TEST(xpl_expr_generator, cast_scalar_to_binary_lowercase) {
+  EXPECT_EQ("CAST('one' AS binary)",
+            generate_expression(Operator("cast", "one", "binary"), EMPTY_SCHEMA,
                                 DM_TABLE));
 }
 

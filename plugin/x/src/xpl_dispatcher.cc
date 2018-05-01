@@ -168,56 +168,57 @@ ngs::Error_code on_expect_close(xpl::Session &session,
 ngs::Error_code do_dispatch_command(xpl::Session &session,
                                     xpl::Crud_command_handler &crudh,
                                     xpl::Expectation_stack &expect,
-                                    ngs::Request &command) {
-  switch (command.get_type()) {
+                                    ngs::Message_request &command) {
+  switch (command.get_message_type()) {
     case Mysqlx::ClientMessages::SQL_STMT_EXECUTE:
-      return on_stmt_execute(
-          session,
-          static_cast<const Mysqlx::Sql::StmtExecute &>(*command.message()));
+      return on_stmt_execute(session,
+                             static_cast<const Mysqlx::Sql::StmtExecute &>(
+                                 *command.get_message()));
 
     case Mysqlx::ClientMessages::CRUD_FIND:
       return crudh.execute_crud_find(
-          session, static_cast<const Mysqlx::Crud::Find &>(*command.message()));
+          session,
+          static_cast<const Mysqlx::Crud::Find &>(*command.get_message()));
 
     case Mysqlx::ClientMessages::CRUD_INSERT:
       return crudh.execute_crud_insert(
           session,
-          static_cast<const Mysqlx::Crud::Insert &>(*command.message()));
+          static_cast<const Mysqlx::Crud::Insert &>(*command.get_message()));
 
     case Mysqlx::ClientMessages::CRUD_UPDATE:
       return crudh.execute_crud_update(
           session,
-          static_cast<const Mysqlx::Crud::Update &>(*command.message()));
+          static_cast<const Mysqlx::Crud::Update &>(*command.get_message()));
 
     case Mysqlx::ClientMessages::CRUD_DELETE:
       return crudh.execute_crud_delete(
           session,
-          static_cast<const Mysqlx::Crud::Delete &>(*command.message()));
+          static_cast<const Mysqlx::Crud::Delete &>(*command.get_message()));
 
     case Mysqlx::ClientMessages::CRUD_CREATE_VIEW:
       return crudh.execute_create_view(
-          session,
-          static_cast<const Mysqlx::Crud::CreateView &>(*command.message()));
+          session, static_cast<const Mysqlx::Crud::CreateView &>(
+                       *command.get_message()));
 
     case Mysqlx::ClientMessages::CRUD_MODIFY_VIEW:
       return crudh.execute_modify_view(
-          session,
-          static_cast<const Mysqlx::Crud::ModifyView &>(*command.message()));
+          session, static_cast<const Mysqlx::Crud::ModifyView &>(
+                       *command.get_message()));
 
     case Mysqlx::ClientMessages::CRUD_DROP_VIEW:
       return crudh.execute_drop_view(
           session,
-          static_cast<const Mysqlx::Crud::DropView &>(*command.message()));
+          static_cast<const Mysqlx::Crud::DropView &>(*command.get_message()));
 
     case Mysqlx::ClientMessages::EXPECT_OPEN:
       return on_expect_open(
           session, expect,
-          static_cast<const Mysqlx::Expect::Open &>(*command.message()));
+          static_cast<const Mysqlx::Expect::Open &>(*command.get_message()));
 
     case Mysqlx::ClientMessages::EXPECT_CLOSE:
       return on_expect_close(
           session, expect,
-          static_cast<const Mysqlx::Expect::Close &>(*command.message()));
+          static_cast<const Mysqlx::Expect::Close &>(*command.get_message()));
   }
 
   session.proto().get_protocol_monitor().on_error_unknown_msg_type();
@@ -229,12 +230,12 @@ ngs::Error_code do_dispatch_command(xpl::Session &session,
 bool xpl::dispatcher::dispatch_command(Session &session,
                                        Crud_command_handler &crudh,
                                        Expectation_stack &expect,
-                                       ngs::Request &command) {
-  ngs::Error_code error = expect.pre_client_stmt(command.get_type());
+                                       ngs::Message_request &command) {
+  ngs::Error_code error = expect.pre_client_stmt(command.get_message_type());
   if (!error) {
     error = do_dispatch_command(session, crudh, expect, command);
     if (error) session.proto().send_result(error);
-    expect.post_client_stmt(command.get_type(), error);
+    expect.post_client_stmt(command.get_message_type(), error);
   } else
     session.proto().send_result(error);
   return error.error != ER_UNKNOWN_COM_ERROR;

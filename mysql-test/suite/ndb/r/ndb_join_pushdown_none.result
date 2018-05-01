@@ -6150,7 +6150,7 @@ default charset = utf8
 engine = ndb
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (1, 1, 'Ole');
 insert into t1 values (2, 2, 'Dole');
 insert into t1 values (3, 3, 'Doffen');
@@ -6852,7 +6852,7 @@ KEY node_id (node_id,sort_number)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE ndb_user_test (
 user_id int(10) unsigned NOT NULL AUTO_INCREMENT,
 name varchar(20) NOT NULL,
@@ -6860,7 +6860,7 @@ PRIMARY KEY (user_id)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8 AUTO_INCREMENT=2
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO ndb_order_test (node_id, user_id, sort_number) VALUES
 (68, 1, 1398029),
 (68, 1, 549053);

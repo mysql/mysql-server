@@ -70,7 +70,7 @@ test.t1	analyze	status	OK
 show index from t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def			SHOW_STATISTICS	Table	Table	253	256	2	Y	0	0	255
-def			SHOW_STATISTICS	Non_unique	Non_unique	253	4	1	N	1	0	255
+def			SHOW_STATISTICS	Non_unique	Non_unique	3	1	1	N	32769	0	63
 def			SHOW_STATISTICS	Key_name	Key_name	253	256	7	Y	0	0	255
 def	mysql	index_column_usage	SHOW_STATISTICS	Seq_in_index	Seq_in_index	3	10	1	N	36897	0	63
 def			SHOW_STATISTICS	Column_name	Column_name	253	256	1	Y	0	0	255
@@ -139,7 +139,7 @@ def			TABLES	Max_data_length	Max_data_length	8	21	0	Y	32800	0	63
 def			TABLES	Index_length	Index_length	8	21	0	Y	32800	0	63
 def			TABLES	Data_free	Data_free	8	21	0	Y	32800	0	63
 def			TABLES	Auto_increment	Auto_increment	8	21	0	Y	32800	0	63
-def	mysql	tables	TABLES	Create_time	Create_time	7	19	0	N	129	0	63
+def	mysql	tables	TABLES	Create_time	Create_time	7	19	0	N	#	0	63
 def			TABLES	Update_time	Update_time	12	19	0	Y	128	0	63
 def			TABLES	Check_time	Check_time	12	19	0	Y	128	0	63
 def	mysql	collations	TABLES	Collation	Collation	253	256	0	Y	4096	0	255
@@ -696,7 +696,7 @@ PRIMARY KEY(field1(750))
 show index from t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def			SHOW_STATISTICS	Table	Table	253	64	2	Y	0	0	63
-def			SHOW_STATISTICS	Non_unique	Non_unique	253	1	1	N	1	0	63
+def			SHOW_STATISTICS	Non_unique	Non_unique	3	1	1	N	32769	0	63
 def			SHOW_STATISTICS	Key_name	Key_name	253	64	7	Y	0	0	63
 def	mysql	index_column_usage	SHOW_STATISTICS	Seq_in_index	Seq_in_index	3	10	1	N	36897	0	63
 def			SHOW_STATISTICS	Column_name	Column_name	253	64	6	Y	0	0	63
@@ -862,7 +862,7 @@ CREATE PROCEDURE p1() SELECT 1;
 CREATE FUNCTION f1() RETURNS INT RETURN 1;
 set names utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 -- Here we enable metadata just to check that the collation of the
 -- resultset is non-binary for string type. This should be changed
 -- after Bug#29394 is implemented.
@@ -884,7 +884,7 @@ def		COLLATIONS	COLLATIONS	Id	Id	8	20	2	N	32801	0	63
 def		COLLATIONS	COLLATIONS	Default	Default	253	9	0	N	1	0	33
 def		COLLATIONS	COLLATIONS	Compiled	Compiled	253	9	3	N	1	0	33
 def		COLLATIONS	COLLATIONS	Sortlen	Sortlen	3	10	1	N	36897	0	63
-def		COLLATIONS	COLLATIONS	Pad_attribute	Pad_attribute	253	27	9	N	4225	0	33
+def		COLLATIONS	COLLATIONS	Pad_attribute	Pad_attribute	254	27	9	N	4481	0	33
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 latin1_bin	latin1	47		Yes	1	PAD SPACE
 ----------------------------------------------------------------
@@ -914,7 +914,7 @@ t1	CREATE TABLE `t1` (
 SHOW INDEX FROM t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def			SHOW_STATISTICS	Table	Table	253	192	2	Y	0	0	33
-def			SHOW_STATISTICS	Non_unique	Non_unique	253	3	1	N	1	0	33
+def			SHOW_STATISTICS	Non_unique	Non_unique	3	1	1	N	32769	0	63
 def			SHOW_STATISTICS	Key_name	Key_name	253	192	7	Y	0	0	33
 def	mysql	index_column_usage	SHOW_STATISTICS	Seq_in_index	Seq_in_index	3	10	1	N	36897	0	63
 def			SHOW_STATISTICS	Column_name	Column_name	253	192	1	Y	0	0	33
@@ -946,7 +946,7 @@ Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is
 def		TABLES	TABLES	TABLE_CATALOG	TABLE_CATALOG	253	192	3	Y	0	31	33
 def		TABLES	TABLES	TABLE_SCHEMA	TABLE_SCHEMA	253	192	4	Y	0	31	33
 def		TABLES	TABLES	TABLE_NAME	TABLE_NAME	253	192	2	Y	0	31	33
-def	mysql	TABLES	TABLES	TABLE_TYPE	TABLE_TYPE	254	33	10	N	4481	0	33
+def	mysql	TABLES	TABLES	TABLE_TYPE	TABLE_TYPE	254	33	10	N	20873	0	33
 def		TABLES	TABLES	ENGINE	ENGINE	253	192	6	Y	0	31	33
 def	mysql	TABLES	TABLES	ROW_FORMAT	ROW_FORMAT	254	30	7	Y	384	0	33
 def	mysql	TABLES	TABLES	TABLE_COLLATION	TABLE_COLLATION	253	192	18	Y	20484	0	33
@@ -1014,7 +1014,7 @@ def	mysql	triggers	TRIGGERS	Event	Event	254	18	6	N	4481	0	33
 def	mysql	tables	TRIGGERS	Table	Table	253	192	2	N	4097	0	33
 def	mysql	triggers	TRIGGERS	Statement	Statement	252	4294967295	10	N	4241	0	33
 def	mysql	triggers	TRIGGERS	Timing	Timing	254	18	6	N	4481	0	33
-def	mysql	triggers	TRIGGERS	Created	Created	7	22	22	N	129	2	63
+def	mysql	triggers	TRIGGERS	Created	Created	7	22	22	N	4225	2	63
 def	mysql	triggers	TRIGGERS	sql_mode	sql_mode	254	1467	117	N	6273	0	33
 def	mysql	triggers	TRIGGERS	Definer	Definer	253	279	14	N	4225	0	33
 def	mysql	character_sets	TRIGGERS	character_set_client	character_set_client	253	192	6	N	4097	0	33
@@ -1133,7 +1133,7 @@ def		ROUTINES	ROUTINES	DTD_IDENTIFIER	DTD_IDENTIFIER	252	150994935	0	Y	128	31	33
 def		ROUTINES	ROUTINES	ROUTINE_BODY	ROUTINE_BODY	253	9	3	N	1	31	33
 def		ROUTINES	ROUTINES	ROUTINE_DEFINITION	ROUTINE_DEFINITION	252	4294967295	8	Y	128	31	33
 def		ROUTINES	ROUTINES	EXTERNAL_NAME	EXTERNAL_NAME	6	0	0	Y	32896	0	63
-def		ROUTINES	ROUTINES	EXTERNAL_LANGUAGE	EXTERNAL_LANGUAGE	6	0	0	Y	32896	0	63
+def	mysql	ROUTINES	ROUTINES	EXTERNAL_LANGUAGE	EXTERNAL_LANGUAGE	253	192	3	N	129	0	33
 def		ROUTINES	ROUTINES	PARAMETER_STYLE	PARAMETER_STYLE	253	9	3	N	1	31	33
 def		ROUTINES	ROUTINES	IS_DETERMINISTIC	IS_DETERMINISTIC	253	9	2	N	1	31	33
 def	mysql	ROUTINES	ROUTINES	SQL_DATA_ACCESS	SQL_DATA_ACCESS	254	51	12	N	4481	0	33
@@ -1143,7 +1143,7 @@ def	mysql	ROUTINES	ROUTINES	SQL_MODE	SQL_MODE	254	1542	117	N	6273	0	33
 def	mysql	ROUTINES	ROUTINES	ROUTINE_COMMENT	ROUTINE_COMMENT	252	196605	0	N	4241	0	33
 def	mysql	ROUTINES	ROUTINES	DEFINER	DEFINER	253	279	14	N	4225	0	33
 SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	SQL_MODE	ROUTINE_COMMENT	DEFINER
-p1	def	test	p1	PROCEDURE	NULL	SQL	SELECT 1	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION		root@localhost
+p1	def	test	p1	PROCEDURE	NULL	SQL	SELECT 1	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION		root@localhost
 ----------------------------------------------------------------
 SHOW CREATE FUNCTION f1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
@@ -1188,7 +1188,7 @@ def		ROUTINES	ROUTINES	DTD_IDENTIFIER	DTD_IDENTIFIER	252	150994935	7	Y	128	31	33
 def		ROUTINES	ROUTINES	ROUTINE_BODY	ROUTINE_BODY	253	9	3	N	1	31	33
 def		ROUTINES	ROUTINES	ROUTINE_DEFINITION	ROUTINE_DEFINITION	252	4294967295	8	Y	128	31	33
 def		ROUTINES	ROUTINES	EXTERNAL_NAME	EXTERNAL_NAME	6	0	0	Y	32896	0	63
-def		ROUTINES	ROUTINES	EXTERNAL_LANGUAGE	EXTERNAL_LANGUAGE	6	0	0	Y	32896	0	63
+def	mysql	ROUTINES	ROUTINES	EXTERNAL_LANGUAGE	EXTERNAL_LANGUAGE	253	192	3	N	129	0	33
 def		ROUTINES	ROUTINES	PARAMETER_STYLE	PARAMETER_STYLE	253	9	3	N	1	31	33
 def		ROUTINES	ROUTINES	IS_DETERMINISTIC	IS_DETERMINISTIC	253	9	2	N	1	31	33
 def	mysql	ROUTINES	ROUTINES	SQL_DATA_ACCESS	SQL_DATA_ACCESS	254	51	12	N	4481	0	33
@@ -1198,7 +1198,7 @@ def	mysql	ROUTINES	ROUTINES	SQL_MODE	SQL_MODE	254	1542	117	N	6273	0	33
 def	mysql	ROUTINES	ROUTINES	ROUTINE_COMMENT	ROUTINE_COMMENT	252	196605	0	N	4241	0	33
 def	mysql	ROUTINES	ROUTINES	DEFINER	DEFINER	253	279	14	N	4225	0	33
 SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	SQL_MODE	ROUTINE_COMMENT	DEFINER
-f1	def	test	f1	FUNCTION	int(11)	SQL	RETURN 1	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION		root@localhost
+f1	def	test	f1	FUNCTION	int(11)	SQL	RETURN 1	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION		root@localhost
 ----------------------------------------------------------------
 DROP DATABASE mysqltest1;
 DROP TABLE t1;
@@ -1293,7 +1293,7 @@ Poblacion varchar(255) default NULL,
 PRIMARY KEY  (Codigo)
 ) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show create table t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def					Table	253	64	2	N	1	31	7
@@ -1361,7 +1361,7 @@ show engine csv mutex;
 Type	Name	Status
 set names utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop table if exists `√©t√©`;
 create table `√©t√©` (field1 int);
 show full tables;
@@ -1474,7 +1474,7 @@ SET NEW.c1 = '‘≈”‘';
 CREATE EVENT ev1 ON SCHEDULE AT '2030-01-01 00:00:00' DO SELECT '‘≈”‘' AS test;
 set names utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select '—Ç–µ—Å—Ç' AS `test`	koi8r	koi8r_general_ci
@@ -1545,7 +1545,7 @@ t1	CREATE TABLE `t1` (
 # Connection con1
 ALTER TABLE t1 CHARACTER SET = utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 UNLOCK TABLES;
 # Connection default
 COMMIT;
@@ -1574,7 +1574,7 @@ t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_
 # Connection con1
 ALTER TABLE t1 CHARACTER SET = utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Connection default
 COMMIT;
 DROP TRIGGER t1_bi;
@@ -1595,7 +1595,7 @@ Id	User	Host	db	Command	Time	State	Info
 ###	root	###	test	Query	###	###	SHOW PROCESSLIST
 SET NAMES utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
 ###	event_scheduler	###	NULL	Daemon	###	###	NULL
@@ -1639,7 +1639,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 CREATE TABLE t1 (i CHAR(3),
 n CHAR(20) CHARACTER SET utf8 GENERATED ALWAYS AS (md5(i)));
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Use SHOW CREATE TABLE output below unmodified to re-create table
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -1653,7 +1653,7 @@ CREATE TABLE `t1` (
 `n` char(20) CHARACTER SET utf8 GENERATED ALWAYS AS (md5(i)) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP TABLE t1;
 #
 # Bug#24800048 - SHOW TABLES FROM DATABASE HANGS ON WINDOWS PLATFORM
@@ -1738,15 +1738,15 @@ SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE table_name='t1';
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
 def	test	PRIMARY	test	t1	PRIMARY KEY
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT constraint_schema, constraint_name, table_name, column_name FROM
 INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE table_name='t1';
 constraint_schema	constraint_name	table_name	column_name
 test	PRIMARY	t1	c1
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # EXTENDED keyword is introduced to list the hidden index and index
 # columns.
 SHOW EXTENDED INDEX FROM t1;

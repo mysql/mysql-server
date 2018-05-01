@@ -85,3 +85,9 @@ void dict_mem_fill_index_struct(
   index->magic_n = DICT_INDEX_MAGIC_N;
 #endif /* UNIV_DEBUG */
 }
+
+/** Returns the number of fields before first instant ADD COLUMN */
+inline uint32_t dict_index_t::get_instant_fields() const {
+  ut_ad(has_instant_cols());
+  return (n_fields - (table->n_cols - table->n_instant_cols));
+}

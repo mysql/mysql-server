@@ -20,7 +20,7 @@ INSERT INTO t1 (c1) VALUES (11);
 INSERT INTO t1 (c1) VALUES (FLOOR((RAND() * 10)));
 COMMIT;
 include/sync_slave_io_with_master.inc
-include/wait_for_slave_sql_error.inc [errno=1593]
+include/wait_for_slave_sql_error.inc [errno=13117]
 # Removing debug point 'force_trx_as_rbr_only' from @@GLOBAL.debug
 include/assert_grep.inc [Found the expected warning line in the error log.]
 include/start_slave.inc

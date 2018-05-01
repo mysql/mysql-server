@@ -387,7 +387,7 @@ Mysqlx.Connection.CapabilitiesGet {
 
 -->title -Connection failure by auth
 
--->expecterror 1045
+-->expecterror 2510
 -->newsession sess	x_root	badpass
 
 ###########

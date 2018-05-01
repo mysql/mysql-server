@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -134,7 +134,7 @@ int Clone_handler::validate_dir(const char *in_dir, char *out_dir) {
   }
 
   /* Check if path is within current data directory */
-  char tmp_dir[FN_REFLEN];
+  char tmp_dir[FN_REFLEN + 1];
   size_t length;
 
   strncpy(tmp_dir, out_dir, FN_REFLEN);

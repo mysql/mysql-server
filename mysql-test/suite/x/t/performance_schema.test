@@ -951,3 +951,4 @@ SELECT * FROM performance_schema.global_status
 
 --remove_file $MYSQL_TMP_DIR/performance_schema.tmp
 --source include/xplugin_drop_user.inc
+

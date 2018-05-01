@@ -67,7 +67,7 @@ SELECT @@global.optimizer_trace_offset, @@global.activate_all_roles_on_login,
 @@global.innodb_max_dirty_pages_pct, @@global.init_connect,
 @@global.max_join_size;
 @@global.optimizer_trace_offset	@@global.activate_all_roles_on_login	@@global.auto_increment_increment	@@global.auto_increment_offset	@@global.binlog_error_action	@@global.binlog_format	@@global.cte_max_recursion_depth	@@global.eq_range_index_dive_limit	@@global.innodb_monitor_disable	@@global.histogram_generation_max_mem_size	@@global.innodb_max_dirty_pages_pct	@@global.init_connect	@@global.max_join_size
--1	0	1	1	ABORT_SERVER	ROW	1000	200	NULL	20000000	90.000000		18446744073709551615
+-1	0	1	1	ABORT_SERVER	###	1000	200	NULL	20000000	90.000000		18446744073709551615
 SET PERSIST optimizer_trace_offset = default;
 SET PERSIST activate_all_roles_on_login= ON;
 SET PERSIST auto_increment_increment= 4, auto_increment_offset= 2;
@@ -85,7 +85,7 @@ SELECT @@global.optimizer_trace_offset, @@global.activate_all_roles_on_login,
 @@global.innodb_max_dirty_pages_pct, @@global.init_connect,
 @@global.max_join_size;
 @@global.optimizer_trace_offset	@@global.activate_all_roles_on_login	@@global.auto_increment_increment	@@global.auto_increment_offset	@@global.binlog_error_action	@@global.binlog_format	@@global.cte_max_recursion_depth	@@global.eq_range_index_dive_limit	@@global.innodb_monitor_disable	@@global.innodb_max_dirty_pages_pct	@@global.init_connect	@@global.max_join_size
--1	1	4	2	IGNORE_ERROR	ROW	4294967295	4294967295	latch	97.300000	SET autocommit=0	18446744073709551615
+-1	1	4	2	IGNORE_ERROR	###	4294967295	4294967295	latch	97.300000	SET autocommit=0	18446744073709551615
 SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 activate_all_roles_on_login	ON
@@ -100,9 +100,6 @@ innodb_max_dirty_pages_pct	97.300000
 innodb_monitor_disable	latch
 max_join_size	18446744073709551615
 optimizer_trace_offset	-1
-SELECT @@global.optimizer_trace_offset;
-@@global.optimizer_trace_offset
--1
 # Restart server
 # restart
 SELECT @@global.optimizer_trace_offset, @@global.activate_all_roles_on_login,
@@ -113,7 +110,7 @@ SELECT @@global.optimizer_trace_offset, @@global.activate_all_roles_on_login,
 @@global.innodb_max_dirty_pages_pct, @@global.init_connect,
 @@global.max_join_size;
 @@global.optimizer_trace_offset	@@global.activate_all_roles_on_login	@@global.auto_increment_increment	@@global.auto_increment_offset	@@global.binlog_error_action	@@global.binlog_format	@@global.cte_max_recursion_depth	@@global.eq_range_index_dive_limit	@@global.innodb_monitor_disable	@@global.innodb_max_dirty_pages_pct	@@global.init_connect	@@global.max_join_size
--1	1	4	2	IGNORE_ERROR	ROW	4294967295	4294967295	latch	97.300000	SET autocommit=0	18446744073709551615
+-1	1	4	2	IGNORE_ERROR	###	4294967295	4294967295	latch	97.300000	SET autocommit=0	18446744073709551615
 SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 activate_all_roles_on_login	ON
@@ -139,4 +136,119 @@ innodb_max_dirty_pages_pct = default, init_connect = default,
 max_join_size = default;
 Warnings:
 Warning	1230	Default value is not defined for this set option. Please specify correct counter or module name.
+#
+# Bug #27629719: SET PERSIST STORES TRUNCATED TIMESTAMPS
+#
+# Set one variable in the mysqld-auto.cnf
+SET PERSIST max_join_size= 10000000;
+# Set another variable in the mysqld-auto.cnf
+SET PERSIST init_connect='';
+# Restart the server so it sets the variable time from mysqld-auto.cnf
+# restart
+# Check the microseconds of set_time: must be 2 (i.e. different for the two vars)
+SELECT COUNT(DISTINCT MICROSECOND(set_time)) FROM performance_schema.variables_info
+WHERE variable_name IN ('max_join_size', 'init_connect');
+COUNT(DISTINCT MICROSECOND(set_time))
+2
+# Cleanup
+SET GLOBAL max_join_size=DEFAULT, init_connect=DEFAULT;
+RESET PERSIST;
+#
+# Bug #27489026: PERSIST_ONLY DOESN'T RESPECT DEFAULT INSTEAD COPIES GLOBAL VALUE
+#
+SELECT @@global.binlog_cache_size;
+@@global.binlog_cache_size
+32768
+SELECT @@global.disabled_storage_engines;
+@@global.disabled_storage_engines
+
+SELECT @@global.collation_database;
+@@global.collation_database
+utf8mb4_0900_ai_ci
+SELECT @@global.innodb_open_files;
+@@global.innodb_open_files
+4000
+SELECT @@global.optimizer_trace_offset;
+@@global.optimizer_trace_offset
+-1
+SELECT @@global.optimizer_switch;
+@@global.optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off
+SELECT @@global.enforce_gtid_consistency;
+@@global.enforce_gtid_consistency
+OFF
+SELECT @@global.sql_mode;
+@@global.sql_mode
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+SET @@global.binlog_cache_size= 4096;
+SET @@persist_only.binlog_cache_size= default,
+@@persist_only.collation_database= default,
+@@persist_only.disabled_storage_engines= default,
+@@persist_only.innodb_open_files= default,
+@@persist_only.optimizer_trace_offset= default,
+@@persist_only.optimizer_switch= default,
+@@persist_only.enforce_gtid_consistency= default,
+@@persist_only.sql_mode= default;
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+VARIABLE_NAME	VARIABLE_VALUE
+binlog_cache_size	32768
+collation_database	utf8mb4_0900_ai_ci
+disabled_storage_engines	
+enforce_gtid_consistency	0
+innodb_open_files	0
+optimizer_switch	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off
+optimizer_trace_offset	-1
+sql_mode	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+# Restart server
+# restart
+SELECT @@global.binlog_cache_size;
+@@global.binlog_cache_size
+32768
+SELECT @@global.disabled_storage_engines;
+@@global.disabled_storage_engines
+
+SELECT @@global.collation_database;
+@@global.collation_database
+utf8mb4_0900_ai_ci
+SELECT @@global.innodb_open_files;
+@@global.innodb_open_files
+4000
+SELECT @@global.optimizer_trace_offset;
+@@global.optimizer_trace_offset
+-1
+SELECT @@global.optimizer_switch;
+@@global.optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off
+SELECT @@global.enforce_gtid_consistency;
+@@global.enforce_gtid_consistency
+OFF
+SELECT @@global.sql_mode;
+@@global.sql_mode
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+VARIABLE_NAME	VARIABLE_VALUE
+binlog_cache_size	32768
+collation_database	utf8mb4_0900_ai_ci
+disabled_storage_engines	
+enforce_gtid_consistency	0
+innodb_open_files	0
+optimizer_switch	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off
+optimizer_trace_offset	-1
+sql_mode	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+# Cleanup
+RESET PERSIST;
+#
+# Bug #27523095: SET PERSIST MANDATORY_ROLES FAILS TO START THE SERVER
+#
+SET PERSIST mandatory_roles= default;
+# Restart server and check if server starts
+# restart
+SET PERSIST keyring_operations= default;
+# Restart server and check if server starts
+# restart
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+VARIABLE_NAME	VARIABLE_VALUE
+keyring_operations	ON
+mandatory_roles	
+RESET PERSIST;
 # End of the 8.0 tests

@@ -293,7 +293,7 @@ subpartition by key (b)
 (partition p0 values in (1),
 partition p1 values in (2));
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop table t1;
 create table t1 (a int, b int, key(a))
 partition by list (a)
@@ -324,9 +324,11 @@ create index i2 on t1 (a);
 Warnings:
 Warning	1831	Duplicate index 'i2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 drop table t1;
+CREATE TABLE t0 (a INT PRIMARY KEY);
 CREATE TABLE t1 (a INT, FOREIGN KEY (a) REFERENCES t0 (a))
 PARTITION BY HASH (a);
 ERROR HY000: Foreign keys are not yet supported in conjunction with partitioning
+DROP TABLE t0;
 CREATE TABLE t1 (
 pk INT NOT NULL AUTO_INCREMENT,
 PRIMARY KEY (pk)

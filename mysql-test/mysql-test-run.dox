@@ -412,19 +412,19 @@
         this file.
 
         The format of a line in the <b>disabled.def</b> file looks
-        like this, where fields are separated by one or more spaces or
-        Tab characters:
+        like this, where fields are separated by one or more spaces.
 
         @verbatim
-  test_name : BUG#nnnnn YYYY-MM-DD disabler comment
+  suite_name.test_name : BUG#nnnnn YYYY-MM-DD disabler comment
         @endverbatim
 
         Example:
 
         @verbatim
-  rpl_row_blob_innodb : BUG#18980 2006-04-10 kent  Test fails randomly
+  rpl.rpl_row_blob_innodb : BUG#18980 2006-04-10 kent Test fails randomly
         @endverbatim
 
+        <b><em>suite_name</em></b> is the suite name.
         <b><em>test_name</em></b> is the test case name.
         <b>BUG#<em>nnnnn</em></b> indicates the bug related to the
         test that causes it to fail (and thus requires it to be
@@ -437,11 +437,11 @@
         "mysql-test-run.pl" will not actually care what is written
         here. However, it is a recommended standard.
 
-        An additional element: after the test name and before the
-        colon you may add one or more <b>\@<em>platform</em></b> to
-        have the test disabled only on specific platform(s). Basic OS
-        names as reported by <b>$^O</b> in Perl, or <b>'windows'</b>
-        are supported. Alternatively, <b>@!<em>platform</i></b> will
+        An additional element after the test name and before the
+        colon you may add a <b>\@<em>platform</em></b> to have the
+        test disabled only on a specific platform. Basic OS names as
+        reported by <b>$^O</b> in Perl, or <b>'windows'</b> are
+        supported. Alternatively, <b>@!<em>platform</i></b> will
         disable the test on all except the named platform.
 
         A comment line can be written in the file by beginning the
@@ -996,7 +996,7 @@
   - @subpage PAGE_WRITING_REPLICATION_TESTS
   - @subpage PAGE_THREAD_SYNCHRONIZATION
   - @subpage PAGE_SUPPRESSING_ERRORS_WARNINGS
-  - @subpage PAGE_STOPPING_SERVER_DURING_TEST
+  - @subpage PAGE_STOPPING_AND_RESTARTING_SERVER_DURING_TEST
   - @subpage PAGE_TIPS_WRITING_TESTCASES
 
   Normally, you run the test suite during the development process to
@@ -2731,10 +2731,10 @@
 
 
 
-## Stopping a Server During a Test
+## Stopping and restarting a Server During a Test
 
 /**
-  @page PAGE_STOPPING_SERVER_DURING_TEST Stopping a Server During a Test
+  @page PAGE_STOPPING_AND_RESTARTING_SERVER_DURING_TEST Stopping and Restarting a Server During a Test
 
   If a server dies during execution of a test case, this will be
   interpreted as a failure. However, there may be cases where you
@@ -2763,21 +2763,128 @@
   --source include/wait_until_connected_again.inc
   @endverbatim
 
-  For your convenience, there is a file
-  <b>include/restart_mysqld.inc</b> which you can "source" in your
-  own test case to do what's shown in this code example.
-
   The file name to write the command to will be
   <b>mysqld.2.expect</b> for the slave server in replication tests.
   Note that you have to use <b>$MYSQLTEST_VARDIR/tmp</b> for the
   directory here; if you use <b>$MYSQL_TMP_DIR</b> instead, it will
   not work when running tests in parallel.
 
-  It is also possible to provide additional command line options to
-  the restarted server, by writing a line with <b>restart:</b> (with
-  a colon) followed by one or more options into the expect file. These
-  extra options will be dropped if the same server is restarted again,
-  unless they are repeated.
+  For your convenience, there are files which can be used to do
+  what's shown in the example.
+
+  <ul>
+    <li>
+      <tt>restart_mysqld.inc</tt>
+
+      <b>include/restart_mysqld.inc</b> can be sourced in your
+      own test case, to shutdown and start the server but
+      the server is immediately started up again.
+
+      @verbatim
+  # Restart the server
+  --source include/restart_mysqld.inc
+      @endverbatim
+
+      It is also possible to provide additional command line options
+      to the restarted server, by writing a line with <b>restart:</b>
+      (with a colon) followed by one or more options into the expect
+      file. These extra options will be dropped if the same server
+      is restarted again, unless they are repeated. A value for
+      shutdown timeout can also be set with
+      <b>$shutdown_server_timeout</b>, when this file is used.
+
+      @verbatim
+  # Restart server with extra parameters
+  --let $shutdown_server_timeout= 10
+  --let $restart_parameters= "restart: --innodb_autoinc_lock_mode=1"
+  --source include/restart_mysqld.inc
+      @endverbatim
+
+    </li>
+
+    <li>
+      <tt>kill_and_restart_mysqld.inc</tt>
+
+      Similar to <b>include/restart_mysqld.inc</b>,
+      <b>include/kill_and_restart_mysqld.inc</b> can be used to
+      restart the server, but setting <b>$shutdown_server_timeout</b>
+      will have no effect.
+
+      @verbatim
+  # Restart server with extra parameters
+  --let $restart_paramters= "restart: --innodb_autoinc_lock_mode=0"
+  --source include/kill_and_restart_mysqld.inc
+      @endverbatim
+
+    </li>
+
+    <li>
+      <tt>shutdown_mysqld.inc and start_mysqld.inc</tt>
+
+      If there is something to be done between the server shutdown
+      and startup, there is a file
+      <b>include/shutdown_mysqld.inc</b>
+      which can be used to shutdown the server. A shutdown timeout
+      value can be set and passed to
+      <b>include/shutdown_mysqld.inc</b>.
+      <b>include/start_mysqld.inc</b> can be used to start the
+      server again after it has been shutdown.
+
+      @verbatim
+  # Timeout of 10 seconds
+  --let $shutdown_server_timeout= 10
+  --source include/shutdown_mysqld.inc
+  # Do something while the server is down
+  --source include/start_mysqld.inc
+      @endverbatim
+
+    </li>
+
+    <li>
+      <tt>kill_mysqld.inc</tt>
+
+      To the kill the server,
+      <b>include/kill_mysqld.inc</b> can be sourced, which
+      internally calls <b>--shutdown_server 0</b>. Therefore,
+      setting a value for shutdown timeout will have no effect.
+
+      @verbatim
+  --source include/kill_mysqld.inc
+  # Do something while the server is down
+  --source include/start_mysqld.inc
+      @endverbatim
+
+    </li>
+
+    <li>
+      <tt>wait_until_disconnected.inc</tt>
+
+      It is recommended to use <b>include/wait_until_disconnected</b>
+      in tandem with <b>--shutdown_server</b>. It ensures that all
+      connections to the server are dropped before proceeding with
+      the test. This file is sourced internally in
+      <b>include/shutdown_mysqld.inc</b>,
+      <b>include/kill_mysqld.inc</b>,
+      <b>include/kill_and_restart_mysqld.inc</b>,
+      and <b>include/restart_mysqld.inc</b>.
+
+    </li>
+
+    <li>
+      <tt>wait_until_connected_again.inc</tt>
+
+      <b>include/wait_until_connected_again.inc</b> is used after
+      the server is started again, to ensure that the client
+      connection is restored. It tries to establish the connection
+      till a timeout occurs. This file is sourced internally in
+      <b>include/start_mysqld.inc</b>,
+      <b>include/restart_mysqld.inc</b>,
+      and <b>include/kill_and_restart_mysqld.inc</b>.
+
+    </li>
+
+  </ul>
+
 */
 
 ###############################################################################
@@ -3009,6 +3116,22 @@
       <tt>`--character-sets-dir`=<b>path</b></tt>
 
       The directory where character sets are installed.
+    </li>
+
+    <li>
+      <tt>`--colored-diff`</tt>
+
+      Colorize the diff part of the output.
+
+      If enabled, @ref PAGE_MYSQLTEST "mysqltest" uses <b>diff</b>
+      command with <b>`--color`='always'</b> option to print the
+      colored diff. If the command fails or is not supported, @ref
+      PAGE_MYSQLTEST "mysqltest" will report an error and abort the
+      test run.
+
+      @note
+      <b>`--color`</b> option for <b>diff</b> command is available
+      from <b>GNU diffutils</b> version <b>3.4</b>.
     </li>
 
     <li>
@@ -3648,18 +3771,18 @@
       </td>
     </tr>
     <tr>
+      <td><tt>MTR_MAX_PARALLEL</tt></td>
+      <td>
+        If set, defines maximum number of parallel threads if
+        <b>`--parallel`=auto</b> is given
+      </td>
+    </tr>
+    <tr>
       <td><tt>MTR_MEM</tt></td>
       <td>
         If set to anything, will run tests with files in "memory"
         using tmpfs or ramdisk. Not available on Windows. Same as
         <b>`--mem`</b> option
-      </td>
-    </tr>
-    <tr>
-      <td><tt>MTR_MAX_PARALLEL</tt></td>
-      <td>
-        If set, defines maximum number of parallel threads if
-        <b>`--parallel`=auto</b> is given
       </td>
     </tr>
     <tr>
@@ -3683,6 +3806,13 @@
       <td><tt>MTR_PORT_BASE</tt></td>
       <td>
         If set, defines which port number range is used for the server
+      </td>
+    </tr>
+    <tr>
+      <td><tt>MTR_RECORD</tt></td>
+      <td>
+        Set to 1 if a MTR run is started with <b>`--record`</b>
+        option, 0 otherwise.
       </td>
     </tr>
     <tr>
@@ -3812,6 +3942,10 @@
 
       If both <b>`--big-test`</b> and <b>`--only-big-tests`</b>
       are given, <b>`--only-big-tests`</b> is ignored.
+
+      @note
+      This option is enabled by default when test cases are specified
+      on command line.
     </li>
 
     <li>
@@ -3929,6 +4063,22 @@
       <tt>`--client-libdir`=<b>path</b></tt>
 
       The path to the directory where client libraries are located.
+    </li>
+
+    <li>
+      <tt>`--colored-diff`</tt>
+
+      Colorize the diff part of the output.
+
+      When this option is enabled, @ref PAGE_MYSQL_TEST_RUN_PL
+      "mysql-test-run.pl" passes <b>`--colored-diff`</b> option to
+      @ref PAGE_MYSQLTEST "mysqltest". If colored diff is enabled,
+      @ref PAGE_MYSQLTEST "mysqltest" uses <b>diff</b> command with
+      <b>`--color`='always'</b> option to print the colored diff.
+
+      @note
+      <b>`--color`</b> option for <b>diff</b> command is available
+      from <b>GNU diffutils</b> version <b>3.4</b>.
     </li>
 
     <li>
@@ -4176,6 +4326,10 @@
       Ignore any <b>disabled.def</b> file, and run also tests marked
       as disbaled. Success or failure of those tests will be reported
       the same way as other tests.
+
+      @note
+      This option is enabled by default when test cases are specified
+      on command line.
     </li>
 
     <li>
@@ -4207,15 +4361,39 @@
       needed by the <b>mysql</b> client to connect to the server. Each
       <b>`--extern`</b> can only take one option/value pair as
       argument, so it you need more you need to repeat
-      <b>`--extern`</b> for each of them. Example:
+      <b>`--extern`</b> for each of them.
 
       @verbatim
-  ./mysql-test-run.pl --extern socket=var/tmp/mysqld.1.sock alias
+  ./mysql-test-run.pl --extern socket=var/tmp/mysqld.1.sock main.1st
       @endverbatim
 
-      Note: If a test case has an <b>.opt</b> file that requires the
-      server to be restarted with specific options, the file will not
-      be used. The test case likely will fail as a result.
+      During server initialization, @ref PAGE_MYSQL_TEST_RUN_PL
+      "mysql-test-run.pl" creates a default database <b>test</b> which
+      is used while establishing an initial connection with the
+      server. When running a test case with <b>--extern</b> option, if
+      <b>test</b> database doesn't exist on an already running server,
+      then the test case will fail with following error.
+
+      @verbatim
+  mysqltest: Could not open connection 'default': 1049 Unknown database 'test'
+      @endverbatim
+
+      So if you're running a test case on an already running server
+      using <b>--extern</b> option, it is necessary to create
+      <b>test</b> database on the server before running the test case
+      if it doesn't exist.
+
+      Similarly, @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl"
+      creates <b>mtr</b> database during server initialization which
+      contains tables and procedures used to suppress global or test
+      specific warnings. If a test case refers to this database and
+      the database doesn't exist on running server, then the test case
+      will fail.
+
+      @note
+      If a test case has an <b>.opt</b> file that requires the server
+      to be restarted with specific options, the file will not be
+      used. The test case likely will fail as a result.
     </li>
 
     <li>
@@ -4511,9 +4689,9 @@
     <li>
       <tt>`--parallel`={<b>N</b>|auto}</tt>
 
-      Run tests using <b><em>N</em></b> parallel threads. By default,
-      1 thread is used. Use <b>`--parallel`=auto</b> to set
-      <b><em>N</em></b> automatically.
+      Run tests using <b><em>N</em></b> parallel threads. The default
+      value is set to <b>auto</b>, which is equal to the number of
+      CPUs available in the machine.
 
       Setting the <b>MTR_PARALLEL</b> environment variable to
       <b><em>N</em></b> has the same effect as specifying
@@ -4578,7 +4756,8 @@
     <li>
       <tt>`--repeat`=<b>N</b></tt>
 
-      Run each test <b><em>N</em></b> number of times.
+      Run each test <b><em>N</em></b> number of times, in parallel if
+      <b>`--parallel`</b> option value is greater than 1.
     </li>
 
     <li>
@@ -6379,6 +6558,20 @@
       PAGE_MYSQLTEST "mysqltest" now has several commands to perform
       these operations portably, so they should be used instead:
       <b>remove_file</b>, <b>chmod</b>, <b>mkdir</b>, and so forth.
+    </li>
+
+    <li>
+      <tt>exec_in_background <b>command</b> [<b>arg</b>] ...</tt>
+
+      Execute a shell command using the <b>popen()</b> library call in
+      the background. When a command is executed using
+      <b>exec_in_background</b>, @ref PAGE_MYSQLTEST "mysqltest" does
+      not wait for it to finish, nor attempt to read the output of it.
+
+      @verbatim
+  --exec_in_background $MYSQL_DUMP --xml --skip-create test
+  --exec_in_background rm $MYSQLTEST_VARDIR/tmp/t1
+      @endverbatim
     </li>
 
     <li>

@@ -2,30 +2,25 @@
 SELECT COUNT(@@GLOBAL.sort_buffer_size);
 COUNT(@@GLOBAL.sort_buffer_size)
 1
-1 Expected
 SELECT COUNT(@@SESSION.sort_buffer_size);
 COUNT(@@SESSION.sort_buffer_size)
 1
-1 Expected
 SELECT @@GLOBAL.sort_buffer_size;
 @@GLOBAL.sort_buffer_size
 262144
-262144 Expected
 SELECT @@SESSION.sort_buffer_size;
 @@SESSION.sort_buffer_size
 262144
-262144 Expected
 '#---------------------WL6372_VAR_8_02----------------------#'
 # Restart server with sort_buffer_size 9999999;
+# restart:--sort_buffer_size=9999999
 SELECT @@GLOBAL.sort_buffer_size;
 @@GLOBAL.sort_buffer_size
 9999999
-9999999 Expected
 SET @@GLOBAL.sort_buffer_size=DEFAULT;
 SELECT @@GLOBAL.sort_buffer_size;
 @@GLOBAL.sort_buffer_size
 262144
-262144 Expected
 '#---------------------WL6372_VAR_8_03----------------------#'
 SET @@local.sort_buffer_size=9999999;
 SET @@session.sort_buffer_size=9999999;
@@ -36,80 +31,64 @@ SET @@GLOBAL.sort_buffer_size=DEFAULT;
 SELECT @@GLOBAL.sort_buffer_size;
 @@GLOBAL.sort_buffer_size
 262144
-262144 Expected
 '#---------------------WL6372_VAR_8_04----------------------#'
 SELECT @@GLOBAL.sort_buffer_size = VARIABLE_VALUE
 FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='sort_buffer_size';
 @@GLOBAL.sort_buffer_size = VARIABLE_VALUE
 1
-1 Expected
 SELECT @@session.sort_buffer_size = VARIABLE_VALUE 
 FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='sort_buffer_size';
 @@session.sort_buffer_size = VARIABLE_VALUE
 1
-1 Expected
 SELECT COUNT(@@GLOBAL.sort_buffer_size);
 COUNT(@@GLOBAL.sort_buffer_size)
 1
-1 Expected
 SELECT COUNT(VARIABLE_VALUE)
 FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='sort_buffer_size';
 COUNT(VARIABLE_VALUE)
 1
-1 Expected
 '#---------------------WL6372_VAR_8_05----------------------#'
 SELECT @@sort_buffer_size = @@GLOBAL.sort_buffer_size;
 @@sort_buffer_size = @@GLOBAL.sort_buffer_size
 0
-0 Expected
 SELECT COUNT(@@sort_buffer_size);
 COUNT(@@sort_buffer_size)
 1
-1 Expected
 SELECT COUNT(@@local.sort_buffer_size);
 COUNT(@@local.sort_buffer_size)
 1
-1 Expected
 SELECT COUNT(@@SESSION.sort_buffer_size);
 COUNT(@@SESSION.sort_buffer_size)
 1
-1 Expected
 SELECT COUNT(@@GLOBAL.sort_buffer_size);
 COUNT(@@GLOBAL.sort_buffer_size)
 1
-1 Expected
 SELECT sort_buffer_size = @@SESSION.sort_buffer_size;
 ERROR 42S22: Unknown column 'sort_buffer_size' in 'field list'
-Expected error 'Unknown column sort_buffer_size in field list'
 '#---------------------WL6372_VAR_8_06----------------------#'
 SET @@GLOBAL.sort_buffer_size=32767;
 SET @@session.sort_buffer_size=32767;
 SELECT @@GLOBAL.sort_buffer_size;
 @@GLOBAL.sort_buffer_size
 32768
-32768 Expected
 select @@session.sort_buffer_size;
 @@session.sort_buffer_size
 32768
-32768 Expected
 SET @@global.sort_buffer_size=-1;
 SET @@session.sort_buffer_size=-1;
 select @@session.sort_buffer_size;
 @@session.sort_buffer_size
 32768
-32768 Expected
 SELECT @@GLOBAL.sort_buffer_size;
 @@GLOBAL.sort_buffer_size
 32768
-32768 Expected
 '#---------------------WL6372_VAR_8_07----------------------#'
 Check the size of the vardir
 The output size is in unit blocks
 TRUE
-TRUE Expected
 '#---------------------WL6372_VAR_8_08----------------------#'
 # create a table
 ===============
@@ -150,15 +129,12 @@ SET @@SESSION.sort_buffer_size=32768;
 select variable_value from performance_schema.session_status where variable_name ='Sort_merge_passes';
 variable_value
 0
-0 Expected
 select variable_value from performance_schema.session_status where variable_name ='Sort_rows';
 variable_value
 0
-0 Expected
 select variable_value from performance_schema.session_status where variable_name ='Sort_scan';
 variable_value
 0
-0 Expected
 set @Sort_merge_passes = (select variable_value from performance_schema.session_status where variable_name ='Sort_merge_passes');
 set @Sort_rows = (select variable_value from performance_schema.session_status where variable_name ='Sort_rows');
 set @Sort_scan = (select variable_value from performance_schema.session_status where variable_name ='Sort_scan');
@@ -167,35 +143,27 @@ set optimizer_switch='derived_merge=off';
 select count(1) from (select b.* from tab1 b inner join tab1 c inner join tab1 d inner join tab1 e inner join tab1 f order by 1) a;
 count(1)
 100000
-100000 Expected
-select ( select variable_value from performance_schema.global_status where variable_name ='Sort_merge_passes') = @Sort_merge_passes + 537;
-( select variable_value from performance_schema.global_status where variable_name ='Sort_merge_passes') = @Sort_merge_passes + 537
+select ( select variable_value from performance_schema.global_status where variable_name ='Sort_merge_passes') - @Sort_merge_passes;
+( select variable_value from performance_schema.global_status where variable_name ='Sort_merge_passes') - @Sort_merge_passes
+16
+select (select variable_value from performance_schema.global_status where variable_name ='Sort_rows') - @Sort_rows;
+(select variable_value from performance_schema.global_status where variable_name ='Sort_rows') - @Sort_rows
+100000
+select (select variable_value from performance_schema.global_status where variable_name ='Sort_scan') - @Sort_scan;
+(select variable_value from performance_schema.global_status where variable_name ='Sort_scan') - @Sort_scan
 1
-1 Expected
-select (select variable_value from performance_schema.global_status where variable_name ='Sort_rows') = @Sort_rows + 100000;
-(select variable_value from performance_schema.global_status where variable_name ='Sort_rows') = @Sort_rows + 100000
-1
-1 Expected
-select (select variable_value from performance_schema.global_status where variable_name ='Sort_scan') = @Sort_scan + 1;
-(select variable_value from performance_schema.global_status where variable_name ='Sort_scan') = @Sort_scan + 1
-1
-1 Expected
 select count(1) from (select b.* from tab1 b inner join tab1 c inner join tab1 d inner join tab1 e inner join tab1 f order by 1) a;
 count(1)
 100000
-100000 Expected
-select ( select variable_value from performance_schema.global_status where variable_name ='Sort_merge_passes') = @Sort_merge_passes + 1074;
-( select variable_value from performance_schema.global_status where variable_name ='Sort_merge_passes') = @Sort_merge_passes + 1074
-1
-1 Expected
-select (select variable_value from performance_schema.global_status where variable_name ='Sort_rows') = @Sort_rows + 200000;
-(select variable_value from performance_schema.global_status where variable_name ='Sort_rows') = @Sort_rows + 200000
-1
-1 Expected
-select (select variable_value from performance_schema.global_status where variable_name ='Sort_scan') = @Sort_scan + 2;
-(select variable_value from performance_schema.global_status where variable_name ='Sort_scan') = @Sort_scan + 2
-1
-1 Expected
+select ( select variable_value from performance_schema.global_status where variable_name ='Sort_merge_passes') - @Sort_merge_passes;
+( select variable_value from performance_schema.global_status where variable_name ='Sort_merge_passes') - @Sort_merge_passes
+32
+select (select variable_value from performance_schema.global_status where variable_name ='Sort_rows') - @Sort_rows;
+(select variable_value from performance_schema.global_status where variable_name ='Sort_rows') - @Sort_rows
+200000
+select (select variable_value from performance_schema.global_status where variable_name ='Sort_scan') - @Sort_scan;
+(select variable_value from performance_schema.global_status where variable_name ='Sort_scan') - @Sort_scan
+2
 set @@optimizer_switch=@optimizer_switch_saved;
 #cleanup
 DROP TABLE IF EXISTS tab1;

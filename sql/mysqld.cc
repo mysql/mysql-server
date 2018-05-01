@@ -379,8 +379,6 @@
 */
 /* clang-format on */
 
-#define LOG_SYSTEM_TAG "mysqld"
-
 #include "sql/mysqld.h"
 
 #include "my_config.h"
@@ -432,6 +430,7 @@
 #include "mysql/psi/psi_socket.h"
 #include "mysql/psi/psi_stage.h"
 #include "mysql/psi/psi_statement.h"
+#include "mysql/psi/psi_system.h"
 #include "mysql/psi/psi_table.h"
 #include "mysql/psi/psi_thread.h"
 #include "mysql/psi/psi_transaction.h"
@@ -467,7 +466,6 @@
 #include "sql/handler.h"
 #include "sql/hostname.h"  // hostname_cache_init
 #include "sql/init.h"      // unireg_init
-#include "sql/instance_log_resource.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"  // Arg_comparator
 #include "sql/item_create.h"
@@ -476,6 +474,7 @@
 #include "sql/keycaches.h"     // get_or_create_key_cache
 #include "sql/log.h"
 #include "sql/log_event.h"  // Rows_log_event
+#include "sql/log_resource.h"
 #include "sql/mdl.h"
 #include "sql/my_decimal.h"
 #include "sql/mysqld_daemon.h"
@@ -587,6 +586,9 @@
 #include <string.h>
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
+#endif
+#ifdef HAVE_SYS_PRCTL_H
+#include <sys/prctl.h>
 #endif
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
@@ -781,7 +783,8 @@ static bool socket_listener_active = false;
 static int pipe_write_fd = -1;
 static bool opt_daemonize = 0;
 #endif
-static bool opt_debugging = 0, opt_external_locking = 0, opt_console = 0;
+bool opt_debugging = false;
+static bool opt_external_locking = 0, opt_console = 0;
 static bool opt_short_log_format = 0;
 static char *mysqld_user, *mysqld_chroot;
 static char *default_character_set_name;
@@ -852,6 +855,7 @@ ulong log_error_verbosity = 3;  // have a non-zero value during early start-up
 
 #if defined(_WIN32)
 ulong slow_start_timeout;
+bool opt_no_monitor = false;
 #endif
 
 bool opt_no_dd_upgrade = false;
@@ -1296,11 +1300,6 @@ void substitute_progpath(char **argv) {
 
   while (true) {
     const char *colonend = std::find(spbegin, spend, ':');
-    if (colonend == spend) {
-      DBUG_ASSERT(false);
-      break;
-    }
-
     std::string cand{spbegin, colonend};
     spbegin = colonend + 1;
 
@@ -1316,6 +1315,10 @@ void substitute_progpath(char **argv) {
       }
       my_orig_progname = argv[0];
       argv[0] = my_progpath;
+      break;
+    }
+    if (colonend == spend) {
+      DBUG_ASSERT(false);
       break;
     }
   }  // while (true)
@@ -1470,7 +1473,7 @@ extern "C" void *signal_hand(void *arg);
 static bool pid_file_created = false;
 static void usage(void);
 static void clean_up_mutexes(void);
-static void create_pid_file();
+static bool create_pid_file();
 static void mysqld_exit(int exit_code) MY_ATTRIBUTE((noreturn));
 static void delete_pid_file(myf flags);
 static void clean_up(bool print_message);
@@ -1780,6 +1783,12 @@ static void close_connections(void) {
 }
 
 bool signal_restart_server() {
+  if (!is_mysqld_managed()) {
+    my_error(ER_RESTART_SERVER_FAILED, MYF(0),
+             "mysqld is not managed by supervisor process");
+    return true;
+  }
+
 #ifdef _WIN32
   if (!SetEvent(hEventRestart)) {
     sql_print_error("Got error: %ld from SetEvent", GetLastError());
@@ -1787,11 +1796,6 @@ bool signal_restart_server() {
     return true;
   }
 #else
-  if (!is_mysqld_managed()) {
-    my_error(ER_RESTART_SERVER_FAILED, MYF(0),
-             "mysqld is not managed by supervisor process");
-    return true;
-  }
 
   if (pthread_kill(signal_thread_id.thread, SIGUSR2)) {
     DBUG_PRINT("error", ("Got error %d from pthread_kill", errno));
@@ -2215,13 +2219,6 @@ err:
   LogErr(ERROR_LEVEL, ER_USER_WHAT_USER, user);
   unireg_abort(MYSQLD_ABORT_EXIT);
 
-#ifdef PR_SET_DUMPABLE
-  if (test_flags & TEST_CORE_ON_SIGNAL) {
-    /* inform kernel that process is dumpable */
-    (void)prctl(PR_SET_DUMPABLE, 1);
-  }
-#endif
-
   return NULL;
 }
 
@@ -2247,6 +2244,14 @@ static void set_user(const char *user, struct passwd *user_info_arg) {
     LogErr(ERROR_LEVEL, ER_FAIL_SETUID, strerror(errno));
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
+
+#ifdef HAVE_SYS_PRCTL_H
+  if (test_flags & TEST_CORE_ON_SIGNAL) {
+    /* inform kernel that process is dumpable */
+    (void)prctl(PR_SET_DUMPABLE, 1);
+  }
+#endif
+
   /* purecov: end */
 }
 
@@ -2846,17 +2851,87 @@ void my_message_sql(uint error, const char *str, myf MyFlags) {
     if (MyFlags & ME_FATALERROR) thd->is_fatal_error = 1;
 
     if (!handle) (void)thd->raise_condition(error, NULL, level, str, false);
+
+    /*
+      Only error-codes from the client range should be seen here.
+      We'll assert this here (rather than in raise_condition) as
+      SQL's SIGNAL command calls that as well, and is currently
+      allowed to set any error-code. Those values will be handled
+      in a uniform way, that is to say, SIGNALing an error-code
+      from the error-log range will not result in writing to that
+      log to prevent abuse.
+      We're bailing after rather than before printing to make the
+      culprit easier to track down.)
+    */
+    DBUG_ASSERT(errno < ER_SERVER_RANGE_START);
   }
 
   /* When simulating OOM, skip writing to error log to avoid mtr errors */
   DBUG_EXECUTE_IF("simulate_out_of_memory", DBUG_VOID_RETURN;);
 
-  if (!thd || MyFlags & ME_ERRORLOG) {
+  /*
+    Caller wishes to send to both the client and the error-log.
+    This is legacy behaviour that is no longer legal as errors flagged
+    to a client and those sent to the error-log are in different
+    numeric ranges now. If you own code that does this, see about
+    updating it by splitting it into two calls, one sending status
+    to the client, the other sending it to the error-log using
+    LogErr() and friends.
+  */
+  if (MyFlags & ME_ERRORLOG) {
+    /*
+      We've removed most uses of ME_ERRORLOG in the server.
+      This leaves three possible cases:
+
+      - EE_OUTOFMEMORY: Correct to ER_SERVER_OUT_OF_RESOURCES so
+                        mysys can remain logger-agnostic.
+      - HA_* range:     Correct to catch-all ER_SERVER_HANDLER_ERROR.
+      - otherwise:      Flag as using info from the diagnostics area
+                        (ER_ERROR_INFO_FROM_DA). This is a failsafe;
+                        if your code triggers it, your code is probably
+                        wrong.
+    */
+    if ((error == EE_OUTOFMEMORY) || (error == HA_ERR_OUT_OF_MEM))
+      error = ER_SERVER_OUT_OF_RESOURCES;
+    else if (error <= HA_ERR_LAST)
+      error = ER_SERVER_HANDLER_ERROR;
+
+    if (error < ER_SERVER_RANGE_START)
+      LogEvent()
+          .type(LOG_TYPE_ERROR)
+          .prio(ERROR_LEVEL)
+          .errcode(ER_ERROR_INFO_FROM_DA)
+          .lookup(ER_ERROR_INFO_FROM_DA, error, str);
+    else
+      LogEvent()
+          .type(LOG_TYPE_ERROR)
+          .prio(ERROR_LEVEL)
+          .errcode(error)
+          .verbatim(str);
+
+    /*
+      This is no longer supported behaviour except for the cases
+      outlined above, so flag anything else in debug builds!
+      (We're bailing after rather than before printing to make the
+      culprit easier to track down.)
+    */
+    DBUG_ASSERT((error == ER_FEATURE_NOT_AVAILABLE) ||
+                (error >= ER_SERVER_RANGE_START));
+  }
+
+  /*
+    Caller wishes to send to client, but none is attached, so we send
+    to error-log instead.
+  */
+  else if (!thd) {
     LogEvent()
         .type(LOG_TYPE_ERROR)
+        .subsys(LOG_SUBSYSTEM_TAG)
         .prio(ERROR_LEVEL)
-        .errcode(error)
-        .message("%s: %s", my_progname, str);
+        .errcode((error < ER_SERVER_RANGE_START)
+                     ? ER_SERVER_NO_SESSION_TO_SEND_TO
+                     : error)
+        .lookup(ER_SERVER_NO_SESSION_TO_SEND_TO, error, str);
   }
 
   DBUG_VOID_RETURN;
@@ -3746,9 +3821,13 @@ int init_common_variables() {
     LogErr(INFORMATION_LEVEL, ER_BASEDIR_SET_TO, mysql_home);
   }
 
-  LogErr(SYSTEM_LEVEL, ER_STARTING_AS, my_progname, server_version,
-         (ulong)getpid());
-
+  if (opt_initialize || opt_initialize_insecure) {
+    LogErr(SYSTEM_LEVEL, ER_STARTING_INIT, my_progname, server_version,
+           (ulong)getpid());
+  } else if (!opt_help) {
+    LogErr(SYSTEM_LEVEL, ER_STARTING_AS, my_progname, server_version,
+           (ulong)getpid());
+  }
   if (opt_help && !opt_verbose) unireg_abort(MYSQLD_SUCCESS_EXIT);
 
   DBUG_PRINT("info", ("%s  Ver %s for %s on %s\n", my_progname, server_version,
@@ -3843,7 +3922,8 @@ int init_common_variables() {
   if (back_log == 0 && (back_log = max_connections) > 65535) back_log = 65535;
 
   unireg_init(opt_specialflag); /* Set up extern variables */
-  while (!(my_default_lc_messages = my_locale_by_name(NULL, lc_messages))) {
+  while (!(my_default_lc_messages =
+               my_locale_by_name(NULL, lc_messages, strlen(lc_messages)))) {
     LogErr(ERROR_LEVEL, ER_FAILED_TO_FIND_LOCALE_NAME, lc_messages);
     if (!my_strcasecmp(&my_charset_latin1, lc_messages,
                        mysqld_default_locale_name))
@@ -3923,8 +4003,8 @@ int init_common_variables() {
     return 1;
   }
 
-  while (!(my_default_lc_time_names =
-               my_locale_by_name(NULL, lc_time_names_name))) {
+  while (!(my_default_lc_time_names = my_locale_by_name(
+               NULL, lc_time_names_name, strlen(lc_time_names_name)))) {
     LogErr(ERROR_LEVEL, ER_FAILED_TO_FIND_LOCALE_NAME, lc_time_names_name);
     if (!my_strcasecmp(&my_charset_latin1, lc_time_names_name,
                        mysqld_default_locale_name))
@@ -4180,7 +4260,9 @@ static int warn_one(const char *file_name) {
   issuer = X509_NAME_oneline(X509_get_issuer_name(ca_cert), 0, 0);
   subject = X509_NAME_oneline(X509_get_subject_name(ca_cert), 0, 0);
 
-  if (!strcmp(issuer, subject)) {
+  /* Suppressing warning which is not relevant during initialization */
+  if (!strcmp(issuer, subject) &&
+      !(opt_initialize || opt_initialize_insecure)) {
     LogErr(WARNING_LEVEL, ER_CA_SELF_SIGNED, file_name);
   }
 
@@ -4638,7 +4720,7 @@ static int init_server_components() {
   exit_cond_hook = thd_exit_cond;
   enter_stage_hook = thd_enter_stage;
   set_waiting_for_disk_space_hook = thd_set_waiting_for_disk_space;
-  is_killed_hook = (int (*)(const void *))thd_killed;
+  is_killed_hook = thd_killed;
 
   if (transaction_cache_init()) {
     LogErr(ERROR_LEVEL, ER_OOM);
@@ -4887,14 +4969,13 @@ static int init_server_components() {
 
   {
   /*
-    We have to call a function in instance_log_resource.cc, or its references
+    We have to call a function in log_resource.cc, or its references
     won't be visible to plugins.
   */
 #ifndef DBUG_OFF
     int dummy =
 #endif
-        Instance_log_resource::
-            dummy_function_to_ensure_we_are_linked_into_the_server();
+        Log_resource::dummy_function_to_ensure_we_are_linked_into_the_server();
     DBUG_ASSERT(dummy == 1);
   }
 
@@ -5188,28 +5269,32 @@ static int init_server_components() {
     mysql_mutex_unlock(log_lock);
   }
 
+  /*
+    When we pass non-zero values for both expire_logs_days and
+    binlog_expire_logs_seconds at the server start-up, the value of
+    expire_logs_days will be ignored and only binlog_expire_logs_seconds
+    will be used.
+  */
+  if (binlog_expire_logs_seconds_supplied && expire_logs_days_supplied) {
+    if (binlog_expire_logs_seconds != 0 && expire_logs_days != 0) {
+      LogErr(WARNING_LEVEL, ER_EXPIRE_LOGS_DAYS_IGNORED);
+      expire_logs_days = 0;
+    }
+  } else if (expire_logs_days_supplied)
+    binlog_expire_logs_seconds = 0;
+  DBUG_ASSERT(expire_logs_days == 0 || binlog_expire_logs_seconds == 0);
+
   if (opt_bin_log) {
-    time_t purge_time = 0;
-
-    /*
-      When we pass non zero value for both expire_logs_days and
-      binlog_expire_logs_seconds at the server start up in that case the
-      of expire_logs_days will be ignored and only binlog_expire_logs_seconds
-      will be used.
-    */
-    if (binlog_expire_logs_seconds_supplied && expire_logs_days_supplied) {
-      if (binlog_expire_logs_seconds != 0 && expire_logs_days != 0) {
-        LogErr(WARNING_LEVEL, ER_EXPIRE_LOGS_DAYS_IGNORED);
-        expire_logs_days = 0;
-      }
-    } else if (expire_logs_days_supplied)
-      binlog_expire_logs_seconds = 0;
-
-    if (expire_logs_days > 0 || binlog_expire_logs_seconds > 0)
-      purge_time = my_time(0) - binlog_expire_logs_seconds -
-                   expire_logs_days * 24 * 60 * 60;
-
-    if (purge_time >= 0) mysql_bin_log.purge_logs_before_date(purge_time, true);
+    if (expire_logs_days > 0 || binlog_expire_logs_seconds > 0) {
+      time_t purge_time = my_time(0) - binlog_expire_logs_seconds -
+                          expire_logs_days * 24 * 60 * 60;
+      mysql_bin_log.purge_logs_before_date(purge_time, true);
+    }
+  } else {
+    if (binlog_expire_logs_seconds_supplied)
+      LogErr(WARNING_LEVEL, ER_NEED_LOG_BIN, "--binlog-expire-logs-seconds");
+    if (expire_logs_days_supplied)
+      LogErr(WARNING_LEVEL, ER_NEED_LOG_BIN, "--expire_logs_days");
   }
 
   if (opt_myisam_log) (void)mi_log(1);
@@ -5433,7 +5518,7 @@ int mysqld_main(int argc, char **argv)
           &psi_cond_hook, &psi_file_hook, &psi_socket_hook, &psi_table_hook,
           &psi_mdl_hook, &psi_idle_hook, &psi_stage_hook, &psi_statement_hook,
           &psi_transaction_hook, &psi_memory_hook, &psi_error_hook,
-          &psi_data_lock_hook);
+          &psi_data_lock_hook, &psi_system_hook);
       if ((pfs_rc != 0) && pfs_param.m_enabled) {
         pfs_param.m_enabled = false;
         LogErr(WARNING_LEVEL, ER_PERFSCHEMA_INIT_FAILED);
@@ -5563,6 +5648,13 @@ int mysqld_main(int argc, char **argv)
     service = psi_data_lock_hook->get_interface(PSI_CURRENT_DATA_LOCK_VERSION);
     if (service != NULL) {
       set_psi_data_lock_service(service);
+    }
+  }
+
+  if (psi_system_hook != NULL) {
+    service = psi_system_hook->get_interface(PSI_CURRENT_SYSTEM_VERSION);
+    if (service != NULL) {
+      set_psi_system_service(service);
     }
   }
 
@@ -5984,13 +6076,16 @@ int mysqld_main(int argc, char **argv)
 
   error_handler_hook = my_message_sql;
 
+  bool abort = false;
+
   /* Save pid of this process in a file */
-  if (!opt_initialize) create_pid_file();
+  if (!opt_initialize) {
+    if (create_pid_file()) abort = true;
+  }
 
   /* Read the optimizer cost model configuration tables */
   if (!opt_initialize) reload_optimizer_cost_constants();
 
-  bool abort = false;
   if (
       /*
         Read components table to restore previously installed components. This
@@ -6196,6 +6291,9 @@ int mysqld_main(int argc, char **argv)
 
     int error = bootstrap::run_bootstrap_thread(
         mysql_stdin, NULL, SYSTEM_THREAD_SERVER_INITIALIZE);
+    if (error == 0) {
+      LogErr(SYSTEM_LEVEL, ER_ENDING_INIT, my_progname, server_version);
+    }
     unireg_abort(error ? MYSQLD_ABORT_EXIT : MYSQLD_SUCCESS_EXIT);
   }
 
@@ -6220,6 +6318,7 @@ int mysqld_main(int argc, char **argv)
 
   LogEvent()
       .type(LOG_TYPE_ERROR)
+      .subsys(LOG_SUBSYSTEM_TAG)
       .prio(SYSTEM_LEVEL)
       .lookup(ER_SERVER_STARTUP_MSG, my_progname, server_version,
 #ifdef HAVE_SYS_UN_H
@@ -7080,6 +7179,8 @@ struct my_option my_long_options[] = {
 #ifdef _WIN32
     {"standalone", 0, "Dummy option to start as a standalone program (NT).", 0,
      0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"no-monitor", 0, "Disable monitor process.", &opt_no_monitor,
+     &opt_no_monitor, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
     {"symbolic-links", 's',
      "Enable symbolic link support (deprecated and will be  removed in a future"
@@ -8176,6 +8277,9 @@ static void usage(void) {
     exit(MYSQLD_ABORT_EXIT);
   if (!default_collation_name)
     default_collation_name = (char *)default_charset_info->name;
+  if (opt_help || opt_verbose) {
+    my_progname = my_progname + dirname_length(my_progname);
+  }
   print_server_version();
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   puts("Starts the MySQL database server.\n");
@@ -9534,7 +9638,7 @@ static int test_if_case_insensitive(const char *dir_name) {
 /**
   Create file to store pid number.
 */
-static void create_pid_file() {
+static bool create_pid_file() {
   File file;
   bool check_parent_path = 1, is_path_accessible = 1;
   char pid_filepath[FN_REFLEN], *pos = NULL;
@@ -9576,12 +9680,12 @@ static void create_pid_file() {
                           MYF(MY_WME | MY_NABP))) {
       mysql_file_close(file, MYF(0));
       pid_file_created = true;
-      return;
+      return false;
     }
     mysql_file_close(file, MYF(0));
   }
   LogErr(ERROR_LEVEL, ER_CANT_CREATE_PID_FILE, strerror(errno));
-  unireg_abort(MYSQLD_ABORT_EXIT);
+  return true;
 }
 
 /**

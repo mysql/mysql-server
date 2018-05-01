@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -21,8 +21,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
-#ifndef ASSERT_ERROR_CODE_H_
-#define ASSERT_ERROR_CODE_H_
+#ifndef UNITTEST_GUNIT_XPLUGIN_XPL_ASSERT_ERROR_CODE_H_
+#define UNITTEST_GUNIT_XPLUGIN_XPL_ASSERT_ERROR_CODE_H_
 
 #include <gtest/gtest.h>
 
@@ -42,7 +42,21 @@ inline ::testing::AssertionResult Assert_error_code(const char *e1_expr,
                              << "Expected: " << e1_expr << "\nWhich is:" << e1);
 }
 
+inline ::testing::AssertionResult Assert_error(const char *e1_expr,
+                                               const char *e2_expr,
+                                               const ngs::Error_code &e1,
+                                               const ngs::Error_code &e2) {
+  return (e1.error == e2.error) && (e1.message == e2.message)
+             ? ::testing::AssertionSuccess()
+             : (::testing::AssertionFailure()
+                << "Value of: " << e2_expr << "\nActual: {" << e2.error << ", "
+                << e2.message << "}\n"
+                << "Expected: " << e1_expr << "\nWhich is: {" << e1.error
+                << ", " << e1.message << "}");
+}
+
 #define ASSERT_ERROR_CODE(a, b) ASSERT_PRED_FORMAT2(Assert_error_code, a, b);
+#define ASSERT_ERROR(a, b) ASSERT_PRED_FORMAT2(Assert_error, a, b);
 #define ER_X_SUCCESS 0
 #define ER_X_ARTIFICIAL1 7001
 #define ER_X_ARTIFICIAL2 7002
@@ -53,4 +67,4 @@ inline ::testing::AssertionResult Assert_error_code(const char *e1_expr,
 }  // namespace test
 }  // namespace xpl
 
-#endif  // ASSERT_ERROR_CODE_H_
+#endif  // UNITTEST_GUNIT_XPLUGIN_XPL_ASSERT_ERROR_CODE_H_

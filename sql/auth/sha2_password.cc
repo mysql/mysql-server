@@ -26,7 +26,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#define LOG_SUBSYSTEM_TAG "caching_sha2_password"
+#define LOG_COMPONENT_TAG "caching_sha2_password"
 
 #include <string.h>
 #include <sys/types.h>
@@ -72,8 +72,6 @@ class THD;
 struct SYS_VAR;
 
 #include <openssl/ssl.h>
-#include <wolfssl_fix_namespace_pollution.h>
-#include <wolfssl_fix_namespace_pollution_pre.h>
 
 char *caching_sha2_rsa_private_key_path;
 char *caching_sha2_rsa_public_key_path;
@@ -812,7 +810,7 @@ static char perform_full_authentication = '\4';
   Plugin caching_sha2_password works in two phases.
   1. Fast authentication
   2. Complete authentication
-  
+
   If server has cached hash entry for given user in memory, it uses scramble
   sent by client to perform fast authentication. If it is a success,
   authentication is done and connection will move to command phase. If there

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef XPL_SQL_DATA_CONTEXT_H_
-#define XPL_SQL_DATA_CONTEXT_H_
+#ifndef PLUGIN_X_SRC_SQL_DATA_CONTEXT_H_
+#define PLUGIN_X_SRC_SQL_DATA_CONTEXT_H_
 
 #include <stdio.h>
 
@@ -38,12 +38,6 @@
 #define MYSQL_SESSION_USER "mysql.session"
 #define MYSQLXSYS_HOST "localhost"
 #define MYSQLXSYS_ACCOUNT "'" MYSQL_SESSION_USER "'@'" MYSQLXSYS_HOST "'"
-
-namespace ngs {
-class IOptions_session;
-typedef ngs::shared_ptr<IOptions_session> IOptions_session_ptr;
-class Protocol_encoder;
-}  // namespace ngs
 
 namespace xpl {
 
@@ -145,4 +139,4 @@ class Sql_data_context : public ngs::Sql_session_interface {
 
 #undef MYSQL_CLIENT
 
-#endif  // XPL_SQL_DATA_CONTEXT_H_
+#endif  // PLUGIN_X_SRC_SQL_DATA_CONTEXT_H_

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,6 @@
 
 #include "sql/sql_cmd.h"  // Sql_cmd
 
-#ifndef _WIN32
 /**
   Check if mysqld is managed by an external supervisor.
 
@@ -33,7 +32,6 @@
 */
 
 bool is_mysqld_managed();
-#endif  // _WIN32
 
 /**
   Sql_cmd_restart_server represents the RESTART server statement.

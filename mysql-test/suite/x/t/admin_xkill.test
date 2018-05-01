@@ -2012,7 +2012,7 @@ show status like 'Mysqlx_stmt%client%';
 
 ##verify Mysqlx_stmt_kill_client and Mysqlx_stmt_list_clients
 let $restart_parameters = restart: ;
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
+--source include/restart_mysqld.inc
 drop user abc@localhost;
 drop user xplugin@localhost;
 drop user process@localhost;

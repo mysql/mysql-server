@@ -69,6 +69,7 @@
 #include "mysql_time.h"
 #include "mysqld_error.h"
 #include "nullable.h"
+#include "scope_guard.h"  // Scope_guard
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_grant_db
 #include "sql/auth/sql_security_ctx.h"
@@ -490,7 +491,7 @@ find_files_result find_files(THD *thd, List<LEX_STRING> *files, const char *db,
         if (my_wildcmp(files_charset_info, uname, uname + file_name_len, wild,
                        wild + wild_length, wild_prefix, wild_one, wild_many))
           continue;
-      } else if (wild_compare(uname, wild, 0))
+      } else if (wild_compare(uname, file_name_len, wild, wild_length, 0))
         continue;
     }
 
@@ -1263,7 +1264,8 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     of row based replication.
   */
   old_map = tmp_use_all_columns(table, table->read_set);
-
+  auto grd = create_scope_guard(
+      [&]() { tmp_restore_column_map(table->read_set, old_map); });
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Table *table_obj = nullptr;
   if (share->tmp_table)
@@ -1273,6 +1275,10 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                                   dd::String_type(share->table_name.str),
                                   &table_obj))
       DBUG_RETURN(true);
+    DBUG_EXECUTE_IF("sim_acq_fail_in_store_ci", {
+      my_error(ER_UNKNOWN_ERROR_NUMBER, MYF(0), 42);
+      DBUG_RETURN(true);
+    });
   }
 
   for (ptr = table->field; (field = *ptr); ptr++) {
@@ -1681,7 +1687,6 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       }
     }
   }
-  tmp_restore_column_map(table->read_set, old_map);
   DBUG_RETURN(error);
 }
 
@@ -3096,7 +3101,9 @@ static bool add_schema_table(THD *thd, plugin_ref plugin, void *p_data) {
     if (lower_case_table_names) {
       if (wild_case_compare(files_charset_info, schema_table->table_name, wild))
         DBUG_RETURN(0);
-    } else if (wild_compare(schema_table->table_name, wild, 0))
+    } else if (wild_compare(schema_table->table_name,
+                            strlen(schema_table->table_name), wild,
+                            strlen(wild), 0))
       DBUG_RETURN(0);
   }
 
@@ -3122,7 +3129,9 @@ static int schema_tables_add(THD *thd, List<LEX_STRING> *files,
         if (wild_case_compare(files_charset_info, tmp_schema_table->table_name,
                               wild))
           continue;
-      } else if (wild_compare(tmp_schema_table->table_name, wild, 0))
+      } else if (wild_compare(tmp_schema_table->table_name,
+                              strlen(tmp_schema_table->table_name), wild,
+                              strlen(wild), 0))
         continue;
     }
     if ((file_name = thd->make_lex_string(
@@ -3246,8 +3255,9 @@ static int make_table_name_list(THD *thd, List<LEX_STRING> *table_names,
                              lookup_field_vals->table_value.length,
                          wild_prefix, wild_one, wild_many))
             continue;
-        } else if (wild_compare(name->c_str(),
-                                lookup_field_vals->table_value.str, 0))
+        } else if (wild_compare(name->c_str(), name->length(),
+                                lookup_field_vals->table_value.str,
+                                lookup_field_vals->table_value.length, 0))
           continue;
       }
 
@@ -4693,7 +4703,6 @@ bool get_schema_tables_result(JOIN *join,
         'executed_place' value then we should refresh the table.
       */
       if (table_list->schema_table_state && is_subselect) {
-        table_list->table->file->extra(HA_EXTRA_NO_CACHE);
         table_list->table->file->extra(HA_EXTRA_RESET_STATE);
         table_list->table->file->ha_delete_all_rows();
         free_io_cache(table_list->table);

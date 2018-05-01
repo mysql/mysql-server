@@ -1,7 +1,7 @@
 # Test Case : With default row type
 SET NAMES utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Create table : Test with row_type ROW_FORMAT=DEFAULT  with char,varchar,text columns
 CREATE TABLE articles_1 (
 seq INT ,
@@ -25,8 +25,8 @@ FULLTEXT KEY con2 (j1,j3) WITH PARSER ngram,
 FULLTEXT KEY con3 (k2) WITH PARSER ngram
 ) ENGINE=InnoDB ROW_FORMAT=DEFAULT ;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE 名字 (
 seq INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
 c1 VARCHAR(200) CHARACTER SET big5 COLLATE big5_chinese_ci,
@@ -43,8 +43,8 @@ FULLTEXT KEY con2 (さようなら,j3) WITH PARSER ngram,
 FULLTEXT KEY con3 (k2) WITH PARSER ngram
 ) ENGINE=InnoDB ROW_FORMAT=DEFAULT ;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET SESSION innodb_ft_enable_stopword=0;
 # Case : run ngram on english text.
 ALTER TABLE articles_1 ADD FULLTEXT INDEX (title_char) WITH PARSER ngram;
@@ -93,7 +93,7 @@ seq	title_char	title_varchar	title_text
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1 WHERE
-MATCH(title_varchar) AGAINST('0,');
+MATCH(title_varchar) AGAINST('50');
 seq	title_char	title_varchar	title_text
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 SELECT * FROM articles_1 WHERE
@@ -462,7 +462,7 @@ articles	CREATE TABLE `articles` (
   FULLTEXT KEY `con9` (`e1`) /*!50100 WITH PARSER `ngram` */ 
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM articles WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('救命');
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 3	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM articles WHERE
@@ -536,14 +536,14 @@ SELECT * FROM articles WHERE
 MATCH(j3) AGAINST(">の長" IN BOOLEAN MODE);
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 SELECT * FROM articles WHERE
-MATCH(k2) AGAINST('-Ch +요*');
+MATCH(k2) AGAINST('-Ch +해요');
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 2	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row row1 value
 SELECT * FROM articles WHERE
 MATCH(e1) AGAINST("row1 -row" IN BOOLEAN MODE) ;
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 SELECT * FROM articles WHERE
-MATCH(c1) AGAINST('啊! ' WITH QUERY EXPANSION);
+MATCH(c1) AGAINST('命啊' WITH QUERY EXPANSION);
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 3	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM articles WHERE
@@ -586,7 +586,7 @@ AND t1.seq = t2.seq ;
 COUNT(*)
 1
 SELECT COUNT(*) FROM articles t1,articles t2
-WHERE MATCH(t1.c1) AGAINST("啊! ")
+WHERE MATCH(t1.c1) AGAINST("命啊")
 AND t1.seq != t2.seq
 AND MATCH(t2.k2) AGAINST("국말" IN BOOLEAN MODE) ;
 COUNT(*)
@@ -621,7 +621,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con7 (j3) WITH PARSER ngram;
 ALTER TABLE 名字 ADD FULLTEXT INDEX con8 (행운을빈다) WITH PARSER ngram;
 ALTER TABLE 名字 ADD FULLTEXT INDEX con9 (e1) WITH PARSER ngram;
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 3	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM 名字 WHERE
@@ -854,7 +854,7 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('你好嗎?','我幾好，你呢','好耐冇見','左右','左右される','☆右折⇔左折','제 이름은 Charles입니다.','운동을 좋아해요*','row value'),
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 SELECT * FROM 名字 WHERE
 MATCH(さようなら,j3) AGAINST('やっ');
@@ -886,7 +886,7 @@ seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 COMMIT;
 ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 0	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM 名字 WHERE
@@ -933,7 +933,7 @@ SAVEPOINT B;
 INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 SELECT * FROM 名字 WHERE
 MATCH(さようなら,j3) AGAINST('やっ');
@@ -1011,7 +1011,7 @@ ROLLBACK;
 COMMIT;
 ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 SELECT * FROM 名字 WHERE
 MATCH(さようなら,j3) AGAINST('やっ');
@@ -1129,7 +1129,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con8 (행운을빈다) WITH PARSER ngram;
 COMMIT;
 ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 0	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM 名字 WHERE
@@ -1201,13 +1201,14 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
 ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 0	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 UPDATE 名字 SET c1 = '你好嗎?' WHERE MATCH(c2) AGAINST('啊!');
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
+0	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 DELETE FROM 名字 WHERE
 MATCH(さようなら,j3) AGAINST("てみ -雨が" IN BOOLEAN MODE);
 SELECT * FROM 名字 WHERE
@@ -1216,12 +1217,12 @@ seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 SELECT * FROM 名字;
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 0	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row value
-0	你好嗎?	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
+0	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM 名字 WHERE
 MATCH (행운을빈다) AGAINST('니다');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 0	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row value
-0	你好嗎?	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
+0	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 DELETE FROM 名字 WHERE
 MATCH (행운을빈다) AGAINST('니다');
 SELECT * FROM 名字;
@@ -1230,7 +1231,7 @@ DROP TABLE 名字;
 # Test Case : with compact row type
 SET NAMES utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Create table : Test with row_type ROW_FORMAT=COMPACT  with char,varchar,text columns
 CREATE TABLE articles_1 (
 seq INT ,
@@ -1254,8 +1255,8 @@ FULLTEXT KEY con2 (j1,j3) WITH PARSER ngram,
 FULLTEXT KEY con3 (k2) WITH PARSER ngram
 ) ENGINE=InnoDB ROW_FORMAT=COMPACT ;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE 名字 (
 seq INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
 c1 VARCHAR(200) CHARACTER SET big5 COLLATE big5_chinese_ci,
@@ -1272,8 +1273,8 @@ FULLTEXT KEY con2 (さようなら,j3) WITH PARSER ngram,
 FULLTEXT KEY con3 (k2) WITH PARSER ngram
 ) ENGINE=InnoDB ROW_FORMAT=COMPACT ;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET SESSION innodb_ft_enable_stopword=0;
 # Case : run ngram on english text.
 ALTER TABLE articles_1 ADD FULLTEXT INDEX (title_char) WITH PARSER ngram;
@@ -1322,7 +1323,7 @@ seq	title_char	title_varchar	title_text
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1 WHERE
-MATCH(title_varchar) AGAINST('0,');
+MATCH(title_varchar) AGAINST('50');
 seq	title_char	title_varchar	title_text
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 SELECT * FROM articles_1 WHERE
@@ -1691,7 +1692,7 @@ articles	CREATE TABLE `articles` (
   FULLTEXT KEY `con9` (`e1`) /*!50100 WITH PARSER `ngram` */ 
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 SELECT * FROM articles WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('救命');
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 3	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM articles WHERE
@@ -1765,14 +1766,14 @@ SELECT * FROM articles WHERE
 MATCH(j3) AGAINST(">の長" IN BOOLEAN MODE);
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 SELECT * FROM articles WHERE
-MATCH(k2) AGAINST('-Ch +요*');
+MATCH(k2) AGAINST('-Ch +해요');
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 2	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row row1 value
 SELECT * FROM articles WHERE
 MATCH(e1) AGAINST("row1 -row" IN BOOLEAN MODE) ;
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 SELECT * FROM articles WHERE
-MATCH(c1) AGAINST('啊! ' WITH QUERY EXPANSION);
+MATCH(c1) AGAINST('命啊' WITH QUERY EXPANSION);
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 3	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM articles WHERE
@@ -1815,7 +1816,7 @@ AND t1.seq = t2.seq ;
 COUNT(*)
 1
 SELECT COUNT(*) FROM articles t1,articles t2
-WHERE MATCH(t1.c1) AGAINST("啊! ")
+WHERE MATCH(t1.c1) AGAINST("命啊")
 AND t1.seq != t2.seq
 AND MATCH(t2.k2) AGAINST("국말" IN BOOLEAN MODE) ;
 COUNT(*)
@@ -1850,7 +1851,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con7 (j3) WITH PARSER ngram;
 ALTER TABLE 名字 ADD FULLTEXT INDEX con8 (행운을빈다) WITH PARSER ngram;
 ALTER TABLE 名字 ADD FULLTEXT INDEX con9 (e1) WITH PARSER ngram;
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 3	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM 名字 WHERE
@@ -2083,7 +2084,7 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('你好嗎?','我幾好，你呢','好耐冇見','左右','左右される','☆右折⇔左折','제 이름은 Charles입니다.','운동을 좋아해요*','row value'),
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 SELECT * FROM 名字 WHERE
 MATCH(さようなら,j3) AGAINST('やっ');
@@ -2115,7 +2116,7 @@ seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 COMMIT;
 ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 0	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM 名字 WHERE
@@ -2162,7 +2163,7 @@ SAVEPOINT B;
 INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 SELECT * FROM 名字 WHERE
 MATCH(さようなら,j3) AGAINST('やっ');
@@ -2240,7 +2241,7 @@ ROLLBACK;
 COMMIT;
 ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 SELECT * FROM 名字 WHERE
 MATCH(さようなら,j3) AGAINST('やっ');
@@ -2358,7 +2359,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con8 (행운을빈다) WITH PARSER ngram;
 COMMIT;
 ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 0	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM 名字 WHERE
@@ -2430,13 +2431,14 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
 ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 0	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 UPDATE 名字 SET c1 = '你好嗎?' WHERE MATCH(c2) AGAINST('啊!');
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
+0	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 DELETE FROM 名字 WHERE
 MATCH(さようなら,j3) AGAINST("てみ -雨が" IN BOOLEAN MODE);
 SELECT * FROM 名字 WHERE
@@ -2445,12 +2447,12 @@ seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 SELECT * FROM 名字;
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 0	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row value
-0	你好嗎?	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
+0	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM 名字 WHERE
 MATCH (행운을빈다) AGAINST('니다');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 0	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row value
-0	你好嗎?	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
+0	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 DELETE FROM 名字 WHERE
 MATCH (행운을빈다) AGAINST('니다');
 SELECT * FROM 名字;
@@ -2459,7 +2461,7 @@ DROP TABLE 名字;
 # Test Case : With redundant row type
 SET NAMES utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Create table : Test with row_type ROW_FORMAT=REDUNDANT  with char,varchar,text columns
 CREATE TABLE articles_1 (
 seq INT ,
@@ -2483,8 +2485,8 @@ FULLTEXT KEY con2 (j1,j3) WITH PARSER ngram,
 FULLTEXT KEY con3 (k2) WITH PARSER ngram
 ) ENGINE=InnoDB ROW_FORMAT=REDUNDANT ;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE 名字 (
 seq INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
 c1 VARCHAR(200) CHARACTER SET big5 COLLATE big5_chinese_ci,
@@ -2501,8 +2503,8 @@ FULLTEXT KEY con2 (さようなら,j3) WITH PARSER ngram,
 FULLTEXT KEY con3 (k2) WITH PARSER ngram
 ) ENGINE=InnoDB ROW_FORMAT=REDUNDANT ;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET SESSION innodb_ft_enable_stopword=0;
 # Case : run ngram on english text.
 ALTER TABLE articles_1 ADD FULLTEXT INDEX (title_char) WITH PARSER ngram;
@@ -2551,7 +2553,7 @@ seq	title_char	title_varchar	title_text
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1 WHERE
-MATCH(title_varchar) AGAINST('0,');
+MATCH(title_varchar) AGAINST('50');
 seq	title_char	title_varchar	title_text
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 SELECT * FROM articles_1 WHERE
@@ -2920,7 +2922,7 @@ articles	CREATE TABLE `articles` (
   FULLTEXT KEY `con9` (`e1`) /*!50100 WITH PARSER `ngram` */ 
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 SELECT * FROM articles WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('救命');
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 3	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM articles WHERE
@@ -2994,14 +2996,14 @@ SELECT * FROM articles WHERE
 MATCH(j3) AGAINST(">の長" IN BOOLEAN MODE);
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 SELECT * FROM articles WHERE
-MATCH(k2) AGAINST('-Ch +요*');
+MATCH(k2) AGAINST('-Ch +해요');
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 2	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row row1 value
 SELECT * FROM articles WHERE
 MATCH(e1) AGAINST("row1 -row" IN BOOLEAN MODE) ;
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 SELECT * FROM articles WHERE
-MATCH(c1) AGAINST('啊! ' WITH QUERY EXPANSION);
+MATCH(c1) AGAINST('命啊' WITH QUERY EXPANSION);
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 3	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM articles WHERE
@@ -3044,7 +3046,7 @@ AND t1.seq = t2.seq ;
 COUNT(*)
 1
 SELECT COUNT(*) FROM articles t1,articles t2
-WHERE MATCH(t1.c1) AGAINST("啊! ")
+WHERE MATCH(t1.c1) AGAINST("命啊")
 AND t1.seq != t2.seq
 AND MATCH(t2.k2) AGAINST("국말" IN BOOLEAN MODE) ;
 COUNT(*)
@@ -3079,7 +3081,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con7 (j3) WITH PARSER ngram;
 ALTER TABLE 名字 ADD FULLTEXT INDEX con8 (행운을빈다) WITH PARSER ngram;
 ALTER TABLE 名字 ADD FULLTEXT INDEX con9 (e1) WITH PARSER ngram;
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 3	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM 名字 WHERE
@@ -3312,7 +3314,7 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('你好嗎?','我幾好，你呢','好耐冇見','左右','左右される','☆右折⇔左折','제 이름은 Charles입니다.','운동을 좋아해요*','row value'),
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 SELECT * FROM 名字 WHERE
 MATCH(さようなら,j3) AGAINST('やっ');
@@ -3344,7 +3346,7 @@ seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 COMMIT;
 ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 0	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM 名字 WHERE
@@ -3391,7 +3393,7 @@ SAVEPOINT B;
 INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 SELECT * FROM 名字 WHERE
 MATCH(さようなら,j3) AGAINST('やっ');
@@ -3469,7 +3471,7 @@ ROLLBACK;
 COMMIT;
 ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 SELECT * FROM 名字 WHERE
 MATCH(さようなら,j3) AGAINST('やっ');
@@ -3587,7 +3589,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con8 (행운을빈다) WITH PARSER ngram;
 COMMIT;
 ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 0	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM 名字 WHERE
@@ -3659,13 +3661,14 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
 ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 0	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 UPDATE 名字 SET c1 = '你好嗎?' WHERE MATCH(c2) AGAINST('啊!');
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
+0	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 DELETE FROM 名字 WHERE
 MATCH(さようなら,j3) AGAINST("てみ -雨が" IN BOOLEAN MODE);
 SELECT * FROM 名字 WHERE
@@ -3674,12 +3677,12 @@ seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 SELECT * FROM 名字;
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 0	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row value
-0	你好嗎?	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
+0	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM 名字 WHERE
 MATCH (행운을빈다) AGAINST('니다');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 0	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row value
-0	你好嗎?	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
+0	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 DELETE FROM 名字 WHERE
 MATCH (행운을빈다) AGAINST('니다');
 SELECT * FROM 名字;
@@ -3688,7 +3691,7 @@ DROP TABLE 名字;
 # Test Case : With Dynamic row type
 SET NAMES utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Create table : Test with row_type ROW_FORMAT=DYNAMIC  with char,varchar,text columns
 CREATE TABLE articles_1 (
 seq INT ,
@@ -3712,8 +3715,8 @@ FULLTEXT KEY con2 (j1,j3) WITH PARSER ngram,
 FULLTEXT KEY con3 (k2) WITH PARSER ngram
 ) ENGINE=InnoDB ROW_FORMAT=DYNAMIC ;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE 名字 (
 seq INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
 c1 VARCHAR(200) CHARACTER SET big5 COLLATE big5_chinese_ci,
@@ -3730,8 +3733,8 @@ FULLTEXT KEY con2 (さようなら,j3) WITH PARSER ngram,
 FULLTEXT KEY con3 (k2) WITH PARSER ngram
 ) ENGINE=InnoDB ROW_FORMAT=DYNAMIC ;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET SESSION innodb_ft_enable_stopword=0;
 # Case : run ngram on english text.
 ALTER TABLE articles_1 ADD FULLTEXT INDEX (title_char) WITH PARSER ngram;
@@ -3780,7 +3783,7 @@ seq	title_char	title_varchar	title_text
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1 WHERE
-MATCH(title_varchar) AGAINST('0,');
+MATCH(title_varchar) AGAINST('50');
 seq	title_char	title_varchar	title_text
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 SELECT * FROM articles_1 WHERE
@@ -4149,7 +4152,7 @@ articles	CREATE TABLE `articles` (
   FULLTEXT KEY `con9` (`e1`) /*!50100 WITH PARSER `ngram` */ 
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 SELECT * FROM articles WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('救命');
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 3	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM articles WHERE
@@ -4223,14 +4226,14 @@ SELECT * FROM articles WHERE
 MATCH(j3) AGAINST(">の長" IN BOOLEAN MODE);
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 SELECT * FROM articles WHERE
-MATCH(k2) AGAINST('-Ch +요*');
+MATCH(k2) AGAINST('-Ch +해요');
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 2	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row row1 value
 SELECT * FROM articles WHERE
 MATCH(e1) AGAINST("row1 -row" IN BOOLEAN MODE) ;
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 SELECT * FROM articles WHERE
-MATCH(c1) AGAINST('啊! ' WITH QUERY EXPANSION);
+MATCH(c1) AGAINST('命啊' WITH QUERY EXPANSION);
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 3	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM articles WHERE
@@ -4273,7 +4276,7 @@ AND t1.seq = t2.seq ;
 COUNT(*)
 1
 SELECT COUNT(*) FROM articles t1,articles t2
-WHERE MATCH(t1.c1) AGAINST("啊! ")
+WHERE MATCH(t1.c1) AGAINST("命啊")
 AND t1.seq != t2.seq
 AND MATCH(t2.k2) AGAINST("국말" IN BOOLEAN MODE) ;
 COUNT(*)
@@ -4308,7 +4311,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con7 (j3) WITH PARSER ngram;
 ALTER TABLE 名字 ADD FULLTEXT INDEX con8 (행운을빈다) WITH PARSER ngram;
 ALTER TABLE 名字 ADD FULLTEXT INDEX con9 (e1) WITH PARSER ngram;
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 3	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM 名字 WHERE
@@ -4541,7 +4544,7 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('你好嗎?','我幾好，你呢','好耐冇見','左右','左右される','☆右折⇔左折','제 이름은 Charles입니다.','운동을 좋아해요*','row value'),
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 SELECT * FROM 名字 WHERE
 MATCH(さようなら,j3) AGAINST('やっ');
@@ -4573,7 +4576,7 @@ seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 COMMIT;
 ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 0	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM 名字 WHERE
@@ -4620,7 +4623,7 @@ SAVEPOINT B;
 INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 SELECT * FROM 名字 WHERE
 MATCH(さようなら,j3) AGAINST('やっ');
@@ -4698,7 +4701,7 @@ ROLLBACK;
 COMMIT;
 ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 SELECT * FROM 名字 WHERE
 MATCH(さようなら,j3) AGAINST('やっ');
@@ -4816,7 +4819,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con8 (행운을빈다) WITH PARSER ngram;
 COMMIT;
 ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 0	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM 名字 WHERE
@@ -4888,13 +4891,14 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
 ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 0	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 UPDATE 名字 SET c1 = '你好嗎?' WHERE MATCH(c2) AGAINST('啊!');
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
+0	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 DELETE FROM 名字 WHERE
 MATCH(さようなら,j3) AGAINST("てみ -雨が" IN BOOLEAN MODE);
 SELECT * FROM 名字 WHERE
@@ -4903,12 +4907,12 @@ seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 SELECT * FROM 名字;
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 0	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row value
-0	你好嗎?	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
+0	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM 名字 WHERE
 MATCH (행운을빈다) AGAINST('니다');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 0	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row value
-0	你好嗎?	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
+0	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 DELETE FROM 名字 WHERE
 MATCH (행운을빈다) AGAINST('니다');
 SELECT * FROM 名字;
@@ -4917,7 +4921,7 @@ DROP TABLE 名字;
 # Test Case : With compressed row type
 SET NAMES utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Create table : Test with row_type ROW_FORMAT=COMPRESSED  with char,varchar,text columns
 CREATE TABLE articles_1 (
 seq INT ,
@@ -4941,8 +4945,8 @@ FULLTEXT KEY con2 (j1,j3) WITH PARSER ngram,
 FULLTEXT KEY con3 (k2) WITH PARSER ngram
 ) ENGINE=InnoDB ROW_FORMAT=COMPRESSED ;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE 名字 (
 seq INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
 c1 VARCHAR(200) CHARACTER SET big5 COLLATE big5_chinese_ci,
@@ -4959,8 +4963,8 @@ FULLTEXT KEY con2 (さようなら,j3) WITH PARSER ngram,
 FULLTEXT KEY con3 (k2) WITH PARSER ngram
 ) ENGINE=InnoDB ROW_FORMAT=COMPRESSED ;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET SESSION innodb_ft_enable_stopword=0;
 # Case : run ngram on english text.
 ALTER TABLE articles_1 ADD FULLTEXT INDEX (title_char) WITH PARSER ngram;
@@ -5009,7 +5013,7 @@ seq	title_char	title_varchar	title_text
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1 WHERE
-MATCH(title_varchar) AGAINST('0,');
+MATCH(title_varchar) AGAINST('50');
 seq	title_char	title_varchar	title_text
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 SELECT * FROM articles_1 WHERE
@@ -5378,7 +5382,7 @@ articles	CREATE TABLE `articles` (
   FULLTEXT KEY `con9` (`e1`) /*!50100 WITH PARSER `ngram` */ 
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
 SELECT * FROM articles WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('救命');
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 3	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM articles WHERE
@@ -5452,14 +5456,14 @@ SELECT * FROM articles WHERE
 MATCH(j3) AGAINST(">の長" IN BOOLEAN MODE);
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 SELECT * FROM articles WHERE
-MATCH(k2) AGAINST('-Ch +요*');
+MATCH(k2) AGAINST('-Ch +해요');
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 2	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row row1 value
 SELECT * FROM articles WHERE
 MATCH(e1) AGAINST("row1 -row" IN BOOLEAN MODE) ;
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 SELECT * FROM articles WHERE
-MATCH(c1) AGAINST('啊! ' WITH QUERY EXPANSION);
+MATCH(c1) AGAINST('命啊' WITH QUERY EXPANSION);
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 3	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM articles WHERE
@@ -5502,7 +5506,7 @@ AND t1.seq = t2.seq ;
 COUNT(*)
 1
 SELECT COUNT(*) FROM articles t1,articles t2
-WHERE MATCH(t1.c1) AGAINST("啊! ")
+WHERE MATCH(t1.c1) AGAINST("命啊")
 AND t1.seq != t2.seq
 AND MATCH(t2.k2) AGAINST("국말" IN BOOLEAN MODE) ;
 COUNT(*)
@@ -5537,7 +5541,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con7 (j3) WITH PARSER ngram;
 ALTER TABLE 名字 ADD FULLTEXT INDEX con8 (행운을빈다) WITH PARSER ngram;
 ALTER TABLE 名字 ADD FULLTEXT INDEX con9 (e1) WITH PARSER ngram;
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 3	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM 名字 WHERE
@@ -5770,7 +5774,7 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('你好嗎?','我幾好，你呢','好耐冇見','左右','左右される','☆右折⇔左折','제 이름은 Charles입니다.','운동을 좋아해요*','row value'),
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 SELECT * FROM 名字 WHERE
 MATCH(さようなら,j3) AGAINST('やっ');
@@ -5802,7 +5806,7 @@ seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 COMMIT;
 ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 0	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM 名字 WHERE
@@ -5849,7 +5853,7 @@ SAVEPOINT B;
 INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 SELECT * FROM 名字 WHERE
 MATCH(さようなら,j3) AGAINST('やっ');
@@ -5927,7 +5931,7 @@ ROLLBACK;
 COMMIT;
 ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 SELECT * FROM 名字 WHERE
 MATCH(さようなら,j3) AGAINST('やっ');
@@ -6045,7 +6049,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con8 (행운을빈다) WITH PARSER ngram;
 COMMIT;
 ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 0	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM 名字 WHERE
@@ -6117,13 +6121,14 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
 ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 0	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 UPDATE 名字 SET c1 = '你好嗎?' WHERE MATCH(c2) AGAINST('啊!');
 SELECT * FROM 名字 WHERE
-MATCH(c1) AGAINST('啊! ');
+MATCH(c1) AGAINST('命啊');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
+0	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 DELETE FROM 名字 WHERE
 MATCH(さようなら,j3) AGAINST("てみ -雨が" IN BOOLEAN MODE);
 SELECT * FROM 名字 WHERE
@@ -6132,15 +6137,36 @@ seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 SELECT * FROM 名字;
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 0	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row value
-0	你好嗎?	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
+0	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM 名字 WHERE
 MATCH (행운을빈다) AGAINST('니다');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 0	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row value
-0	你好嗎?	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
+0	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 DELETE FROM 名字 WHERE
 MATCH (행운을빈다) AGAINST('니다');
 SELECT * FROM 名字;
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 DROP TABLE 名字;
 SET GLOBAL innodb_file_per_table = 1;
+SET GLOBAL innodb_ft_enable_stopword=OFF;
+SET innodb_ft_enable_stopword=OFF;
+CREATE TABLE ft_test3(
+id INT NOT NULL,
+contents TEXT,
+PRIMARY KEY(id),
+FULLTEXT INDEX fx_contents(contents) WITH PARSER NGRAM
+) ENGINE=INNODB;
+SET GLOBAL innodb_ft_aux_table='test/ft_test3';
+INSERT INTO ft_test3 VALUES (1, 'xy,yz');
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE ORDER BY position;
+WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
+xy	2	2	1	2	0
+yz	2	2	1	2	3
+SELECT * FROM ft_test3 WHERE MATCH(contents) AGAINST('y,' IN BOOLEAN MODE);
+id	contents
+SELECT * FROM ft_test3 WHERE MATCH(contents) AGAINST('y,' IN NATURAl LANGUAGE MODE);
+id	contents
+SET GLOBAL innodb_ft_enable_stopword = ON;
+SET GLOBAL innodb_ft_aux_table = @old_innodb_ft_aux_table;
+DROP TABLE ft_test3;

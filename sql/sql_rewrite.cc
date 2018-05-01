@@ -175,17 +175,14 @@ static bool append_str(String *str, bool comma, const char *key,
   Used with List<>::sort for alphabetic sorting of LEX_USER records
   using user,host as keys.
 
-  @param n1 A LEX_USER element
-  @param n2 A LEX_USER element
-  @param arg Not used
+  @param l1 A LEX_USER element
+  @param l2 A LEX_USER element
 
   @return
     @retval 1 if n1 &gt; n2
     @retval 0 if n1 &lt;= n2
 */
-static int lex_user_comp(void *n1, void *n2, void *arg MY_ATTRIBUTE((unused))) {
-  LEX_USER *l1 = (LEX_USER *)n1;
-  LEX_USER *l2 = (LEX_USER *)n2;
+static int lex_user_comp(LEX_USER *l1, LEX_USER *l2) {
   size_t length = std::min(l1->user.length, l2->user.length);
   int key = memcmp(l1->user.str, l2->user.str, length);
   if (key == 0 && l1->user.length == l2->user.length) {
@@ -203,7 +200,7 @@ static void rewrite_default_roles(LEX *lex, String *rlb) {
   bool comma = false;
   if (lex->default_roles && lex->default_roles->elements > 0) {
     rlb->append(" DEFAULT ROLE ");
-    lex->default_roles->sort(&lex_user_comp, 0);
+    lex->default_roles->sort(&lex_user_comp);
     List_iterator<LEX_USER> role_it(*(lex->default_roles));
     LEX_USER *role;
     while ((role = role_it++)) {
@@ -499,7 +496,7 @@ void mysql_rewrite_set_password(THD *thd, String *rlb,
 
 void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
                                      std::set<LEX_USER *> *users_not_to_log,
-                                     bool for_binlog) {
+                                     bool for_binlog, bool hide_password_hash) {
   LEX *lex = thd->lex;
   LEX_USER *user_name, *tmp_user_name;
   List_iterator<LEX_USER> user_list(lex->users_list);
@@ -522,7 +519,7 @@ void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
         users_not_to_log->find(tmp_user_name) != users_not_to_log->end())
       continue;
     if ((user_name = get_current_user(thd, tmp_user_name))) {
-      append_user_new(thd, rlb, user_name, comma);
+      append_user_new(thd, rlb, user_name, comma, hide_password_hash);
       comma = true;
     }
   }

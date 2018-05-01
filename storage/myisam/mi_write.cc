@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -823,7 +823,10 @@ static int keys_compare(const void *a, const void *b, const void *c) {
                     USE_WHOLE_KEY, SEARCH_SAME, not_used);
 }
 
-static int keys_free(uchar *key, TREE_FREE mode, bulk_insert_param *param) {
+static void keys_free(void *v_key, TREE_FREE mode, const void *v_param) {
+  uchar *key = static_cast<uchar *>(v_key);
+  const bulk_insert_param *param =
+      static_cast<const bulk_insert_param *>(v_param);
   /*
     Probably I can use info->lastkey here, but I'm not sure,
     and to be safe I'd better use local lastkey.
@@ -838,19 +841,20 @@ static int keys_free(uchar *key, TREE_FREE mode, bulk_insert_param *param) {
         mysql_rwlock_wrlock(&param->info->s->key_root_lock[param->keynr]);
         param->info->s->keyinfo[param->keynr].version++;
       }
-      return 0;
+      return;
     case free_free:
       keyinfo = param->info->s->keyinfo + param->keynr;
       keylen = _mi_keylength(keyinfo, key);
       memcpy(lastkey, key, keylen);
-      return _mi_ck_write_btree(param->info, param->keynr, lastkey,
-                                keylen - param->info->s->rec_reflength);
+      _mi_ck_write_btree(param->info, param->keynr, lastkey,
+                         keylen - param->info->s->rec_reflength);
+      return;
     case free_end:
       if (param->info->s->concurrent_insert)
         mysql_rwlock_unlock(&param->info->s->key_root_lock[param->keynr]);
-      return 0;
+      return;
   }
-  return -1;
+  return;
 }
 
 int mi_init_bulk_insert(MI_INFO *info, ulong cache_size, ha_rows rows) {
@@ -897,8 +901,8 @@ int mi_init_bulk_insert(MI_INFO *info, ulong cache_size, ha_rows rows) {
       params->keynr = i;
       /* Only allocate a 16'th of the buffer at a time */
       init_tree(&info->bulk_insert[i], cache_size * key[i].maxlength,
-                cache_size * key[i].maxlength, 0, keys_compare, 0,
-                (tree_element_free)keys_free, (void *)params++);
+                cache_size * key[i].maxlength, 0, keys_compare, 0, keys_free,
+                params++);
     } else
       info->bulk_insert[i].root = 0;
   }

@@ -39,7 +39,7 @@ include/check_slave_param.inc [Slave_IO_Running]
 -----------------------------------------------------------------------------
 include/rpl_restart_server.inc [server_number=1]
 START SLAVE IO_THREAD;
-include/wait_for_slave_io_error.inc [errno=1593]
+include/wait_for_slave_io_error.inc [errno=13117]
 include/rpl_restart_server.inc [server_number=1]
 
 # server_3 is running with --replicate-same-server-id option 
@@ -125,11 +125,11 @@ include/start_slave.inc
 -----------------------------------------------------------------------------
 include/rpl_restart_server.inc [server_number=3]
 [connection server_2]
-include/wait_for_slave_io_error.inc [errno=1236]
+include/wait_for_slave_io_error.inc [errno=13114]
 include/assert_grep.inc [Found the expected line in master's error log for server 2 disconnection]
 include/start_slave_io.inc
 [connection server_3]
-include/wait_for_slave_io_error.inc [errno=1236]
+include/wait_for_slave_io_error.inc [errno=13114]
 include/assert_grep.inc [Found the expected line in master's error log for server 3 disconnection]
 include/assert_grep.inc [Found the expected line in server 2 error log]
 include/assert_grep.inc [Found the expected line in server 3 error log]

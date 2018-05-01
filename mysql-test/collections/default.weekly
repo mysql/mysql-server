@@ -45,16 +45,7 @@ perl mysql-test-run.pl --debug-server --timer --force  --big-test --parallel=aut
 perl mysql-test-run.pl --debug-server --timer --force  --comment=memcached --vardir=var-memcached --experimental=collections/default.experimental --parallel=auto  --suite=memcached  --no-skip
 
 # Group Replication
-perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication --vardir=var-group_replication --suite=group_replication --experimental=collections/default.experimental --big-test --testcase-timeout=60 --suite-timeout=360
-perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication_gtid_assignment_block_size_1 --vardir=var-group_replication_gtid_assignment_block_size_1 --suite=group_replication --experimental=collections/default.experimental --big-test --testcase-timeout=60 --suite-timeout=360 --mysqld=--loose-group_replication_gtid_assignment_block_size=1
-perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication_parallel_applier --vardir=var-group_replication_parallel_applier --suite=group_replication --experimental=collections/default.experimental --big-test --testcase-timeout=60 --suite-timeout=360 --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=logical_clock --mysqld=--slave_preserve_commit_order=ON
-perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication_parallel_applier_binlog-txn-dependency-tracking --vardir=var-group_replication_parallel_applier_binlog-txn-dependency-tracking --suite=group_replication --experimental=collections/default.experimental --big-test --testcase-timeout=60 --suite-timeout=360 --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=logical_clock --mysqld=--slave_preserve_commit_order=ON --mysqld=--binlog-transaction-dependency-tracking=WRITESET
-perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication_ssl_mode_required --vardir=var-group_replication_ssl_mode_required --suite=group_replication --experimental=collections/default.experimental --big-test --testcase-timeout=60 --suite-timeout=360 --mysqld=--loose-group_replication_ssl_mode=REQUIRED
 perl mysql-test-run.pl --timer --debug-server --force --parallel=6 --comment=group_replication-debug --vardir=var-group_replication-debug --suite=group_replication --experimental=collections/default.experimental --big-test --testcase-timeout=60 --suite-timeout=360
-perl mysql-test-run.pl --timer --debug-server --force --parallel=6 --comment=group_replication_gtid_assignment_block_size_1-debug --vardir=var-group_replication_gtid_assignment_block_size_1-debug --suite=group_replication --experimental=collections/default.experimental --big-test --testcase-timeout=60 --suite-timeout=360 --mysqld=--loose-group_replication_gtid_assignment_block_size=1
-perl mysql-test-run.pl --timer --debug-server --force --parallel=6 --comment=group_replication_parallel_applier-debug --vardir=var-group_replication_parallel_applier-debug --suite=group_replication --experimental=collections/default.experimental --big-test --testcase-timeout=60 --suite-timeout=360 --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=logical_clock --mysqld=--slave_preserve_commit_order=ON
-perl mysql-test-run.pl --timer --debug-server --force --parallel=6 --comment=group_replication_ssl_mode_required-debug --vardir=var-group_replication_ssl_mode_required-debug --suite=group_replication --experimental=collections/default.experimental --big-test --testcase-timeout=60 --suite-timeout=360 --mysqld=--loose-group_replication_ssl_mode=REQUIRED
-perl mysql-test-run.pl --timer --debug-server --force --parallel=6 --comment=group_replication_transaction-write-set-extraction_MURMUR32-debug --vardir=var-group_replication_transaction-write-set-extraction_MURMUR32-debug --suite=group_replication --experimental=collections/default.experimental --big-test --testcase-timeout=60 --suite-timeout=360 --mysqld=--transaction-write-set-extraction=MURMUR32
 ######END OF SECTION 2 (NON-DEFAULT SUITES)######################
 
 ######## SECTION 3: EXTENDED RUNS FOR REPLICATION AND BINLOG#######
@@ -63,15 +54,15 @@ perl mysql-test-run.pl --timer --debug-server --force --parallel=6 --comment=gro
 
 # Additional mode for rpl. Multi-Threaded Slave
 # Run with --non-parallel-test option so that non parallel tests are also run
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=rpl-mts-db --vardir=var-rpl-mts-db --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=database --do-suite=rpl --no-skip --non-parallel-test
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=rpl-mts-lc --vardir=var-rpl-mts-lc --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=logical_clock --do-suite=rpl --no-skip --non-parallel-test
+perl mysql-test-run.pl --debug-server --timer --force --big-test --testcase-timeout=60 --parallel=auto --comment=rpl-mts-db --vardir=var-rpl-mts-db --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=database --do-suite=rpl --no-skip --non-parallel-test
+perl mysql-test-run.pl --debug-server --timer --force --big-test --testcase-timeout=60 --parallel=auto --comment=rpl-mts-lc --vardir=var-rpl-mts-lc --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=logical_clock --do-suite=rpl --no-skip --non-parallel-test
 
 # Additional GTID coverage (rpl suite with gtid_mode=ON)
 # Run with --non-parallel-test option so that non parallel tests are also run
-perl mysql-test-run.pl --debug-server --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=rpl-gtid --vardir=var-rpl-gtid --suite=rpl --mysqld=--enforce-gtid-consistency --mysqld=--gtid-mode=on --no-skip --non-parallel-test
+perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=rpl-gtid --vardir=var-rpl-gtid --suite=rpl --mysqld=--enforce-gtid-consistency --mysqld=--gtid-mode=on --no-skip --non-parallel-test
 
 # Additional GTID coverage (binlog suite with gtid_mode=ON)
-perl mysql-test-run.pl --debug-server --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=binlog_with_gtid --vardir=var-binlog_gtid --suite=binlog --mysqld=--enforce-gtid-consistency --mysqld=--gtid-mode=on --no-skip
+perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=binlog_with_gtid --vardir=var-binlog_gtid --suite=binlog --mysqld=--enforce-gtid-consistency --mysqld=--gtid-mode=on --no-skip
 
 ################END OF SECTION3(EXTENDED RPL/BINLOG)  ####################
 
@@ -133,25 +124,39 @@ perl mysql-test-run.pl --vardir=var-innodb-zip-log1_level1_8k --force --big-test
 #
 ####SECTION 7 RPL/BINLOG EXTENDED-WEEKLY#############
 #
-# Additional run to test rpl HASH_SCAN & INDEX_SCAN
+# Additional run to test rpl TABLE_SCAN & INDEX_SCAN
 #
-perl mysql-test-run.pl --force --debug-server --timer --parallel=auto --experimental=collections/default.experimental --comment=rpl_row_hash_scan --vardir=var-rpl_row_hash_scan --mysqld=--binlog-format=row --do-suite=rpl --mysqld=--slave-rows-search-algorithms=HASH_SCAN,INDEX_SCAN --big-test --testcase-timeout=60 --no-skip
-perl mysql-test-run.pl --force --debug-server --timer --parallel=auto --experimental=collections/default.experimental --comment=binlog_row_hash_scan --vardir=var-binlog_row_hash_scan --mysqld=--binlog-format=row --do-suite=binlog --mysqld=--slave-rows-search-algorithms=HASH_SCAN,INDEX_SCAN --big-test --testcase-timeout=60  --no-skip
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=rpl_row_hash_MTS --vardir=var-mts-rpl-hash-n_mix --mysqld=--binlog-format=row --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --do-suite=rpl --mysqld=--slave-rows-search-algorithms=HASH_SCAN,INDEX_SCAN --no-skip
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=binlog_row_hash_MTS --vardir=var-mts-binlog-hash-n_mix --mysqld=--binlog-format=row --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --do-suite=binlog --mysqld=--slave-rows-search-algorithms=HASH_SCAN,INDEX_SCAN --no-skip
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=binlog_row_table_MTS --vardir=var-mts-binlog-table-n_mix --mysqld=--binlog-format=row --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --do-suite=binlog --mysqld=--slave-rows-search-algorithms=TABLE_SCAN,INDEX_SCAN --no-skip 
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=rpl_row_table_MTS --vardir=var-mts-rpl-table-n_mix --mysqld=--binlog-format=row --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --do-suite=rpl --mysqld=--slave-rows-search-algorithms=TABLE_SCAN,INDEX_SCAN --no-skip 
-
-perl mysql-test-run.pl --force --debug-server --timer --parallel=auto --experimental=collections/default.experimental --comment=binlog_row_table_scan --vardir=var-binlog_row_table_scan --mysqld=--binlog-format=row --do-suite=binlog --mysqld=--slave-rows-search-algorithms=TABLE_SCAN,INDEX_SCAN --big-test --testcase-timeout=60  --no-skip
 perl mysql-test-run.pl --force --debug-server --timer --parallel=auto --experimental=collections/default.experimental --comment=rpl_row_table_scan --vardir=var-rpl_row_table_scan --mysqld=--binlog-format=row --do-suite=rpl --mysqld=--slave-rows-search-algorithms=TABLE_SCAN,INDEX_SCAN --big-test --testcase-timeout=60  --no-skip
+
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=rpl_row_table_MTS --vardir=var-mts-rpl-table-n_mix --mysqld=--binlog-format=row --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --do-suite=rpl --mysqld=--slave-rows-search-algorithms=TABLE_SCAN,INDEX_SCAN --no-skip 
 
 # binlog-transaction-dependency-tracking=WRITESET with MTS slave-parellel-type=logical-clock
 perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=rpl_MTS-lc-binlog-txn-dependency-tracking --vardir=var-rpl-MTS-lc-binlog-txn-dependency-tracking --do-suite=rpl  --experimental=collections/default.experimental --mysqld=--binlog-format=row --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=logical_clock  --no-skip --mysqld=--binlog-transaction-dependency-tracking=WRITESET
 
 # Rpl suite with Transaction-writeset-extraction disabled
-perl mysql-test-run.pl --debug-server --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=rpl_without_txn_write_set_extraction --vardir=var-rpl_txn_write_set_extraction_disabled --suite=rpl,rpl_gtid,rpl_nogtid  --mysqld=--transaction-write-set-extraction=OFF --no-skip
+perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=rpl_without_txn_write_set_extraction --vardir=var-rpl_txn_write_set_extraction_disabled --suite=rpl,rpl_gtid,rpl_nogtid  --mysqld=--transaction-write-set-extraction=OFF --no-skip
 
 # relay-log-info-repository
-perl mysql-test-run.pl --debug-server --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=rpl_relay_log_info_file --vardir=var-rpl_relay_log_info_file --do-suite=rpl --mysqld=--relay-log-info-repository=FILE  --no-skip
-perl mysql-test-run.pl --debug-server --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=rpl_master_info_file --vardir=var-rpl_master_info_file --do-suite=rpl --mysqld=--master-info-repository=FILE  --no-skip
+perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=rpl_relay_log_info_file --vardir=var-rpl_relay_log_info_file --do-suite=rpl --mysqld=--relay-log-info-repository=FILE  --no-skip
+perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=rpl_master_info_file --vardir=var-rpl_master_info_file --do-suite=rpl --mysqld=--master-info-repository=FILE  --no-skip
+
+#GR with loose-group_replication_gtid_assignment_block_size=1
+perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication_gtid_assignment_block_size_1 --vardir=var-group_replication_gtid_assignment_block_size_1 --suite=group_replication --experimental=collections/default.experimental --big-test --testcase-timeout=60 --suite-timeout=360 --mysqld=--loose-group_replication_gtid_assignment_block_size=1
+
+#GR with MTS 
+perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication_parallel_applier --vardir=var-group_replication_parallel_applier --suite=group_replication --experimental=collections/default.experimental --big-test --testcase-timeout=60 --suite-timeout=360 --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=logical_clock --mysqld=--slave_preserve_commit_order=ON
+perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication_parallel_applier_binlog-txn-dependency-tracking --vardir=var-group_replication_parallel_applier_binlog-txn-dependency-tracking --suite=group_replication --experimental=collections/default.experimental --big-test --testcase-timeout=60 --suite-timeout=360 --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=logical_clock --mysqld=--slave_preserve_commit_order=ON --mysqld=--binlog-transaction-dependency-tracking=WRITESET
+
+#GR with group_replication_ssl_mode = REQUIRED
+perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication_ssl_mode_required --vardir=var-group_replication_ssl_mode_required --suite=group_replication --experimental=collections/default.experimental --big-test --testcase-timeout=60 --suite-timeout=360 --mysqld=--loose-group_replication_ssl_mode=REQUIRED
+
+#GR with loose-group_replication_gtid_assignment_block_size=1 on debug build
+perl mysql-test-run.pl --timer --debug-server --force --parallel=6 --comment=group_replication_gtid_assignment_block_size_1-debug --vardir=var-group_replication_gtid_assignment_block_size_1-debug --suite=group_replication --experimental=collections/default.experimental --big-test --testcase-timeout=60 --suite-timeout=360 --mysqld=--loose-group_replication_gtid_assignment_block_size=1
+
+#GR with MTS on debug build
+perl mysql-test-run.pl --timer --debug-server --force --parallel=6 --comment=group_replication_parallel_applier-debug --vardir=var-group_replication_parallel_applier-debug --suite=group_replication --experimental=collections/default.experimental --big-test --testcase-timeout=60 --suite-timeout=360 --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=logical_clock --mysqld=--slave_preserve_commit_order=ON
+perl mysql-test-run.pl --timer --debug-server --force --parallel=6 --comment=group_replication_ssl_mode_required-debug --vardir=var-group_replication_ssl_mode_required-debug --suite=group_replication --experimental=collections/default.experimental --big-test --testcase-timeout=60 --suite-timeout=360 --mysqld=--loose-group_replication_ssl_mode=REQUIRED
+
+#GR with group_replication_ssl_mode = REQUIRED on debug build
+perl mysql-test-run.pl --timer --debug-server --force --parallel=6 --comment=group_replication_transaction-write-set-extraction_MURMUR32-debug --vardir=var-group_replication_transaction-write-set-extraction_MURMUR32-debug --suite=group_replication --experimental=collections/default.experimental --big-test --testcase-timeout=60 --suite-timeout=360 --mysqld=--transaction-write-set-extraction=MURMUR32
 ###########END OF SECTION 7 RPL/BINLOG EXTENDED-WEEKLY#############

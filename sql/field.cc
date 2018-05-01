@@ -1910,6 +1910,7 @@ Field_str::Field_str(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
   field_charset = charset_arg;
   if (charset_arg->state & MY_CS_BINSORT) flags |= BINARY_FLAG;
   field_derivation = DERIVATION_IMPLICIT;
+  char_length_cache = char_length();
 }
 
 void Field_str::make_field(Send_field *field) {
@@ -2023,6 +2024,7 @@ Field *Field::new_field(MEM_ROOT *root, TABLE *new_table,
   tmp->table = new_table;
   tmp->key_start.init(0);
   tmp->part_of_key.init(0);
+  tmp->part_of_prefixkey.init(0);
   tmp->part_of_sortkey.init(0);
   tmp->m_indexed = false;
   /*
@@ -3941,12 +3943,13 @@ void Field_longlong::sql_type(String &res) const {
 uchar *Field_real::pack(uchar *to, const uchar *from, uint max_length,
                         bool low_byte_first) {
   DBUG_ENTER("Field_real::pack");
-  DBUG_ASSERT(max_length >= pack_length());
 #ifdef WORDS_BIGENDIAN
   if (low_byte_first != table->s->db_low_byte_first) {
-    const uchar *dptr = from + pack_length();
-    while (dptr-- > from) *to++ = *dptr;
-    DBUG_RETURN(to);
+    unsigned len = std::min(pack_length(), max_length);
+    for (unsigned i = 0; i < len; ++i) {
+      to[i] = from[pack_length() - i - 1];
+    }
+    DBUG_RETURN(to + pack_length());
   } else
 #endif
     DBUG_RETURN(Field::pack(to, from, max_length, low_byte_first));
@@ -5993,8 +5996,8 @@ type_conversion_status Field_longstr::report_if_important_data(
           set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
       }
       return TYPE_WARN_TRUNCATED;
-    } else if (count_spaces) { /* If we lost only spaces then produce a NOTE,
-                                  not a WARNING */
+    } else if (count_spaces) {
+      // If we lost only spaces then produce a NOTE, not a WARNING
       if (table->in_use->check_for_truncated_fields) {
         set_warning(Sql_condition::SL_NOTE, WARN_DATA_TRUNCATED, 1);
       }
@@ -6256,8 +6259,9 @@ size_t Field_string::make_sort_key(uchar *to, size_t length) {
         field_charset, (const char *)ptr, input_length);
   }
 
+  DBUG_ASSERT(char_length_cache == char_length());
   size_t tmp MY_ATTRIBUTE((unused)) = field_charset->coll->strnxfrm(
-      field_charset, to, length, char_length(), ptr, input_length,
+      field_charset, to, length, char_length_cache, ptr, input_length,
       MY_STRXFRM_PAD_TO_MAXLEN);
   DBUG_ASSERT(tmp == length);
   return length;
@@ -6279,14 +6283,9 @@ void Field_string::sql_type(String &res) const {
 
 uchar *Field_string::pack(uchar *to, const uchar *from, uint max_length,
                           bool low_byte_first MY_ATTRIBUTE((unused))) {
-  uint length = min(field_length, max_length);
-  uint local_char_length = max_length / field_charset->mbmaxlen;
-  DBUG_PRINT("debug", ("Packing field '%s' - length: %u ", field_name, length));
-
-  if (length > local_char_length)
-    local_char_length =
-        my_charpos(field_charset, from, from + length, local_char_length);
-  set_if_smaller(length, local_char_length);
+  uint length = my_charpos(field_charset, from, from + field_length,
+                           field_length / field_charset->mbmaxlen);
+  uint length_bytes = (field_length > 255) ? 2 : 1;
 
   /*
      TODO: change charset interface to add a new function that does
@@ -6300,12 +6299,20 @@ uchar *Field_string::pack(uchar *to, const uchar *from, uint max_length,
     length = field_charset->cset->lengthsp(field_charset, (const char *)from,
                                            length);
 
-  // Length always stored little-endian
-  *to++ = (uchar)length;
-  if (field_length > 255) *to++ = (uchar)(length >> 8);
+  if (max_length < length_bytes)
+    length = 0;
+  else if (length > max_length - length_bytes)
+    length = max_length - length_bytes;
 
-  // Store the actual bytes of the string
+  /* Length always stored little-endian */
+  if (max_length >= 1) {
+    *to++ = length & 0xFF;
+    if (length_bytes == 2 && max_length >= 2) *to++ = (length >> 8) & 0xFF;
+  }
+
+  /* Store bytes of string */
   memcpy(to, from, length);
+
   return to + length;
 }
 
@@ -6627,8 +6634,10 @@ size_t Field_varstring::make_sort_key(uchar *to, size_t length) {
   const int flags =
       (field_charset->pad_attribute == NO_PAD) ? 0 : MY_STRXFRM_PAD_TO_MAXLEN;
 
-  return field_charset->coll->strnxfrm(field_charset, to, length, char_length(),
-                                       ptr + length_bytes, input_bytes, flags);
+  DBUG_ASSERT(char_length_cache == char_length());
+  return field_charset->coll->strnxfrm(field_charset, to, length,
+                                       char_length_cache, ptr + length_bytes,
+                                       input_bytes, flags);
 }
 
 enum ha_base_keytype Field_varstring::key_type() const {
@@ -6665,15 +6674,19 @@ uint32 Field_varstring::data_length(uint row_offset) {
 uchar *Field_varstring::pack(uchar *to, const uchar *from, uint max_length,
                              bool low_byte_first MY_ATTRIBUTE((unused))) {
   uint length = length_bytes == 1 ? (uint)*from : uint2korr(from);
-  set_if_smaller(max_length, field_length);
-  if (length > max_length) length = max_length;
+  if (max_length < length_bytes)
+    length = 0;
+  else if (length > max_length - length_bytes)
+    length = max_length - length_bytes;
 
   /* Length always stored little-endian */
-  *to++ = length & 0xFF;
-  if (max_length > 255) *to++ = (length >> 8) & 0xFF;
+  if (max_length >= 1) {
+    *to++ = length & 0xFF;
+    if (length_bytes == 2 && max_length >= 2) *to++ = (length >> 8) & 0xFF;
+  }
 
   /* Store bytes of string */
-  if (length > 0) memcpy(to, from + length_bytes, length);
+  memcpy(to, from + length_bytes, length);
   return to + length;
 }
 
@@ -7189,55 +7202,19 @@ int Field_blob::do_save_field_metadata(uchar *metadata_ptr) {
   DBUG_RETURN(1);
 }
 
-uint32 Field_blob::sort_length() const {
-  // TODO: Isn't the conditional here inverted?
-  return (uint32)(current_thd->variables.max_sort_length +
-                  (field_charset->pad_attribute == NO_PAD ? 0 : packlength));
-}
+uint32 Field_blob::sort_length() const { return 0xFFFFFFFFu; }
 
 size_t Field_blob::make_sort_key(uchar *to, size_t length) {
-  uchar *blob;
   size_t blob_length = get_length();
-  size_t orig_length = length;
 
-  if (!blob_length)
-    memset(to, 0, length);
-  else {
-    if (field_charset->pad_attribute == NO_PAD) {
-      /*
-        Store length of blob last in blob to shorter blobs before longer blobs
-      */
-      length -= packlength;
-      uchar *pos = to + length;
+  const int flags =
+      (field_charset->pad_attribute == NO_PAD) ? 0 : MY_STRXFRM_PAD_TO_MAXLEN;
 
-      switch (packlength) {
-        case 1:
-          *pos = (char)blob_length;
-          break;
-        case 2:
-          mi_int2store(pos, blob_length);
-          break;
-        case 3:
-          mi_int3store(pos, blob_length);
-          break;
-        case 4:
-          mi_int4store(pos, blob_length);
-          break;
-      }
+  uchar *blob;
+  memcpy(&blob, ptr + packlength, sizeof(char *));
 
-      // Heed the contract that strnxfrm needs an even number of bytes.
-      if ((length % 2) == 1) {
-        to[--length] = 0;
-      }
-    }
-    memcpy(&blob, ptr + packlength, sizeof(char *));
-
-    blob_length =
-        field_charset->coll->strnxfrm(field_charset, to, length, length, blob,
-                                      blob_length, MY_STRXFRM_PAD_TO_MAXLEN);
-    DBUG_ASSERT(blob_length == length);
-  }
-  return orig_length;
+  return field_charset->coll->strnxfrm(field_charset, to, length, length, blob,
+                                       blob_length, flags);
 }
 
 void Field_blob::sql_type(String &res) const {
@@ -8174,7 +8151,30 @@ void Field_enum::sql_type(String &res) const {
     if (flag) res.append(',');
     /* convert to res.charset() == utf8, then quote */
     enum_item.copy(*pos, *len, charset(), res.charset(), &dummy_errors);
-    append_unescaped(&res, enum_item.ptr(), enum_item.length());
+
+    const CHARSET_INFO *cs = res.charset();
+    int well_formed_error = 42;
+#ifndef DBUG_OFF
+    size_t wl =
+#endif
+        cs->cset->well_formed_len(cs, enum_item.ptr(),
+                                  enum_item.ptr() + enum_item.length(),
+                                  enum_item.length(), &well_formed_error);
+    DBUG_ASSERT(wl <= enum_item.length());
+    if (well_formed_error) {
+      // Append the hex literal instead
+      res.append("x'");
+      char b[6];
+      const char *eip = enum_item.ptr();
+      for (size_t i = 0; i < enum_item.length(); ++i) {
+        unsigned char v = static_cast<unsigned char>(eip[i]);
+        snprintf(b, sizeof(b), "%x", v);
+        res.append(b);
+      }
+      res.append("'");
+    } else {
+      append_unescaped(&res, enum_item.ptr(), enum_item.length());
+    }
     flag = 1;
   }
   res.append(')');
@@ -8384,7 +8384,7 @@ uint Field_enum::is_equal(const Create_field *new_field) {
   return IS_EQUAL_YES;
 }
 
-uchar *Field_enum::pack(uchar *to, const uchar *from, uint,
+uchar *Field_enum::pack(uchar *to, const uchar *from, uint max_length,
                         bool low_byte_first) {
   DBUG_ENTER("Field_enum::pack");
   DBUG_PRINT("debug", ("packlength: %d", packlength));
@@ -8395,13 +8395,13 @@ uchar *Field_enum::pack(uchar *to, const uchar *from, uint,
       *to = *from;
       DBUG_RETURN(to + 1);
     case 2:
-      DBUG_RETURN(pack_int16(to, from, low_byte_first));
+      DBUG_RETURN(pack_int16(to, from, max_length, low_byte_first));
     case 3:
-      DBUG_RETURN(pack_int24(to, from, low_byte_first));
+      DBUG_RETURN(pack_int24(to, from, max_length, low_byte_first));
     case 4:
-      DBUG_RETURN(pack_int32(to, from, low_byte_first));
+      DBUG_RETURN(pack_int32(to, from, max_length, low_byte_first));
     case 8:
-      DBUG_RETURN(pack_int64(to, from, low_byte_first));
+      DBUG_RETURN(pack_int64(to, from, max_length, low_byte_first));
     default:
       DBUG_ASSERT(0);
   }
@@ -8831,7 +8831,9 @@ void Field_bit::sql_type(String &res) const {
 
 uchar *Field_bit::pack(uchar *to, const uchar *from, uint max_length,
                        bool low_byte_first MY_ATTRIBUTE((unused))) {
-  DBUG_ASSERT(max_length > 0);
+  if (max_length == 0) {
+    return to + 1;
+  }
   uint length;
   if (bit_len > 0) {
     /*
@@ -10200,6 +10202,12 @@ bool Field::is_part_of_actual_key(THD *thd, uint cur_index,
              : part_of_key_not_extended.is_set(cur_index);
 }
 
+Key_map Field::get_covering_prefix_keys() {
+  Key_map covering_prefix_keys = part_of_prefixkey;
+  covering_prefix_keys.intersect(table->covering_keys);
+  return covering_prefix_keys;
+}
+
 void Field::set_default() {
   if (has_insert_default_function())
     evaluate_insert_default_function();
@@ -10256,47 +10264,171 @@ void Field::init(TABLE *table_arg) {
   table_name = &table_arg->alias;
 }
 
-uchar *Field::pack_int16(uchar *to, const uchar *from, bool low_byte_first_to) {
-  handle_int16(to, from, table->s->db_low_byte_first, low_byte_first_to);
+// Byteswaps and/or truncates int16 values; used for both pack() and unpack().
+static inline void handle_int16(uchar *to, const uchar *from, uint max_length,
+                                bool low_byte_first_from MY_ATTRIBUTE((unused)),
+                                bool low_byte_first_to MY_ATTRIBUTE((unused))) {
+  int16 val;
+  uchar buf[sizeof(val)];
+#ifdef WORDS_BIGENDIAN
+  if (low_byte_first_from)
+    val = sint2korr(from);
+  else
+#endif
+    shortget(&val, from);
+
+#ifdef WORDS_BIGENDIAN
+  if (low_byte_first_to)
+    int2store(buf, val);
+  else
+#endif
+    shortstore(buf, val);
+  if (max_length >= sizeof(buf)) {
+    // Common case.
+    memcpy(to, buf, sizeof(buf));
+  } else {
+    memcpy(to, buf, max_length);
+  }
+}
+
+// Byteswaps and/or truncates int24 values; used for both pack() and unpack().
+static inline void handle_int24(uchar *to, const uchar *from, uint max_length,
+                                bool low_byte_first_from MY_ATTRIBUTE((unused)),
+                                bool low_byte_first_to MY_ATTRIBUTE((unused))) {
+  int32 val;
+  uchar buf[3];
+#ifdef WORDS_BIGENDIAN
+  if (low_byte_first_from)
+    val = sint3korr(from);
+  else
+#endif
+    val = (from[0] << 16) + (from[1] << 8) + from[2];
+
+#ifdef WORDS_BIGENDIAN
+  if (low_byte_first_to)
+    int3store(buf, val);
+  else
+#endif
+  {
+    buf[0] = 0xFF & (val >> 16);
+    buf[1] = 0xFF & (val >> 8);
+    buf[2] = 0xFF & val;
+  }
+  if (max_length >= sizeof(buf)) {
+    // Common case.
+    memcpy(to, buf, sizeof(buf));
+  } else {
+    memcpy(to, buf, max_length);
+  }
+}
+
+// Byteswaps and/or truncates int32 values; used for both pack() and unpack().
+static inline void handle_int32(uchar *to, const uchar *from, uint max_length,
+                                bool low_byte_first_from MY_ATTRIBUTE((unused)),
+                                bool low_byte_first_to MY_ATTRIBUTE((unused))) {
+  int32 val;
+  uchar buf[sizeof(val)];
+#ifdef WORDS_BIGENDIAN
+  if (low_byte_first_from)
+    val = sint4korr(from);
+  else
+#endif
+    longget(&val, from);
+
+#ifdef WORDS_BIGENDIAN
+  if (low_byte_first_to)
+    int4store(buf, val);
+  else
+#endif
+    longstore(buf, val);
+  if (max_length >= sizeof(buf)) {
+    // Common case.
+    memcpy(to, buf, sizeof(buf));
+  } else {
+    memcpy(to, buf, max_length);
+  }
+}
+
+// Byteswaps and/or truncates int64 values; used for both pack() and unpack().
+static inline void handle_int64(uchar *to, const uchar *from, uint max_length,
+                                bool low_byte_first_from MY_ATTRIBUTE((unused)),
+                                bool low_byte_first_to MY_ATTRIBUTE((unused))) {
+  int64 val;
+  uchar buf[sizeof(val)];
+#ifdef WORDS_BIGENDIAN
+  if (low_byte_first_from)
+    val = sint8korr(from);
+  else
+#endif
+    longlongget(&val, from);
+
+#ifdef WORDS_BIGENDIAN
+  if (low_byte_first_to)
+    int8store(buf, val);
+  else
+#endif
+    longlongstore(buf, val);
+  if (max_length >= sizeof(buf)) {
+    // Common case.
+    memcpy(to, buf, sizeof(buf));
+  } else {
+    memcpy(to, buf, max_length);
+  }
+}
+
+uchar *Field::pack_int16(uchar *to, const uchar *from, uint max_length,
+                         bool low_byte_first_to) {
+  handle_int16(to, from, max_length, table->s->db_low_byte_first,
+               low_byte_first_to);
   return to + sizeof(int16);
 }
 
 const uchar *Field::unpack_int16(uchar *to, const uchar *from,
                                  bool low_byte_first_from) {
-  handle_int16(to, from, low_byte_first_from, table->s->db_low_byte_first);
+  handle_int16(to, from, UINT_MAX, low_byte_first_from,
+               table->s->db_low_byte_first);
   return from + sizeof(int16);
 }
 
-uchar *Field::pack_int24(uchar *to, const uchar *from, bool low_byte_first_to) {
-  handle_int24(to, from, table->s->db_low_byte_first, low_byte_first_to);
+uchar *Field::pack_int24(uchar *to, const uchar *from, uint max_length,
+                         bool low_byte_first_to) {
+  handle_int24(to, from, max_length, table->s->db_low_byte_first,
+               low_byte_first_to);
   return to + 3;
 }
 
 const uchar *Field::unpack_int24(uchar *to, const uchar *from,
                                  bool low_byte_first_from) {
-  handle_int24(to, from, low_byte_first_from, table->s->db_low_byte_first);
+  handle_int24(to, from, UINT_MAX, low_byte_first_from,
+               table->s->db_low_byte_first);
   return from + 3;
 }
 
-uchar *Field::pack_int32(uchar *to, const uchar *from, bool low_byte_first_to) {
-  handle_int32(to, from, table->s->db_low_byte_first, low_byte_first_to);
+uchar *Field::pack_int32(uchar *to, const uchar *from, uint max_length,
+                         bool low_byte_first_to) {
+  handle_int32(to, from, max_length, table->s->db_low_byte_first,
+               low_byte_first_to);
   return to + sizeof(int32);
 }
 
 const uchar *Field::unpack_int32(uchar *to, const uchar *from,
                                  bool low_byte_first_from) {
-  handle_int32(to, from, low_byte_first_from, table->s->db_low_byte_first);
+  handle_int32(to, from, UINT_MAX, low_byte_first_from,
+               table->s->db_low_byte_first);
   return from + sizeof(int32);
 }
 
-uchar *Field::pack_int64(uchar *to, const uchar *from, bool low_byte_first_to) {
-  handle_int64(to, from, table->s->db_low_byte_first, low_byte_first_to);
+uchar *Field::pack_int64(uchar *to, const uchar *from, uint max_length,
+                         bool low_byte_first_to) {
+  handle_int64(to, from, max_length, table->s->db_low_byte_first,
+               low_byte_first_to);
   return to + sizeof(int64);
 }
 
 const uchar *Field::unpack_int64(uchar *to, const uchar *from,
                                  bool low_byte_first_from) {
-  handle_int64(to, from, low_byte_first_from, table->s->db_low_byte_first);
+  handle_int64(to, from, UINT_MAX, low_byte_first_from,
+               table->s->db_low_byte_first);
   return from + sizeof(int64);
 }
 

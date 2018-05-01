@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -34,8 +34,10 @@ namespace test {
 
 using ::testing::DoAll;
 using ::testing::Expectation;
+using ::testing::InSequence;
 using ::testing::Return;
 using ::testing::ReturnPointee;
+using ::testing::ReturnRef;
 using ::testing::SetArrayArgument;
 using ::testing::SetErrnoAndReturn;
 using ::testing::StrictMock;
@@ -43,183 +45,179 @@ using ::testing::_;
 
 class Timers_test_suite : public ::testing::Test {
  public:
-  Timers_test_suite()
-      : mock_vio(new Mock_vio()),  // mock_connection will take ownership
-        mock_connection(
-            ngs::make_shared<StrictMock<Mock_connection>>(mock_vio)),
-        timeouts({Global_timeouts::Default::k_interactive_timeout,
-                  Global_timeouts::Default::k_wait_timeout,
-                  Global_timeouts::Default::k_read_timeout,
-                  Global_timeouts::Default::k_write_timeout}),
-        sut(mock_connection, mock_server, /* id */ 1, mock_protocol_monitor,
-            timeouts) {}
+  void SetUp() {
+    EXPECT_CALL(mock_server, get_config()).WillRepeatedly(Return(config));
+    EXPECT_CALL(*mock_vio, get_mysql_socket())
+        .WillRepeatedly(ReturnRef(m_socket));
+    sut.reset(new xpl::test::Mock_ngs_client(mock_vio, mock_server, /* id */ 1,
+                                             &mock_protocol_monitor, timeouts));
+  }
 
-  void TearDown() { EXPECT_CALL(*mock_connection->m_mock_vio, shutdown()); }
+  void TearDown() { EXPECT_CALL(*mock_vio, shutdown()); }
 
-  Mock_vio *mock_vio;
-  ngs::shared_ptr<StrictMock<Mock_connection>> mock_connection;
+  using Strict_mock_vio = StrictMock<Mock_vio>;
+  std::shared_ptr<Strict_mock_vio> mock_vio{new Strict_mock_vio()};
   StrictMock<Mock_server> mock_server;
   StrictMock<Mock_protocol_monitor> mock_protocol_monitor;
-  Global_timeouts timeouts;
+  Global_timeouts timeouts{Global_timeouts::Default::k_interactive_timeout,
+                           Global_timeouts::Default::k_wait_timeout,
+                           Global_timeouts::Default::k_read_timeout,
+                           Global_timeouts::Default::k_write_timeout};
 
-  xpl::test::Mock_ngs_client sut;
+  ngs::shared_ptr<Protocol_config> config{new Protocol_config()};
+  const std::vector<unsigned char> k_msg{
+      1, 0, 0, 0, 1};  // 1 = size, 0, 0, 0, 1 = Msg_CapGet
+
+  ngs::shared_ptr<xpl::test::Mock_ngs_client> sut;
+  MYSQL_SOCKET m_socket{INVALID_SOCKET, nullptr};
 };
 
 TEST_F(Timers_test_suite,
        read_one_message_non_interactive_client_default_wait_timeout) {
-  Expectation set_timeout_exp =
-      EXPECT_CALL(*mock_connection->m_mock_vio,
-                  set_timeout(Vio_interface::Direction::k_read,
-                              Global_timeouts::Default::k_interactive_timeout));
+  Message_request mr;
 
-  EXPECT_CALL(*mock_connection->m_mock_vio, read(_, _)).After(set_timeout_exp);
+  // Client holds only the timeout value which must be used.
+  // It doesn't hold interactive or non-interactive timeout values.
+  // The timeout value is set from outsie thus the test uses
+  // k_interactive_timeout
+  Expectation set_timeout_exp = EXPECT_CALL(
+      *mock_vio, set_timeout(Vio_interface::Direction::k_read,
+                             Global_timeouts::Default::k_interactive_timeout));
 
-  EXPECT_CALL(*mock_connection->m_mock_vio, set_state(_)).Times(2);
-  Error_code error;
-  sut.read_one_message(error);
+  EXPECT_CALL(*mock_vio, read(_, _))
+      .After(set_timeout_exp)
+      .WillOnce(DoAll(SetArrayArgument<0>(k_msg.begin(), k_msg.end()),
+                      Return(k_msg.size())));
+
+  EXPECT_CALL(*mock_vio, set_state(_)).Times(2);
+  EXPECT_CALL(mock_protocol_monitor, on_receive(k_msg.size()));
+
+  sut->read_one_message(&mr);
 }
 
 TEST_F(Timers_test_suite,
        read_one_message_interactive_client_default_interactive_timeout) {
-  Expectation set_timeout_exp =
-      EXPECT_CALL(*mock_connection->m_mock_vio,
-                  set_timeout(Vio_interface::Direction::k_read,
-                              Global_timeouts::Default::k_interactive_timeout));
+  Message_request mr;
+  Expectation set_timeout_exp = EXPECT_CALL(
+      *mock_vio, set_timeout(Vio_interface::Direction::k_read,
+                             Global_timeouts::Default::k_interactive_timeout));
 
-  EXPECT_CALL(*mock_connection->m_mock_vio, read(_, _)).After(set_timeout_exp);
+  EXPECT_CALL(*mock_vio, read(_, _))
+      .After(set_timeout_exp)
+      .WillOnce(DoAll(SetArrayArgument<0>(k_msg.begin(), k_msg.end()),
+                      Return(k_msg.size())));
 
-  EXPECT_CALL(*mock_connection->m_mock_vio, set_state(_)).Times(2);
-  Error_code error;
-  sut.read_one_message(error);
+  EXPECT_CALL(*mock_vio, set_state(_)).Times(2);
+  EXPECT_CALL(mock_protocol_monitor, on_receive(k_msg.size()));
+  sut->read_one_message(&mr);
 }
 
 TEST_F(Timers_test_suite,
        read_one_message_interactive_client_custom_interactive_timer) {
   timeouts.interactive_timeout = 11;
-  Mock_vio *temp_vio(new Mock_vio());  // temp_connection will take ownership
-  ngs::shared_ptr<StrictMock<Mock_connection>> temp_connection(
-      ngs::make_shared<StrictMock<Mock_connection>>(temp_vio));
-  xpl::test::Mock_ngs_client client(temp_connection, mock_server, /* id */ 1,
-                                    mock_protocol_monitor, timeouts);
+  Message_request mr;
+  std::shared_ptr<Strict_mock_vio> temp_vio(new Strict_mock_vio());
+
+  xpl::test::Mock_ngs_client client(temp_vio, mock_server, /* id */ 1,
+                                    &mock_protocol_monitor, timeouts);
 
   client.set_wait_timeout(timeouts.interactive_timeout);
 
-  EXPECT_CALL(*temp_connection->m_mock_vio,
-              set_timeout(Vio_interface::Direction::k_read, 11));
-  EXPECT_CALL(*temp_connection->m_mock_vio, read(_, _));
-  EXPECT_CALL(*temp_connection->m_mock_vio, set_state(_)).Times(2);
-  Error_code error;
-  client.read_one_message(error);
-  EXPECT_CALL(*temp_connection->m_mock_vio, shutdown());
+  EXPECT_CALL(*temp_vio, set_timeout(Vio_interface::Direction::k_read, 11));
+  EXPECT_CALL(*temp_vio, get_mysql_socket()).WillOnce(ReturnRef(m_socket));
+  EXPECT_CALL(*temp_vio, read(_, _))
+      .WillOnce(DoAll(SetArrayArgument<0>(k_msg.begin(), k_msg.end()),
+                      Return(k_msg.size())));
+  EXPECT_CALL(*temp_vio, set_state(_)).Times(2);
+  EXPECT_CALL(mock_protocol_monitor, on_receive(k_msg.size()));
+  client.read_one_message(&mr);
+  EXPECT_CALL(*temp_vio, shutdown());
 }
 
 TEST_F(Timers_test_suite,
        read_one_message_non_interactive_client_custom_wait_timer) {
   timeouts.wait_timeout = 22;
-  Mock_vio *temp_vio(new Mock_vio());  // temp_connection will take ownership
-  ngs::shared_ptr<StrictMock<Mock_connection>> temp_connection(
-      ngs::make_shared<StrictMock<Mock_connection>>(temp_vio));
-  xpl::test::Mock_ngs_client client(temp_connection, mock_server, /* id */ 1,
-                                    mock_protocol_monitor, timeouts);
+  Message_request mr;
+  std::shared_ptr<Strict_mock_vio> temp_vio(new Strict_mock_vio());
+  xpl::test::Mock_ngs_client client(temp_vio, mock_server, /* id */ 1,
+                                    &mock_protocol_monitor, timeouts);
 
-  EXPECT_CALL(*temp_connection->m_mock_vio,
-              set_timeout(Vio_interface::Direction::k_read, 22));
-  EXPECT_CALL(*temp_connection->m_mock_vio, read(_, _));
-  EXPECT_CALL(*temp_connection->m_mock_vio, set_state(_)).Times(2);
-  Error_code error;
-  client.read_one_message(error);
-  EXPECT_CALL(*temp_connection->m_mock_vio, shutdown());
+  EXPECT_CALL(*temp_vio, set_timeout(Vio_interface::Direction::k_read, 22));
+  EXPECT_CALL(*temp_vio, get_mysql_socket()).WillOnce(ReturnRef(m_socket));
+  EXPECT_CALL(*temp_vio, read(_, _))
+      .WillOnce(DoAll(SetArrayArgument<0>(k_msg.begin(), k_msg.end()),
+                      Return(k_msg.size())));
+  EXPECT_CALL(*temp_vio, set_state(_)).Times(2);
+  EXPECT_CALL(mock_protocol_monitor, on_receive(k_msg.size()));
+
+  client.read_one_message(&mr);
+
+  EXPECT_CALL(*temp_vio, shutdown());
 }
 
 TEST_F(Timers_test_suite, read_one_message_default_read_timeout) {
-  EXPECT_CALL(*mock_connection->m_mock_vio,
+  EXPECT_CALL(*mock_vio,
               set_timeout(Vio_interface::Direction::k_read,
                           Global_timeouts::Default::k_interactive_timeout));
 
-  const std::size_t buff_size = 4;
-  union {
-    char buffer[5];
-    longlong dummy;
-  };
-  for (int i = 1; i < 4; i++) buffer[i] = 0;
-  buffer[0] = 1;  // Payload size
-  buffer[4] = 1;  // Message id (CapGet)
-
   // Expected to be called twice - once for header and once for payload
-  EXPECT_CALL(*mock_connection->m_mock_vio, read(_, _))
+  EXPECT_CALL(*mock_vio, read(_, _))
       .Times(2)
-      .WillOnce(DoAll(SetArrayArgument<0>(buffer, buffer + buff_size),
-                      Return(buff_size)))
+      .WillOnce(DoAll(SetArrayArgument<0>(k_msg.begin(), k_msg.end() - 1),
+                      Return(k_msg.size() - 1)))
       .WillOnce(
-          DoAll(SetArrayArgument<0>(buffer + buff_size, buffer + buff_size + 1),
-                Return(1)));
-  EXPECT_CALL(*mock_connection->m_mock_vio, set_state(_)).Times(2);
-  EXPECT_CALL(mock_protocol_monitor, on_receive(_)).Times(2);
+          DoAll(SetArrayArgument<0>(k_msg.end() - 1, k_msg.end()), Return(1)));
+  EXPECT_CALL(*mock_vio, set_state(_)).Times(2);
+  EXPECT_CALL(mock_protocol_monitor, on_receive(k_msg.size())).Times(1);
 
   std::shared_ptr<Protocol_config> conf = std::make_shared<Protocol_config>();
   EXPECT_CALL(mock_server, get_config()).WillRepeatedly(ReturnPointee(&conf));
 
-  EXPECT_CALL(*mock_connection->m_mock_vio,
-              set_timeout(Vio_interface::Direction::k_read,
-                          Global_timeouts::Default::k_read_timeout));
+  EXPECT_CALL(*mock_vio, set_timeout(Vio_interface::Direction::k_read,
+                                     Global_timeouts::Default::k_read_timeout));
 
-  Error_code error;
-  auto result = sut.read_one_message(error);
-  ngs::free_object(result);
+  Message_request mr;
+  sut->read_one_message(&mr);
 }
 
 TEST_F(Timers_test_suite, read_one_message_custom_read_timeout) {
   timeouts.read_timeout = 33;
-  Mock_vio *temp_vio(new Mock_vio());  // temp_connection will take ownership
-  ngs::shared_ptr<StrictMock<Mock_connection>> temp_connection(
-      ngs::make_shared<StrictMock<Mock_connection>>(temp_vio));
-  xpl::test::Mock_ngs_client client(temp_connection, mock_server, /* id */ 1,
-                                    mock_protocol_monitor, timeouts);
+  std::shared_ptr<Strict_mock_vio> temp_vio(new Strict_mock_vio());
+  xpl::test::Mock_ngs_client client(temp_vio, mock_server, /* id */ 1,
+                                    &mock_protocol_monitor, timeouts);
 
-  EXPECT_CALL(*temp_connection->m_mock_vio,
+  EXPECT_CALL(*temp_vio,
               set_timeout(Vio_interface::Direction::k_read,
                           Global_timeouts::Default::k_interactive_timeout));
-  EXPECT_CALL(*temp_connection->m_mock_vio,
-              set_timeout(Vio_interface::Direction::k_read, 33));
-
-  const std::size_t buff_size = 4;
-  union {
-    char buffer[5];
-    longlong dummy;
-  };
-
-  for (int i = 1; i < 5; i++) buffer[i] = 0;
-  buffer[0] = 1;  // Payload size
-  buffer[4] = 1;  // Message id (CapGet)
+  EXPECT_CALL(*temp_vio, set_timeout(Vio_interface::Direction::k_read, 33));
+  EXPECT_CALL(*temp_vio, get_mysql_socket()).WillOnce(ReturnRef(m_socket));
 
   // Expected to be called twice - once for header and once for payload
-  EXPECT_CALL(*temp_connection->m_mock_vio, read(_, _))
+  EXPECT_CALL(*temp_vio, read(_, _))
       .Times(2)
-      .WillOnce(DoAll(SetArrayArgument<0>(buffer, buffer + buff_size),
-                      Return(buff_size)))
+      .WillOnce(DoAll(SetArrayArgument<0>(k_msg.begin(), k_msg.end() - 1),
+                      Return(k_msg.size() - 1)))
       .WillOnce(
-          DoAll(SetArrayArgument<0>(buffer + buff_size, buffer + buff_size + 1),
-                Return(1)));
-  EXPECT_CALL(*temp_connection->m_mock_vio, set_state(_)).Times(2);
-  EXPECT_CALL(mock_protocol_monitor, on_receive(_)).Times(2);
+          DoAll(SetArrayArgument<0>(k_msg.end() - 1, k_msg.end()), Return(1)));
+  EXPECT_CALL(*temp_vio, set_state(_)).Times(2);
+  EXPECT_CALL(mock_protocol_monitor, on_receive(k_msg.size())).Times(1);
 
   std::shared_ptr<Protocol_config> conf = std::make_shared<Protocol_config>();
   EXPECT_CALL(mock_server, get_config()).WillRepeatedly(ReturnPointee(&conf));
 
-  Error_code error;
-  auto result = client.read_one_message(error);
-  ngs::free_object(result);
-  EXPECT_CALL(*temp_connection->m_mock_vio, shutdown());
+  Message_request mr;
+  client.read_one_message(&mr);
+  EXPECT_CALL(*temp_vio, shutdown());
 }
 
 TEST_F(Timers_test_suite, read_one_message_failed_read) {
-  EXPECT_CALL(*mock_connection->m_mock_vio,
+  EXPECT_CALL(*mock_vio,
               set_timeout(Vio_interface::Direction::k_read,
                           Global_timeouts::Default::k_interactive_timeout));
 
-  EXPECT_CALL(*mock_connection->m_mock_vio, read(_, _))
+  EXPECT_CALL(*mock_vio, read(_, _))
       .WillRepeatedly(SetErrnoAndReturn(SOCKET_ETIMEDOUT, -1));
-  EXPECT_CALL(*mock_connection->m_mock_vio, set_state(_)).Times(2);
+  EXPECT_CALL(*mock_vio, set_state(_)).Times(1);
 
   EXPECT_CALL(mock_protocol_monitor, on_receive(_)).Times(0);
 
@@ -227,70 +225,66 @@ TEST_F(Timers_test_suite, read_one_message_failed_read) {
   EXPECT_CALL(*encoder,
               set_write_timeout(Global_timeouts::Default::k_write_timeout));
 
-  sut.set_encoder(encoder);
+  sut->set_encoder(encoder);
 #ifndef _WIN32
   EXPECT_CALL(*encoder,
               send_notice(Frame_type::WARNING, Frame_scope::GLOBAL, _, _));
 #endif
 
-  Error_code error;
-  sut.read_one_message(error);
+  Message_request mr;
+  sut->read_one_message(&mr);
 }
 
 TEST_F(Timers_test_suite, send_message_default_write_timeout) {
-  EXPECT_CALL(*mock_connection->m_mock_vio, get_fd());
-  Expectation set_timeout_exp =
-      EXPECT_CALL(*mock_connection->m_mock_vio,
-                  set_timeout(Vio_interface::Direction::k_write,
-                              Global_timeouts::Default::k_write_timeout));
+  EXPECT_CALL(*mock_vio, get_fd());
+  Expectation set_timeout_exp = EXPECT_CALL(
+      *mock_vio, set_timeout(Vio_interface::Direction::k_write,
+                             Global_timeouts::Default::k_write_timeout));
 
-  EXPECT_CALL(*mock_connection->m_mock_vio, write(_, _)).After(set_timeout_exp);
+  EXPECT_CALL(*mock_vio, write(_, _)).After(set_timeout_exp);
 
   auto stub_error_handler = [](int) {};
   auto encoder = ngs::allocate_object<Protocol_encoder>(
-      mock_connection, stub_error_handler, std::ref(mock_protocol_monitor));
-  sut.set_encoder(encoder);
+      mock_vio, stub_error_handler, std::ref(mock_protocol_monitor));
+  sut->set_encoder(encoder);
   encoder->send_message(Mysqlx::ServerMessages::OK, Mysqlx::Ok(), false);
 }
 
 TEST_F(Timers_test_suite, send_message_custom_write_timeout) {
   timeouts.write_timeout = 44;
-  Mock_vio *temp_vio(new Mock_vio());  // temp_connection will take ownership
-  ngs::shared_ptr<StrictMock<Mock_connection>> temp_connection(
-      ngs::make_shared<StrictMock<Mock_connection>>(temp_vio));
-  xpl::test::Mock_ngs_client client(temp_connection, mock_server, /* id */ 1,
-                                    mock_protocol_monitor, timeouts);
+  std::shared_ptr<Strict_mock_vio> temp_vio(new Strict_mock_vio());
+  xpl::test::Mock_ngs_client client(temp_vio, mock_server, /* id */ 1,
+                                    &mock_protocol_monitor, timeouts);
 
-  EXPECT_CALL(*temp_connection->m_mock_vio, get_fd());
-  Expectation set_timeout_exp =
-      EXPECT_CALL(*temp_connection->m_mock_vio,
-                  set_timeout(Vio_interface::Direction::k_write, 44));
+  EXPECT_CALL(*temp_vio, get_fd());
+  Expectation set_timeout_exp = EXPECT_CALL(
+      *temp_vio, set_timeout(Vio_interface::Direction::k_write, 44));
 
-  EXPECT_CALL(*temp_connection->m_mock_vio, write(_, _)).After(set_timeout_exp);
+  EXPECT_CALL(*temp_vio, write(_, _)).After(set_timeout_exp);
 
   auto stub_error_handler = [](int) {};
   auto encoder = ngs::allocate_object<Protocol_encoder>(
-      temp_connection, stub_error_handler, std::ref(mock_protocol_monitor));
+      temp_vio, stub_error_handler, std::ref(mock_protocol_monitor));
   client.set_encoder(encoder);
   encoder->send_message(Mysqlx::ServerMessages::OK, Mysqlx::Ok(), false);
 
-  EXPECT_CALL(*temp_connection->m_mock_vio, shutdown());
+  EXPECT_CALL(*temp_vio, shutdown());
 }
 
 TEST_F(Timers_test_suite, send_message_failed_write) {
-  EXPECT_CALL(*mock_connection->m_mock_vio, get_fd());
-  EXPECT_CALL(*mock_connection->m_mock_vio,
+  EXPECT_CALL(*mock_vio, get_fd());
+  EXPECT_CALL(*mock_vio,
               set_timeout(Vio_interface::Direction::k_write,
                           Global_timeouts::Default::k_write_timeout));
 
-  ON_CALL(*mock_connection->m_mock_vio, write(_, _)).WillByDefault(Return(-1));
-  EXPECT_CALL(*mock_connection->m_mock_vio, write(_, _));
+  ON_CALL(*mock_vio, write(_, _)).WillByDefault(Return(-1));
+  EXPECT_CALL(*mock_vio, write(_, _));
 
   struct CustomExpection {};
   auto stub_error_handler = [](int) { throw CustomExpection(); };
   auto encoder = ngs::allocate_object<Protocol_encoder>(
-      mock_connection, stub_error_handler, std::ref(mock_protocol_monitor));
-  sut.set_encoder(encoder);
+      mock_vio, stub_error_handler, std::ref(mock_protocol_monitor));
+  sut->set_encoder(encoder);
 
   // write failed so error_handler should be used
   EXPECT_THROW(

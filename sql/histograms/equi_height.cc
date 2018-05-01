@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -370,6 +370,15 @@ Histogram *Equi_height<T>::clone(MEM_ROOT *mem_root) const {
   } catch (const std::bad_alloc &) {
     return nullptr; /* purecov: deadcode */
   }
+}
+
+template <class T>
+size_t Equi_height<T>::get_num_distinct_values() const {
+  size_t distinct_values = 0;
+  for (const auto &bucket : m_buckets) {
+    distinct_values += bucket.get_num_distinct();
+  }
+  return distinct_values;
 }
 
 template <class T>

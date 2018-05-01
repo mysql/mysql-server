@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,7 +76,7 @@ typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL, SLAVE_THD_WORKER } SLAVE_THD_TYPE;
 
 #define SLAVE_NET_TIMEOUT 60
 
-#define MAX_SLAVE_ERROR 12000
+#define MAX_SLAVE_ERROR 14000
 
 #define MTS_WORKER_UNDEF ((ulong)-1)
 #define MTS_MAX_WORKERS 1024

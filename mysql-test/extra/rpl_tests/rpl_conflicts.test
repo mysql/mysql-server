@@ -94,7 +94,7 @@ if (`SELECT @@global.binlog_format != 'ROW' OR @@global.slave_exec_mode = 'STRIC
   --let $errno= query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1)
   --eval SELECT "$errno" as 'Last_SQL_Errno'
 
-  call mtr.add_suppression("Slave SQL.*Duplicate entry .1. for key .PRIMARY.* Error_code: 1062");
+  call mtr.add_suppression("Slave SQL.*Duplicate entry .1. for key .PRIMARY.* Error_code: MY-001062");
   call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
   SELECT * FROM t1;

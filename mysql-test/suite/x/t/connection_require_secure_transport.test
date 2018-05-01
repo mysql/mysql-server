@@ -34,7 +34,7 @@ EOF
 --echo Test different connection types while secure transport when the server was started with this flag set to ON
 # Cases when the flag is dynamicly changes is tests in related x test file (for example connection_ssl.test)
 let $restart_parameters = restart: --require_secure_transport=ON;
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
+--source include/restart_mysqld.inc
 
 --exec $MYSQLXTEST -n --socket=$MASTER_X_MYSOCK -ux_root --password='' --file=$MYSQL_TMP_DIR/check_plain_connection.tmp 2>&1
 --exec $MYSQLXTEST -n -ux_root --password='' --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem  --file=$MYSQL_TMP_DIR/check_ssl_plain_connection.tmp 2>&1
@@ -42,9 +42,7 @@ let $restart_parameters = restart: --require_secure_transport=ON;
 --error 1
 --exec $MYSQLXTEST -n  -ux_root --password='' --file=$MYSQL_TMP_DIR/check_plain_connection.tmp 2>&1
 
---let $expected_error_msg= Secure transport required. To log in you must use TCP\+SSL or UNIX socket connection. \(code 1045\)
---source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/check_connection.tmp 2>&1
+--exec $MYSQLXTEST --expect-error ER_SECURE_TRANSPORT_REQUIRED -ux_root --password='' --file=$MYSQL_TMP_DIR/check_connection.tmp 2>&1
 
 SET GLOBAL require_secure_transport=OFF;
 

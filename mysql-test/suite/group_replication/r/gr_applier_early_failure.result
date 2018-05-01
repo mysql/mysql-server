@@ -3,6 +3,9 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection server1]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("On shutdown there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details");
+SET SESSION sql_log_bin = 1;
 #
 # 1. Create a table on server 1 and replicate
 #
@@ -13,6 +16,9 @@ include/rpl_sync.inc
 # 2. Insert a row on server 2 with log to the binlog disabled
 #
 [connection server2]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("On shutdown there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details");
+SET SESSION sql_log_bin = 1;
 SET SESSION sql_log_bin= 0;
 INSERT INTO t1 VALUES (1);
 SET SESSION sql_log_bin= 1;

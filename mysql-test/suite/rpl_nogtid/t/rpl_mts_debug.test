@@ -92,7 +92,7 @@ SET @@global.debug= "d,mts_worker_thread_fails";
 set @@global.slave_parallel_workers= 2;
 
 start slave sql_thread;
---let $slave_sql_errno= 1593
+--let $slave_sql_errno= 13117
 source include/wait_for_slave_sql_error.inc;
 
 set @@global.slave_checkpoint_group= @save.slave_checkpoint_group;
@@ -126,7 +126,7 @@ set @@global.debug= @save.debug;
 --source include/stop_slave.inc
 call mtr.add_suppression("option 'slave_checkpoint_group': unsigned value 524281 adjusted to 524280");
 call mtr.add_suppression("Failed during slave worker thread create");
-call mtr.add_suppression("Slave SQL for channel '': Failed during slave workers initialization, Error_code: 1593");
+call mtr.add_suppression("Slave SQL for channel '': Failed during slave workers initialization, Error_code: MY-13117");
 call mtr.add_suppression("Mismatch between the number of bytes configured to store checkpoint information and the previously stored information");
 
 set @save.slave_checkpoint_group= @@global.slave_checkpoint_group;
@@ -157,7 +157,7 @@ SET @@global.slave_checkpoint_group=524281;
 --let $saved_debug=`SELECT @global.debug`
 SET @@global.debug= "d,inject_init_worker_init_info_fault";
 START SLAVE SQL_THREAD;
---let $slave_sql_errno=1593
+--let $slave_sql_errno=13117
 --source include/wait_for_slave_sql_error.inc
 SET @@global.debug= @save.debug;
 
@@ -195,7 +195,7 @@ eval change master to relay_log_file='$relay_file', relay_log_pos=$relay_pos;
 set @@global.debug= "d,mts_debug_recovery_reset_fails";
 start slave sql_thread;
 # ER_SLAVE_FATAL_ERROR
---let $slave_sql_errno=1593
+--let $slave_sql_errno=13117
 --source include/wait_for_slave_sql_error.inc
 
 #

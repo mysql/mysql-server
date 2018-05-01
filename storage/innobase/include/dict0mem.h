@@ -442,12 +442,27 @@ struct table_name_t {
   char *m_name;
 };
 
+/** Data structure for default value of a column in a table */
+struct dict_col_default_t {
+  /** Pointer to the column itself */
+  dict_col_t *col;
+  /** Default value in bytes */
+  byte *value;
+  /** Length of default value */
+  size_t len;
+};
+
 /** Data structure for a column in a table */
 struct dict_col_t {
   /*----------------------*/
   /** The following are copied from dtype_t,
   so that all bit-fields can be packed tightly. */
   /* @{ */
+
+  /** Default value when this column was added instantly.
+  If this is not a instantly added column then this is nullptr. */
+  dict_col_default_t *instant_default;
+
   unsigned prtype : 32; /*!< precise type; MySQL data
                         type, charset code, flags to
                         indicate nullability,
@@ -500,6 +515,10 @@ struct dict_col_t {
   /** Check if a column is a virtual column
   @return true if it is a virtual column, false otherwise */
   bool is_virtual() const { return (prtype & DATA_VIRTUAL); }
+
+  /** Check if a column is nullable
+  @return true if it is nullable, otherwise false */
+  bool is_nullable() const { return ((prtype & DATA_NOT_NULL) == 0); }
 
   /** Gets the column data type.
   @param[out] type	data type */
@@ -566,6 +585,12 @@ struct dict_col_t {
 
     return (spatial_status);
   }
+
+  /** Set default value
+  @param[in]	value	Default value
+  @param[in]	length	Default value length
+  @param[in,out]	heap	Heap to allocate memory */
+  void set_default(const byte *value, size_t length, mem_heap_t *heap);
 
 #ifdef UNIV_DEBUG
   /** Assert that a column and a data type match.
@@ -886,8 +911,12 @@ struct dict_index_t {
   unsigned n_def : 10;      /*!< number of fields defined so far */
   unsigned n_fields : 10;   /*!< number of fields in the index */
   unsigned n_nullable : 10; /*!< number of nullable fields */
-  unsigned cached : 1;      /*!< TRUE if the index object is in the
-                           dictionary cache */
+  unsigned n_instant_nullable : 10;
+  /*!< number of nullable fields before first
+  instant ADD COLUMN applied to this table.
+  This is valid only when has_instant_cols() is true */
+  unsigned cached : 1; /*!< TRUE if the index object is in the
+                      dictionary cache */
   unsigned to_be_dropped : 1;
   /*!< TRUE if the index is to be dropped;
   protected by dict_operation_lock */
@@ -902,6 +931,9 @@ struct dict_index_t {
   /*!< a flag that is set for secondary indexes
   that have not been committed to the
   data dictionary yet */
+  unsigned instant_cols : 1;
+  /*!< TRUE if the index is clustered index and it has some
+  instant columns */
   uint32_t srid; /* spatial reference id */
   bool srid_is_valid;
   /* says whether SRID is valid - it cane be
@@ -1056,6 +1088,30 @@ struct dict_index_t {
   @param[in] trx		transaction*/
   bool is_usable(const trx_t *trx) const;
 
+  /** Check whether index has any instantly added columns
+  @return true if this is instant affected, otherwise false */
+  bool has_instant_cols() const { return (instant_cols); }
+
+  /** Returns the number of nullable fields before specified
+  nth field
+  @param[in]	nth	nth field to check */
+  uint32_t get_n_nullable_before(uint32_t nth) const {
+    ulint nullable = n_nullable;
+
+    ut_ad(nth <= n_fields);
+
+    for (uint32_t i = nth; i < n_fields; ++i) {
+      if (get_field(i)->col->is_nullable()) {
+        --nullable;
+      }
+    }
+
+    return (nullable);
+  }
+
+  /** Returns the number of fields before first instant ADD COLUMN */
+  uint32_t get_instant_fields() const;
+
   /** Adds a field definition to an index. NOTE: does not take a copy
   of the column name if the field is a column. The memory occupied
   by the column name may be released only after publishing the index.
@@ -1090,7 +1146,7 @@ struct dict_index_t {
   /** Gets pointer to the nth column in an index.
   @param[in] pos	position of the field
   @return column */
-  const dict_col_t *get_col(ulint pos) const;
+  const dict_col_t *get_col(ulint pos) const { return (get_field(pos)->col); }
 
   /** Gets the column number the nth field in an index.
   @param[in] pos	position of the field
@@ -1110,6 +1166,26 @@ struct dict_index_t {
   ULINT_UNDEFINED if not contained */
   ulint get_col_pos(ulint n, bool inc_prefix = false,
                     bool is_virtual = false) const;
+
+  /** Get the default value of nth field and its length if exists.
+  If not exists, both the return value is nullptr and length is 0.
+  @param[in]	nth	nth field to get
+  @param[in,out]	length	length of the default value
+  @return	the default value data of nth field */
+  const byte *get_nth_default(uint16_t nth, ulint *length) const {
+    ut_ad(nth < n_fields);
+    ut_ad(get_instant_fields() <= nth);
+    const dict_col_t *col = get_col(nth);
+    if (col->instant_default == nullptr) {
+      *length = 0;
+      return (nullptr);
+    }
+
+    *length = col->instant_default->len;
+    ut_ad(*length == 0 || *length == UNIV_SQL_NULL ||
+          col->instant_default->value != nullptr);
+    return (col->instant_default->value);
+  }
 
   /** Sets srid and srid_is_valid values
   @param[in]	srid_value		value of SRID, may be garbage
@@ -1413,6 +1489,11 @@ struct dict_table_t {
   /** Acquire the table handle. */
   inline void acquire();
 
+  /** Acquire the table handle, with lock() and unlock() the table.
+  This function needs to be called for opening table when the table
+  is in memory and later the stats information would be initialized */
+  inline void acquire_with_lock();
+
   /** Release the table handle. */
   inline void release();
 
@@ -1513,6 +1594,10 @@ struct dict_table_t {
 
   /** Number of non-virtual columns. */
   unsigned n_cols : 10;
+
+  /** Number of non-virtual columns before first instant ADD COLUMN,
+  including the system columns like n_cols. */
+  unsigned n_instant_cols : 10;
 
   /** Number of total columns (inlcude virtual and non-virtual) */
   unsigned n_t_cols : 10;
@@ -1800,14 +1885,6 @@ detect this and will eventually quit sooner. */
   be no conflict to access it, so no protection is needed. */
   ulint autoinc_field_no;
 
-  /** This counter is used to track the number of granted and pending
-  autoinc locks on this table. This value is set after acquiring the
-  lock_sys_t::mutex but we peek the contents to determine whether other
-  transactions have acquired the AUTOINC lock or not. Of course only one
-  transaction can be granted the lock but there can be multiple
-  waiters. */
-  ulong n_waiting_or_granted_auto_inc_locks;
-
   /** The transaction that currently holds the the AUTOINC lock on this
   table. Protected by lock_sys->mutex. */
   const trx_t *autoinc_trx;
@@ -1841,6 +1918,19 @@ detect this and will eventually quit sooner. */
 #ifndef UNIV_HOTBACKUP
   /** List of locks on the table. Protected by lock_sys->mutex. */
   table_lock_list_t locks;
+  /** count_by_mode[M] = number of locks in this->locks with
+  lock->type_mode&LOCK_MODE_MASK == M.
+  Used to quickly verify that there are no LOCK_S or LOCK_X, which are the only
+  modes incompatible with LOCK_IS and LOCK_IX, to avoid costly iteration over
+  this->locks when adding LOCK_IS or LOCK_IX.
+  We use count_by_mode[LOCK_AUTO_INC] to track the number of granted and pending
+  autoinc locks on this table. This value is set after acquiring the
+  lock_sys_t::mutex but we peek the contents to determine whether other
+  transactions have acquired the AUTOINC lock or not. Of course only one
+  transaction can be granted the lock but there can be multiple
+  waiters.
+  Protected by lock_sys->mutex. */
+  ulong count_by_mode[LOCK_NUM];
 #endif /* !UNIV_HOTBACKUP */
 
   /** Timestamp of the last modification of this table. */
@@ -1905,6 +1995,33 @@ detect this and will eventually quit sooner. */
   dict_index_t *first_index() {
     return (const_cast<dict_index_t *>(
         const_cast<const dict_table_t *>(this)->first_index()));
+  }
+
+  /** @return if there was any instantly added column.
+  This will be true after one or more instant ADD COLUMN, however,
+  it would become false after ALTER TABLE which rebuilds or copies
+  the old table.
+  If this is true, all instantly added columns should have default
+  values, and records in the table may have REC_INFO_INSTANT_FLAG set. */
+  bool has_instant_cols() const {
+    ut_ad(n_instant_cols <= n_cols);
+
+    return (n_instant_cols < n_cols);
+  }
+
+  /** Set the number of columns when the first instant ADD COLUMN happens.
+  @param[in]	instant_cols	number of fields when first instant
+                                  ADD COLUMN happens, without system
+                                  columns */
+  void set_instant_cols(uint16_t instant_cols) {
+    n_instant_cols = static_cast<unsigned>(instant_cols) + get_n_sys_cols();
+  }
+
+  /** Get the number of user columns when the first instant ADD COLUMN
+  happens.
+  @return	the number of user columns as described above */
+  uint16_t get_instant_cols() const {
+    return (n_instant_cols - get_n_sys_cols());
   }
 
   /** Check whether the table is corrupted.
@@ -2030,6 +2147,9 @@ detect this and will eventually quit sooner. */
   /* GAP locks are skipped for DD tables and SDI tables
   @return true if table is DD table or SDI table, else false */
   inline bool skip_gap_locks() const;
+
+  /** Determine if the table can support instant ADD COLUMN */
+  inline bool support_instant_add() const;
 };
 
 /** Persistent dynamic metadata type, there should be 1 to 1

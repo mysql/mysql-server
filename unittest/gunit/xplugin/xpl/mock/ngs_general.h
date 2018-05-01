@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,34 +22,37 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
+#ifndef UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_NGS_GENERAL_H_
+#define UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_NGS_GENERAL_H_
+
 #include "plugin/x/ngs/include/ngs/interface/socket_events_interface.h"
 #include "plugin/x/ngs/include/ngs_common/operations_factory_interface.h"
-#include "plugin/x/ngs/include/ngs_common/options.h"
 #include "plugin/x/ngs/include/ngs_common/socket_interface.h"
+#include "plugin/x/ngs/include/ngs_common/ssl_context_options_interface.h"
+#include "plugin/x/ngs/include/ngs_common/ssl_session_options.h"
 
 namespace ngs {
 
 namespace test {
 
-class Mock_options_session : public IOptions_session {
+class Mock_options_session : public Ssl_session_options_interface {
  public:
-  MOCK_CONST_METHOD0(supports_tls, bool());
   MOCK_CONST_METHOD0(active_tls, bool());
+
   MOCK_CONST_METHOD0(ssl_cipher, std::string());
-  MOCK_CONST_METHOD0(ssl_cipher_list, std::vector<std::string>());
   MOCK_CONST_METHOD0(ssl_version, std::string());
+  MOCK_CONST_METHOD0(ssl_cipher_list, std::vector<std::string>());
 
   MOCK_CONST_METHOD0(ssl_verify_depth, long());
   MOCK_CONST_METHOD0(ssl_verify_mode, long());
   MOCK_CONST_METHOD0(ssl_sessions_reused, long());
+
   MOCK_CONST_METHOD0(ssl_get_verify_result_and_cert, long());
-
   MOCK_CONST_METHOD0(ssl_get_peer_certificate_issuer, std::string());
-
   MOCK_CONST_METHOD0(ssl_get_peer_certificate_subject, std::string());
 };
 
-class Mock_options_context : public IOptions_context {
+class Mock_options_context : public Ssl_context_options_interface {
  public:
   MOCK_METHOD0(ssl_ctx_verify_depth, long());
   MOCK_METHOD0(ssl_ctx_verify_mode, long());
@@ -57,11 +60,14 @@ class Mock_options_context : public IOptions_context {
   MOCK_METHOD0(ssl_server_not_after, std::string());
   MOCK_METHOD0(ssl_server_not_before, std::string());
 
+  MOCK_METHOD0(ssl_sess_accept_good, long());
+  MOCK_METHOD0(ssl_sess_accept, long());
   MOCK_METHOD0(ssl_accept_renegotiates, long());
+
+  MOCK_METHOD0(ssl_session_cache_mode, std::string());
 
   MOCK_METHOD0(ssl_session_cache_hits, long());
   MOCK_METHOD0(ssl_session_cache_misses, long());
-  MOCK_METHOD0(ssl_session_cache_mode, std::string());
   MOCK_METHOD0(ssl_session_cache_overflows, long());
   MOCK_METHOD0(ssl_session_cache_size, long());
   MOCK_METHOD0(ssl_session_cache_timeouts, long());
@@ -135,5 +141,6 @@ class Mock_socket_events : public Socket_events_interface {
 };
 
 }  // namespace test
-
 }  // namespace ngs
+
+#endif  // UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_NGS_GENERAL_H_

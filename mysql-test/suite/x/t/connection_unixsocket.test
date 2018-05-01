@@ -93,13 +93,9 @@ EOF
 --file_exists $MASTER_X_MYSOCK
 --file_exists $MASTER_X_MYSOCK.lock
 
---let $expected_error_msg= Invalid user or password \(code 1045\)
---source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -uuser_127_0_0_1 --password='' --file=$MYSQL_TMP_DIR/basic_connection.tmp 2>&1
+--exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR --socket=$MASTER_X_MYSOCK -uuser_127_0_0_1 --password='' --file=$MYSQL_TMP_DIR/basic_connection.tmp 2>&1
 
---let $expected_error_msg= Invalid user or password \(code 1045\)
---source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -uuser_8_8_8_8 --password='' --file=$MYSQL_TMP_DIR/basic_connection.tmp 2>&1
+--exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR --socket=$MASTER_X_MYSOCK -uuser_8_8_8_8 --password='' --file=$MYSQL_TMP_DIR/basic_connection.tmp 2>&1
 
 --exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -uuser_all --password='' --file=$MYSQL_TMP_DIR/basic_connection.tmp 2>&1
 
@@ -107,12 +103,8 @@ EOF
 
 --exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -uuser_localhost_8_8_8_8 --password='' --file=$MYSQL_TMP_DIR/basic_connection.tmp 2>&1
 
---let $expected_error_msg= Current account requires TLS to be activate. \(code 1045\)
---source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -uuser_requires_ssl --password='' --file=$MYSQL_TMP_DIR/basic_connection.tmp 2>&1
+--exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR --socket=$MASTER_X_MYSOCK -uuser_requires_ssl --password='' --file=$MYSQL_TMP_DIR/basic_connection.tmp 2>&1
 
---let $expected_error_msg=
---source ../include/mysqlxtest_expected_error.inc
 --exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -uuser_requires_ssl --password='' --file=$MYSQL_TMP_DIR/basic_connection.tmp --ssl-mode=REQUIRED 2>&1
 
 --echo Check if mysqlx_socket has correct value
@@ -200,7 +192,7 @@ EOF
 # Command line option --mysqlx-socket
 --replace_regex /mysqlx-socket=.*sock/mysqlx-socket=SOCKET/
 let $restart_parameters = restart: --mysqlx-socket=$MYSQL_TMP_DIR/valid_mysqlx.sock;
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
+--source include/restart_mysqld.inc
 
 # MySQL Server was started with new UNIX socket file for X Plugin
 # Check if old UNIX socket file was removed and lockfile

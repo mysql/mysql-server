@@ -3,7 +3,7 @@
 --source include/have_ssl.inc
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
+--source include/restart_mysqld.inc
 
 #
 ## Setup

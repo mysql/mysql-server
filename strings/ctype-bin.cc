@@ -1,5 +1,5 @@
 /* Copyright (c) 2002 MySQL AB & tommy@valley.ne.jp
-   Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -349,7 +349,7 @@ static int my_wildcmp_bin_impl(const CHARSET_INFO *cs, const char *str,
                                   w_one, w_many, recurse_level + 1);
           if (tmp <= 0) return (tmp);
         }
-      } while (str != str_end && wildstr[0] != w_many);
+      } while (str != str_end);
       return (-1);
     }
   }
@@ -370,7 +370,7 @@ static size_t my_strnxfrm_8bit_bin_pad_space(const CHARSET_INFO *cs, uchar *dst,
                                              uint flags) {
   srclen = std::min(srclen, dstlen);
   srclen = std::min<size_t>(srclen, nweights);
-  if (dst != src) memcpy(dst, src, srclen);
+  if (dst != src && srclen > 0) memcpy(dst, src, srclen);
   return my_strxfrm_pad(cs, dst, dst + srclen, dst + dstlen,
                         static_cast<uint>(nweights - srclen), flags);
 }
@@ -381,7 +381,7 @@ static size_t my_strnxfrm_8bit_bin_no_pad(const CHARSET_INFO *cs, uchar *dst,
                                           uint flags) {
   srclen = std::min(srclen, dstlen);
   srclen = std::min<size_t>(srclen, nweights);
-  if (dst != src) memcpy(dst, src, srclen);
+  if (dst != src && srclen > 0) memcpy(dst, src, srclen);
   if ((flags & MY_STRXFRM_PAD_TO_MAXLEN) && srclen < dstlen) {
     cs->cset->fill(cs, pointer_cast<char *>(dst) + srclen, dstlen - srclen,
                    cs->pad_char);

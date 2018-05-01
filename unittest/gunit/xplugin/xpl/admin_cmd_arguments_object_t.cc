@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -79,16 +79,18 @@ TEST_F(Admin_command_arguments_object_test, end_empty_obj) {
 TEST_F(Admin_command_arguments_object_test, string_arg) {
   set_arguments(Any::Object{{"first", "bunny"}});
   std::string value("none");
-  ASSERT_ERROR_CODE(ER_X_SUCCESS,
-                    extractor->string_arg("first", &value, OPTIONAL_NO).end());
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      extractor->string_arg({"first"}, &value, OPTIONAL_NO).end());
   ASSERT_EQ("bunny", value);
   ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, string_arg_no_obj) {
   std::string value("none");
-  ASSERT_ERROR_CODE(ER_X_CMD_NUM_ARGUMENTS,
-                    extractor->string_arg("first", &value, OPTIONAL_NO).end());
+  ASSERT_ERROR_CODE(
+      ER_X_CMD_NUM_ARGUMENTS,
+      extractor->string_arg({"first"}, &value, OPTIONAL_NO).end());
   ASSERT_EQ("none", value);
   ASSERT_TRUE(extractor->is_end());
 }
@@ -96,8 +98,9 @@ TEST_F(Admin_command_arguments_object_test, string_arg_no_obj) {
 TEST_F(Admin_command_arguments_object_test, string_arg_empty_arg) {
   set_arguments(Any::Object{});
   std::string value("none");
-  ASSERT_ERROR_CODE(ER_X_CMD_NUM_ARGUMENTS,
-                    extractor->string_arg("first", &value, OPTIONAL_NO).end());
+  ASSERT_ERROR_CODE(
+      ER_X_CMD_NUM_ARGUMENTS,
+      extractor->string_arg({"first"}, &value, OPTIONAL_NO).end());
   ASSERT_EQ("none", value);
   ASSERT_TRUE(extractor->is_end());
 }
@@ -105,8 +108,9 @@ TEST_F(Admin_command_arguments_object_test, string_arg_empty_arg) {
 TEST_F(Admin_command_arguments_object_test, string_arg_no_arg) {
   set_arguments(Any::Object{{"first", "bunny"}});
   std::string value("none");
-  ASSERT_ERROR_CODE(ER_X_CMD_NUM_ARGUMENTS,
-                    extractor->string_arg("second", &value, OPTIONAL_NO).end());
+  ASSERT_ERROR_CODE(
+      ER_X_CMD_NUM_ARGUMENTS,
+      extractor->string_arg({"second"}, &value, OPTIONAL_NO).end());
   ASSERT_EQ("none", value);
   ASSERT_TRUE(extractor->is_end());
 }
@@ -115,8 +119,8 @@ TEST_F(Admin_command_arguments_object_test, string_arg_twice) {
   set_arguments(Any::Object{{"first", "bunny"}, {"second", "carrot"}});
   std::string value1("none"), value2("none");
   ASSERT_ERROR_CODE(ER_X_SUCCESS,
-                    extractor->string_arg("second", &value1, OPTIONAL_NO)
-                        .string_arg("first", &value2, OPTIONAL_NO)
+                    extractor->string_arg({"second"}, &value1, OPTIONAL_NO)
+                        .string_arg({"first"}, &value2, OPTIONAL_NO)
                         .end());
   ASSERT_EQ("carrot", value1);
   ASSERT_EQ("bunny", value2);
@@ -127,8 +131,8 @@ TEST_F(Admin_command_arguments_object_test, string_arg_twice_no_arg) {
   set_arguments(Any::Object{{"first", "bunny"}});
   std::string value1("none"), value2("none");
   ASSERT_ERROR_CODE(ER_X_CMD_NUM_ARGUMENTS,
-                    extractor->string_arg("first", &value1, OPTIONAL_NO)
-                        .string_arg("second", &value2, OPTIONAL_NO)
+                    extractor->string_arg({"first"}, &value1, OPTIONAL_NO)
+                        .string_arg({"second"}, &value2, OPTIONAL_NO)
                         .end());
   ASSERT_EQ("bunny", value1);
   ASSERT_EQ("none", value2);
@@ -138,9 +142,20 @@ TEST_F(Admin_command_arguments_object_test, string_arg_twice_no_arg) {
 TEST_F(Admin_command_arguments_object_test, string_arg_diff_type) {
   set_arguments(Any::Object{{"first", 42}});
   std::string value("none");
-  ASSERT_ERROR_CODE(ER_X_CMD_ARGUMENT_TYPE,
-                    extractor->string_arg("first", &value, OPTIONAL_NO).end());
+  ASSERT_ERROR_CODE(
+      ER_X_CMD_ARGUMENT_VALUE,
+      extractor->string_arg({"first"}, &value, OPTIONAL_NO).end());
   ASSERT_EQ("none", value);
+  ASSERT_TRUE(extractor->is_end());
+}
+
+TEST_F(Admin_command_arguments_object_test, string_arg_second_name) {
+  set_arguments(Any::Object{{"first", "bunny"}});
+  std::string value("none");
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      extractor->string_arg({"second", "first"}, &value, OPTIONAL_NO).end());
+  ASSERT_EQ("bunny", value);
   ASSERT_TRUE(extractor->is_end());
 }
 
@@ -148,7 +163,7 @@ TEST_F(Admin_command_arguments_object_test, sint_arg) {
   set_arguments(Any::Object{{"first", 42}});
   int64_t value = -666;
   ASSERT_ERROR_CODE(ER_X_SUCCESS,
-                    extractor->sint_arg("first", &value, OPTIONAL_NO).end());
+                    extractor->sint_arg({"first"}, &value, OPTIONAL_NO).end());
   ASSERT_EQ(42, value);
   ASSERT_TRUE(extractor->is_end());
 }
@@ -156,8 +171,8 @@ TEST_F(Admin_command_arguments_object_test, sint_arg) {
 TEST_F(Admin_command_arguments_object_test, sint_arg_bad_val) {
   set_arguments(Any::Object{{"first", "42!"}});
   int64_t value = -666;
-  ASSERT_ERROR_CODE(ER_X_CMD_ARGUMENT_TYPE,
-                    extractor->sint_arg("first", &value, OPTIONAL_NO).end());
+  ASSERT_ERROR_CODE(ER_X_CMD_ARGUMENT_VALUE,
+                    extractor->sint_arg({"first"}, &value, OPTIONAL_NO).end());
   ASSERT_EQ(-666, value);
   ASSERT_TRUE(extractor->is_end());
 }
@@ -166,7 +181,7 @@ TEST_F(Admin_command_arguments_object_test, sint_arg_negative) {
   set_arguments(Any::Object{{"first", -42}});
   int64_t value = -666;
   ASSERT_ERROR_CODE(ER_X_SUCCESS,
-                    extractor->sint_arg("first", &value, OPTIONAL_NO).end());
+                    extractor->sint_arg({"first"}, &value, OPTIONAL_NO).end());
   ASSERT_EQ(-42, value);
   ASSERT_TRUE(extractor->is_end());
 }
@@ -175,7 +190,7 @@ TEST_F(Admin_command_arguments_object_test, uint_arg) {
   set_arguments(Any::Object{{"first", 42u}});
   uint64_t value = 666;
   ASSERT_ERROR_CODE(ER_X_SUCCESS,
-                    extractor->uint_arg("first", &value, OPTIONAL_NO).end());
+                    extractor->uint_arg({"first"}, &value, OPTIONAL_NO).end());
   ASSERT_EQ(42, value);
   ASSERT_TRUE(extractor->is_end());
 }
@@ -183,8 +198,8 @@ TEST_F(Admin_command_arguments_object_test, uint_arg) {
 TEST_F(Admin_command_arguments_object_test, uint_arg_negative) {
   set_arguments(Any::Object{{"first", -42}});
   uint64_t value = 666;
-  ASSERT_ERROR_CODE(ER_X_CMD_ARGUMENT_TYPE,
-                    extractor->uint_arg("first", &value, OPTIONAL_NO).end());
+  ASSERT_ERROR_CODE(ER_X_CMD_ARGUMENT_VALUE,
+                    extractor->uint_arg({"first"}, &value, OPTIONAL_NO).end());
   ASSERT_EQ(666, value);
   ASSERT_TRUE(extractor->is_end());
 }
@@ -193,7 +208,7 @@ TEST_F(Admin_command_arguments_object_test, bool_arg_true) {
   set_arguments(Any::Object{{"first", true}});
   bool value = false;
   ASSERT_ERROR_CODE(ER_X_SUCCESS,
-                    extractor->bool_arg("first", &value, OPTIONAL_NO).end());
+                    extractor->bool_arg({"first"}, &value, OPTIONAL_NO).end());
   ASSERT_TRUE(value);
   ASSERT_TRUE(extractor->is_end());
 }
@@ -202,7 +217,7 @@ TEST_F(Admin_command_arguments_object_test, bool_arg_false) {
   set_arguments(Any::Object{{"first", false}});
   bool value = true;
   ASSERT_ERROR_CODE(ER_X_SUCCESS,
-                    extractor->bool_arg("first", &value, OPTIONAL_NO).end());
+                    extractor->bool_arg({"first"}, &value, OPTIONAL_NO).end());
   ASSERT_FALSE(value);
   ASSERT_TRUE(extractor->is_end());
 }
@@ -210,8 +225,19 @@ TEST_F(Admin_command_arguments_object_test, bool_arg_false) {
 TEST_F(Admin_command_arguments_object_test, optional) {
   set_arguments(Any::Object{{"first", "bunny"}});
   std::string value("none");
-  ASSERT_ERROR_CODE(ER_X_SUCCESS,
-                    extractor->string_arg("first", &value, OPTIONAL_YES).end());
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      extractor->string_arg({"first"}, &value, OPTIONAL_YES).end());
+  ASSERT_EQ("bunny", value);
+  ASSERT_TRUE(extractor->is_end());
+}
+
+TEST_F(Admin_command_arguments_object_test, optional_second_name) {
+  set_arguments(Any::Object{{"first", "bunny"}});
+  std::string value("none");
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      extractor->string_arg({"second", "first"}, &value, OPTIONAL_YES).end());
   ASSERT_EQ("bunny", value);
   ASSERT_TRUE(extractor->is_end());
 }
@@ -219,16 +245,18 @@ TEST_F(Admin_command_arguments_object_test, optional) {
 TEST_F(Admin_command_arguments_object_test, optional_empty_args) {
   set_arguments(Any::Object{});
   std::string value("none");
-  ASSERT_ERROR_CODE(ER_X_SUCCESS,
-                    extractor->string_arg("first", &value, OPTIONAL_YES).end());
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      extractor->string_arg({"first"}, &value, OPTIONAL_YES).end());
   ASSERT_EQ("none", value);
   ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, optional_no_obj) {
   std::string value("none");
-  ASSERT_ERROR_CODE(ER_X_SUCCESS,
-                    extractor->string_arg("first", &value, OPTIONAL_YES).end());
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      extractor->string_arg({"first"}, &value, OPTIONAL_YES).end());
   ASSERT_EQ("none", value);
   ASSERT_TRUE(extractor->is_end());
 }
@@ -238,8 +266,8 @@ TEST_F(Admin_command_arguments_object_test, optional_second) {
   std::string value1("none");
   uint64_t value2 = 666;
   ASSERT_ERROR_CODE(ER_X_SUCCESS,
-                    extractor->string_arg("first", &value1, OPTIONAL_NO)
-                        .uint_arg("second", &value2, OPTIONAL_YES)
+                    extractor->string_arg({"first"}, &value1, OPTIONAL_NO)
+                        .uint_arg({"second"}, &value2, OPTIONAL_YES)
                         .end());
   ASSERT_EQ("bunny", value1);
   ASSERT_EQ(666, value2);
@@ -251,9 +279,24 @@ TEST_F(Admin_command_arguments_object_test, optional_inside) {
   std::string value1("none"), value2("none");
   uint64_t value3 = 666;
   ASSERT_ERROR_CODE(ER_X_SUCCESS,
-                    extractor->string_arg("first", &value1, OPTIONAL_NO)
-                        .string_arg("second", &value2, OPTIONAL_YES)
-                        .uint_arg("third", &value3, OPTIONAL_NO)
+                    extractor->string_arg({"first"}, &value1, OPTIONAL_NO)
+                        .string_arg({"second"}, &value2, OPTIONAL_YES)
+                        .uint_arg({"third"}, &value3, OPTIONAL_NO)
+                        .end());
+  ASSERT_EQ("bunny", value1);
+  ASSERT_EQ("none", value2);
+  ASSERT_EQ(42, value3);
+  ASSERT_TRUE(extractor->is_end());
+}
+
+TEST_F(Admin_command_arguments_object_test, optional_inside_second_name) {
+  set_arguments(Any::Object{{"first", "bunny"}, {"third", 42u}});
+  std::string value1("none"), value2("none");
+  uint64_t value3 = 666;
+  ASSERT_ERROR_CODE(ER_X_SUCCESS,
+                    extractor->string_arg({"first"}, &value1, OPTIONAL_NO)
+                        .string_arg({"fourth", "second"}, &value2, OPTIONAL_YES)
+                        .uint_arg({"third"}, &value3, OPTIONAL_NO)
                         .end());
   ASSERT_EQ("bunny", value1);
   ASSERT_EQ("none", value2);
@@ -264,8 +307,9 @@ TEST_F(Admin_command_arguments_object_test, optional_inside) {
 TEST_F(Admin_command_arguments_object_test, end_to_many_args) {
   set_arguments(Any::Object{{"first", "bunny"}, {"third", 42u}});
   std::string value("none");
-  ASSERT_ERROR_CODE(ER_X_CMD_NUM_ARGUMENTS,
-                    extractor->string_arg("first", &value, OPTIONAL_NO).end());
+  ASSERT_ERROR_CODE(
+      ER_X_CMD_NUM_ARGUMENTS,
+      extractor->string_arg({"first"}, &value, OPTIONAL_NO).end());
   ASSERT_EQ("bunny", value);
   ASSERT_TRUE(extractor->is_end());
 }
@@ -275,7 +319,7 @@ TEST_F(Admin_command_arguments_object_test, end_to_many_args_optional) {
   std::string value("none");
   ASSERT_ERROR_CODE(
       ER_X_CMD_NUM_ARGUMENTS,
-      extractor->string_arg("second", &value, OPTIONAL_YES).end());
+      extractor->string_arg({"second"}, &value, OPTIONAL_YES).end());
   ASSERT_EQ("none", value);
   ASSERT_TRUE(extractor->is_end());
 }
@@ -285,7 +329,7 @@ TEST_F(Admin_command_arguments_object_test, string_list_one_value) {
   std::vector<std::string> values;
   ASSERT_ERROR_CODE(
       ER_X_SUCCESS,
-      extractor->string_list("first", &values, OPTIONAL_NO).end());
+      extractor->string_list({"first"}, &values, OPTIONAL_NO).end());
   ASSERT_EQ(std::vector<std::string>{"bunny"}, values);
   ASSERT_TRUE(extractor->is_end());
 }
@@ -295,7 +339,7 @@ TEST_F(Admin_command_arguments_object_test, string_list_array_one) {
   std::vector<std::string> values;
   ASSERT_ERROR_CODE(
       ER_X_SUCCESS,
-      extractor->string_list("first", &values, OPTIONAL_NO).end());
+      extractor->string_list({"first"}, &values, OPTIONAL_NO).end());
   ASSERT_EQ(std::vector<std::string>{"bunny"}, values);
   ASSERT_TRUE(extractor->is_end());
 }
@@ -305,7 +349,7 @@ TEST_F(Admin_command_arguments_object_test, string_list_array) {
   std::vector<std::string> values;
   ASSERT_ERROR_CODE(
       ER_X_SUCCESS,
-      extractor->string_list("first", &values, OPTIONAL_NO).end());
+      extractor->string_list({"first"}, &values, OPTIONAL_NO).end());
   std::vector<std::string> expect{"bunny", "carrot"};
   ASSERT_EQ(expect, values);
   ASSERT_TRUE(extractor->is_end());
@@ -317,8 +361,8 @@ TEST_F(Admin_command_arguments_object_test, string_list_array_mix) {
   std::vector<std::string> values1;
   uint64_t value2 = 666;
   ASSERT_ERROR_CODE(ER_X_SUCCESS,
-                    extractor->string_list("first", &values1, OPTIONAL_NO)
-                        .uint_arg("second", &value2, OPTIONAL_NO)
+                    extractor->string_list({"first"}, &values1, OPTIONAL_NO)
+                        .uint_arg({"second"}, &value2, OPTIONAL_NO)
                         .end());
   std::vector<std::string> expect{"bunny", "carrot"};
   ASSERT_EQ(expect, values1);
@@ -331,8 +375,8 @@ TEST_F(Admin_command_arguments_object_test, string_list_empty) {
 
   std::vector<std::string> values;
   ASSERT_ERROR_CODE(
-      ER_X_SUCCESS,
-      extractor->string_list("first", &values, OPTIONAL_NO).end());
+      ER_X_CMD_ARGUMENT_VALUE,
+      extractor->string_list({"first"}, &values, OPTIONAL_NO).end());
   ASSERT_EQ(std::vector<std::string>(), values);
   ASSERT_TRUE(extractor->is_end());
 }
@@ -342,8 +386,8 @@ TEST_F(Admin_command_arguments_object_test, string_list_bad_arg) {
 
   std::vector<std::string> values;
   ASSERT_ERROR_CODE(
-      ER_X_CMD_ARGUMENT_TYPE,
-      extractor->string_list("first", &values, OPTIONAL_NO).end());
+      ER_X_CMD_ARGUMENT_VALUE,
+      extractor->string_list({"first"}, &values, OPTIONAL_NO).end());
   ASSERT_EQ(std::vector<std::string>(), values);
   ASSERT_TRUE(extractor->is_end());
 }
@@ -354,12 +398,13 @@ TEST_F(Admin_command_arguments_object_test, object_list_one_value) {
   std::vector<Admin_command_arguments_object::Command_arguments *> values;
   ASSERT_ERROR_CODE(
       ER_X_SUCCESS,
-      extractor->object_list("first", &values, OPTIONAL_NO, 0).end());
+      extractor->object_list({"first"}, &values, OPTIONAL_NO, 0).end());
   ASSERT_EQ(1u, values.size());
   ASSERT_TRUE(extractor->is_end());
   uint64_t value2 = 666;
-  ASSERT_ERROR_CODE(ER_X_SUCCESS,
-                    values[0]->uint_arg("second", &value2, OPTIONAL_NO).end());
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      values[0]->uint_arg({"second"}, &value2, OPTIONAL_NO).end());
   ASSERT_EQ(42u, value2);
   ASSERT_TRUE(values[0]->is_end());
 }
@@ -371,12 +416,13 @@ TEST_F(Admin_command_arguments_object_test, object_list_array_one) {
   std::vector<Admin_command_arguments_object::Command_arguments *> values;
   ASSERT_ERROR_CODE(
       ER_X_SUCCESS,
-      extractor->object_list("first", &values, OPTIONAL_NO, 0).end());
+      extractor->object_list({"first"}, &values, OPTIONAL_NO, 0).end());
   ASSERT_EQ(1u, values.size());
   ASSERT_TRUE(extractor->is_end());
   uint64_t value2 = 666;
-  ASSERT_ERROR_CODE(ER_X_SUCCESS,
-                    values[0]->uint_arg("second", &value2, OPTIONAL_NO).end());
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      values[0]->uint_arg({"second"}, &value2, OPTIONAL_NO).end());
   ASSERT_EQ(42u, value2);
   ASSERT_TRUE(values[0]->is_end());
 }
@@ -389,17 +435,18 @@ TEST_F(Admin_command_arguments_object_test, object_list_array) {
   std::vector<Admin_command_arguments_object::Command_arguments *> values;
   ASSERT_ERROR_CODE(
       ER_X_SUCCESS,
-      extractor->object_list("first", &values, OPTIONAL_NO, 0).end());
+      extractor->object_list({"first"}, &values, OPTIONAL_NO, 0).end());
   ASSERT_EQ(2u, values.size());
   ASSERT_TRUE(extractor->is_end());
   uint64_t value1 = 666;
-  ASSERT_ERROR_CODE(ER_X_SUCCESS,
-                    values[0]->uint_arg("second", &value1, OPTIONAL_NO).end());
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      values[0]->uint_arg({"second"}, &value1, OPTIONAL_NO).end());
   ASSERT_EQ(42u, value1);
   ASSERT_TRUE(values[0]->is_end());
   int64_t value2 = 666;
   ASSERT_ERROR_CODE(ER_X_SUCCESS,
-                    values[1]->sint_arg("third", &value2, OPTIONAL_NO).end());
+                    values[1]->sint_arg({"third"}, &value2, OPTIONAL_NO).end());
   ASSERT_EQ(-44, value2);
   ASSERT_TRUE(values[1]->is_end());
 }
@@ -409,8 +456,8 @@ TEST_F(Admin_command_arguments_object_test, object_list_empty) {
 
   std::vector<Admin_command_arguments_object::Command_arguments *> values;
   ASSERT_ERROR_CODE(
-      ER_X_SUCCESS,
-      extractor->object_list("first", &values, OPTIONAL_NO, 0).end());
+      ER_X_CMD_ARGUMENT_VALUE,
+      extractor->object_list({"first"}, &values, OPTIONAL_NO, 0).end());
   ASSERT_EQ(0u, values.size());
   ASSERT_TRUE(extractor->is_end());
 }
@@ -421,8 +468,8 @@ TEST_F(Admin_command_arguments_object_test, object_list_array_bad_arg) {
 
   std::vector<Admin_command_arguments_object::Command_arguments *> values;
   ASSERT_ERROR_CODE(
-      ER_X_CMD_ARGUMENT_TYPE,
-      extractor->object_list("first", &values, OPTIONAL_NO, 0).end());
+      ER_X_CMD_ARGUMENT_VALUE,
+      extractor->object_list({"first"}, &values, OPTIONAL_NO, 0).end());
   ASSERT_EQ(0u, values.size());
   ASSERT_TRUE(extractor->is_end());
 }
@@ -440,8 +487,9 @@ TEST_P(Admin_command_arguments_docpath_test, docpath_arg) {
   const Param_docpath_arg &param = GetParam();
   set_arguments(Any::Object{{"first", param.path.c_str()}});
   std::string value("none");
-  ASSERT_ERROR_CODE(param.expect_error,
-                    extractor->docpath_arg("first", &value, OPTIONAL_NO).end());
+  ASSERT_ERROR_CODE(
+      param.expect_error,
+      extractor->docpath_arg({"first"}, &value, OPTIONAL_NO).end());
   ASSERT_EQ(param.expect_error == ER_X_SUCCESS ? param.path : "none", value);
   ASSERT_TRUE(extractor->is_end());
 }
@@ -549,6 +597,191 @@ Param_docpath_arg docpath_arg_param[] = {
 
 INSTANTIATE_TEST_CASE_P(docpath_arg, Admin_command_arguments_docpath_test,
                         testing::ValuesIn(docpath_arg_param));
+
+#define INVALID_VALUE_ERROR(arg_name)      \
+  ngs::Error_code(ER_X_CMD_ARGUMENT_VALUE, \
+                  "Invalid value for argument '" arg_name "'")
+#define INVALID_NUMBER_ERROR(arg_name)            \
+  ngs::Error_code(ER_X_CMD_NUM_ARGUMENTS,         \
+                  "Invalid number of arguments, " \
+                  "expected value for '" arg_name "'")
+
+TEST_F(Admin_command_arguments_object_test, string_arg_error_msg_invalid_type) {
+  set_arguments(Any::Object{{"first", 42}});
+  std::string value("none");
+  ASSERT_ERROR(INVALID_VALUE_ERROR("first"),
+               extractor->string_arg({"first"}, &value, OPTIONAL_NO).end());
+  ASSERT_EQ("none", value);
+}
+
+TEST_F(Admin_command_arguments_object_test,
+       string_arg_error_msg_invalid_number) {
+  set_arguments(Any::Object{{"second", "bunny"}});
+  std::string value("none");
+  ASSERT_ERROR(INVALID_NUMBER_ERROR("first"),
+               extractor->string_arg({"first"}, &value, OPTIONAL_NO).end());
+  ASSERT_EQ("none", value);
+}
+
+TEST_F(Admin_command_arguments_object_test,
+       docpath_arg_error_msg_invalid_value) {
+  set_arguments(Any::Object{{"first", "bunny"}});
+  std::string value("none");
+  ASSERT_ERROR(INVALID_VALUE_ERROR("first"),
+               extractor->docpath_arg({"first"}, &value, OPTIONAL_NO).end());
+  ASSERT_EQ("none", value);
+}
+
+TEST_F(Admin_command_arguments_object_test,
+       string_list_error_msg_invalid_type_object) {
+  set_arguments(Any::Object{{"first", Any::Object{{"bunny", "carrot"}}}});
+  std::vector<std::string> values;
+  ASSERT_ERROR(INVALID_VALUE_ERROR("first"),
+               extractor->string_list({"first"}, &values, OPTIONAL_NO).end());
+  ASSERT_TRUE(values.empty());
+}
+
+TEST_F(Admin_command_arguments_object_test,
+       string_list_error_msg_invalid_type_number) {
+  set_arguments(Any::Object{{"first", Any::Array{42u}}});
+  std::vector<std::string> values;
+  ASSERT_ERROR(INVALID_VALUE_ERROR("first[0]"),
+               extractor->string_list({"first"}, &values, OPTIONAL_NO).end());
+  ASSERT_TRUE(values.empty());
+}
+
+TEST_F(Admin_command_arguments_object_test,
+       string_list_error_msg_invalid_type_number_2nd) {
+  set_arguments(Any::Object{{"first", Any::Array{"bunny", 42u}}});
+  std::vector<std::string> values;
+  ASSERT_ERROR(INVALID_VALUE_ERROR("first[1]"),
+               extractor->string_list({"first"}, &values, OPTIONAL_NO).end());
+  ASSERT_TRUE(values.empty());
+}
+
+TEST_F(Admin_command_arguments_object_test,
+       object_arg_error_msg_invalid_value) {
+  set_arguments(Any::Object{{"first", "bunny"}});
+  std::vector<Admin_command_arguments_object::Command_arguments *> values;
+  ASSERT_ERROR(
+      INVALID_VALUE_ERROR("first"),
+      extractor->object_list({"first"}, &values, OPTIONAL_NO, 0).end());
+  ASSERT_TRUE(values.empty());
+}
+
+TEST_F(Admin_command_arguments_object_test,
+       object_arg_string_arg_error_msg_invalid_value) {
+  set_arguments(Any::Object{{"first", Any::Object{{"second", 42u}}}});
+  std::vector<Admin_command_arguments_object::Command_arguments *> values;
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      extractor->object_list({"first"}, &values, OPTIONAL_NO, 0).end());
+  ASSERT_FALSE(values.empty());
+
+  std::string value("none");
+  ASSERT_ERROR(INVALID_VALUE_ERROR("first.second"),
+               values[0]->string_arg({"second"}, &value, OPTIONAL_NO).end());
+  ASSERT_EQ("none", value);
+}
+
+TEST_F(Admin_command_arguments_object_test,
+       object_arg_object_arg_string_arg_error_msg_invalid_value) {
+  set_arguments(Any::Object{
+      {"first", Any::Object{{"second", Any::Object{{"third", 42u}}}}}});
+  std::vector<Admin_command_arguments_object::Command_arguments *> values1;
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      extractor->object_list({"first"}, &values1, OPTIONAL_NO, 0).end());
+  ASSERT_FALSE(values1.empty());
+
+  std::vector<Admin_command_arguments_object::Command_arguments *> values2;
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      values1[0]->object_list({"second"}, &values2, OPTIONAL_NO, 0).end());
+  ASSERT_FALSE(values2.empty());
+
+  std::string value("none");
+  ASSERT_ERROR(INVALID_VALUE_ERROR("first.second.third"),
+               values2[0]->string_arg({"third"}, &value, OPTIONAL_NO).end());
+  ASSERT_EQ("none", value);
+}
+
+TEST_F(Admin_command_arguments_object_test,
+       object_arg_string_arg_error_msg_invalid_number) {
+  set_arguments(Any::Object{{"first", Any::Object{{"second", "bunny"}}}});
+  std::vector<Admin_command_arguments_object::Command_arguments *> values;
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      extractor->object_list({"first"}, &values, OPTIONAL_NO, 0).end());
+  ASSERT_FALSE(values.empty());
+
+  std::string value("none");
+  ASSERT_ERROR(INVALID_NUMBER_ERROR("first.third"),
+               values[0]->string_arg({"third"}, &value, OPTIONAL_NO).end());
+  ASSERT_EQ("none", value);
+}
+
+TEST_F(Admin_command_arguments_object_test,
+       object_list_string_arg_error_msg_invalid_value) {
+  set_arguments(
+      Any::Object{{"first", Any::Array{Any::Object{{"second", 42u}}}}});
+  std::vector<Admin_command_arguments_object::Command_arguments *> values;
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      extractor->object_list({"first"}, &values, OPTIONAL_NO, 0).end());
+  ASSERT_FALSE(values.empty());
+
+  std::string value("none");
+  ASSERT_ERROR(INVALID_VALUE_ERROR("first[0].second"),
+               values[0]->string_arg({"second"}, &value, OPTIONAL_NO).end());
+  ASSERT_EQ("none", value);
+}
+
+TEST_F(Admin_command_arguments_object_test,
+       object_list_object_arg_string_arg_error_msg_invalid_value) {
+  set_arguments(Any::Object{
+      {"first",
+       Any::Array{Any::Object{{"second", Any::Object{{"third", 42u}}}}}}});
+  std::vector<Admin_command_arguments_object::Command_arguments *> values1;
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      extractor->object_list({"first"}, &values1, OPTIONAL_NO, 0).end());
+  ASSERT_FALSE(values1.empty());
+
+  std::vector<Admin_command_arguments_object::Command_arguments *> values2;
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      values1[0]->object_list({"second"}, &values2, OPTIONAL_NO, 0).end());
+  ASSERT_FALSE(values2.empty());
+
+  std::string value("none");
+  ASSERT_ERROR(INVALID_VALUE_ERROR("first[0].second.third"),
+               values2[0]->string_arg({"third"}, &value, OPTIONAL_NO).end());
+  ASSERT_EQ("none", value);
+}
+
+TEST_F(Admin_command_arguments_object_test,
+       object_list_object_list_string_arg_error_msg_invalid_value) {
+  set_arguments(Any::Object{
+      {"first", Any::Array{Any::Object{
+                    {"second", Any::Array{Any::Object{{"third", 42u}}}}}}}});
+  std::vector<Admin_command_arguments_object::Command_arguments *> values1;
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      extractor->object_list({"first"}, &values1, OPTIONAL_NO, 0).end());
+  ASSERT_FALSE(values1.empty());
+
+  std::vector<Admin_command_arguments_object::Command_arguments *> values2;
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      values1[0]->object_list({"second"}, &values2, OPTIONAL_NO, 0).end());
+  ASSERT_FALSE(values2.empty());
+
+  std::string value("none");
+  ASSERT_ERROR(INVALID_VALUE_ERROR("first[0].second[0].third"),
+               values2[0]->string_arg({"third"}, &value, OPTIONAL_NO).end());
+  ASSERT_EQ("none", value);
+}
 
 }  // namespace test
 }  // namespace xpl

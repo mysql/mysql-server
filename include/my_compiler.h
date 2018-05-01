@@ -1,7 +1,7 @@
 #ifndef MY_COMPILER_INCLUDED
 #define MY_COMPILER_INCLUDED
 
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -171,7 +171,11 @@ struct my_aligned_storage {
 #endif
 
 #ifndef SUPPRESS_UBSAN
-#if __has_attribute(no_sanitize_undefined)
+// clang -fsanitize=undefined
+#if defined(HAVE_UBSAN) && defined(__clang__)
+#define SUPPRESS_UBSAN MY_ATTRIBUTE((no_sanitize("undefined")))
+// gcc -fsanitize=undefined
+#elif __has_attribute(no_sanitize_undefined)
 #define SUPPRESS_UBSAN MY_ATTRIBUTE((no_sanitize_undefined))
 #else
 #define SUPPRESS_UBSAN

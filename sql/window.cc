@@ -574,8 +574,16 @@ bool Window::before_or_after_frame(bool before) {
 
     if (cur_row->null_value)  // Current row is NULL
     {
+      /*
+        Per the standard, if current row is NULL,
+        <numeric value> PRECEDING/FOLLOWING is a bound which is positioned at
+        "the NULLs" (=peers). So is CURRENT ROW. So, for example, in NULLS
+        FIRST ordering, BETWEEN 2 FOLLOWING AND 3 FOLLOWING yields only the
+        NULLs, while BETWEEN 2 FOLLOWING AND UNBOUNDED FOLLOWING yields the
+        whole partition.
+      */
       if (candidate->null_value)
-        continue;  // peer, so can't be before or after, next expr will decide
+        continue;  // peer, so can't be before or after
       else
         return !nulls_at_infinity;
     }

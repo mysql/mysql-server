@@ -100,5 +100,5 @@ usr/lib/mysql/plugin/component_mysqlx_global_reset.so
 # test suite
 usr/lib/mysql-test/*
 # legal
-usr/share/mysql/LICENSE usr/share/doc/mysql-@DEB_PRODUCTNAME@-test/
-usr/share/mysql/README usr/share/doc/mysql-@DEB_PRODUCTNAME@-test/
+usr/share/mysql-@MYSQL_BASE_VERSION@/LICENSE usr/share/doc/mysql-@DEB_PRODUCTNAME@-test/
+usr/share/mysql-@MYSQL_BASE_VERSION@/README usr/share/doc/mysql-@DEB_PRODUCTNAME@-test/

@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef NGS_SERVER_INTERFACE_H_
-#define NGS_SERVER_INTERFACE_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_SERVER_INTERFACE_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_SERVER_INTERFACE_H_
 
 #include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/document_id_generator_interface.h"
@@ -40,6 +40,7 @@ class Protocol_encoder;
 class Protocol_config;
 class Mutex;
 class Sql_session_interface;
+class Ssl_context_interface;
 
 class Server_interface {
  public:
@@ -58,7 +59,7 @@ class Server_interface {
 
   virtual Mutex &get_client_exit_mutex() = 0;
 
-  virtual Ssl_context *ssl_context() const = 0;
+  virtual Ssl_context_interface *ssl_context() const = 0;
 
   virtual ngs::shared_ptr<Session_interface> create_session(
       Client_interface &client, Protocol_encoder_interface &proto,
@@ -72,4 +73,4 @@ class Server_interface {
 
 }  // namespace ngs
 
-#endif  // NGS_SERVER_INTERFACE_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_SERVER_INTERFACE_H_

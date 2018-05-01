@@ -24,29 +24,59 @@
 
 #include <errno.h>
 #include <sys/types.h>
-
 #include "my_io.h"
+
+#include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
 #include "plugin/x/ngs/include/ngs/log.h"
 #include "plugin/x/ngs/include/ngs/protocol/buffer.h"
 #include "plugin/x/ngs/include/ngs/protocol/output_buffer.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
 #include "plugin/x/ngs/include/ngs/protocol_encoder.h"
-#include "plugin/x/ngs/include/ngs_common/connection_vio.h"
-// "ngs_common/protocol_protobuf.h" has to come before boost includes, because
-// of build issue in Solaris (unqualified map used, which clashes with some
-// other map defined in Solaris headers)
 #include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 
 #undef ERROR  // Needed to avoid conflict with ERROR in mysqlx.pb.h
 
-using namespace ngs;
+namespace ngs {
+
+namespace details {
+
+class Write_visitor : public Output_buffer::Visitor {
+ public:
+  Write_visitor(Vio_interface *vio) : m_vio(vio) {}
+
+  bool visit(const char *buffer, ssize_t size) override {
+    while (size > 0) {
+      const ssize_t result =
+          m_vio->write(reinterpret_cast<const uchar *>(buffer), size);
+
+      if (result < 1) {
+        m_result = result;
+        return false;
+      }
+
+      size -= result;
+      buffer += result;
+      m_result += result;
+    }
+
+    return true;
+  }
+
+  ssize_t get_result() const { return m_result; }
+
+ private:
+  Vio_interface *m_vio;
+  ssize_t m_result{0};
+};
+
+}  // namespace details
 
 const Pool_config Protocol_encoder::m_default_pool_config = {0, 5,
                                                              BUFFER_PAGE_SIZE};
 
-Protocol_encoder::Protocol_encoder(
-    const ngs::shared_ptr<Connection_vio> &socket, Error_handler ehandler,
-    Protocol_monitor_interface &pmon)
+Protocol_encoder::Protocol_encoder(const ngs::shared_ptr<Vio_interface> &socket,
+                                   Error_handler ehandler,
+                                   Protocol_monitor_interface &pmon)
     : m_pool(m_default_pool_config),
       m_socket(socket),
       m_error_handler(ehandler),
@@ -102,14 +132,17 @@ bool Protocol_encoder::send_ok(const std::string &message) {
 }
 
 bool Protocol_encoder::send_init_error(const Error_code &error_code) {
-  m_protocol_monitor->on_init_error_send();
+  if (error_code.severity == Error_code::FATAL)
+    m_protocol_monitor->on_init_error_send();
 
   Mysqlx::Error error;
 
   error.set_code(error_code.error);
   error.set_msg(error_code.message);
   error.set_sql_state(error_code.sql_state);
-  error.set_severity(Mysqlx::Error::FATAL);
+  error.set_severity(error_code.severity == Error_code::FATAL
+                         ? Mysqlx::Error::FATAL
+                         : Mysqlx::Error::ERROR);
 
   return send_message(Mysqlx::ServerMessages::ERROR, error);
 }
@@ -182,15 +215,13 @@ bool Protocol_encoder::send_message(int8_t type, const Message &message,
 void Protocol_encoder::on_error(int error) { m_error_handler(error); }
 
 void Protocol_encoder::log_protobuf(const char *direction_name,
-                                    Request &request) {
-  const Message *message = request.message();
-
-  if (NULL == message) {
-    log_protobuf(request.get_type());
+                                    const uint8 type, const Message *msg) {
+  if (nullptr == msg) {
+    log_protobuf(type);
     return;
   }
 
-  log_protobuf(direction_name, message);
+  log_protobuf(direction_name, msg);
 }
 
 void Protocol_encoder::log_protobuf(
@@ -254,18 +285,24 @@ bool Protocol_encoder::send_column_metadata(
 }
 
 bool Protocol_encoder::flush_buffer() {
-  const bool is_valid_socket = INVALID_SOCKET != m_socket->get_socket_id();
+  const bool is_valid_socket = INVALID_SOCKET != m_socket->get_fd();
 
   if (is_valid_socket) {
-    const ssize_t result =
-        m_socket->write(m_buffer->get_buffers(), m_write_timeout);
+    details::Write_visitor writter(m_socket.get());
+
+    m_socket->set_timeout(ngs::Vio_interface::Direction::k_write,
+                          m_write_timeout);
+
+    m_buffer->visit_buffers(&writter);
+
+    const ssize_t result = writter.get_result();
     if (result <= 0) {
       log_info(ER_XPLUGIN_ERROR_WRITING_TO_CLIENT, strerror(errno), errno);
       on_error(errno);
       return false;
     }
 
-    m_protocol_monitor->on_send(static_cast<long>(result));
+    m_protocol_monitor->on_send(static_cast<long>(writter.get_result()));
   }
 
   m_buffer->reset();
@@ -294,3 +331,5 @@ bool Protocol_encoder::enqueue_buffer(int8_t type, bool force_flush) {
 
   return true;
 }
+
+}  // namespace ngs

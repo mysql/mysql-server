@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _XPL_CACHE_BASED_VERIFICATION_H_
-#define _XPL_CACHE_BASED_VERIFICATION_H_
+#ifndef PLUGIN_X_SRC_CACHE_BASED_VERIFICATION_H_
+#define PLUGIN_X_SRC_CACHE_BASED_VERIFICATION_H_
 
 #include <string>
 #include "plugin/x/src/challenge_response_verification.h"
@@ -49,4 +49,4 @@ class Cache_based_verification : public Challenge_response_verification {
 
 }  // namespace xpl
 
-#endif  // _XPL_CACHE_BASED_VERIFICATION_H_
+#endif  // PLUGIN_X_SRC_CACHE_BASED_VERIFICATION_H_

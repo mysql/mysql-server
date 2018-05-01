@@ -12,9 +12,9 @@ current_user
 root@localhost
 SELECT user, plugin FROM mysql.user;
 user	plugin
-mysql.infoschema	mysql_native_password
-mysql.session	mysql_native_password
-mysql.sys	mysql_native_password
+mysql.infoschema	caching_sha2_password
+mysql.session	caching_sha2_password
+mysql.sys	caching_sha2_password
 root	caching_sha2_password
 
 # Set the password for the root user

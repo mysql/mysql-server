@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,24 +47,25 @@
  when doing special builds with only a subset of the performance schema
  instrumentation, for code analysis / profiling / performance tuning of a
  specific instrumentation alone.
- @sa DISABLE_PSI_RWLOCK
  @sa DISABLE_PSI_COND
+ @sa DISABLE_PSI_DATA_LOCK
+ @sa DISABLE_PSI_ERROR
  @sa DISABLE_PSI_FILE
- @sa DISABLE_PSI_THREAD
- @sa DISABLE_PSI_TABLE
+ @sa DISABLE_PSI_IDLE
+ @sa DISABLE_PSI_MEMORY
+ @sa DISABLE_PSI_METADATA
+ @sa DISABLE_PSI_PS
+ @sa DISABLE_PSI_RWLOCK
+ @sa DISABLE_PSI_SOCKET
+ @sa DISABLE_PSI_SP
  @sa DISABLE_PSI_STAGE
  @sa DISABLE_PSI_STATEMENT
- @sa DISABLE_PSI_SP
- @sa DISABLE_PSI_PS
  @sa DISABLE_PSI_STATEMENT_DIGEST
- @sa DISABLE_PSI_SOCKET
- @sa DISABLE_PSI_MEMORY
- @sa DISABLE_PSI_ERROR
- @sa DISABLE_PSI_IDLE
- @sa DISABLE_PSI_METADATA
+ @sa DISABLE_PSI_SYSTEM
+ @sa DISABLE_PSI_TABLE
+ @sa DISABLE_PSI_THREAD
  @sa DISABLE_PSI_TRANSACTION
- @sa DISABLE_PSI_DATA_LOCK
-*/
+ */
 
 #ifndef DISABLE_PSI_MUTEX
 #define HAVE_PSI_MUTEX_INTERFACE
@@ -242,6 +243,16 @@
 #ifndef DISABLE_PSI_DATA_LOCK
 #define HAVE_PSI_DATA_LOCK_INTERFACE
 #endif /* DISABLE_PSI_DATA_LOCK */
+
+/**
+  @def DISABLE_PSI_SYSTEM
+  Compiling option to disable the system instrumentation.
+  @sa DISABLE_PSI_MUTEX
+*/
+
+#ifndef DISABLE_PSI_SYSTEM
+#define HAVE_PSI_SYSTEM_INTERFACE
+#endif /* DISABLE_PSI_SYSTEM */
 
 #endif /* HAVE_PSI_INTERFACE */
 

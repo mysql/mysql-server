@@ -7,9 +7,9 @@ CREATE TABLE t1 (a INT, b INT);
 INSERT INTO t1 VALUES (1,10);
 include/sync_slave_sql_with_master.inc
 LOAD DATA INFILE '../../std_data/rpl_loaddata.dat' INTO TABLE t1;
-call mtr.add_suppression("Slave SQL.*Fatal error: Not enough memory, Error_code: 1593");
+call mtr.add_suppression("Slave SQL.*Fatal error: Not enough memory, Error_code: MY-013117");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
-include/wait_for_slave_sql_error_and_skip.inc [errno=1593]
+include/wait_for_slave_sql_error_and_skip.inc [errno=13117]
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

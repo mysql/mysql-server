@@ -316,7 +316,7 @@ call mtr.add_suppression(".*Invalid .* username when attempting to connect to th
 --source include/stop_slave.inc
 TRUNCATE mysql.general_log;
 START SLAVE PASSWORD='secret';
---let $slave_io_errno=1593
+--let $slave_io_errno=13117
 --source include/wait_for_slave_io_error.inc
 
 --let $slave_io_errno= convert_error(ER_SLAVE_FATAL_ERROR)

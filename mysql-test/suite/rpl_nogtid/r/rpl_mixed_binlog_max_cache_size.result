@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 call mtr.add_suppression("Option binlog_cache_size ");
-call mtr.add_suppression("Slave SQL for channel '': The incident LOST_EVENTS occured on the master.");
+call mtr.add_suppression("Slave SQL for channel '': The incident LOST_EVENTS occurred on the master.");
 call mtr.add_suppression("The content of the statement cache is corrupted "
                          "while writing a rollback record of the transaction "
                          "to the binary log. An incident event has been "
@@ -32,10 +32,10 @@ CREATE TABLE t3(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=Innodb CHARACTER 
 Got one of the listed errors
 *** Single statement on non-transactional table ***
 Got one of the listed errors
-include/wait_for_slave_sql_error_and_skip.inc [errno=1590]
+include/wait_for_slave_sql_error_and_skip.inc [errno=13119]
 *** Single statement on both transactional and non-transactional tables. ***
 Got one of the listed errors
-include/wait_for_slave_sql_error_and_skip.inc [errno=1590]
+include/wait_for_slave_sql_error_and_skip.inc [errno=13119]
 include/diff_tables.inc [master:t1,slave:t1]
 #########  2 - BEGIN - IMPLICIT COMMIT by DDL #########
 TRUNCATE TABLE t1;
@@ -122,7 +122,19 @@ BEGIN;
 Got one of the listed errors
 COMMIT;
 include/diff_tables.inc [master:t1,slave:t1]
-######### 8 - Bug#55375(Regression Bug) Transaction bigger than  ##########
+####### 8 - LOAD DATA INFILE INTO TABLE #######
+[connection master]
+CREATE TABLE t6 (a varchar(20)) ENGINE=Innodb;
+LOAD DATA INFILE 'temp_file' INTO TABLE t6;
+ERROR HY000: Multi-statement transaction required more than 'max_binlog_cache_size' bytes of storage; increase this mysqld variable and try again
+include/assert.inc [assert that the above Event has not been added to binlog]
+include/assert.inc [Check that the LOAD DATA didn't add any data into the table]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Check that the LOAD DATA didn't add any data into the table]
+[connection master]
+DROP TABLE t6;
+include/sync_slave_sql_with_master.inc
+######### 9 - Bug#55375(Regression Bug) Transaction bigger than  ##########
 #########     max_binlog_cache_size crashes slave                ##########
 # [ On Slave ]
 SET GLOBAL max_binlog_cache_size = 4096;
@@ -138,7 +150,7 @@ include/start_slave.inc
 CALL mtr.add_suppression("Multi-statement transaction required more than 'max_binlog_cache_size' bytes of storage.*");
 CALL mtr.add_suppression("Multi-statement transaction required more than 'max_binlog_stmt_cache_size' bytes of storage.*");
 CALL mtr.add_suppression("Writing one row to the row-based binary log failed.*");
-CALL mtr.add_suppression("Slave SQL.*The incident LOST_EVENTS occured on the master. Message: error writing to the binary log");
+CALL mtr.add_suppression("Slave SQL.*The incident LOST_EVENTS occurred on the master. Message: error writing to the binary log");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 TRUNCATE t1;
 SET GLOBAL max_binlog_cache_size= ORIGINAL_VALUE;

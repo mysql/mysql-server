@@ -3,10 +3,10 @@ select @@session.slave_pending_jobs_size_max;
 ERROR HY000: Variable 'slave_pending_jobs_size_max' is a GLOBAL variable
 show global variables like 'slave_pending_jobs_size_max';
 Variable_name	Value
-slave_pending_jobs_size_max	16777216
+slave_pending_jobs_size_max	134217728
 show session variables like 'slave_pending_jobs_size_max';
 Variable_name	Value
-slave_pending_jobs_size_max	16777216
+slave_pending_jobs_size_max	134217728
 select * from performance_schema.global_variables where variable_name='$var';
 VARIABLE_NAME	VARIABLE_VALUE
 select * from performance_schema.session_variables where variable_name='$var';

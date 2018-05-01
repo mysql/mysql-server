@@ -39,7 +39,6 @@ user2	statement/sql/alter_table	alter table test.t1 add column (b int)
 username	event_name	nesting_event_type
 user2	stage/sql/Waiting for table metadata lock	STATEMENT
 username	event_name	nesting_event_type
-user2	stage/sql/starting	STATEMENT
 user2	stage/sql/checking permissions	STATEMENT
 user2	stage/sql/checking permissions	STATEMENT
 user2	stage/sql/init	STATEMENT
@@ -47,4 +46,7 @@ user2	stage/sql/Opening tables	STATEMENT
 user2	stage/sql/setup	STATEMENT
 user2	stage/sql/creating table	STATEMENT
 user2	stage/sql/After create	STATEMENT
+user2	stage/sql/System lock	STATEMENT
+user2	stage/sql/preparing for alter table	STATEMENT
+user2	stage/sql/altering table	STATEMENT
 commit;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,12 +28,12 @@
 #include <string>     // strlen
 
 #include "my_dbug.h"
-#include "my_pointer_arithmetic.h"  // is_aligned, is_aligned_to
 #include "nullable.h"
 #include "sql/regexp/errors.h"
 #include "sql/regexp/regexp_facade.h"
 #include "sql/sql_class.h"
 #include "sql_string.h"
+#include "template_utils.h"
 
 namespace regexp {
 
@@ -43,15 +43,12 @@ UBool QueryNotKilled(const void *thd, int32_t) {
 
 const char *icu_version_string() { return U_ICU_VERSION; }
 
-bool Regexp_engine::Reset(String *subject) {
-  auto usubject = pointer_cast<const UChar *>(subject->ptr());
-  int length = subject->length() / sizeof(UChar);
-
-  DBUG_ASSERT(is_aligned(usubject));
-  DBUG_ASSERT(subject->charset() == regexp_lib_charset);
-  uregex_setText(m_re, usubject, length, &m_error_code);
+void Regexp_engine::Reset(const std::u16string &subject) {
+  auto usubject = subject.data();
+  int length = subject.size();
+  uregex_setText(m_re, pointer_cast<const UChar *>(usubject), length,
+                 &m_error_code);
   m_current_subject = subject;
-  return false;
 }
 
 bool Regexp_engine::Matches(int start, int occurrence) {
@@ -64,8 +61,8 @@ bool Regexp_engine::Matches(int start, int occurrence) {
   return found;
 }
 
-String *Regexp_engine::Replace(const char *replacement, int length, int start,
-                               int occurrence, String *result) {
+const std::u16string &Regexp_engine::Replace(const std::u16string &replacement,
+                                             int start, int occurrence) {
   // Find the first match, starting at the chosen position, ...
   bool found = uregex_find(m_re, start, &m_error_code);
 
@@ -88,13 +85,13 @@ String *Regexp_engine::Replace(const char *replacement, int length, int start,
   */
   if (!found && m_error_code == U_ZERO_ERROR) return m_current_subject;
 
-  auto ureplacement = pointer_cast<const UChar *>(replacement);
+  m_replace_buffer.resize(std::min(m_current_subject.size(), HardLimit()));
 
   // ... replacing all occurrences if 'occurrence' is 0, and finally ...
   AppendHead(std::max(end_of_previous_match, start));
   if (found) {
     do {
-      AppendReplacement(ureplacement, length / sizeof(UChar));
+      AppendReplacement(replacement);
     } while (occurrence == 0 && uregex_findNext(m_re, &m_error_code));
   }
 
@@ -102,11 +99,8 @@ String *Regexp_engine::Replace(const char *replacement, int length, int start,
   AppendTail();
 
   check_icu_status(m_error_code);
-
-  result->set(pointer_cast<const char *>(m_replace_buffer.data()),
-              m_replace_buffer.size() * sizeof(UChar), regexp_lib_charset);
-  result->copy();
-  return result;
+  m_replace_buffer.resize(m_replace_buffer_pos);
+  return m_replace_buffer;
 }
 
 String *Regexp_engine::MatchedSubstring(String *result) {
@@ -130,6 +124,8 @@ String *Regexp_engine::MatchedSubstring(String *result) {
 void Regexp_engine::AppendHead(size_t size) {
   DBUG_ENTER("Regexp_engine::AppendHead");
 
+  if (size == 0) DBUG_VOID_RETURN;
+
   // This won't be written to in case of errors.
   int32_t text_length32 = 0;
   auto text = uregex_getText(m_re, &text_length32, &m_error_code);
@@ -142,23 +138,26 @@ void Regexp_engine::AppendHead(size_t size) {
 
   DBUG_ASSERT(size <= text_length);
   if (m_replace_buffer.size() < size) m_replace_buffer.resize(size);
-  std::copy(text, text + size, m_replace_buffer.data());
+  std::copy(text, text + size, &m_replace_buffer.at(0));
   m_replace_buffer_pos = size;
 
   DBUG_VOID_RETURN;
 }
 
-int Regexp_engine::TryToAppendReplacement(const UChar *repl, size_t length) {
-  UChar *ptr = m_replace_buffer.data() + m_replace_buffer_pos;
+int Regexp_engine::TryToAppendReplacement(const std::u16string &replacement) {
+  UChar *ptr =
+      pointer_cast<UChar *>(&m_replace_buffer.at(0) + m_replace_buffer_pos);
   int capacity = m_replace_buffer.size() - m_replace_buffer_pos;
-  return uregex_appendReplacement(m_re, repl, length, &ptr, &capacity,
-                                  &m_error_code);
+  auto repl = replacement.data();
+  size_t length = replacement.size();
+  return uregex_appendReplacement(m_re, pointer_cast<const UChar *>(repl),
+                                  length, &ptr, &capacity, &m_error_code);
 }
 
-void Regexp_engine::AppendReplacement(const UChar *replacement, size_t length) {
+void Regexp_engine::AppendReplacement(const std::u16string &replacement) {
   DBUG_ENTER("Regexp_engine::AppendReplacement");
 
-  int replacement_size = TryToAppendReplacement(replacement, length);
+  int replacement_size = TryToAppendReplacement(replacement);
 
   if (m_error_code == U_BUFFER_OVERFLOW_ERROR) {
     size_t required_buffer_size = m_replace_buffer_pos + replacement_size;
@@ -173,14 +172,15 @@ void Regexp_engine::AppendReplacement(const UChar *replacement, size_t length) {
     */
     m_replace_buffer.resize(required_buffer_size);
     m_error_code = U_ZERO_ERROR;
-    TryToAppendReplacement(replacement, length);
+    TryToAppendReplacement(replacement);
   }
   m_replace_buffer_pos += replacement_size;
   DBUG_VOID_RETURN;
 }
 
 int Regexp_engine::TryToAppendTail() {
-  UChar *ptr = m_replace_buffer.data() + m_replace_buffer_pos;
+  UChar *ptr =
+      pointer_cast<UChar *>(&m_replace_buffer.at(0) + m_replace_buffer_pos);
   int capacity = m_replace_buffer.size() - m_replace_buffer_pos;
   return uregex_appendTail(m_re, &ptr, &capacity, &m_error_code);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -137,15 +137,15 @@ int64_t Output_buffer::ByteCount() const {
   return count;
 }
 
-Const_buffer_sequence Output_buffer::get_buffers() {
-  Const_buffer_sequence buffers;
-  buffers.reserve(m_pages.size());
+void Output_buffer::visit_buffers(Output_buffer::Visitor *visitor) {
+  for (const auto &page : m_pages) {
+    // Stop the loop, no more pages with data
+    if (0 == page->length) break;
 
-  for (Page_list::const_iterator p = m_pages.begin();
-       p != m_pages.end() && (*p)->length > 0; ++p) {
-    buffers.push_back(std::make_pair((*p)->data, (*p)->length));
+    // Visitor didn't accept the page, thus the whole process
+    // must be aborted
+    if (!visitor->visit(page->data, page->length)) break;
   }
-  return buffers;
 }
 
 void Output_buffer::save_state() {

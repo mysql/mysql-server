@@ -1,6 +1,6 @@
 SET NAMES utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Single window function (plus ORDER BY).
 CREATE TABLE t(i INT, j INT);
 INSERT INTO t VALUES (1,1);
@@ -360,8 +360,13 @@ k	MIN(i)	SUM(j)	max_wf
 4	1	11	4
 NULL	1	48	4
 SELECT k, MIN(i), SUM(j), MIN(k) OVER (ROWS UNBOUNDED PRECEDING) min_wf FROM t
-GROUP BY (k) WITH ROLLUP ORDER BY wf DESC;
-ERROR HY000: Incorrect usage of CUBE/ROLLUP and ORDER BY
+GROUP BY (k) WITH ROLLUP ORDER BY k DESC;
+k	MIN(i)	SUM(j)	min_wf
+4	1	11	4
+3	1	11	3
+2	1	11	2
+1	1	15	1
+NULL	1	48	1
 SELECT k, MIN(i), SUM(j), MIN(k) OVER (ROWS UNBOUNDED PRECEDING) min_wf FROM t
 GROUP BY k,j WITH ROLLUP;
 k	MIN(i)	SUM(j)	min_wf

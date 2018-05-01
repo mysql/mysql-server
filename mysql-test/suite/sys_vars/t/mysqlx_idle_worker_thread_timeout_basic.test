@@ -1,0 +1,39 @@
+# Variable: mysqlx_idle_worker_thread_timeout
+# Default : 60000
+# Scope   : GLOBAL
+# Dynamic : Yes
+
+SET @mysqlx_idle_worker_thread_timeout_sav= @@global.mysqlx_idle_worker_thread_timeout;
+## Valid cases
+SET GLOBAL mysqlx_idle_worker_thread_timeout=7;
+SET @@global.mysqlx_idle_worker_thread_timeout=7;
+show variables like 'mysqlx_idle_worker_thread_timeout';
+#Max valid value
+SET @@global.mysqlx_idle_worker_thread_timeout=3600;
+show variables like 'mysqlx_idle_worker_thread_timeout';
+
+## Invalid cases
+--error ER_GLOBAL_VARIABLE
+SET mysqlx_idle_worker_thread_timeout=7;
+--error ER_GLOBAL_VARIABLE
+SET @@local.mysqlx_idle_worker_thread_timeout=7;
+--error ER_GLOBAL_VARIABLE
+SET @@mysqlx_idle_worker_thread_timeout=7;
+--error ER_GLOBAL_VARIABLE
+SET @@session.mysqlx_idle_worker_thread_timeout=7;
+--error ER_GLOBAL_VARIABLE
+SET SESSION mysqlx_idle_worker_thread_timeout=7;
+# Warning: Truncated incorrect mysqlx_idle_worker_thread_timeout value
+SET @@global.mysqlx_idle_worker_thread_timeout=3601;
+
+#--error ER_GLOBAL_VARIABLE
+SET GLOBAL mysqlx_idle_worker_thread_timeout=0;
+# Warning for negative values
+SET GLOBAL mysqlx_idle_worker_thread_timeout=-1;
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL mysqlx_idle_worker_thread_timeout='invaid%char';
+
+show variables like 'mysqlx_idle_worker_thread_timeout';
+SET GLOBAL mysqlx_idle_worker_thread_timeout=60;
+
+SET GLOBAL mysqlx_idle_worker_thread_timeout= @mysqlx_idle_worker_thread_timeout_sav;

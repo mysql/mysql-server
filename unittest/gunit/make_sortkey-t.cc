@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_sort.h"
 #include "sql/sys_vars.h"
+#include "unittest/gunit/fake_table.h"
 #include "unittest/gunit/test_utils.h"
 
 namespace make_sortkey_unittest {
@@ -53,7 +54,7 @@ class MakeSortKeyTest : public ::testing::Test {
     m_sort_param.local_sortorder =
         Bounds_checked_array<st_sort_field>(m_sort_fields, 1);
     memset(m_buff, 'a', sizeof(m_buff));
-    m_to = &m_buff[8];
+    m_to = Bounds_checked_array<uchar>(&m_buff[8], sizeof(m_buff) - 8);
   }
 
   virtual void SetUp() { initializer.SetUp(); }
@@ -62,10 +63,10 @@ class MakeSortKeyTest : public ::testing::Test {
   THD *thd() { return initializer.thd(); }
 
   void verify_buff(uint length) {
-    for (uchar *pu = m_buff; pu < m_to; ++pu) {
+    for (uchar *pu = m_buff; pu < m_to.array(); ++pu) {
       EXPECT_EQ('a', *pu) << " position " << pu - m_buff;
     }
-    for (uchar *pu = m_to + length; pu < m_buff + 100; ++pu) {
+    for (uchar *pu = m_to.array() + length; pu < m_buff + 100; ++pu) {
       EXPECT_EQ('a', *pu) << " position " << pu - m_buff;
     }
   }
@@ -76,7 +77,7 @@ class MakeSortKeyTest : public ::testing::Test {
   st_sort_field m_sort_fields[2];  // sortlength() adds an end marker !!
   uchar m_ref_buff[4];             // unused, but needed for make_sortkey()
   uchar m_buff[100];
-  uchar *m_to;
+  Bounds_checked_array<uchar> m_to;
 };
 
 TEST_F(MakeSortKeyTest, IntResult) {
@@ -140,6 +141,44 @@ TEST_F(MakeSortKeyTest, RealResult) {
   m_sort_param.make_sortkey(m_to, m_ref_buff);
   SCOPED_TRACE("");
   verify_buff(total_length);
+}
+
+TEST_F(MakeSortKeyTest, AddonFields) {
+  m_sort_fields[0].item = new Item_int(42);
+  const uint total_length = sortlength(thd(), m_sort_fields, 1);
+  EXPECT_EQ(sizeof(longlong), total_length);
+  EXPECT_EQ(sizeof(longlong), m_sort_fields[0].length);
+  EXPECT_EQ(INT_RESULT, m_sort_fields[0].result_type);
+
+  Sort_addon_field addon_field;
+  float val = M_PI;
+  Field_float field(nullptr, 0, nullptr, '\0', Field::NONE, "", 0, false,
+                    false);
+  Fake_TABLE table(&field);
+  table.s->db_low_byte_first = false;
+  field.ptr = reinterpret_cast<unsigned char *>(&val);
+  addon_field.field = &field;
+  addon_field.offset = 2;  // Need room for the length bytes.
+  addon_field.max_length = field.max_packed_col_length();
+  Addon_fields addon_fields(make_array(&addon_field, 1));
+  addon_fields.set_using_packed_addons(true);
+  m_sort_param.addon_fields = &addon_fields;
+
+  // Test regular packing.
+  size_t len = m_sort_param.make_sortkey(m_to, m_ref_buff);
+  EXPECT_EQ(total_length + sizeof(float) + addon_field.offset, len);
+  float unpacked_val;
+  field.unpack(reinterpret_cast<uchar *>(&unpacked_val),
+               m_to.array() + m_sort_fields[0].length + addon_field.offset,
+               /*param_data=*/0, /*low_byte_first=*/false);
+  EXPECT_EQ(unpacked_val, val);
+
+  // Test truncation. (The actual contents don't matter in this case.)
+  std::unique_ptr<uchar[]> trunc_buf(new uchar[len - 2]);
+  size_t trunc_len = m_sort_param.make_sortkey(
+      make_array(trunc_buf.get(), len - 2), m_ref_buff);
+  EXPECT_GT(trunc_len, len - 2)
+      << "make_sortkey() should report back that there was not enough room.";
 }
 
 }  // namespace make_sortkey_unittest

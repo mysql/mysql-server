@@ -317,7 +317,6 @@ ibool btr_pcur_restore_position_func(
       break;
     default:
       ut_error;
-      mode = PAGE_CUR_UNSUPP;
   }
 
   btr_pcur_open_with_no_init_func(index, tuple, mode, latch_mode, cursor, 0,

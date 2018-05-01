@@ -147,7 +147,6 @@ ibool eval_cmp_like(que_node_t *arg1, /* !< in: left operand */
   }
 
   ut_error;
-  return (FALSE);
 }
 
 /*********************************************************************

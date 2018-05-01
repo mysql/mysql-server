@@ -13,10 +13,6 @@ SELECT t1a.* FROM t1 AS t1a LEFT OUTER JOIN (SELECT * FROM t1 AS t1b1 INNER JOIN
 id	val
 1	1
 CALL sys.statement_performance_analyzer('create_tmp', 'test.tmp_digests_ini', NULL);
-Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CALL sys.statement_performance_analyzer('snapshot', NULL, NULL);
 CALL sys.statement_performance_analyzer('save', 'test.tmp_digests_ini', NULL);
 DO SLEEP(1.2);
@@ -106,10 +102,6 @@ query	db	exec_count	total_latency	avg_latency	rows_sent_avg	rows_examined_avg	ro
 QUERY_INSERT	test	2	LATENCY	LATENCY	0	0	1	DIGEST_INSERT
 QUERY_SELECT	test	2	LATENCY	LATENCY	2	9	0	DIGEST_SELECT
 QUERY_UPDATE	test	2	LATENCY	LATENCY	0	1	1	DIGEST_UPDATE
-Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'custom');
 Next Output
 Top 100 Queries Using Custom View

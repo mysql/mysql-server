@@ -669,7 +669,7 @@ SELECT GET_LOCK(_utf8 0xd182d0b5d181d182, 0);
 GET_LOCK(_utf8 0xd182d0b5d181d182, 0)
 0
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 connection default;
 SELECT IS_USED_LOCK(_koi8r 0xd4c5d3d4) = CONNECTION_ID();
 IS_USED_LOCK(_koi8r 0xd4c5d3d4) = CONNECTION_ID()
@@ -678,12 +678,12 @@ SELECT IS_FREE_LOCK(_utf8 0xd182d0b5d181d182);
 IS_FREE_LOCK(_utf8 0xd182d0b5d181d182)
 0
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT RELEASE_LOCK(_utf8 0xd182d0b5d181d182);
 RELEASE_LOCK(_utf8 0xd182d0b5d181d182)
 1
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # FT-14.6: Check wrong number of parameters.
 SELECT GET_LOCK('test');
 ERROR 42000: Incorrect parameter count in the call to native function 'GET_LOCK'

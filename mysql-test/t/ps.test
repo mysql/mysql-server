@@ -3465,3 +3465,4 @@ DROP DATABASE client_test_db;
 DROP TABLE bug19894382;
 --remove_file $MYSQLTEST_VARDIR/log/bug19894382.out.log
 --remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug19894382.binlog
+--rmdir $MYSQLTEST_VARDIR/tmp/test

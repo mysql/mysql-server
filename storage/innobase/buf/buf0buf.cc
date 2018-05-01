@@ -1810,10 +1810,9 @@ static void buf_pool_resize() {
   new_instance_size = srv_buf_pool_size / srv_buf_pool_instances;
   new_instance_size /= UNIV_PAGE_SIZE;
 
-  buf_resize_status("Resizing buffer pool from " ULINTPF " to " ULINTPF
-                    " (unit=" ULINTPF ").",
-                    srv_buf_pool_old_size, srv_buf_pool_size,
-                    srv_buf_pool_chunk_unit);
+  buf_resize_status(
+      "Resizing buffer pool from " ULINTPF " to " ULINTPF " (unit=%llu).",
+      srv_buf_pool_old_size, srv_buf_pool_size, srv_buf_pool_chunk_unit);
 
   /* set new limit for all buffer pool for resizing */
   for (ulint i = 0; i < srv_buf_pool_instances; i++) {
@@ -2635,9 +2634,6 @@ static buf_page_t *buf_pool_watch_set(const page_id_t &page_id,
   should be modified to return a special non-NULL value and the
   caller should purge the record directly. */
   ut_error;
-
-  /* Fix compiler warning */
-  return (NULL);
 }
 
 /** Remove the sentinel block for the watch before replacing it with a

@@ -683,7 +683,7 @@ select extractValue('<e><a>1</a></e>','/e/');
 ERROR HY000: XPATH syntax error: ''
 set names utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select extractValue('<Ñ><r>r</r></Ñ>','/Ñ/r');
 extractValue('<Ñ><r>r</r></Ñ>','/Ñ/r')
 r
@@ -703,12 +703,12 @@ DECLARE p LONGTEXT CHARACTER SET UTF8 DEFAULT '<Ñ><r>A</r></Ñ>';
 SELECT EXTRACTVALUE(p,'/Ñ/r');
 END//
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CALL p2();
 EXTRACTVALUE(p,'/Ñ/r')
 A
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP PROCEDURE p2;
 select extractValue('<ns:element xmlns:ns="myns"/>','count(ns:element)');
 extractValue('<ns:element xmlns:ns="myns"/>','count(ns:element)')
@@ -1108,7 +1108,7 @@ DROP TABLE t1;
 #
 SET NAMES utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT REPLACE(EXTRACTVALUE('1', '/a'),'ds','');
 REPLACE(EXTRACTVALUE('1', '/a'),'ds','')
 
@@ -1132,13 +1132,13 @@ SELECT UPDATEXML(CONVERT(_latin1'<' USING utf8),'1','1');
 UPDATEXML(CONVERT(_latin1'<' USING utf8),'1','1')
 NULL
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1525	Incorrect XML value: 'parse error at line 1 pos 2: END-OF-INPUT unexpected (ident or '/' wanted)'
 SELECT UPDATEXML(CONVERT(_latin1'<!--' USING utf8),'1','1');
 UPDATEXML(CONVERT(_latin1'<!--' USING utf8),'1','1')
 NULL
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 #
 # Bug#11766725 (bug#59901): EXTRACTVALUE STILL BROKEN AFTER FIX FOR BUG #44332
 #
@@ -1185,7 +1185,7 @@ aa bb
 #
 set names utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 do weight_string(extractvalue('','/*/a'));
 do char((weight_string(extractvalue((''),('tX')))) using cp852);
 set names default;

@@ -231,8 +231,6 @@ table_events_transactions_common::table_events_transactions_common(
 */
 int table_events_transactions_common::make_row(
     PFS_events_transactions *transaction) {
-  const char *base;
-  const char *safe_source_file;
   ulonglong timer_end;
 
   PFS_transaction_class *unsafe = (PFS_transaction_class *)transaction->m_class;
@@ -259,18 +257,9 @@ int table_events_transactions_common::make_row(
   m_row.m_name = klass->m_name;
   m_row.m_name_length = klass->m_name_length;
 
-  safe_source_file = transaction->m_source_file;
-  if (unlikely(safe_source_file == NULL)) {
-    return HA_ERR_RECORD_DELETED;
-  }
-
-  base = base_name(safe_source_file);
-  m_row.m_source_length =
-      (uint)snprintf(m_row.m_source, sizeof(m_row.m_source), "%s:%d", base,
-                     transaction->m_source_line);
-  if (m_row.m_source_length > sizeof(m_row.m_source)) {
-    m_row.m_source_length = sizeof(m_row.m_source);
-  }
+  make_source_column(transaction->m_source_file, transaction->m_source_line,
+                     m_row.m_source, sizeof(m_row.m_source),
+                     m_row.m_source_length);
 
   /* A GTID consists of the SID (source id) and GNO (transaction number).
      The SID is stored in transaction->m_sid and the GNO is stored in

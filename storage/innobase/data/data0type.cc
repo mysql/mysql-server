@@ -31,6 +31,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
  *******************************************************/
 
 #include "data0type.h"
+#include "rem0rec.h"
 
 #include <sys/types.h>
 
@@ -61,7 +62,7 @@ ulint dtype_get_at_most_n_mbchars(
   ulint mbminlen = DATA_MBMINLEN(mbminmaxlen);
   ulint mbmaxlen = DATA_MBMAXLEN(mbminmaxlen);
 
-  ut_a(data_len != UNIV_SQL_NULL);
+  ut_a(rec_field_not_null_not_add_col_def(data_len));
   ut_ad(!mbmaxlen || !(prefix_len % mbmaxlen));
 
   if (mbminlen != mbmaxlen) {

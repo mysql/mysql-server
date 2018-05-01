@@ -52,6 +52,9 @@ sub ibd2sdi_replace() {
     # Remove dd version id
     $_=~ s/("dd_version": )[0-9]+/$1X/g;
 
+    # Remove se_private_data: null and table_id
+    $_=~ s/("se_private_data":) "default_null=[0-1];table_id=[0-9]+;"/$1 "default_null=X;table_id=Y"/g;
+
     # Remove extra path separator seen on windows and partition names
     if (m/"filename":/)
     {

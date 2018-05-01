@@ -629,6 +629,8 @@ explain UPDATE t2, v1 AS t SET t2.b = t.a+5 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t1	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
+Warnings:
+Note	1003	update `test`.`t2` join `test`.`t1` set `test`.`t2`.`b` = (`test`.`t1`.`a` + 5)
 UPDATE t2, v1 AS t SET t2.b = t.a+5 ;
 DROP VIEW v1;
 DROP TABLE t1, t2;
@@ -684,6 +686,8 @@ test.t1	analyze	status	OK
 explain UPDATE t1 SET c = 72 WHERE a = 2 ORDER BY b ASC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	range	key1	key1	5	const	#	100.00	Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`c` = 72 where (`test`.`t1`.`a` = 2) order by `test`.`t1`.`b` asc limit 1
 UPDATE t1 SET c = 72 WHERE a = 2 ORDER BY b ASC LIMIT 1;
 SELECT * FROM t1;
 a	b	c	d
@@ -698,6 +702,8 @@ a	b	c	d
 explain UPDATE t1 SET d = 72 WHERE a = 2 ORDER BY b ASC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	range	key1	key1	5	const	#	100.00	Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`d` = 72 where (`test`.`t1`.`a` = 2) order by `test`.`t1`.`b` asc limit 1
 UPDATE t1 SET d = 72 WHERE a = 2 ORDER BY b ASC LIMIT 1;
 SELECT * FROM t1;
 a	b	c	d
@@ -716,6 +722,8 @@ test.t1	analyze	status	OK
 explain UPDATE t1 SET c = 3 WHERE a = 5 ORDER BY b ASC LIMIT 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	range	key1	key1	5	const	#	100.00	Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`c` = 3 where (`test`.`t1`.`a` = 5) order by `test`.`t1`.`b` asc limit 3
 UPDATE t1 SET c = 3 WHERE a = 5 ORDER BY b ASC LIMIT 3;
 SELECT * FROM t1;
 a	b	c	d
@@ -736,6 +744,8 @@ test.t1	analyze	status	OK
 explain UPDATE t1 SET c = 62 WHERE a > 4 ORDER BY b ASC LIMIT 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	range	key1	key1	5	const	#	100.00	Using where; Using filesort
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`c` = 62 where (`test`.`t1`.`a` > 4) order by `test`.`t1`.`b` asc limit 3
 UPDATE t1 SET c = 62 WHERE a > 4 ORDER BY b ASC LIMIT 3;
 SELECT * FROM t1;
 a	b	c	d
@@ -758,6 +768,8 @@ test.t1	analyze	status	OK
 explain UPDATE t1 SET c = 82 ORDER BY a ASC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	index	NULL	key1	15	NULL	#	100.00	Using temporary
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`c` = 82 order by `test`.`t1`.`a` asc limit 1
 UPDATE t1 SET c = 82 ORDER BY a ASC LIMIT 1;
 SELECT * FROM t1;
 a	b	c	d
@@ -783,6 +795,8 @@ a	b	c	d
 explain UPDATE t1 SET a = 82 ORDER BY b ASC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using filesort
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 82 order by `test`.`t1`.`b` asc limit 1
 UPDATE t1 SET a = 82 ORDER BY b ASC LIMIT 1;
 SELECT * FROM t1;
 a	b	c	d
@@ -808,6 +822,8 @@ a	b	c	d
 explain UPDATE t1 SET b = 82 ORDER BY d ASC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using filesort
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`b` = 82 order by `test`.`t1`.`d` asc limit 1
 UPDATE t1 SET b = 82 ORDER BY d ASC LIMIT 1;
 SELECT * FROM t1;
 a	b	c	d
@@ -840,6 +856,8 @@ test.t1	analyze	status	OK
 explain UPDATE t1 SET c = 82 ORDER BY a ASC LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	index	NULL	key1	15	NULL	#	100.00	Using temporary
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`c` = 82 order by `test`.`t1`.`a` asc limit 2
 UPDATE t1 SET c = 82 ORDER BY a ASC LIMIT 2;
 SELECT * FROM t1;
 a	b	c	d
@@ -897,7 +915,7 @@ PRIMARY KEY (id),
 KEY token (token)
 )DEFAULT CHARSET=utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES (1, "abc"), (2, "def");
 SET sql_mode='';
 UPDATE t1 SET token = X'ad';
@@ -913,6 +931,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
 Warning	1366	Incorrect string value: '\xAD' for column 'token' at row 1
+Note	1003	update `test`.`t1` set `test`.`t1`.`token` = NULL where (`test`.`t1`.`token` = 0xad)
 UPDATE t1 SET token = NULL WHERE token = X'ad';
 Warnings:
 Warning	1366	Incorrect string value: '\xAD' for column 'token' at row 1
@@ -922,6 +941,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
 Warning	1366	Incorrect string value: '\xAD' for column 'token' at row 1
+Note	1003	update `test`.`t1` set `test`.`t1`.`token` = NULL where (`test`.`t1`.`token` = 0xad)
 UPDATE t1 SET token = NULL WHERE token = X'ad';
 Warnings:
 Warning	1366	Incorrect string value: '\xAD' for column 'token' at row 1

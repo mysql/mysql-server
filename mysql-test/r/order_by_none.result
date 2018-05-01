@@ -1818,12 +1818,9 @@ DROP TABLE t1;
 #
 # Bug#31590: Wrong error message on sort buffer being too small.
 #
-create table t1(a int, b tinytext);
-insert into t1 values (1,2),(3,2);
-set session sort_buffer_size= 30000;
-Warnings:
-Warning	1292	Truncated incorrect sort_buffer_size value: '30000'
-set session max_sort_length= 2180;
+create table t1(a int, b text);
+insert into t1 values (1,REPEAT('x', 60000)),(3,REPEAT('y', 60000));
+set session sort_buffer_size= 32768;
 CALL mtr.add_suppression("Out of sort memory");
 select * from t1 order by b;
 ERROR HY001: Out of sort memory, consider increasing server sort buffer size
@@ -2836,7 +2833,7 @@ KEY (b, a, c)
 )
 DEFAULT CHARSET = utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES 
 (1,  1, 1),
 (2,  2, 2),

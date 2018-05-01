@@ -313,7 +313,6 @@ btr_latch_leaves_t btr_cur_latch_leaves(buf_block_t *block,
   }
 
   ut_error;
-  return (latch_leaves);
 }
 
 /** Optimistically latches the leaf page or pages requested.
@@ -400,7 +399,6 @@ bool btr_cur_optimistic_latch_leaves(buf_block_t *block,
 
     default:
       ut_error;
-      return (false);
   }
 }
 
@@ -453,7 +451,6 @@ static rw_lock_type_t btr_cur_latch_for_root_leaf(ulint latch_mode) {
   }
 
   ut_error;
-  return (RW_NO_LATCH); /* avoid compiler warnings */
 }
 
 /** Detects whether the modifying record might need a modifying tree structure.
@@ -584,7 +581,6 @@ static bool btr_cur_need_opposite_intention(const page_t *page,
   }
 
   ut_error;
-  return (false);
 }
 
 /** Searches an index tree and positions a tree cursor on a given level.
@@ -3598,6 +3594,9 @@ dberr_t btr_cur_optimistic_update(
   Thus the following call is safe. */
   row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update, FALSE,
                                                *heap);
+
+  new_entry->ignore_trailing_default(index);
+
   old_rec_size = rec_offs_size(*offsets);
   new_rec_size = rec_get_converted_size(index, new_entry, 0);
 
@@ -3895,6 +3894,8 @@ dberr_t btr_cur_pessimistic_update(
   itself.  Thus the following call is safe. */
   row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update, FALSE,
                                                entry_heap);
+
+  new_entry->ignore_trailing_default(index);
 
   /* We have to set appropriate extern storage bits in the new
   record to be inserted: we have to remember which fields were such */

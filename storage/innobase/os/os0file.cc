@@ -2831,18 +2831,7 @@ static int os_file_fsync_posix(os_file_t file) {
 
       case EIO:
 
-        ++failures;
-        ut_a(failures < 1000);
-
-        if (!(failures % 100)) {
-          ib::warn(ER_IB_MSG_774) << "fsync(): "
-                                  << "An error occurred during "
-                                  << "synchronization,"
-                                  << " retrying";
-        }
-
-        /* 0.2 sec */
-        os_thread_sleep(200000);
+        ib::fatal() << "fsync() returned EIO, aborting.";
         break;
 
       case EINTR:
@@ -3623,8 +3612,6 @@ void Dir_Walker::walk_posix(const Path &basedir, Function &&f) {
         path += OS_PATH_SEPARATOR;
       }
 
-      Fil_path::normalize(dirent->d_name);
-
       path.append(dirent->d_name);
 
       if (is_directory(path)) {
@@ -3815,8 +3802,6 @@ bool os_file_flush_func(os_file_t file) {
   /* It is a fatal error if a file flush does not succeed, because then
   the database can get corrupt on disk */
   ut_error;
-
-  return (false);
 }
 
 /** Retrieves the last error number if an error occurs in a file io function.
@@ -6729,7 +6714,6 @@ AIO *AIO::select_slot_array(IORequest &type, bool read_only,
 
     default:
       ut_error;
-      array = NULL; /* Eliminate compiler warning */
   }
 
   return (array);
@@ -7945,6 +7929,13 @@ void Encryption::get_master_key(ulint *master_key_id, byte **master_key) {
   size_t key_len;
   char *key_type = nullptr;
   char key_name[ENCRYPTION_MASTER_KEY_NAME_MAX_LEN];
+  extern ib_mutex_t master_key_id_mutex;
+  bool key_id_locked = false;
+
+  if (s_master_key_id == 0) {
+    mutex_enter(&master_key_id_mutex);
+    key_id_locked = true;
+  }
 
   memset(key_name, 0x0, sizeof(key_name));
 
@@ -8027,6 +8018,11 @@ void Encryption::get_master_key(ulint *master_key_id, byte **master_key) {
   if (key_type != nullptr) {
     my_free(key_type);
   }
+
+  if (key_id_locked) {
+    mutex_exit(&master_key_id_mutex);
+  }
+
 #endif /* !UNIV_HOTBACKUP */
 }
 

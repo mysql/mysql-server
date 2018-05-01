@@ -340,4 +340,7 @@ sync_slave_with_master;
 # the files your self to see what is not matching
 
 --diff_files $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_master.sql $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_slave.sql
+# Cleanup
+--remove_file $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_master.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_slave.sql
 --source include/rpl_end.inc

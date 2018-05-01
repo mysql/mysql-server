@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -19,8 +19,6 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
-#define LOG_SUBSYSTEM_TAG "validate_password"
 
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/log_builtins.h>
@@ -136,7 +134,7 @@ static bool check_user_name;
 static void dictionary_activate(set_type *dict_words) {
   time_t start_time;
   struct tm tm;
-  char timebuf[20]; /* "YYYY-MM-DD HH:MM:SS" */
+  char timebuf[20 * 2]; /* "YYYY-MM-DD HH:MM:SS" */
   char *new_ts;
 
   /* fetch the start time */

@@ -28,7 +28,7 @@ INSERT INTO `xtest`.`test` (doc) VALUES ('{\"_id\": \"one\"}')
 1 rows affected
 Query
 SELECT @@mysqlx_document_id_unique_prefix,@@auto_increment_offset,@@auto_increment_increment
-INSERT INTO `xtest`.`test` (doc) VALUES ('{\"_id\": \"two\"}') ON DUPLICATE KEY UPDATE doc = IF(JSON_EXTRACT(doc, '$._id') = JSON_EXTRACT(VALUES(doc), '$._id'), VALUES(doc), MYSQLX_ERROR(5018))
+INSERT INTO `xtest`.`test` (doc) VALUES ('{\"_id\": \"two\"}') ON DUPLICATE KEY UPDATE doc = IF(JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id')) = JSON_UNQUOTE(JSON_EXTRACT(VALUES(doc), '$._id')), VALUES(doc), MYSQLX_ERROR(5018))
 0 rows affected
 ######### Crud.Update #########
 
@@ -122,7 +122,7 @@ command ok
 Query
 SHOW CREATE TABLE `xtest`.`test2`
 SHOW COLUMNS FROM `xtest`.`test2` WHERE Field = '$ix_gj_r_F3A2A51A9B0F2BE2468926B4132313728C250DBF'
-ALTER TABLE `xtest`.`test2` ADD COLUMN `$ix_gj_r_F3A2A51A9B0F2BE2468926B4132313728C250DBF` GEOMETRY GENERATED ALWAYS AS (ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.foo'),1,4326)) STORED NOT NULL, ADD SPATIAL INDEX `bar` (`$ix_gj_r_F3A2A51A9B0F2BE2468926B4132313728C250DBF`)
+ALTER TABLE `xtest`.`test2` ADD COLUMN `$ix_gj_r_F3A2A51A9B0F2BE2468926B4132313728C250DBF` GEOMETRY GENERATED ALWAYS AS (ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.foo'),1,4326)) STORED NOT NULL SRID 4326, ADD SPATIAL INDEX `bar` (`$ix_gj_r_F3A2A51A9B0F2BE2468926B4132313728C250DBF`)
 0 rows affected
 ######### drop_collection_index (spatial) #########
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,6 +48,7 @@
 #include "sql/sql_exception_handler.h"
 #include "sql/sql_list.h"
 #include "sql/sql_show.h"
+#include "sql/sql_table.h"      // create_typelib
 #include "sql/sql_tmp_table.h"  // create_tmp_table_from_fields
 #include "sql/system_variables.h"
 #include "sql/table.h"
@@ -107,6 +108,31 @@ Table_function_json::Table_function_json(THD *thd_arg, const char *alias,
 List<Create_field> *Table_function_json::get_field_list() {
   // It's safe as Json_table_column is derived from Create_field
   return reinterpret_cast<List<Create_field> *>(&m_vt_list);
+}
+
+/**
+  Check if a JSON value is a JSON OPAQUE, and if it can be printed in the field
+  as a non base64 value.
+
+  This is currently used by JSON_TABLE to see if we can print the JSON value in
+  a field without having to encode it in base64.
+
+  @param field_to_store_in The field we want to store the JSON value in
+  @param json_data The JSON value we want to store.
+
+  @returns
+    true The JSON value can be stored without encoding it in base64
+    false The JSON value can not be stored without encoding it, or it is not a
+          JSON OPAQUE value.
+*/
+static bool can_store_json_value_unencoded(const Field *field_to_store_in,
+                                           const Json_wrapper *json_data) {
+  return (field_to_store_in->type() == MYSQL_TYPE_VARCHAR ||
+          field_to_store_in->type() == MYSQL_TYPE_BLOB ||
+          field_to_store_in->type() == MYSQL_TYPE_STRING) &&
+         json_data->type() == enum_json_type::J_OPAQUE &&
+         (json_data->field_type() == MYSQL_TYPE_STRING ||
+          json_data->field_type() == MYSQL_TYPE_VARCHAR);
 }
 
 /**
@@ -185,7 +211,12 @@ static bool save_json_to_column(THD *thd, Field *field, Json_table_column *col,
         break;
       }
       String str;
-      err = w->to_string(&str, false, "JSON_TABLE");
+      if (can_store_json_value_unencoded(field, w)) {
+        str.set(w->get_data(), w->get_data_length(), field->charset());
+      } else {
+        err = w->to_string(&str, false, "JSON_TABLE");
+      }
+
       if (!err && (field->store(str.ptr(), str.length(), str.charset()) >=
                    TYPE_WARN_OUT_OF_RANGE))
         err = true;
@@ -259,6 +290,10 @@ bool Table_function_json::init_json_table_col_lists(THD *thd, uint *nest_idx,
         my_error(ER_WRONG_COLUMN_NAME, MYF(0), col->field_name);
         return true;
       }
+      if ((col->sql_type == MYSQL_TYPE_ENUM ||
+           col->sql_type == MYSQL_TYPE_SET) &&
+          !col->interval)
+        col->interval = create_typelib(thd->mem_root, col);
     }
     m_all_columns.push_back(col);
 

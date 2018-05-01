@@ -471,7 +471,7 @@ DROP DATABASE db1;
 connection default;
 disconnect con1;
 DROP DATABASE db1_protected;
---echo # Restore missing system table and restart the erver.
+--echo # Restore missing system table and restart the server.
 CREATE TABLE IF NOT EXISTS mysql.global_grants
 (
  USER CHAR(32) BINARY DEFAULT '' NOT NULL,
@@ -480,6 +480,9 @@ CREATE TABLE IF NOT EXISTS mysql.global_grants
  WITH_GRANT_OPTION ENUM('N','Y') COLLATE UTF8_GENERAL_CI DEFAULT 'N' NOT NULL,
 PRIMARY KEY (USER,HOST,PRIV)
 ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin TABLESPACE=mysql;
+--echo # restore mysql.session privileges
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
 --source include/restart_mysqld.inc
 DROP USER u1@localhost;
 --echo # restore root privileges

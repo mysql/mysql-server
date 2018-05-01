@@ -55,11 +55,7 @@ independently of any UNIV_ debugging conditions. */
 MY_ATTRIBUTE((format(printf, 1, 2)))
 /** Report a failure to decompress or compress.
  @return number of characters printed */
-#ifndef UNIV_HOTBACKUP
-static
-#endif /* !UNIV_HOTBACKUP */
-    int
-    page_zip_fail_func(const char *fmt, /*!< in: printf(3) format string */
+int page_zip_fail_func(const char *fmt, /*!< in: printf(3) format string */
                        ...) /*!< in: arguments corresponding to fmt */
 {
   int res;
@@ -325,6 +321,10 @@ static dict_index_t *page_zip_fields_decode(const byte *buf, const byte *end,
   if (is_spatial) {
     index->type |= DICT_SPATIAL;
   }
+
+  index->n_instant_nullable = index->n_nullable;
+  index->instant_cols =
+      (index->is_clustered() && index->table->has_instant_cols());
 
   return (index);
 }
@@ -610,6 +610,11 @@ static ibool page_zip_decompress_heap_no(
   /* Set heap_no and the status bits. */
   mach_write_to_2(rec - REC_NEW_HEAP_NO, heap_status);
   heap_status += 1 << REC_HEAP_NO_SHIFT;
+
+  /* Clear the info bits, to make sure later assertion saying
+  that this record is not instant can pass in rec_init_offsets() */
+  rec[-REC_N_NEW_EXTRA_BYTES] = 0;
+
   return (TRUE);
 }
 

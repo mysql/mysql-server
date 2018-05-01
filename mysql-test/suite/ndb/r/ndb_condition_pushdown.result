@@ -2512,7 +2512,7 @@ b
 drop table mytab;
 create table t(a bigint unsigned not null primary key auto_increment, b varchar(100)) character set utf8 engine ndb;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t (b) values('abc'),('aaa'),('bbb'),('ccc');
 select * from t where b like 'a%';
 a	b
@@ -2547,7 +2547,7 @@ drop table escapetest;
 create table a(a varchar(7)) engine=ndb charset=utf8
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into a values ('abcdefg');
 select * from a;
 a

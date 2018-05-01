@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -961,36 +961,31 @@ bool Arg_comparator::can_compare_as_dates(Item *a, Item *b,
 
 static longlong get_time_value(THD *, Item ***item_arg, Item **cache_arg,
                                const Item *, bool *is_null) {
-  longlong value;
+  longlong value = 0;
   Item *item = **item_arg;
+  String buf, *str = 0;
+
+  if (item->data_type() == MYSQL_TYPE_TIME ||
+      item->data_type() == MYSQL_TYPE_NULL) {
+    value = item->val_time_temporal();
+    *is_null = item->null_value;
+  } else {
+    str = item->val_str(&buf);
+    *is_null = item->null_value;
+  }
+  if (*is_null) return ~(ulonglong)0;
 
   /*
-    Note, it's wrong to assume that we always get
-    a TIME expression or NULL here:
-
-  DBUG_ASSERT(item->data_type() == MYSQL_TYPE_TIME ||
-              item->data_type() == MYSQL_TYPE_NULL);
-
-    because when this condition is optimized:
-
-    WHERE time_column=DATE(NULL) AND time_column=TIME(NULL);
-
-    rhe first AND part is eliminated and DATE(NULL) is substituted
-    to the second AND part like this:
-
-    WHERE DATE(NULL) = TIME(NULL) // as TIME
-
-    whose Arg_comparator has already get_time_value set for both arguments.
-    Therefore, get_time_value is executed for DATE(NULL).
-    This condition is further evaluated as impossible condition.
-
-    TS-TODO: perhaps such cases should be evaluated without
-    calling get_time_value at all.
-
-    See a similar comment in Arg_comparator::compare_time_packed.
+    Convert strings to the integer TIME representation.
   */
-  value = item->val_time_temporal();
-  *is_null = item->null_value;
+  if (str) {
+    MYSQL_TIME l_time;
+    if (str_to_time_with_warn(str, &l_time)) {
+      *is_null = true;
+      return ~(ulonglong)0;
+    }
+    value = TIME_to_longlong_datetime_packed(&l_time);
+  }
 
   if (item->const_item() && cache_arg && item->type() != Item::CACHE_ITEM &&
       item->type() != Item::FUNC_ITEM) {
@@ -1080,7 +1075,13 @@ bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **a1,
              (*b)->result_type() == STRING_RESULT) {
     DTCollation coll;
     coll.set((*a)->collation, (*b)->collation, MY_COLL_CMP_CONV);
-    if (agg_item_set_converter(coll, owner->func_name(), b, 1, MY_COLL_CMP_CONV,
+    /*
+      DTCollation::set() may have chosen a charset that's a superset of both
+      and a and b, so we need to convert both items.
+     */
+    if (agg_item_set_converter(coll, owner->func_name(), a, 1, MY_COLL_CMP_CONV,
+                               1) ||
+        agg_item_set_converter(coll, owner->func_name(), b, 1, MY_COLL_CMP_CONV,
                                1))
       return true;
   } else if (try_year_cmp_func(type)) {
@@ -1497,7 +1498,9 @@ int Arg_comparator::compare_binary_string() {
       if (set_null) owner->null_value = 0;
       size_t res1_length = res1->length();
       size_t res2_length = res2->length();
-      int cmp = memcmp(res1->ptr(), res2->ptr(), min(res1_length, res2_length));
+      size_t min_length = min(res1_length, res2_length);
+      int cmp =
+          min_length == 0 ? 0 : memcmp(res1->ptr(), res2->ptr(), min_length);
       return cmp ? cmp : (int)(res1_length - res2_length);
     }
   }
@@ -2364,7 +2367,7 @@ bool Item_func_interval::resolve_type(THD *) {
 
     for (uint i = 1; not_null_consts && i < rows; i++) {
       Item *el = row->element_index(i);
-      not_null_consts &= el->const_item() & !el->is_null();
+      not_null_consts = el->const_item() && !el->is_null();
     }
 
     if (not_null_consts) {
@@ -2707,10 +2710,9 @@ float Item_func_between::get_filtering_effect(THD *thd,
   @retval true if: args[1] <= args[0] <= args[2]
  */
 template <typename LLorULL>
-longlong compare_between_int_result(bool compare_as_temporal_dates,
-                                    bool compare_as_temporal_times,
-                                    bool negated, Item **args,
-                                    bool *null_value) {
+static inline longlong compare_between_int_result(
+    bool compare_as_temporal_dates, bool compare_as_temporal_times,
+    bool negated, Item **args, bool *null_value) {
   {
     LLorULL a, b, value;
     value = compare_as_temporal_times
@@ -5368,10 +5370,39 @@ Item_func::optimize_type Item_func_like::select_optimize() const {
                                                    : OPTIMIZE_OP;
 }
 
+bool Item_func_like::check_covering_prefix_keys(THD *thd) {
+  Item *first_arg = args[0]->real_item();
+  Item *second_arg = args[1]->real_item();
+  if (first_arg->type() == Item::FIELD_ITEM) {
+    Field *field = down_cast<Item_field *>(first_arg)->field;
+    Key_map covering_keys = field->get_covering_prefix_keys();
+    if (covering_keys.is_clear_all()) return false;
+    if (second_arg->const_item()) {
+      size_t prefix_length = 0;
+      String *wild_str = second_arg->val_str(&cmp.value2);
+      if (thd->is_error()) return true;
+      if (second_arg->is_null()) return false;
+      if (my_is_prefixidx_cand(wild_str->charset(), wild_str->ptr(),
+                               wild_str->ptr() + wild_str->length(), escape,
+                               wild_many, &prefix_length))
+        field->table->update_covering_prefix_keys(field, prefix_length,
+                                                  &covering_keys);
+      else
+        // Not comparing to a prefix, remove all prefix indexes
+        field->table->covering_keys.subtract(field->part_of_prefixkey);
+    } else
+      // Second argument is not a const
+      field->table->covering_keys.subtract(field->part_of_prefixkey);
+  }
+  return false;
+}
+
 bool Item_func_like::fix_fields(THD *thd, Item **ref) {
   DBUG_ASSERT(fixed == 0);
 
   Disable_semijoin_flattening DSF(thd->lex->current_select(), true);
+
+  args[0]->real_item()->set_can_use_prefix_key();
 
   if (Item_bool_func2::fix_fields(thd, ref) ||
       escape_item->fix_fields(thd, &escape_item) ||
@@ -5397,7 +5428,7 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref) {
     if (eval_escape_clause(thd)) return true;
   }
 
-  return false;
+  return check_covering_prefix_keys(thd);
 }
 
 void Item_func_like::cleanup() {
@@ -5783,27 +5814,6 @@ bool Item_equal::merge(THD *thd, Item_equal *item) {
   if (cond_false) used_tables_cache = 0;
 
   return false;
-}
-
-/**
-  Order field items in multiple equality according to a sorting criteria.
-
-  The function perform ordering of the field items in the Item_equal
-  object according to the criteria determined by the cmp callback parameter.
-  If cmp(item_field1,item_field2,arg)<0 than item_field1 must be
-  placed after item_fiel2.
-
-  The function sorts field items by the exchange sort algorithm.
-  The list of field items is looked through and whenever two neighboring
-  members follow in a wrong order they are swapped. This is performed
-  again and again until we get all members in a right order.
-
-  @param compare      function to compare field item
-  @param arg          context extra parameter for the cmp function
-*/
-
-void Item_equal::sort(Item_field_cmpfunc compare, void *arg) {
-  fields.sort((Node_cmp_func)compare, arg);
 }
 
 /**

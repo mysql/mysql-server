@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -124,7 +124,7 @@ Pattern::Load_status Pattern::load(MYSQL_THD thd,
     return PARSE_ERROR;
   }
 
-  if (!services::is_select_statement(thd)) return NOT_A_SELECT_STATEMENT;
+  if (!services::is_supported_statement(thd)) return NOT_SUPPORTED_STATEMENT;
 
   // We copy the normalized_pattern to the plugin's memory.
   normalized_pattern = services::get_current_query_normalized(thd);

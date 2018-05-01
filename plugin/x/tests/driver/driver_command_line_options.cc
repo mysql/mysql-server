@@ -28,11 +28,13 @@
 #include <iostream>
 
 #include "my_dbug.h"
+#include "print_version.h"
+#include "welcome_copyright_notice.h"
+
 #include "plugin/x/generated/mysqlx_version.h"
 #include "plugin/x/ngs/include/ngs_common/to_string.h"
 #include "plugin/x/tests/driver/processor/commands/command.h"
-#include "print_version.h"
-#include "welcome_copyright_notice.h"
+#include "plugin/x/tests/driver/processor/commands/mysqlxtest_error_names.h"
 
 void Driver_command_line_options::print_version() { ::print_version(); }
 
@@ -117,6 +119,8 @@ void Driver_command_line_options::print_help() {
                "command line\n";
   std::cout << "--fatal-errors=<0|1>  Mysqlxtest is started with ignoring or "
                "stopping on fatal error (default: 1)\n";
+  std::cout << "--expect-error=<error_code> Default connection must fail with "
+               "specified code (default: OFF)\n";
   std::cout << "-B, --bindump         Dump binary representation of messages "
                "sent, in format suitable for\n";
   std::cout << "--trace-protocol      Enable X Protocol tracing\n";
@@ -154,7 +158,7 @@ Driver_command_line_options::Driver_command_line_options(const int argc,
     } else if (check_arg(argv, i, "--cached-auth", NULL)) {
       m_auth_methods.push_back("SHA256_MEMORY");
     } else if (check_arg(argv, i, "--using-cap-auth", NULL)) {
-      m_auth_methods.push_back("CAPABILITIES");
+      m_auth_methods.push_back("FROM_CAPABILITIES");
     } else if (check_arg(argv, i, "--mysql41-auth", NULL)) {
       m_auth_methods.push_back("MYSQL41");
     } else if (check_arg_with_value(argv, i, "--debug", NULL, value)) {
@@ -197,6 +201,8 @@ Driver_command_line_options::Driver_command_line_options(const int argc,
       m_connection_options.ip_mode = set_protocol(ngs::stoi(value));
     } else if (check_arg_with_value(argv, i, "--timeout", "-t", value)) {
       m_connection_options.io_timeout = ngs::stoi(value);
+    } else if (check_arg_with_value(argv, i, "--expect-error", NULL, value)) {
+      m_expected_error_code = mysqlxtest::get_error_code_by_text(value);
     } else if (check_arg_with_value(argv, i, "--fatal-errors", NULL, value)) {
       m_context_options.m_fatal_errors = ngs::stoi(value);
     } else if (check_arg_with_value(argv, i, "--password", "-p", value)) {

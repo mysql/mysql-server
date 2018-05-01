@@ -34,7 +34,7 @@ switched to session default
 -- Expecting failure with parameters: DISABLED	memory	xuser_ssl	pass
 --
 connecting...
-Got expected error: Current account requires TLS to be activate. (code 1045)
+Got expected error (one of: 1045 2510 )
 Mysqlx.Ok {
   msg: "bye!"
 }

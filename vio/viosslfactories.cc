@@ -159,7 +159,9 @@ static void report_errors() {
 
   DBUG_ENTER("report_errors");
 
-  while ((l = ERR_get_error_line_data(&file, &line, &data, &flags)) != 0) {
+  // Note: WolfSSL returns failures to read data as negative int values
+  while (static_cast<int>(
+             l = ERR_get_error_line_data(&file, &line, &data, &flags)) > 0) {
 #ifndef DBUG_OFF /* Avoid warning */
     char buf[200];
     DBUG_PRINT("error", ("OpenSSL: %s:%s:%d:%s\n", ERR_error_string(l, buf),
@@ -570,8 +572,6 @@ static struct st_VioSSLFd *new_VioSSLFd(
     DBUG_RETURN(0);
   }
 
-  SSL_CTX_set_options(ssl_fd->ssl_context, ssl_ctx_options);
-
   /*
     We explicitly prohibit weak ciphers.
     NOTE: SSL_CTX_set_cipher_list will return 0 if
@@ -678,6 +678,8 @@ static struct st_VioSSLFd *new_VioSSLFd(
     DBUG_RETURN(0);
   }
   DH_free(dh);
+
+  SSL_CTX_set_options(ssl_fd->ssl_context, ssl_ctx_options);
 
   /* set IO functions used by wolfSSL */
 #ifdef HAVE_WOLFSSL

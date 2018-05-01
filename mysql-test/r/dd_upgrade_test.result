@@ -62,7 +62,7 @@ db_collation char(32) collate utf8_bin, body_utf8 longblob,
 PRIMARY KEY (db,name,type)) engine=MyISAM character set utf8
 comment='Stored Procedures';
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'returns' can't have a default value
 # Remove data and index files manually.
 # Copy data and index files from zipped data directory.
@@ -176,8 +176,6 @@ mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
-mysql.innodb_ddl_log                               OK
-mysql.innodb_dynamic_metadata                      OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
 mysql.ndb_binlog_index                             OK
@@ -529,7 +527,7 @@ db_charset_koi8r	CREATE DATABASE `db_charset_koi8r` /*!40100 DEFAULT CHARACTER S
 # Test case for Bug#24580586
 SET names utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DESC `test`.`initial_vü`;
 Field	Type	Null	Key	Default	Extra
 cü	char(1)	YES		NULL	
@@ -839,3 +837,18 @@ t_set	CREATE TABLE `t_set` (
 # Remove copied files
 # Restart the server with default options.
 # restart
+#
+# Bug #27512609 5.7->8.0 UPGRADE CRASH WITH DEFAULT-TIME-ZONE SET
+#
+#
+# Zip file contains data directory of a clean 5.7 server.
+# made by: ./mtr --mem --mysqld=--default_time_zone="+01:00" main.1st
+#
+# Copy zip files from suite location to working location.
+# Check that the file exists in the working folder.
+# Unzip the zip file.
+# Set different paths for --datadir
+# Check that the file exits after unzip
+# Stop DB server which was created by MTR default
+# Start the DB server
+# end of test

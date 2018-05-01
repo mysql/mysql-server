@@ -747,7 +747,8 @@ void Relay_log_info::fill_coord_err_buf(loglevel level, int err_code,
 
   if (level == ERROR_LEVEL) {
     m_last_error.number = err_code;
-    strncpy(m_last_error.message, buff_coord, MAX_SLAVE_ERRMSG);
+    snprintf(m_last_error.message, sizeof(m_last_error.message), "%.*s",
+             MAX_SLAVE_ERRMSG - 1, buff_coord);
     m_last_error.update_timestamp();
   }
 
@@ -2686,6 +2687,16 @@ void Relay_log_info::detach_engine_ha_data(THD *thd) {
     in favor of dynamically created.
   */
   plugin_foreach(thd, detach_native_trx, MYSQL_STORAGE_ENGINE_PLUGIN, NULL);
+}
+
+void Relay_log_info::reattach_engine_ha_data(THD *thd) {
+  is_engine_ha_data_detached = false;
+  /*
+    In case of slave thread applier or processing binlog by client,
+    reattach the engine ha_data ("native" engine transaction)
+    in favor of dynamically created.
+  */
+  plugin_foreach(thd, reattach_native_trx, MYSQL_STORAGE_ENGINE_PLUGIN, NULL);
 }
 
 bool Relay_log_info::commit_positions() {

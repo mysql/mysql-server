@@ -112,7 +112,7 @@ INSERT INTO t1 VALUES (4);
 --source include/start_slave_io.inc
 --let $rpl_channel_name= ''
 # The default channel will be disconnected from master by ch1
---let $slave_io_errno= convert_error(ER_MASTER_FATAL_ERROR_READING_BINLOG)
+--let $slave_io_errno= convert_error(ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG)
 --source include/wait_for_slave_io_error.inc
 START SLAVE SQL_THREAD FOR CHANNEL 'ch1';
 --let $rpl_channel_name= 'ch1'
@@ -123,7 +123,7 @@ START SLAVE SQL_THREAD FOR CHANNEL 'ch1';
 --source include/start_slave_io.inc
 --let $rpl_channel_name= 'ch1'
 # The ch1 channel will be disconnected from master by the default
---let $slave_io_errno= convert_error(ER_MASTER_FATAL_ERROR_READING_BINLOG)
+--let $slave_io_errno= convert_error(ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG)
 --source include/wait_for_slave_io_error.inc
 DELETE FROM t1 WHERE c1 = 4;
 --let $rpl_channel_name= ''

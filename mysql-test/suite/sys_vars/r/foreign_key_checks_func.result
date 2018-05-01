@@ -26,7 +26,7 @@ INSERT INTO t2 values (20,22);
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk` FOREIGN KEY (`b`) REFERENCES `t1` (`a`))
 '---Check when foreign_key_checks is disabled---'
 TRUNCATE t1;
-ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `fk` FOREIGN KEY (`b`) REFERENCES `test`.`t1` (`a`))
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `fk`)
 SET @@session.foreign_key_checks = 0;
 TRUNCATE t1;
 TRUNCATE t2;

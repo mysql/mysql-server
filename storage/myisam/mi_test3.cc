@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -287,7 +287,6 @@ int test_rrnd(MI_INFO *file, int id) {
       mi_close(file);
       return 1;
     }
-    if (rnd(2) == 0) mi_extra(file, HA_EXTRA_CACHE, 0);
   }
 
   count = 0;
@@ -305,7 +304,6 @@ int test_rrnd(MI_INFO *file, int id) {
 
 end:
   if (lock) {
-    mi_extra(file, HA_EXTRA_NO_CACHE, 0);
     if (mi_lock_database(file, F_UNLCK)) {
       fprintf(stderr, "%2d: Can't unlock table\n", id);
       exit(0);
@@ -332,7 +330,6 @@ int test_write(MI_INFO *file, int id, int lock_type) {
       mi_close(file);
       return 1;
     }
-    if (rnd(2) == 0) mi_extra(file, HA_EXTRA_WRITE_CACHE, 0);
   }
 
   sprintf((char *)record.id, "%7d", getpid());
@@ -353,7 +350,6 @@ int test_write(MI_INFO *file, int id, int lock_type) {
     }
   }
   if (lock) {
-    mi_extra(file, HA_EXTRA_NO_CACHE, 0);
     if (mi_lock_database(file, F_UNLCK)) {
       fprintf(stderr, "%2d: Can't unlock table\n", id);
       exit(0);

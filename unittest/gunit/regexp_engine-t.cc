@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,6 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
    */
+#include <string>
 
 #include "my_config.h"
 
@@ -42,21 +43,8 @@ using my_testing::make_fixed_literal;
 using regexp::Regexp_engine;
 using regexp::regexp_lib_charset;
 
-class UChar_string : public String {
- public:
-  explicit UChar_string(const char *ascii_string) {
-    uint errors;
-    copy(ascii_string, strlen(ascii_string), &my_charset_utf8_general_ci,
-         regexp_lib_charset, &errors);
-    EXPECT_EQ(0u, errors);
-  }
-
-  const UChar *u_str() { return pointer_cast<const UChar *>(ptr()); }
-};
-
 class RegexpEngineTest : public ::testing::Test {
  protected:
-  RegexpEngineTest() : m_pattern("b"), m_subject("abc"), m_replacement("x") {}
   virtual void SetUp() { initializer.SetUp(); }
   virtual void TearDown() { initializer.TearDown(); }
 
@@ -64,23 +52,23 @@ class RegexpEngineTest : public ::testing::Test {
 
   Server_initializer initializer;
 
-  UChar_string m_pattern;
-  UChar_string m_subject;
-  UChar_string m_replacement;
+  std::u16string m_pattern{'b'};
+  std::u16string m_subject{'a', 'b', 'c'};
+  std::u16string m_replacement{'x'};
 };
 
 class Mock_regexp_engine : public regexp::Regexp_engine {
  public:
-  Mock_regexp_engine(String *pattern, String *subject,
-                     std::initializer_list<UChar> expected_buffer)
+  Mock_regexp_engine(const std::u16string &pattern,
+                     const std::u16string &subject,
+                     std::initializer_list<char16_t> expected_buffer)
       : Regexp_engine(pattern, 0, 0, 0), m_expected_buffer(expected_buffer) {
     EXPECT_EQ(U_ZERO_ERROR, m_error_code);
     Reset(subject);
   }
 
-  void AppendReplacement(UChar_string *replacement) {
-    regexp::Regexp_engine::AppendReplacement(replacement->u_str(),
-                                             replacement->length() / 2);
+  void AppendReplacement(const std::u16string &replacement) {
+    regexp::Regexp_engine::AppendReplacement(replacement);
   }
 
   ~Mock_regexp_engine() {
@@ -93,7 +81,7 @@ class Mock_regexp_engine : public regexp::Regexp_engine {
           << "at position " << i << ".";
   }
 
-  void set_replace_buffer(std::initializer_list<UChar> buffer) {
+  void set_replace_buffer(std::initializer_list<char16_t> buffer) {
     m_replace_buffer = buffer;
   }
 
@@ -106,26 +94,26 @@ class Mock_regexp_engine : public regexp::Regexp_engine {
   URegularExpression *re() const { return m_re; }
 
  private:
-  std::vector<UChar> m_expected_buffer;
+  std::u16string m_expected_buffer;
 };
 
 TEST_F(RegexpEngineTest, AppendHead0) {
-  Mock_regexp_engine engine(&m_pattern, &m_subject, {});
+  Mock_regexp_engine engine(m_pattern, m_subject, {});
   engine.AppendHead(0);
 }
 
 TEST_F(RegexpEngineTest, AppendHead1) {
-  Mock_regexp_engine engine(&m_pattern, &m_subject, {'a'});
+  Mock_regexp_engine engine(m_pattern, m_subject, {'a'});
   engine.AppendHead(1);
 }
 
 TEST_F(RegexpEngineTest, AppendHead2) {
-  Mock_regexp_engine engine(&m_pattern, &m_subject, {'a', 'b'});
+  Mock_regexp_engine engine(m_pattern, m_subject, {'a', 'b'});
   engine.AppendHead(2);
 }
 
 TEST_F(RegexpEngineTest, AppendReplacement) {
-  Mock_regexp_engine engine(&m_pattern, &m_subject, {'a', 'x', '\0'});
+  Mock_regexp_engine engine(m_pattern, m_subject, {'a', 'x', '\0'});
 
   UErrorCode error_code = U_ZERO_ERROR;
 
@@ -133,12 +121,12 @@ TEST_F(RegexpEngineTest, AppendReplacement) {
   engine.resize_buffer(3);
   engine.set_replace_pos(0);
 
-  engine.AppendReplacement(&m_replacement);
+  engine.AppendReplacement(m_replacement);
   EXPECT_EQ(2, engine.replace_pos());
 }
 
 TEST_F(RegexpEngineTest, AppendReplacementGrowBuffer) {
-  Mock_regexp_engine engine(&m_pattern, &m_subject, {'a', 'x'});
+  Mock_regexp_engine engine(m_pattern, m_subject, {'a', 'x'});
 
   UErrorCode error_code = U_ZERO_ERROR;
 
@@ -148,18 +136,18 @@ TEST_F(RegexpEngineTest, AppendReplacementGrowBuffer) {
   engine.set_replace_buffer({'a'});
   engine.set_replace_pos(1);
 
-  engine.AppendReplacement(&m_replacement);
+  engine.AppendReplacement(m_replacement);
   EXPECT_EQ(2, engine.replace_pos());
 }
 
 TEST_F(RegexpEngineTest, AppendTail) {
-  Mock_regexp_engine engine(&m_pattern, &m_subject, {'a', 'x', 'c'});
+  Mock_regexp_engine engine(m_pattern, m_subject, {'a', 'x', 'c'});
 
   UErrorCode error_code = U_ZERO_ERROR;
 
   EXPECT_TRUE(uregex_find(engine.re(), 0, &error_code));
   engine.resize_buffer(3);
-  engine.AppendReplacement(&m_replacement);
+  engine.AppendReplacement(m_replacement);
   engine.AppendTail();
   EXPECT_EQ(3, engine.replace_pos());
 }

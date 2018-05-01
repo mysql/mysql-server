@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,6 +50,12 @@ class Collation : virtual public Entity_object {
   typedef Primary_id_key Id_key;
   typedef Global_name_key Name_key;
   typedef Void_key Aux_key;
+
+  // Persisted pad attribute, mapped from Pad_attribute enum defined
+  // in include/m_ctype.h. The setter is not part of the public API,
+  // and there is no getter, since this attribute is only exposed
+  // throught the I_S.
+  enum enum_pad_attribute { PA_UNDEFINED, PA_PAD_SPACE, PA_NO_PAD };
 
   // We need a set of functions to update a preallocated key.
   virtual bool update_id_key(Id_key *key) const {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
 
 #include "sql/rpl_slave_commit_order_manager.h"
 
+#include "debug_sync.h"  // debug_sync_set_action
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sys.h"
@@ -158,6 +159,10 @@ void Commit_order_manager::report_deadlock(Slave_worker *worker) {
   DBUG_ENTER("Commit_order_manager::report_deadlock");
   mysql_mutex_lock(&m_mutex);
   worker->report_order_commit_deadlock();
+  DBUG_EXECUTE_IF("rpl_fake_cod_deadlock", {
+    const char act[] = "now signal reported_deadlock";
+    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+  });
   mysql_cond_signal(&m_workers[worker->id].cond);
   mysql_mutex_unlock(&m_mutex);
   DBUG_VOID_RETURN;

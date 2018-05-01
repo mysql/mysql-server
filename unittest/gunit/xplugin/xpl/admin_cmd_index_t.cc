@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,11 @@
 namespace xpl {
 namespace test {
 
-using namespace ::testing;
+using ::testing::DoAll;
+using ::testing::Eq;
+using ::testing::Return;
+using ::testing::StrictMock;
+using ::testing::_;
 
 class Admin_command_index_stub : public Admin_command_index {
  public:
@@ -444,9 +448,10 @@ TEST_F(Admin_command_index_test, create_spatial_index) {
   EXPECT_CALL(
       data_context,
       execute(
-          Eq(Sql(ALTER_TABLE ADD_COLUMN(
-              "$ix_gj_r_" PATH_HASH, "GEOMETRY",
-              "ST_GEOMFROMGEOJSON(" EXTRACT_PATH ",1,4326)", "STORED NOT NULL")
+          Eq(Sql(ALTER_TABLE ADD_COLUMN("$ix_gj_r_" PATH_HASH, "GEOMETRY",
+                                        "ST_GEOMFROMGEOJSON(" EXTRACT_PATH
+                                        ",1,4326)",
+                                        "STORED NOT NULL SRID 4326")
                      ADD_INDEX("SPATIAL INDEX", IDENT("$ix_gj_r_" PATH_HASH)))),
           _, _))
       .WillOnce(Return(ngs::Success()));
@@ -556,9 +561,10 @@ TEST_F(Admin_command_index_test, create_unable_to_craete_spatial_index) {
   EXPECT_CALL(
       data_context,
       execute(
-          Eq(Sql(ALTER_TABLE ADD_COLUMN(
-              "$ix_gj_r_" PATH_HASH, "GEOMETRY",
-              "ST_GEOMFROMGEOJSON(" EXTRACT_PATH ",1,4326)", "STORED NOT NULL")
+          Eq(Sql(ALTER_TABLE ADD_COLUMN("$ix_gj_r_" PATH_HASH, "GEOMETRY",
+                                        "ST_GEOMFROMGEOJSON(" EXTRACT_PATH
+                                        ",1,4326)",
+                                        "STORED NOT NULL SRID 4326")
                      ADD_INDEX("SPATIAL INDEX", IDENT("$ix_gj_r_" PATH_HASH)))),
           _, _))
       .WillOnce(Return(

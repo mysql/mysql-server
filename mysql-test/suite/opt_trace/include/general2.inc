@@ -161,7 +161,7 @@ SELECT t1.f2 FROM t1
 STRAIGHT_JOIN (t2 JOIN t3 ON t3.f2  = t2.f2  ) ON t3 .f2  = t2 .f2
 HAVING ('v', 'i') NOT IN (SELECT f2, MIN(f2) FROM t1)
 ORDER BY f2;
---replace_regex /("sort_buffer_size":) [0-9]+/\1 "NNN"/ /("key_size":) [0-9]+/\1 "XXX"/ /("row_size":) [0-9]+/\1 "XXX"/
+--replace_regex /("peak_memory_used":) [0-9]+/\1 "NNN"/ /("key_size":) [0-9]+/\1 "XXX"/ /("row_size":) [0-9]+/\1 "XXX"/
 select TRACE from information_schema.OPTIMIZER_TRACE;
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
@@ -175,7 +175,7 @@ DROP TABLES t1,t2,t3;
 create table t1 (a int, b int);
 insert into t1 values (1,1), (2,null), (3, 4);
 select max(x) from (select sum(a) as x from t1 group by b) as teeone;
---replace_regex /("sort_buffer_size":) [0-9]+/\1 "NNN"/
+--replace_regex /("peak_memory_used":) [0-9]+/\1 "NNN"/
 select TRACE from information_schema.OPTIMIZER_TRACE;
 drop table t1;
 
@@ -654,7 +654,7 @@ SELECT SUM(alias2.col_varchar_nokey) , alias2.pk AS field2 FROM t1 AS alias1
 STRAIGHT_JOIN t2 AS alias2 ON alias2.pk = alias1.col_int_key WHERE alias1.pk
 GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk ;
 eval $query;
---replace_regex /("sort_buffer_size":) [0-9]+/\1 "NNN"/ /("key_size":) [0-9]+/\1 "XXX"/ /("row_size":) [0-9]+/\1 "XXX"/
+--replace_regex /("peak_memory_used":) [0-9]+/\1 "NNN"/ /("key_size":) [0-9]+/\1 "XXX"/ /("row_size":) [0-9]+/\1 "XXX"/
 SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
 DROP TABLE t1,t2;

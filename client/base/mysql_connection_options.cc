@@ -29,6 +29,7 @@
 #include <sstream>
 #include <vector>
 
+#include "caching_sha2_passwordopt-vars.h"
 #include "client/base/abstract_options_provider.h"
 #include "client/base/abstract_program.h"
 #include "m_ctype.h"
@@ -159,12 +160,13 @@ MYSQL *Mysql_connection_options::create_connection() {
   mysql_options4(connection, MYSQL_OPT_CONNECT_ATTR_ADD, "program_name",
                  this->m_program->get_name().c_str());
 
-  mysql_options(connection, MYSQL_SERVER_PUBLIC_KEY,
-                this->get_null_or_string(this->m_user));
+  if (this->m_server_public_key.has_value())
+    set_server_public_key(connection,
+                          this->m_server_public_key.value().c_str());
 
   if (this->m_get_server_public_key)
-    mysql_options(connection, MYSQL_OPT_GET_SERVER_PUBLIC_KEY,
-                  (void *)&this->m_get_server_public_key);
+    set_get_server_public_key_option(connection,
+                                     &this->m_get_server_public_key);
 
   if (!mysql_real_connect(
           connection, this->get_null_or_string(this->m_host),

@@ -451,8 +451,6 @@ const char *ut_strerr(dberr_t num) {
       return ("Rollback");
     case DB_DUPLICATE_KEY:
       return ("Duplicate key");
-    case DB_QUE_THR_SUSPENDED:
-      return ("The queue thread has been suspended");
     case DB_MISSING_HISTORY:
       return ("Required history data has been deleted");
     case DB_CLUSTER_NOT_FOUND:
@@ -579,6 +577,11 @@ const char *ut_strerr(dberr_t num) {
     case DB_INVALID_ENCRYPTION_META:
       return ("Invalid encryption meta-data information");
 
+    case DB_SERVER_VERSION_LOW:
+      return (
+          "Cannot boot server with lower version than that built the "
+          "tablespace");
+
     case DB_ERROR_UNSET:;
       /* Fall through. */
 
@@ -590,9 +593,6 @@ const char *ut_strerr(dberr_t num) {
   mean that memory corruption has happened and someone's error-code
   variable has been overwritten with bogus data */
   ut_error;
-
-  /* NOT REACHED */
-  return ("Unknown error");
 }
 
 #ifdef UNIV_PFS_MEMORY
@@ -657,7 +657,18 @@ logger::~logger() {
       .verbatim(s.c_str());
 }
 
-fatal::~fatal() { ut_error; }
+fatal::~fatal() {
+  auto s = m_oss.str();
+
+  LogEvent()
+      .type(LOG_TYPE_ERROR)
+      .prio(m_level)
+      .errcode(m_err)
+      .subsys("InnoDB")
+      .verbatim(s.c_str());
+
+  ut_error;
+}
 
 fatal_or_error::~fatal_or_error() { ut_a(!m_fatal); }
 
