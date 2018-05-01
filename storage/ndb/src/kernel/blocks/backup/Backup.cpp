@@ -1040,7 +1040,7 @@ Backup::handle_global_alert_state(
     RedoStateRep *rep = (RedoStateRep*)signal->getDataPtrSend();
     rep->receiverInfo = RedoStateRep::ToNdbcntr;
     rep->redoState = m_redo_alert_state;
-    //sendSignal(NDBCNTR_REF, GSN_REDO_STATE_REP, signal, 2, JBB);
+    sendSignal(NDBCNTR_REF, GSN_REDO_STATE_REP, signal, 2, JBB);
   }
   if (m_global_redo_alert_state > m_redo_alert_state)
   {
