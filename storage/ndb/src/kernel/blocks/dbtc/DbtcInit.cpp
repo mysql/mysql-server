@@ -96,7 +96,7 @@ void Dbtc::initData()
   // Trigger and index pools
   c_theDefinedTriggerPool.setSize(c_maxNumberOfDefinedTriggers);
   c_theIndexPool.setSize(c_maxNumberOfIndexes);
-  c_firedTriggerHash.setSize((c_maxNumberOfFiredTriggers+10)/10);
+  c_firedTriggerHash.setSize(c_maxNumberOfFiredTriggers);
 }//Dbtc::initData()
 
 void Dbtc::initRecords() 
@@ -123,7 +123,7 @@ void Dbtc::initRecords()
   }
   while (indexes.releaseFirst());
 
-  m_commitAckMarkerHash.setSize(1024);
+  m_commitAckMarkerHash.setSize(capiConnectFilesize);
 
   hostRecord = (HostRecord*)allocRecord("HostRecord",
 					sizeof(HostRecord),
