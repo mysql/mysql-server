@@ -976,8 +976,10 @@ class innobase_truncate {
   @param[in]	thd		THD object
   @param[in]	name		normalized table name
   @param[in]	form		Table format; columns and index information
-  @param[in]	dd_table	dd::Table or dd::Partition */
-  innobase_truncate(THD *thd, const char *name, TABLE *form, Table *dd_table)
+  @param[in]	dd_table	dd::Table or dd::Partition
+  @param[in]	keep_autoinc	true to remember original autoinc counter */
+  innobase_truncate(THD *thd, const char *name, TABLE *form, Table *dd_table,
+                    bool keep_autoinc)
       : m_thd(thd),
         m_name(name),
         m_dd_table(dd_table),
@@ -986,6 +988,7 @@ class innobase_truncate {
         m_form(form),
         m_create_info(),
         m_file_per_table(false),
+        m_keep_autoinc(keep_autoinc),
         m_flags(0),
         m_flags2(0) {}
 
@@ -1045,6 +1048,11 @@ class innobase_truncate {
 
   /** True if this table/partition is file per table */
   bool m_file_per_table;
+
+  /** True if the original autoinc counter should be kept. It's
+  specified by caller, however if the table has no AUTOINC column,
+  it would be reset to false internally */
+  bool m_keep_autoinc;
 
   /** flags of the table to be truncated, which should not change */
   uint64_t m_flags;

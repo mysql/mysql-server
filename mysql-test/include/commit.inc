@@ -931,7 +931,7 @@ commit;
 call p_verify_status_increment(0, 0, 0, 0);
 check table t1, t2, t3;
 --echo # Extra transactions to load t3 into data-dictionary and table caches
-call p_verify_status_increment(12, 0, 6, 0);
+call p_verify_status_increment(9, 0, 6, 0);
 commit;
 call p_verify_status_increment(0, 0, 0, 0);
 drop view v1;
