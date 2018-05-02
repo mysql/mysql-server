@@ -157,9 +157,13 @@ sub create_disabled_test_list($$) {
 
   # Add 'disabled.def' files.
   unshift(@disabled_collection,
-          "$::basedir/internal/mysql-test/collections/disabled.def");
-  unshift(@disabled_collection,
           "$::glob_mysql_test_dir/collections/disabled.def");
+
+  # Add internal 'disabled.def' file only if it exists
+  my $internal_disabled_def_file =
+    "$::basedir/internal/mysql-test/collections/disabled.def";
+  unshift(@disabled_collection, $internal_disabled_def_file)
+    if -f $internal_disabled_def_file;
 
   # Add 'disabled_ndb.def' to the list of disabled files if ndb is enabled.
   unshift(@disabled_collection,
