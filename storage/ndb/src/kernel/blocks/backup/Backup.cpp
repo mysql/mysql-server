@@ -772,7 +772,7 @@ Uint64
 Backup::calculate_change_rate(Uint64 change_size,
                               Uint64& seconds_since_lcp_cut)
 {
-  if (seconds_since_lcp_cut < 3)
+  if (seconds_since_lcp_cut < 2)
   {
     jam();
     /**
@@ -784,32 +784,6 @@ Backup::calculate_change_rate(Uint64 change_size,
   }
   Uint64 change_size_per_sec = change_size / seconds_since_lcp_cut;
   return change_size_per_sec;
-}
-
-void
-Backup::scale_write_sizes(Uint64& update_size,
-                          Uint64& insert_size,
-                          Uint64& delete_size,
-                          Uint64& seconds_since_lcp_cut,
-                          Uint64& lcp_time_in_secs)
-{
-  lcp_time_in_secs =
-    m_last_lcp_exec_time_in_ms / Uint64(1000);
-  calculate_seconds_since_lcp_cut(seconds_since_lcp_cut);
-  if (seconds_since_lcp_cut == 0)
-  {
-    jam();
-    update_size = 0;
-    insert_size = 0;
-    delete_size = 0;
-    return;
-  }
-  update_size *= lcp_time_in_secs;
-  insert_size *= lcp_time_in_secs;
-  delete_size *= lcp_time_in_secs;
-  update_size /= seconds_since_lcp_cut;
-  insert_size /= seconds_since_lcp_cut;
-  delete_size /= seconds_since_lcp_cut;
 }
 
 Uint64
@@ -840,11 +814,7 @@ Backup::calculate_checkpoint_rate(Uint64 update_size,
       insert_size -= delete_size;
       delete_size = 0;
     }
-    scale_write_sizes(update_size,
-                      insert_size,
-                      delete_size,
-                      seconds_since_lcp_cut,
-                      lcp_time_in_secs);
+    calculate_seconds_since_lcp_cut(seconds_since_lcp_cut);
     change_size = init_change_size(update_size,
                                    insert_size,
                                    delete_size,
@@ -863,7 +833,7 @@ Backup::calculate_checkpoint_rate(Uint64 update_size,
     checkpoint_size = all_size + change_size;
   }
   Uint64 change_rate = calculate_change_rate(checkpoint_size,
-                                             lcp_time_in_secs);
+                                             seconds_since_lcp_cut);
   DEB_REDO_CONTROL(("(%u)update_size: %llu MB, insert_size: %llu MB,"
                     " delete_size: %llu MB, checkpoint_size: %llu MB"
                     ", all_parts: %u, total_memory: %llu MB, "
