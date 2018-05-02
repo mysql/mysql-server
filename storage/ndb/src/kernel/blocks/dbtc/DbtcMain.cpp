@@ -15634,7 +15634,13 @@ void Dbtc::releaseApiCon(Signal* signal, UintR TapiConnectPtr)
   c_apiConnectRecordPool.getPtr(TlocalApiConnectptr);
   if (TlocalApiConnectptr.p->apiCopyRecord != RNIL)
   {
-  // TODO when making ApiRecordPool dynamic, free copy record here if unused.
+    ApiConnectRecordPtr copyPtr;
+    copyPtr.i = TlocalApiConnectptr.p->apiCopyRecord;
+    c_apiConnectRecordPool.getPtr(copyPtr);
+    if (copyPtr.p->apiConnectstate == CS_RESTART)
+    {
+      releaseApiConCopy(signal, copyPtr);
+    }
   }
   ndbassert(TlocalApiConnectptr.p->nextApiConnect == RNIL);
   ndbrequire(TlocalApiConnectptr.p->apiConnectkind == ApiConnectRecord::CK_USER);
