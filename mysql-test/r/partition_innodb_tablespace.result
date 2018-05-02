@@ -67,8 +67,8 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`a`)
-(PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data' ENGINE = InnoDB,
- PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2' ENGINE = InnoDB) */
+(PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data/' ENGINE = InnoDB,
+ PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2/' ENGINE = InnoDB) */
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1#p#p0	test/t1#p#p0	97	5	Dynamic	0	Single
@@ -92,8 +92,8 @@ t11	CREATE TABLE `t11` (
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`a`)
-(PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data' ENGINE = InnoDB,
- PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2' ENGINE = InnoDB) */
+(PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data/' ENGINE = InnoDB,
+ PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2/' ENGINE = InnoDB) */
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t11#p#p0	test/t11#p#p0	97	5	Dynamic	0	Single

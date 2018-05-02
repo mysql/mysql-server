@@ -12387,6 +12387,10 @@ int innobase_truncate<Table>::prepare() {
     mutex_exit(&dict_sys->mutex);
   }
 
+  if (!dict_table_has_autoinc_col(m_table)) {
+    m_keep_autoinc = false;
+  }
+
   return (error);
 }
 
@@ -12394,6 +12398,8 @@ template <typename Table>
 int innobase_truncate<Table>::truncate() {
   int error = 0;
   bool reset = false;
+  uint64_t autoinc = 0;
+  uint64_t autoinc_persisted = 0;
 
   /* Rename tablespace file to avoid existing file in create. */
   if (m_file_per_table) {
@@ -12404,6 +12410,11 @@ int innobase_truncate<Table>::truncate() {
 
   if (error != 0) {
     return (error);
+  }
+
+  if (m_keep_autoinc) {
+    autoinc_persisted = m_table->autoinc_persisted;
+    autoinc = m_table->autoinc;
   }
 
   dd_table_close(m_table, m_thd, nullptr, false);
@@ -12453,6 +12464,12 @@ int innobase_truncate<Table>::truncate() {
     m_table = dict_table_check_if_in_cache_low(m_name);
     ut_ad(m_table != nullptr);
     m_table->acquire();
+
+    if (m_keep_autoinc) {
+      m_table->autoinc_persisted = autoinc_persisted;
+      m_table->autoinc = autoinc;
+    }
+
     mutex_exit(&dict_sys->mutex);
   }
 
@@ -12521,8 +12538,8 @@ void innobase_truncate<Table>::cleanup() {
     m_table = dd_table_open_on_name_in_mem(m_name, false);
   }
 
-  if (m_table != nullptr && !m_table->is_temporary()) {
-    m_table->discard_after_ddl = true;
+  if (m_table != nullptr) {
+    m_table->trunc_name.m_name = nullptr;
   }
 
   char *tablespace = const_cast<char *>(m_create_info.tablespace);
@@ -13085,7 +13102,8 @@ int ha_innobase::truncate_impl(const char *name, TABLE *form,
 
   normalize_table_name(norm_name, name);
 
-  innobase_truncate<dd::Table> truncator(thd, norm_name, form, table_def);
+  innobase_truncate<dd::Table> truncator(thd, norm_name, form, table_def,
+                                         false);
 
   error = truncator.open_table(innodb_table);
 

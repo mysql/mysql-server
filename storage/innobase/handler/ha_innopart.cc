@@ -2835,7 +2835,8 @@ int ha_innopart::truncate_impl(const char *name, TABLE *form,
 
     normalize_table_name(norm_name, partition_name);
 
-    innobase_truncate<dd::Partition> truncator(thd, norm_name, form, dd_part);
+    innobase_truncate<dd::Partition> truncator(thd, norm_name, form, dd_part,
+                                               false);
 
     error = truncator.open_table(part_table);
     if (error != 0) {
@@ -2891,9 +2892,9 @@ int ha_innopart::truncate_partition_low(dd::Table *dd_table) {
   uint16_t table_name_len;
   THD *thd = ha_thd();
   trx_t *trx = check_trx_exists(thd);
-  uint16_t n_truncated = 0;
   uint16_t i = 0;
   uint64_t autoinc = 0;
+  bool truncate_all = (m_part_info->num_partitions_used() == m_tot_parts);
 
   DBUG_ENTER("ha_innopart::truncate_partition_low");
 
@@ -2918,7 +2919,8 @@ int ha_innopart::truncate_partition_low(dd::Table *dd_table) {
 
     normalize_table_name(norm_name, partition_name);
 
-    innobase_truncate<dd::Partition> truncator(thd, norm_name, table, dd_part);
+    innobase_truncate<dd::Partition> truncator(thd, norm_name, table, dd_part,
+                                               !truncate_all);
 
     error = truncator.open_table(part_table);
     if (error != 0) {
@@ -2950,8 +2952,6 @@ int ha_innopart::truncate_partition_low(dd::Table *dd_table) {
         dd_part_has_instant_cols(*dd_part)) {
       dd_clear_instant_part(*dd_part);
     }
-
-    ++n_truncated;
   }
 
   ut_ad(error == 0);
@@ -2959,7 +2959,7 @@ int ha_innopart::truncate_partition_low(dd::Table *dd_table) {
   /* If it's TRUNCATE PARTITION ALL, reset the AUTOINC */
   if (table->found_next_number_field) {
     dd_set_autoinc(dd_table->se_private_data(),
-                   ((n_truncated == m_tot_parts) ? 0 : autoinc + 1));
+                   (truncate_all ? 0 : autoinc + 1));
   }
 
   if (dd_table_has_instant_cols(*dd_table) &&
