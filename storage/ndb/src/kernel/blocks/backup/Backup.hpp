@@ -961,11 +961,6 @@ public:
   bool m_first_lcp_started;
 
   void init_lcp_timers(Uint64);
-  void scale_write_sizes(Uint64& update_size,
-                         Uint64& insert_size,
-                         Uint64& delete_size,
-                         Uint64& seconds_since_lcp_cut,
-                         Uint64& lcp_time_in_secs);
   void calculate_seconds_since_lcp_cut(Uint64& seconds_since_lcp_cut);
   Uint64 init_change_size(Uint64 update_size,
                           Uint64 insert_size,
