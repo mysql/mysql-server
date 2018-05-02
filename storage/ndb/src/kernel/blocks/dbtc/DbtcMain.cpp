@@ -795,7 +795,7 @@ void Dbtc::scan_for_read_backup(Signal *signal,
   Uint32 loop_count = 0;
   Uint32 api_ptr = start_api_ptr;
   while (api_ptr != RNIL &&
-         loop_count < 256)
+         loop_count < 32)
   {
     ApiConnectRecordPtr ptrs[8];
     Uint32 ptr_cnt =
@@ -859,7 +859,6 @@ void Dbtc::scan_for_read_backup(Signal *signal,
            */
           break;
         }
-// TODO ALLOW break out from for loop when loop count is high, need to set api_ptr to next ptrs not checked yet!! also in ::scan...read_backup
       }
     }
   }
