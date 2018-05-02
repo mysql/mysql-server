@@ -4014,7 +4014,7 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
   /* A password was sent to an account without a password */
   if (info->auth_string_length == 0) DBUG_RETURN(CR_ERROR);
 
-  int is_error;
+  int is_error = 0;
   int result = compare_sha256_password_with_hash(
       info->auth_string, info->auth_string_length, (const char *)pkt,
       pkt_len - 1, &is_error);

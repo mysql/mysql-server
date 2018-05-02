@@ -643,7 +643,7 @@ static ibool fts_fetch_index_words(
   fts_zip_t *zip = static_cast<fts_zip_t *>(user_arg);
   que_node_t *exp = sel_node->select_list;
   dfield_t *dfield = que_node_get_val(exp);
-  short len = static_cast<short>(dfield_get_len(dfield));
+  ushort len = static_cast<ushort>(dfield_get_len(dfield));
   void *data = dfield_get_data(dfield);
 
   /* Skip the duplicate words. */
