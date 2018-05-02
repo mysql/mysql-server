@@ -9,6 +9,10 @@
 # ========= Reference ==========
 # Bug#26450129:DEAD BRANCH IN SEARCH_KEY_IN_TABLE()
 
+# The status variable Slave_rows_last_search_algorithm_used is defined
+# only in Debug mode, running this test in non-debug mode will cause
+# assert failure.
+--source include/have_debug.inc
 --source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave = 1
 --source include/master-slave.inc
