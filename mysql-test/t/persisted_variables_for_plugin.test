@@ -92,3 +92,52 @@ SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 RESET PERSIST;
 # return 0 rows
 SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+
+--echo #
+--echo # Bug #27924206: SET PERSIST DOES NOT FLUSH VALUE FROM MEMORY
+--echo #
+
+# case 1: Test RESET PERSIST <plugin variable>;
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN validate_password SONAME '$VALIDATE_PASSWORD';
+SET @@persist.validate_password_length= 15;
+UNINSTALL PLUGIN validate_password;
+--echo # Restart server
+--source include/restart_mysqld.inc
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN validate_password SONAME '$VALIDATE_PASSWORD';
+SELECT @@GLOBAL.validate_password_length;
+SET PERSIST validate_password_length= 9;
+SELECT @@GLOBAL.validate_password_length;
+RESET PERSIST validate_password_length;
+UNINSTALL PLUGIN validate_password;
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SELECT @@GLOBAL.validate_password_length;
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN validate_password SONAME '$VALIDATE_PASSWORD';
+# should return default value 8
+SELECT @@GLOBAL.validate_password_length;
+
+# case 1: Test RESET PERSIST;
+SET @@persist.validate_password_length= 11;
+UNINSTALL PLUGIN validate_password;
+--echo # Restart server
+--source include/restart_mysqld.inc
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN validate_password SONAME '$VALIDATE_PASSWORD';
+SELECT @@GLOBAL.validate_password_length;
+SET PERSIST validate_password_length= 19;
+SELECT @@GLOBAL.validate_password_length;
+RESET PERSIST;
+UNINSTALL PLUGIN validate_password;
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SELECT @@GLOBAL.validate_password_length;
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN validate_password SONAME '$VALIDATE_PASSWORD';
+# should return default value 8
+SELECT @@GLOBAL.validate_password_length;
+
+# Cleanup
+RESET PERSIST;
+UNINSTALL plugin validate_password;
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf

@@ -72,3 +72,69 @@ validate_password_policy	STRONG
 RESET PERSIST;
 SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
+#
+# Bug #27924206: SET PERSIST DOES NOT FLUSH VALUE FROM MEMORY
+#
+INSTALL PLUGIN validate_password SONAME 'validate_password.so';
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
+SET @@persist.validate_password_length= 15;
+UNINSTALL PLUGIN validate_password;
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
+# Restart server
+# restart
+INSTALL PLUGIN validate_password SONAME 'validate_password.so';
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
+SELECT @@GLOBAL.validate_password_length;
+@@GLOBAL.validate_password_length
+15
+SET PERSIST validate_password_length= 9;
+SELECT @@GLOBAL.validate_password_length;
+@@GLOBAL.validate_password_length
+9
+RESET PERSIST validate_password_length;
+UNINSTALL PLUGIN validate_password;
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
+SELECT @@GLOBAL.validate_password_length;
+ERROR HY000: Unknown system variable 'validate_password_length'
+INSTALL PLUGIN validate_password SONAME 'validate_password.so';
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
+SELECT @@GLOBAL.validate_password_length;
+@@GLOBAL.validate_password_length
+8
+SET @@persist.validate_password_length= 11;
+UNINSTALL PLUGIN validate_password;
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
+# Restart server
+# restart
+INSTALL PLUGIN validate_password SONAME 'validate_password.so';
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
+SELECT @@GLOBAL.validate_password_length;
+@@GLOBAL.validate_password_length
+11
+SET PERSIST validate_password_length= 19;
+SELECT @@GLOBAL.validate_password_length;
+@@GLOBAL.validate_password_length
+19
+RESET PERSIST;
+UNINSTALL PLUGIN validate_password;
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
+SELECT @@GLOBAL.validate_password_length;
+ERROR HY000: Unknown system variable 'validate_password_length'
+INSTALL PLUGIN validate_password SONAME 'validate_password.so';
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
+SELECT @@GLOBAL.validate_password_length;
+@@GLOBAL.validate_password_length
+8
+RESET PERSIST;
+UNINSTALL plugin validate_password;
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead

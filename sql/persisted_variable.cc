@@ -1090,14 +1090,30 @@ bool Persisted_variables_cache::reset_persisted_variables(THD *thd,
       m_persist_ro_variables.clear();
       flush = 1;
     }
+    /* remove plugin variables if any */
+    if (!m_persist_plugin_variables.empty()) {
+      m_persist_plugin_variables.clear();
+      flush = 1;
+    }
   } else {
+    auto checkvariable = [&var_name](st_persist_var const &s) -> bool {
+      return s.key == var_name;
+    };
     if (m_persist_variables.size()) {
-      auto it = std::find_if(
-          m_persist_variables.begin(), m_persist_variables.end(),
-          [var_name](st_persist_var const &s) { return s.key == var_name; });
+      auto it = std::find_if(m_persist_variables.begin(),
+                             m_persist_variables.end(), checkvariable);
       if (it != m_persist_variables.end()) {
         /* if variable is present in config file remove it */
         m_persist_variables.erase(it);
+        flush = 1;
+        not_present = 0;
+      }
+    }
+    if (m_persist_plugin_variables.size()) {
+      auto it = std::find_if(m_persist_plugin_variables.begin(),
+                             m_persist_plugin_variables.end(), checkvariable);
+      if (it != m_persist_plugin_variables.end()) {
+        m_persist_plugin_variables.erase(it);
         flush = 1;
         not_present = 0;
       }
