@@ -1107,7 +1107,7 @@ Backup::set_lcp_timing_factors(Uint64 seconds_since_lcp_cut)
   {
     jam();
     m_lcp_timing_counter = 2;
-    Uint64 new_timing_factor = Uint64(115);
+    Uint64 new_timing_factor = Uint64(110);
     if (new_timing_factor > m_lcp_timing_factor)
     {
       jam();
@@ -1118,7 +1118,7 @@ Backup::set_lcp_timing_factors(Uint64 seconds_since_lcp_cut)
   {
     jam();
     m_lcp_timing_counter = 2;
-    Uint64 new_timing_factor = Uint64(125);
+    Uint64 new_timing_factor = Uint64(120);
     if (new_timing_factor > m_lcp_timing_factor)
     {
       jam();
@@ -1129,7 +1129,7 @@ Backup::set_lcp_timing_factors(Uint64 seconds_since_lcp_cut)
   {
     jam();
     m_lcp_timing_counter = 2;
-    Uint64 new_timing_factor = Uint64(135);
+    Uint64 new_timing_factor = Uint64(130);
     if (new_timing_factor > m_lcp_timing_factor)
     {
       jam();
@@ -1149,6 +1149,12 @@ Backup::reset_lcp_timing_factors()
     {
       jam();
       m_lcp_timing_factor = Uint64(100);
+    }
+    else
+    {
+      jam();
+      m_lcp_timing_factor -= Uint64(10);
+      ndbrequire(m_lcp_timing_factor >= Uint64(100));
     }
   }
 }
@@ -1229,7 +1235,7 @@ Backup::set_proposed_disk_write_speed(Uint64 current_redo_speed_per_sec,
      * Add another 15% to proposed speed if we are at low
      * alert level.
      */
-    m_proposed_disk_write_speed *= Uint64(115);
+    m_proposed_disk_write_speed *= Uint64(110);
     m_proposed_disk_write_speed /= Uint64(100);
   }
   else if (m_redo_alert_state == RedoStateRep::REDO_ALERT_HIGH)
@@ -1259,15 +1265,15 @@ Backup::set_proposed_disk_write_speed(Uint64 current_redo_speed_per_sec,
      * There is high REDO Alert level and we are running faster than
      * necessary, we will slow down based on the calculated lag per
      * second (which when negative means that we are ahead). We will
-     * never slow down more than 30%.
+     * never slow down more than 20%.
      */
     lag_per_sec = Int64(-1) * lag_per_sec; /* Make number positive */
     Uint64 percentage_decrease = Uint64(lag_per_sec) * Uint64(100);
     percentage_decrease /= (m_proposed_disk_write_speed + 1);
-    if (percentage_decrease > Uint64(30))
+    if (percentage_decrease > Uint64(20))
     {
       jam();
-      m_proposed_disk_write_speed *= Uint64(70);
+      m_proposed_disk_write_speed *= Uint64(80);
       m_proposed_disk_write_speed /= Uint64(100);
     }
     else
@@ -1281,15 +1287,20 @@ Backup::set_proposed_disk_write_speed(Uint64 current_redo_speed_per_sec,
     /**
      * We don't keep up with the calculated LCP change rate.
      * We will increase the proposed disk write speed by up
-     * to 50% to keep up with the LCP change rate.
+     * to 25% to keep up with the LCP change rate.
+     *
+     * We avoid regaining the lag too fast since it is easy
+     * to write too much at the beginning of an LCP otherwise.
+     * This will create a too bursty environment which is
+     * undesirable.
      */
     jam();
     Uint64 percentage_increase = lag_per_sec * Uint64(100);
     percentage_increase /= (m_proposed_disk_write_speed + 1);
-    if (percentage_increase > Uint64(50))
+    if (percentage_increase > Uint64(25))
     {
       jam();
-      m_proposed_disk_write_speed *= Uint64(150);
+      m_proposed_disk_write_speed *= Uint64(125);
       m_proposed_disk_write_speed /= Uint64(100);
     }
     else
