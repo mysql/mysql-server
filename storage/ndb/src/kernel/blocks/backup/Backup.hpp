@@ -983,8 +983,7 @@ public:
                                    Uint64 insert_size,
                                    Uint64 delete_size,
                                    Uint64 total_memory,
-                                   Uint64& seconds_since_lcp_cut,
-                                   Uint64& lcp_time_in_secs);
+                                   Uint64& seconds_since_lcp_cut);
   void calculate_redo_parameters(Uint64 redo_usage,
                                  Uint64 redo_size,
                                  Uint64 redo_written_since_last_call,
@@ -1002,8 +1001,7 @@ public:
   void handle_global_alert_state(Signal *signal,
     RedoStateRep::RedoAlertState save_redo_alert_state);
   void set_redo_alert_factor(Uint64 redo_percentage);
-  void set_lcp_timing_factors(Uint64 seconds_since_lcp_cut,
-                              Uint64 lcp_time_in_secs);
+  void set_lcp_timing_factors(Uint64 seconds_since_lcp_cut);
   void reset_lcp_timing_factors();
   void set_proposed_disk_write_speed(Uint64 current_redo_speed_per_sec,
                                      Uint64 mean_redo_speed_per_sec,
