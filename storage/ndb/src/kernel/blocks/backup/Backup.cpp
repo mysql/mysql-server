@@ -2290,7 +2290,7 @@ Backup::execCONTINUEB(Signal* signal)
      * will start at A-level.
      */
     init_scan_prio_level(signal, ptr);
-    checkScan(signal, ptr, filePtr);
+    checkScan(signal, ptr, filePtr, true);
     return;
   }
   break;
@@ -8620,8 +8620,12 @@ Backup::OperationRecord::newScan()
 }
 
 bool
-Backup::check_new_scan(BackupRecordPtr ptr, OperationRecord & op)
+Backup::check_new_scan(BackupRecordPtr ptr,
+                       OperationRecord & op,
+                       bool after_wait)
 {
+  bool any_min_buf = false;
+  Uint32 tot_size_written = 0;
   if (ptr.p->is_lcp() && ptr.p->m_num_lcp_files > 1)
   {
     for (Uint32 i = 0; i < ptr.p->m_num_lcp_files; i++)
@@ -8635,14 +8639,51 @@ Backup::check_new_scan(BackupRecordPtr ptr, OperationRecord & op)
         jam();
         return false;
       }
+      Uint32 size_written = loop_op.dataBuffer.getSizeUsed();
+      if (size_written > BACKUP_DEFAULT_WRITE_SIZE)
+      {
+        jam();
+        any_min_buf = true;
+      }
+      tot_size_written += size_written;
     }
-    return true;
   }
   else
   {
     jam();
-    return op.newScan();
+    bool ready = op.newScan();
+    if (!ready)
+    {
+      jam();
+      return false;
+    }
+    any_min_buf = true;
+    tot_size_written = op.dataBuffer.getSizeUsed();
   }
+  if (after_wait ||
+      !any_min_buf ||
+      (ptr.p->is_lcp() &&
+       (m_redo_alert_state > RedoStateRep::REDO_ALERT_LOW ||
+        tot_size_written < MAX_BUFFER_USED_WITHOUT_REDO_ALERT ||
+        (m_redo_alert_state == RedoStateRep::REDO_ALERT_LOW &&
+         tot_size_written < BACKUP_DEFAULT_BUFFER_SIZE))))
+  {
+    jam();
+    return true;
+  }
+  /**
+   * We have buffer space, but we are ready to write at least one
+   * file, so there is no urgency in continuing the LCP/Backup scan
+   * right now, we have already written at least 512 kB into the
+   * buffers. At Low REDO alert levels we allow writing up to
+   * 2M into the buffers. At higher alert levels we will continue
+   * writing until buffer is full.
+   *
+   * After sleeping for a while we will always handle at least one
+   * batch of scanning if there is buffer space for it (this is
+   * signalled through the variable after_wait).
+   */
+  return false;
 }
 
 bool
@@ -8923,7 +8964,7 @@ Backup::execSCAN_FRAGCONF(Signal* signal)
   const Uint32 completed = conf.fragmentCompleted;
   if(completed != 2) {
     jam();
-    checkScan(signal, ptr, filePtr);
+    checkScan(signal, ptr, filePtr, false);
     return;
   }//if
 
@@ -9245,7 +9286,8 @@ Backup::pausing_lcp(Uint32 place, Uint32 val)
 void
 Backup::checkScan(Signal* signal,
                   BackupRecordPtr ptr,
-                  BackupFilePtr filePtr)
+                  BackupFilePtr filePtr,
+                  bool after_wait)
 {  
   OperationRecord & op = filePtr.p->operation;
   BlockReference lqhRef = 0;
@@ -9285,7 +9327,7 @@ Backup::checkScan(Signal* signal,
 	       ScanFragNextReq::SignalLength, JBB);
     return;
   }//if
-  if (check_new_scan(ptr, op))
+  if (check_new_scan(ptr, op, after_wait))
   {
     jam();
     
@@ -9599,6 +9641,7 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
   Uint32 sz = 0;
   bool eof = FALSE;
   bool ready = op.dataBuffer.getReadPtr(&tmp, &sz, &eof);
+
 #if 0
   ndbout << "Ptr to data = " << hex << tmp << endl;
 #endif

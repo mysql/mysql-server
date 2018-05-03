@@ -879,6 +879,10 @@ public:
                                 MAX_ATTRIBUTES_IN_TABLE +    \
                                 128))
 
+#define MAX_BUFFER_USED_WITHOUT_REDO_ALERT (512 * 1024)
+#define BACKUP_DEFAULT_WRITE_SIZE (256 * 1024)
+#define BACKUP_DEFAULT_BUFFER_SIZE (2 * 1024 * 1024)
+
   struct Config {
     Uint32 m_dataBufferSize;
     Uint32 m_logBufferSize;
@@ -1146,8 +1150,8 @@ public:
   ArrayPool<DeleteLcpFile> c_deleteLcpFilePool;
 
   void checkFile(Signal*, BackupFilePtr);
-  void checkScan(Signal*, BackupRecordPtr, BackupFilePtr);
-  bool check_new_scan(BackupRecordPtr ptr, OperationRecord &op);
+  void checkScan(Signal*, BackupRecordPtr, BackupFilePtr, bool);
+  bool check_new_scan(BackupRecordPtr ptr, OperationRecord &op, bool);
   bool check_min_buf_size(BackupRecordPtr ptr, OperationRecord &op);
   bool check_frag_complete(BackupRecordPtr ptr, BackupFilePtr filePtr);
   bool check_error(BackupRecordPtr ptr, BackupFilePtr filePtr);
