@@ -1,0 +1,75 @@
+--echo #
+--echo # Bug #84958 InnoDB's MVCC has O(N^2) behaviors
+--echo # https://bugs.mysql.com/bug.php?id=84958
+--echo #
+--echo # Set up the test with a procedure and a function.
+--echo #
+DELIMITER ~~;
+CREATE PROCEDURE insert_n(start int, end int)
+BEGIN
+    DECLARE i INT DEFAULT start;
+    WHILE i <= end do
+        INSERT INTO t1 VALUES (1, 2, 'one', 1) ON DUPLICATE KEY UPDATE d = i, c = repeat('two_', i);
+        SET i = i + 1;
+    END while;
+END~~
+
+CREATE FUNCTION num_pages_get()
+RETURNS INT
+BEGIN
+    DECLARE ret INT;
+    SELECT number_pages_get FROM information_schema.innodb_buffer_pool_stats INTO ret;
+    RETURN ret;
+END~~
+DELIMITER ;~~
+
+--echo #
+--echo # Create a table with one record in it and start an RR transaction
+--echo #
+CREATE TABLE t1 (a INT, b INT, c TEXT, d INT, PRIMARY KEY(a,b), KEY (b,d));
+INSERT INTO t1 VALUES (1, 2, 'zero', 0);
+BEGIN;
+SELECT * FROM t1;
+
+--echo #
+--echo # Create 100 newer record versions in con2 and con3
+--echo #
+connect (con2, localhost, root,,);
+connection con2;
+--send CALL insert_n(1, 50);
+
+connect (con3, localhost, root,,);
+connection con3;
+--send CALL insert_n(51, 100);
+
+connection con2;
+reap;
+connection con3;
+reap;
+INSERT INTO t1 VALUES (1, 2, 'one', 1) ON DUPLICATE KEY UPDATE d = 101, c = repeat('2', 101);
+connection default;
+
+--echo #
+--echo # Connect to default and record how many pages were accessed
+--echo # when selecting the record using the secondary key.
+--echo #
+SET @num_pages_1 = num_pages_get();
+SELECT * FROM t1 force index (b);
+SET @num_pages_2= num_pages_get();
+SELECT @num_pages_2 - @num_pages_1 < 1000;
+
+--echo #
+--echo # Commit and show the final record.
+--echo #
+SELECT * FROM t1;
+COMMIT;
+SELECT * FROM t1 force index (b);
+SELECT * FROM t1;
+
+--echo #
+--echo # Cleanup
+--echo #
+disconnect con2;
+DROP TABLE T1;
+DROP PROCEDURE insert_n;
+DROP FUNCTION num_pages_get;
