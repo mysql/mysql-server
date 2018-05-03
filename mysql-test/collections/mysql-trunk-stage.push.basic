@@ -1,8 +1,9 @@
 # Smaller test suite for tier2 platforms on mysql-trunk-stage
+# Runs all test suites with no special mysqld or MTR options
+# All tests are run without big-test option. or debug-server option
 #
 # Run all default suites without specifying any replication mode. This will run
 # rpl tests in all 3 modes row, stmt and mixed
-# All tests are run without --big-test option
 perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=all-default  --vardir=var-all-default  --report-features --unit-tests-report --no-skip
 
 # Run the suites that are not part of the default

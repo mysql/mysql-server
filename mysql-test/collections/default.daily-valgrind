@@ -1,5 +1,12 @@
 # Daily Valgrind run
-
+# Since valgrind runs are considerably slower than normal runs,
+# this collection can have one run of all suites without big-test.
+# Valgrind builds contain only the debug binary, so it does not
+# matter if --debug-server is specified or not
+#
+# Multiple runs of same suite with different options are not
+# allowed in this collection
+#
 # Run all default suites
 perl mysql-test-run.pl --timer --debug-server --force --parallel=auto --comment=all_default_valgrind --vardir=var-all_default_valgrind --experimental=collections/default.experimental
 perl mysql-test-run.pl --force --timer --testcase-timeout=60  --debug-server --parallel=auto --experimental=collections/default.experimental --comment=funcs2-debug  --vardir=var-funcs2-debug --suite=funcs_2

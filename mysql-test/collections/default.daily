@@ -1,5 +1,8 @@
-# Daily suite - Collection of tests that are run daily
-# Runs overnight and should finish in under 8 hours
+# Daily suite - Collection of tests that are run daily.
+# Runs overnight and should finish in under 8 hours.
+# Runs all suites with --big-test and without --debug-server.
+# Runs rpl, binlog and innodb suites with some additional mysqld options
+# passed on command line.
 
 # NOTE : DO NOT ADD "--debug-server" OPTION  TO THE MTR
 # COMMAND LINES IN  default.daily

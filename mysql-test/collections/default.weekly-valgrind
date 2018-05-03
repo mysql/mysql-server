@@ -1,4 +1,5 @@
-# Run all default suites with big-test option
+# Collection for valgrind platform on weekly-trunk
+# Run all suites with big-test and debug-server option
 # Run with --non-parallel-test option so that non parallel tests are also run
 perl mysql-test-run.pl --timer --big-test --non-parallel-test --debug-server --force --parallel=auto --comment=all_default_valgrind --vardir=var-all_default_valgrind --experimental=collections/default.experimental --max-test-fail=30
 

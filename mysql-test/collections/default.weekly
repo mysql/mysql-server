@@ -3,6 +3,9 @@
 # Run in the weekend and can run for 48 hours
 # This collection runs on tier1 platforms
 # Tier2 platforms have reduced coverage as defined by default.weekly.basic
+# Repeats all test runs on daily, but with --debug-server
+# Few additional runs with different mysqld and mysqltest options
+#
 
 
 ###### SECTION : REPEAT DAILY RUN ON DEBUG BUILD###################

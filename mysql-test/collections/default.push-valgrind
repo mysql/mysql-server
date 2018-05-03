@@ -1,4 +1,8 @@
-# Run all default suites
+# Valgrind run per push.
+# Currently valgrind is not run per push on main trees.
+# because they take too long.
+# The collection is retained for use on any special trees if needed.
+# Run all default suites and GR
 perl mysql-test-run.pl --timer --debug-server --force --parallel=auto --comment=all_default_valgrind --vardir=var-all_default_valgrind --experimental=collections/default.experimental
 
 # Group Replication
