@@ -14,7 +14,7 @@ include/assert.inc [P_S table replication_group_member_stats should not be empty
 # 2. Uninstall plugin.
 #    Then uninstall it again twice; expect ER_SP_DOES_NOT_EXIST.
 #    Verify that group replication specific P_S tables are empty.
-UNINSTALL PLUGIN group_replication;
+include/uninstall_group_replication_plugin.inc
 UNINSTALL PLUGIN group_replication;
 ERROR 42000: PLUGIN group_replication does not exist
 include/assert.inc [P_S table replication_group_members should be empty]
@@ -23,7 +23,7 @@ include/assert.inc [P_S table replication_group_member_stats should be empty]
 # 3. Install plugin.
 #    Then Install it again twice; expect ER_UDF_EXISTS.
 #    Verify that GR specific two P_S tables are are not empty.
-INSTALL PLUGIN group_replication SONAME 'GROUP_REPLICATION';
+include/install_group_replication_plugin.inc
 INSTALL PLUGIN group_replication SONAME 'GROUP_REPLICATION';
 ERROR HY000: Function 'group_replication' already exists
 include/assert.inc [P_S table replication_group_members should not be empty]

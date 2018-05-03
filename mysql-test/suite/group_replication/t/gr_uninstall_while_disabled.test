@@ -17,8 +17,7 @@
 --echo # 1. Uninstall plugin while it is disabled.
 --echo #    See group_replication_uninstall_while_disabled-master.opt
 --echo #    file.
-UNINSTALL PLUGIN group_replication;
-
+--source include/uninstall_group_replication_plugin.inc
 
 --echo
 --echo ############################################################
@@ -26,7 +25,8 @@ UNINSTALL PLUGIN group_replication;
 --echo #    Then uninstall it again twice.
 --replace_result $GROUP_REPLICATION GROUP_REPLICATION
 --eval INSTALL PLUGIN group_replication SONAME '$GROUP_REPLICATION'
-UNINSTALL PLUGIN group_replication;
+--source include/clean_group_replication_install_entry.inc
+--source include/uninstall_group_replication_plugin.inc
 
 --error ER_SP_DOES_NOT_EXIST
 UNINSTALL PLUGIN group_replication;

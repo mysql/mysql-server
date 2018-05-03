@@ -45,10 +45,8 @@ call mtr.add_suppression("Unable to start Group Replication on boot");
 SET SESSION SQL_LOG_BIN=1;
 
 # uninstall and install group_replication plugin
-UNINSTALL PLUGIN group_replication;
---replace_result $GROUP_REPLICATION GROUP_REPLICATION
-
---eval INSTALL PLUGIN group_replication SONAME '$GROUP_REPLICATION'
+--source include/uninstall_group_replication_plugin.inc
+--source include/install_group_replication_plugin.inc
 
 --let $assert_text= The value of group name should be empty
 --let $assert_cond= "[SELECT @@group_replication_group_name]" = ""
@@ -64,7 +62,7 @@ UNINSTALL PLUGIN group_replication;
 
 # Verify group_replication failed to start but gets successfully loaded
 --let $assert_text= group_replication plugin is loaded
---let $assert_cond= [SELECT COUNT(*) AS count FROM mysql.plugin WHERE name="group_replication", count, 1] = 1
+--let $assert_cond= [SELECT COUNT(*) AS count FROM information_schema.plugins WHERE PLUGIN_NAME="group_replication" AND PLUGIN_STATUS="ACTIVE", count, 1] = 1
 --source include/assert.inc
 
 --let $_member_id= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)

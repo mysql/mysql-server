@@ -1,0 +1,89 @@
+################################################################################
+# This test proves that if Group Replication is installed via script
+# "install_group_replication_plugin.inc" then restart of MySQL Server does not
+# log any ERROR or WARNING.
+#
+# Test:
+# 0. The test requires one server.
+# 1. Uninstall and install Group Replication via inc file do not log error.
+# 2. Reboot server.
+# 3. Verify no ERROR is logged.
+# 4. Uninstall and install Group Replication via commands (not inc) log error.
+# 5. Reboot server.
+# 6. Verify ERROR is logged.
+# 7. Cleanup.
+#
+################################################################################
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--let $group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("Function 'group_replication' already exists");
+call mtr.add_suppression("Couldn't load plugin named 'group_replication' with soname 'group_replication.so'.");
+SET SESSION sql_log_bin=1;
+
+--echo
+--echo # 1. Uninstall and install Group Replication via inc file do not log error.
+--source include/uninstall_group_replication_plugin.inc
+--source include/install_group_replication_plugin.inc
+--source include/clean_group_replication_install_entry.inc
+
+--echo
+--echo # 2. Reboot server.
+--let $allow_rpl_inited= 1
+
+--let $restart_parameters=restart:--group_replication_local_address=$group_replication_local_address --group_replication_group_seeds=$group_replication_group_seeds --group_replication_group_name=$group_replication_group_name
+--replace_result $group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--source include/restart_mysqld.inc
+
+--let $assert_text= 'INSTALL PLUGIN cleanup successful using clean_group_replication_install_entry.inc'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM mysql.plugin WHERE name="group_replication", count, 1] = 0
+--source include/assert.inc
+
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
+
+--echo
+--echo # 3. Verify no ERROR is logged.
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_applier_error
+--let $assert_count = 0
+--let $assert_select = Function 'group_replication' already exists
+--let $assert_text = Found the expected error in group_replication_applier channel.
+--source include/assert_grep.inc
+
+--echo
+--echo # 4. Uninstall and install Group Replication via commands (not inc) log error.
+--source include/uninstall_group_replication_plugin.inc
+--source include/install_group_replication_plugin.inc
+
+--echo
+--echo # 5. Reboot server.
+--let $restart_parameters=restart:--group_replication_local_address=$group_replication_local_address --group_replication_group_seeds=$group_replication_group_seeds --group_replication_group_name=$group_replication_group_name
+--replace_result $group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--source include/restart_mysqld.inc
+
+--let $assert_text= 'INSTALL PLUGIN leaves entry in mysql.plugin table so cleanup is required done in group_replication_end.inc'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM mysql.plugin WHERE name="group_replication", count, 1] = 1
+--source include/assert.inc
+
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
+
+--echo
+--echo # 6. Verify ERROR is logged.
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_applier_error
+--let $assert_count = 1
+--let $assert_select = Function 'group_replication' already exists
+--let $assert_text = Found the expected error in group_replication_applier channel.
+--source include/assert_grep.inc
+
+--echo
+--echo # 7. Cleanup.
+--source include/group_replication_end.inc

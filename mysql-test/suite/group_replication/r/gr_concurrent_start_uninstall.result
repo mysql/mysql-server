@@ -37,6 +37,6 @@ Wait for group replication plugin to be removed.
 # 6. Cleanup
 
 SET GLOBAL read_only = 0;
-INSTALL PLUGIN group_replication SONAME 'GROUP_REPLICATION';
+include/install_group_replication_plugin.inc
 SET @@GLOBAL.DEBUG= @debug_save;
 include/group_replication_end.inc

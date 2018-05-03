@@ -26,8 +26,8 @@ STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 # On server 2 uninstall and install the plugin with auto start.
 # The plugin should start automatically and recover the missing data
 #
-UNINSTALL PLUGIN group_replication;
-INSTALL PLUGIN group_replication SONAME 'GROUP_REPLICATION';
+include/uninstall_group_replication_plugin.inc
+include/install_group_replication_plugin.inc
 #
 # On server 2 after restart, recovery should be stuck
 # Query execution is not allowed

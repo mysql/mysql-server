@@ -37,7 +37,7 @@
 --echo # 2. Uninstall plugin.
 --echo #    Then uninstall it again twice; expect ER_SP_DOES_NOT_EXIST.
 --echo #    Verify that group replication specific P_S tables are empty.
-UNINSTALL PLUGIN group_replication;
+--source include/uninstall_group_replication_plugin.inc
 
 --error ER_SP_DOES_NOT_EXIST
 UNINSTALL PLUGIN group_replication;
@@ -54,8 +54,7 @@ UNINSTALL PLUGIN group_replication;
 --echo # 3. Install plugin.
 --echo #    Then Install it again twice; expect ER_UDF_EXISTS.
 --echo #    Verify that GR specific two P_S tables are are not empty.
---replace_result $GROUP_REPLICATION GROUP_REPLICATION
---eval INSTALL PLUGIN group_replication SONAME '$GROUP_REPLICATION'
+--source include/install_group_replication_plugin.inc
 
 --replace_result $GROUP_REPLICATION GROUP_REPLICATION
 --error ER_UDF_EXISTS

@@ -77,8 +77,7 @@ SET DEBUG_SYNC= 'now SIGNAL signal.start_continue';
 #Some test executions may uninstall the plugin before the member is ONLINE and writable
 SET GLOBAL read_only = 0;
 
---replace_result $GROUP_REPLICATION GROUP_REPLICATION
---eval INSTALL PLUGIN group_replication SONAME '$GROUP_REPLICATION'
+--source include/install_group_replication_plugin.inc
 --enable_warnings
 
 SET @@GLOBAL.DEBUG= @debug_save;

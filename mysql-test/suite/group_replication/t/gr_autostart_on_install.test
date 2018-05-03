@@ -75,9 +75,8 @@ INSERT INTO t1 VALUES (1);
 
 --connection server2
 
-UNINSTALL PLUGIN group_replication;
---replace_result $GROUP_REPLICATION GROUP_REPLICATION
---eval INSTALL PLUGIN group_replication SONAME '$GROUP_REPLICATION'
+--source include/uninstall_group_replication_plugin.inc
+--source include/install_group_replication_plugin.inc
 
 --echo #
 --echo # On server 2 after restart, recovery should be stuck
