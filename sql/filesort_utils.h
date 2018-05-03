@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -84,6 +84,7 @@ public:
     m_next_rec_ptr(NULL), m_rawmem(NULL), m_record_pointers(NULL),
     m_sort_keys(NULL),
     m_num_records(0), m_record_length(0),
+    m_sort_length(0),
     m_size_in_bytes(0), m_idx(0)
   {}
 
