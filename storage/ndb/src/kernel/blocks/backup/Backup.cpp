@@ -1082,6 +1082,17 @@ Backup::set_lcp_timing_factors(Uint64 seconds_since_lcp_cut)
   low_threshold += Uint64(6);
   Uint64 high_threshold = Uint64(3) * lcp_time_in_secs;
   high_threshold += Uint64(6);
+  if (seconds_since_lcp_cut + Uint64(3) < lcp_time_in_secs)
+  {
+    jam();
+    /**
+     * Ignore checking this for a while after the LCP have just
+     * started. First of all we write more at the start due to
+     * lag anyways, second we give time for the state to settle
+     * done before acting on it.
+     */
+    return;
+  }
   if (seconds_since_lcp_cut > low_threshold)
   {
     jam();
