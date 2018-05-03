@@ -74,7 +74,7 @@ START GROUP_REPLICATION;
 --echo # Uninstall plugin and verify that user is still there
 --echo #
 
-UNINSTALL PLUGIN group_replication;
+--source include/uninstall_group_replication_plugin.inc
 
 --let $assert_text= The group replication user should exist after install
 --let $assert_cond= [SELECT COUNT(*) FROM mysql.user WHERE user="mysql.session"] = 1;
@@ -84,8 +84,7 @@ UNINSTALL PLUGIN group_replication;
 --echo # Cleaning
 --echo #
 
---replace_result $GROUP_REPLICATION GROUP_REPLICATION
---eval INSTALL PLUGIN group_replication SONAME '$GROUP_REPLICATION'
+--source include/install_group_replication_plugin.inc
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("There was an error when trying to access the server with user: mysql.session.*");

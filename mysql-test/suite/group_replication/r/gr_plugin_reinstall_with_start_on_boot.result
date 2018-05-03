@@ -10,8 +10,8 @@ SET SESSION SQL_LOG_BIN=0;
 call mtr.add_suppression("The group name option is mandatory");
 call mtr.add_suppression("Unable to start Group Replication on boot");
 SET SESSION SQL_LOG_BIN=1;
-UNINSTALL PLUGIN group_replication;
-INSTALL PLUGIN group_replication SONAME 'GROUP_REPLICATION';
+include/uninstall_group_replication_plugin.inc
+include/install_group_replication_plugin.inc
 include/assert.inc [The value of group name should be empty]
 include/assert.inc [The value of local address should be the configured one]
 include/assert.inc [The value of peer addresses should be the configured one]

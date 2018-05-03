@@ -36,7 +36,7 @@ ERROR HY000: Can't initialize function 'group_replication'; Plugin initializatio
 #    must fail.
 #    Install plugin will succeed.
 SET GLOBAL server_id= 1;
-INSTALL PLUGIN group_replication SONAME 'GROUP_REPLICATION';
+include/install_group_replication_plugin.inc
 START GROUP_REPLICATION;
 ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
 START GROUP_REPLICATION;

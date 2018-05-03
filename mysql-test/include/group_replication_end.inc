@@ -11,6 +11,9 @@
 # --source include/group_replication_end.inc
 #
 # Parameters:
+#   $install_clean_up_required
+#     See include/install_group_replication_plugin.inc
+#
 #   $rpl_debug
 #     See include/rpl_init.inc
 #
@@ -24,6 +27,12 @@
 
 --let $include_filename= group_replication_end.inc
 --source include/begin_include_file.inc
+
+if ($install_clean_up_required)
+{
+  --source include/clean_group_replication_install_entry.inc
+  --let $install_clean_up_required= 0
+}
 
 # Shut down Group Replication
 --source include/rpl_end.inc
