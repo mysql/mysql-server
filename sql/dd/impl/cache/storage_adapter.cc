@@ -595,9 +595,12 @@ template bool Storage_adapter::get<Index_stat::Name_key, Index_stat>(
 template bool Storage_adapter::store(THD *, Index_stat *);
 template bool Storage_adapter::drop(THD *, const Index_stat *);
 
+// Doxygen doesn't understand this explicit template instantiation.
+#ifndef IN_DOXYGEN
 template void Storage_adapter::core_drop<Schema>(THD *, const Schema *);
 template void Storage_adapter::core_drop<Table>(THD *, const Table *);
 template void Storage_adapter::core_drop<Tablespace>(THD *, const Tablespace *);
+#endif
 
 }  // namespace cache
 }  // namespace dd
