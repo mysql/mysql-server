@@ -87,11 +87,11 @@ static NDB_TICKS startTime;
 //#define DEBUG_LCP_DEL_FILES 1
 //#define DEBUG_LCP_DEL 1
 //#define DEBUG_EXTRA_LCP 1
+//#define DEBUG_REDO_CONTROL_DETAIL 1
 #endif
 #define DEBUG_LCP_STAT 1
 #define DEBUG_EXTENDED_LCP_STAT 1
 #define DEBUG_REDO_CONTROL 1
-#define DEBUG_REDO_CONTROL_DETAIL 1
 
 #ifdef DEBUG_REDO_CONTROL
 #define DEB_REDO_CONTROL(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -607,6 +607,9 @@ Backup::execREDO_STATE_REP(Signal* signal)
   RedoStateRep *rep = (RedoStateRep*)signal->getDataPtr();
   ndbrequire(rep->receiverInfo == RedoStateRep::ToBackup);
   m_global_redo_alert_state = (RedoStateRep::RedoAlertState)rep->redoState;
+  DEB_REDO_CONTROL(("(%u) New global redo alert state: %u",
+                    instance(),
+                    m_global_redo_alert_state));
 }
 
 /**
@@ -672,27 +675,28 @@ Backup::lcp_end_point()
   m_last_lcp_exec_time_in_ms =
     NdbTick_Elapsed(m_lcp_start_time, current_time).milliSec();
   m_lcp_current_cut_point = m_lcp_start_time;
-  m_update_size_lcp[0] = m_update_size_lcp[1];
-  m_insert_size_lcp[0] = m_insert_size_lcp[1];
-  m_delete_size_lcp[0] = m_delete_size_lcp[1];
 
   reset_lcp_timing_factors();
 #ifdef DEBUG_REDO_CONTROL
+  Uint64 checkpoint_size = m_insert_size_lcp[1] - m_insert_size_lcp[0];
   Uint64 checkpoint_rate = 0;
   if (m_last_lcp_exec_time_in_ms > 0)
   {
-    checkpoint_rate = m_insert_size_lcp[0] / m_last_lcp_exec_time_in_ms;
+    checkpoint_rate = checkpoint_size / m_last_lcp_exec_time_in_ms;
   }
   DEB_REDO_CONTROL(("(%u)LCP END: m_insert_size_lcp[0]: %llu MByte, "
                     "Remaining lag: %lld MB, "
                     "Removed lag: %lld MB, "
                     "Checkpoint rate in this LCP: %llu kB/sec",
                     instance(),
-                    (m_insert_size_lcp[0] / (1024 * 1024)),
+                    (checkpoint_size / (1024 * 1024)),
                     (m_lcp_lag[1] / (1024 * 1024)),
                     (m_lcp_lag[0] / (1024 * 1024)),
                     checkpoint_rate));
 #endif
+  m_update_size_lcp[0] = m_update_size_lcp[1];
+  m_insert_size_lcp[0] = m_insert_size_lcp[1];
+  m_delete_size_lcp[0] = m_delete_size_lcp[1];
   m_lcp_lag[0] = m_lcp_lag[1];
   m_lcp_lag[1] = Int64(0);
 }
@@ -1248,10 +1252,11 @@ Backup::set_proposed_disk_write_speed(Uint64 current_redo_speed_per_sec,
     m_proposed_disk_write_speed *= Uint64(150);
     m_proposed_disk_write_speed /= Uint64(100);
   }
-  else if (lag < Int64(0))
+  if (lag < Int64(0) &&
+      m_redo_alert_state < RedoStateRep::REDO_ALERT_HIGH)
   {
     /**
-     * There is no REDO Alert level and we are running faster than
+     * There is high REDO Alert level and we are running faster than
      * necessary, we will slow down based on the calculated lag per
      * second (which when negative means that we are ahead). We will
      * never slow down more than 30%.
@@ -1276,15 +1281,16 @@ Backup::set_proposed_disk_write_speed(Uint64 current_redo_speed_per_sec,
     /**
      * We don't keep up with the calculated LCP change rate.
      * We will increase the proposed disk write speed by up
-     * to 100% to keep up with the LCP change rate.
+     * to 50% to keep up with the LCP change rate.
      */
     jam();
     Uint64 percentage_increase = lag_per_sec * Uint64(100);
     percentage_increase /= (m_proposed_disk_write_speed + 1);
-    if (percentage_increase > Uint64(100))
+    if (percentage_increase > Uint64(50))
     {
       jam();
-      m_proposed_disk_write_speed *= Uint64(2);
+      m_proposed_disk_write_speed *= Uint64(150);
+      m_proposed_disk_write_speed /= Uint64(100);
     }
     else
     {
@@ -1502,12 +1508,14 @@ Backup::measure_change_speed(Signal *signal, Uint64 millis_since_last_call)
                                          (-current_lag/ (1024 * 1024)),
                     (m_lcp_change_rate / 1024)));
   DEB_REDO_CONTROL(("(%u)state: %u, redo_size: %llu MByte, "
-                    "redo_percent: %llu, last LCP time in ms: %llu",
+                    "redo_percent: %llu, last LCP time in ms: %llu"
+                    ", m_lcp_timing_factor: %llu%%",
                     instance(),
                     m_redo_alert_state,
                     redo_size,
                     redo_percentage,
-                    m_last_lcp_exec_time_in_ms));
+                    m_last_lcp_exec_time_in_ms,
+                    m_lcp_timing_factor));
 #endif
 }
 
