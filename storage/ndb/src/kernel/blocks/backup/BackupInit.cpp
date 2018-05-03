@@ -309,16 +309,37 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
 
   jam();
 
-  const Uint32 DEFAULT_WRITE_SIZE = (256 * 1024);
-  const Uint32 DEFAULT_MAX_WRITE_SIZE = (512 * 1024);
-  const Uint32 DEFAULT_BUFFER_SIZE = (512 * 1024);
-
-  Uint32 szDataBuf = DEFAULT_BUFFER_SIZE;
-  Uint32 szLogBuf = DEFAULT_BUFFER_SIZE;
-  Uint32 szWrite = DEFAULT_WRITE_SIZE;
-  Uint32 maxWriteSize = DEFAULT_MAX_WRITE_SIZE;
+  Uint32 szLogBuf = BACKUP_DEFAULT_BUFFER_SIZE;
+  Uint32 szWrite = BACKUP_DEFAULT_WRITE_SIZE;
+  Uint32 szDataBuf = BACKUP_DEFAULT_BUFFER_SIZE;
+  Uint32 maxWriteSize = szDataBuf;
 
   /**
+   * We set the backup data buffer size to 2M as hard coded. We add new code
+   * to ensure that we use as little as possible when performing LCP scans.
+   * This means that we continue the LCP scan until at least one file is
+   * ready to write. But if one file is ready to write and we have written
+   * more than 512 kB we will not continue the scan. We will however start
+   * a new LCP scan after a wait even if the buffer is full up to 512k.
+   * We ignore this check for LCP scans when the REDO log is at alert level.
+   * In this case we will continue writing until buffer is full.
+   *
+   * This behaviour ensures that we sustain optimal predictable latency as
+   * long as the REDO log is we are not at risk of running out of REDO log
+   * space. The higher buffer space is required to be able to keep up with
+   * loading massive amounts of data into NDB even with a very limited REDO
+   * log size.
+   *
+   * The minimum write size specifies the minimum size needed to collect
+   * in order to even consider writing the buffer to disk. It is also used
+   * when deciding to collect checkpoint data at priority A-level. If we
+   * reached the minimum write size we will only collect more checkpoint
+   * data at A-level if the REDO log is at any form of alert level.
+   *
+   * The maximum write size is the maximum size sent in one write to the
+   * file system. This is set to the same as the data buffer size. No need
+   * to make this configurable.
+   *
    * We make the backup data buffer, write size and max write size hard coded.
    * The sizes are large enough to provide enough bandwidth on hard drives.
    * On SSD the defaults will be just fine. By limiting the backup data buffer
@@ -329,8 +350,6 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
    * ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_WRITE_SIZE, &szWrite);
    * ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_MAX_WRITE_SIZE, &maxWriteSize);
    */
-
-  ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_LOG_BUFFER_MEM, &szLogBuf);
   if (maxWriteSize < szWrite)
   {
     /**
