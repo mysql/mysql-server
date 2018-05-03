@@ -350,8 +350,9 @@ static void mysql_rewrite_set(THD *thd, String *rlb)
 /**
   Rewrite CREATE/ALTER USER statement.
 
-  @param thd      The THD to rewrite for.
-  @param rlb      An empty String object to put the rewritten query in.
+  @param thd                     The THD to rewrite for.
+  @param rlb                     An empty String object to put the rewritten query in.
+  @param hide_password_hash      If password hash has to be shown as <secret> or not.
 */
 
 void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
