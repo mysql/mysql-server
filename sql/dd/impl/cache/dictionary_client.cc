@@ -2317,43 +2317,39 @@ void Dictionary_client::invalidate(const T *object) {
 #ifndef DBUG_OFF
 
 /**
-  Check whether Backup Lock was acquired for a server run in normal mode.
+  Check whether protection against the backup- and global read
+  lock has been acquired.
 
-  @param[in]  thd      Thread context.
+  @param[in] thd      Thread context.
 
-  @return  true in case Backup Lock was acquired by a statement being executed
-           and server operates in normal mode, else false.
+  @return    true     protection against the backup lock and
+                      global read lock has been acquired, or
+                      the thread is a DD system thread, or the
+                      server is not done starting.
+             false    otherwise.
 */
 
 template <typename T>
-bool is_backup_lock_acquired(THD *thd) {
+static bool is_backup_lock_and_grl_acquired(THD *thd) {
   return !mysqld_server_started || thd->is_dd_system_thread() ||
-         thd->mdl_context.owns_equal_or_stronger_lock(
-             MDL_key::BACKUP_LOCK, "", "", MDL_INTENTION_EXCLUSIVE);
+         (thd->mdl_context.owns_equal_or_stronger_lock(
+              MDL_key::BACKUP_LOCK, "", "", MDL_INTENTION_EXCLUSIVE) &&
+          thd->mdl_context.owns_equal_or_stronger_lock(
+              MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE));
 }
 
 template <>
-bool is_backup_lock_acquired<Table_stat>(THD *) {
+bool is_backup_lock_and_grl_acquired<Charset>(THD *) {
   return true;
 }
 
 template <>
-bool is_backup_lock_acquired<Index_stat>(THD *) {
+bool is_backup_lock_and_grl_acquired<Collation>(THD *) {
   return true;
 }
 
 template <>
-bool is_backup_lock_acquired<Charset>(THD *) {
-  return true;
-}
-
-template <>
-bool is_backup_lock_acquired<Collation>(THD *) {
-  return true;
-}
-
-template <>
-bool is_backup_lock_acquired<Column_statistics>(THD *) {
+bool is_backup_lock_and_grl_acquired<Column_statistics>(THD *) {
   return true;
 }
 #endif
@@ -2364,7 +2360,7 @@ bool Dictionary_client::drop(const T *object) {
   // Check proper MDL lock.
   DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, object));
 
-  DBUG_ASSERT(is_backup_lock_acquired<T>(m_thd));
+  DBUG_ASSERT(is_backup_lock_and_grl_acquired<T>(m_thd));
 
   if (Storage_adapter::drop(m_thd, object)) {
     DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
@@ -2402,7 +2398,7 @@ bool Dictionary_client::store(T *object) {
   DBUG_ASSERT(!element);
 #endif
 
-  DBUG_ASSERT(is_backup_lock_acquired<T>(m_thd));
+  DBUG_ASSERT(is_backup_lock_and_grl_acquired<T>(m_thd));
 
   // Store dictionary objects with UTC time
   Timestamp_timezone_guard ts(m_thd);
@@ -2458,7 +2454,7 @@ bool Dictionary_client::update(T *new_object) {
   DBUG_ASSERT(!element);
 #endif
 
-  DBUG_ASSERT(is_backup_lock_acquired<T>(m_thd));
+  DBUG_ASSERT(is_backup_lock_and_grl_acquired<T>(m_thd));
 
   // Store dictionary objects with UTC time
   Timestamp_timezone_guard ts(m_thd);

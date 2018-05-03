@@ -37,6 +37,7 @@ namespace dd {
 class Collation;
 class Object_table;
 class Schema;
+class Tablespace;
 
 namespace cache {
 class Dictionary_client;
@@ -387,6 +388,21 @@ bool drop_native_table(THD *thd, const char *schema_name,
   @returns false on success, otherwise true.
 */
 bool reset_tables_and_tablespaces();
+
+/**
+  Update a tablespace change, commit and release transactional MDL.
+
+  @param[in,out]  thd    Current thread context.
+  @param[in,out]  space  Tablespace to update and commit.
+  @param[in]      error  true for failure: Do rollback.
+                         false for success: Do commit.
+
+  @retval true    If error is true, or if failure in update or in commit.
+  @retval false   Otherwise.
+*/
+
+bool commit_or_rollback_tablespace_change(THD *thd, dd::Tablespace *space,
+                                          bool error);
 
 /**
   Get the Object_table instance storing the given entity object type.

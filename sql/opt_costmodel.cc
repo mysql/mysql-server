@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,9 @@ extern Cost_constant_cache *cost_constant_cache;  // defined in
 
 Cost_model_server::~Cost_model_server() {
   if (m_cost_constants) {
-    cost_constant_cache->release_cost_constants(m_cost_constants);
+    if (cost_constant_cache) {
+      cost_constant_cache->release_cost_constants(m_cost_constants);
+    }
     m_cost_constants = NULL;
   }
 }

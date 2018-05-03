@@ -63,4 +63,7 @@ bool lock_tablespace_names(THD *thd, Tablespace_hash_set *tablespace_set,
 bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
                       const char *db, const char *name);
 
+/* Acquire protection against the global read lock. */
+bool acquire_shared_global_read_lock(THD *thd, unsigned long lock_wait_timeout);
+
 #endif /* LOCK_INCLUDED */

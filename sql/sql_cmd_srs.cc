@@ -37,6 +37,7 @@
 #include "sql/dd/types/spatial_reference_system.h"
 #include "sql/derror.h"           // ER_THD
 #include "sql/gis/srid.h"         // gis::srid_t
+#include "sql/lock.h"             // acquire_shared_global...
 #include "sql/sql_backup_lock.h"  // acquire_shared_backup_lock
 #include "sql/sql_class.h"        // THD
 #include "sql/sql_prepare.h"      // Ed_connection
@@ -166,7 +167,8 @@ bool Sql_cmd_create_srs::execute(THD *thd) {
     return true;
   }
 
-  if (acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
+  if (acquire_shared_global_read_lock(thd, thd->variables.lock_wait_timeout) ||
+      acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
     return true;
 
   Disable_autocommit_guard dag(thd);
@@ -231,7 +233,8 @@ bool Sql_cmd_drop_srs::execute(THD *thd) {
     return true;
   }
 
-  if (acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
+  if (acquire_shared_global_read_lock(thd, thd->variables.lock_wait_timeout) ||
+      acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
     return true;
 
   Disable_autocommit_guard dag(thd);
