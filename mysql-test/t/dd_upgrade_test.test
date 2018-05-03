@@ -1,7 +1,7 @@
 --echo # This test scripts covers upgrade of tables, views, tablespaces,
 --echo # events, stored routines and triggers from 5.7 to 8.0.
 
---source include/not_valgrind.inc
+--source include/no_valgrind_without_big.inc
 
 --disable_query_log
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Parent table of FTS auxiliary table.*");
