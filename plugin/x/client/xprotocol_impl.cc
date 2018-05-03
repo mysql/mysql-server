@@ -748,7 +748,7 @@ XProtocol::Message *Protocol_impl::recv_id(
 
 XProtocol::Message *Protocol_impl::recv_message_with_header(
     Server_message_type_id *mid, XError *out_error) {
-  std::size_t payload_size;
+  std::size_t payload_size = 0;
   Header_message_type_id header_mid;
   *out_error = recv_header(&header_mid, &payload_size);
   if (*out_error) return nullptr;

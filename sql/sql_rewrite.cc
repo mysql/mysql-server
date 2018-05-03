@@ -492,7 +492,8 @@ void mysql_rewrite_set_password(THD *thd, String *rlb,
   @param users_not_to_log Members of this list are not added to the generated
                            statement.
   @param for_binlog We don't skip any user while writing to binlog
-  @param hide_password_hash If password hash has to be shown as <secret> or not.
+  @param hide_password_hash If password hash has to be shown as \<secret\> or
+  not.
 
 */
 

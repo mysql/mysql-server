@@ -44,7 +44,7 @@ static const char *log_filename = "test_sql_errors";
 
 #define MAX_SESSIONS 128
 
-#define STRING_BUFFER_SIZE 512
+#define STRING_BUFFER_SIZE 1024
 
 static const char *sep =
     "========================================================================"

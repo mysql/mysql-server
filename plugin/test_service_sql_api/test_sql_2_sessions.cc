@@ -42,7 +42,7 @@
 
 static const char *log_filename = "test_sql_2_sessions";
 
-#define STRING_BUFFER_SIZE 256
+#define STRING_BUFFER_SIZE 1024
 
 static const char *sep =
     "========================================================================"

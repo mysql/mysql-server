@@ -39,7 +39,7 @@
 #include "mysql_com.h"
 #include "sql/sql_plugin.h"  // st_plugin_int
 
-#define STRING_BUFFER_SIZE 256
+#define STRING_BUFFER_SIZE 1024
 
 static const char *sep =
     "======================================================\n";

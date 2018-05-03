@@ -4571,7 +4571,7 @@ static char *get_actual_table_name(const char *old_table_name, MEM_ROOT *root) {
   char *name = 0;
   MYSQL_RES *table_res;
   MYSQL_ROW row;
-  char query[50 + 2 * NAME_LEN];
+  char query[4 * NAME_LEN];
   char show_name_buff[FN_REFLEN];
   DBUG_ENTER("get_actual_table_name");
 
