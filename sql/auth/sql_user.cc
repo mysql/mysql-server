@@ -269,8 +269,9 @@ int check_change_password(THD *thd, const char *host, const char *user,
 /**
   Auxiliary function for constructing CREATE USER sql for a given user.
 
-  @param thd          Thread context
-  @param user_name    user for which the sql should be constructed.
+  @param thd                    Thread context
+  @param user_name              user for which the sql should be constructed.
+  @param are_both_users_same    If the command is issued for self or not.
 
   @retval
     0         OK.
