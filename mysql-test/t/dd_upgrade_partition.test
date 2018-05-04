@@ -6,7 +6,7 @@
 # Innodb does not recognizes partition table created in linux from windows
 # due to difference in path format.
 --source include/not_windows.inc
---source include/not_valgrind.inc
+--source include/no_valgrind_without_big.inc
 
 --disable_query_log
 call mtr.add_suppression("Resizing redo log from");

@@ -10919,7 +10919,16 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
 
   DBUG_ENTER("prepare_fields_and_keys");
 
-  restore_record(table, s->default_values);  // Empty record for DEFAULT
+  /*
+    During upgrade from 5.7, old tables are temporarily accessed to
+    get the keys and fields, and in this process, we assign
+    table->record[0] = table->s->default_values, hence, we make the
+    call to restore_record() below conditional to avoid valgrind errors
+    due to overlapping source and destination for memcpy.
+  */
+  if (table->record[0] != table->s->default_values)
+    restore_record(table, s->default_values);  // Empty record for DEFAULT
+
   Create_field *def;
 
   /*

@@ -13,6 +13,7 @@
 
 --source include/have_case_sensitive_file_system.inc
 --source include/have_debug.inc
+--source include/no_valgrind_without_big.inc
 
 --echo ########################################################################
 --echo # Assert target schema ids.

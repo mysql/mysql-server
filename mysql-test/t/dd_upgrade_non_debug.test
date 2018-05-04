@@ -6,7 +6,7 @@
 --echo # events, stored routines and triggers from 5.7 to 8.0.
 
 --source include/have_nodebug.inc
---source include/not_valgrind.inc
+--source include/no_valgrind_without_big.inc
 
 --echo # Set different paths for --datadir
 let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57;
