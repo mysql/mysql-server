@@ -1,0 +1,21 @@
+CREATE TABLE `fttest04` (
+`id` int(11) NOT NULL AUTO_INCREMENT,
+`str` varchar(300) DEFAULT NULL,
+`str2` mediumtext,
+PRIMARY KEY (`id`),
+FULLTEXT KEY `idx` (`str`,`str2`)
+) ENGINE=InnoDB AUTO_INCREMENT=65520 DEFAULT CHARSET=utf8mb4;
+CREATE PROCEDURE load_test_data()
+BEGIN
+DECLARE cnt INTEGER UNSIGNED DEFAULT 1;
+WHILE (cnt <= 400220) DO
+INSERT INTO fttest04(str, str2) VALUES('徳島県','徳島県');
+SET cnt= cnt+1;
+END WHILE;
+END|
+CALL load_test_data();
+DROP PROCEDURE load_test_data;
+SELECT /*+ max_execution_time(2000) */ COUNT(id) FROM fttest04 WHERE
+MATCH (str,str2) AGAINST ('徳島県' IN BOOLEAN MODE) ;
+ERROR HY000: Query execution was interrupted, maximum statement execution time exceeded
+DROP TABLE fttest04;

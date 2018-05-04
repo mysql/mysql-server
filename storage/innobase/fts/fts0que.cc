@@ -3718,7 +3718,7 @@ dberr_t fts_query(trx_t *trx, dict_index_t *index, uint flags,
   /* Parse the input query string. */
   if (fts_query_parse(&query, lc_query_str, result_len)) {
     fts_ast_node_t *ast = query.root;
-
+    ast->trx = trx;
     /* Optimize query to check if it's a single term */
     fts_query_can_optimize(&query, flags);
 
@@ -3739,7 +3739,10 @@ dberr_t fts_query(trx_t *trx, dict_index_t *index, uint flags,
     the query. */
     query.error = fts_ast_visit(FTS_NONE, ast, fts_query_visitor, &query,
                                 &will_be_ignored);
-
+    if (query.error == DB_INTERRUPTED) {
+      error = DB_INTERRUPTED;
+      goto func_exit;
+    }
     /* If query expansion is requested, extend the search
     with first search pass result */
     if (query.error == DB_SUCCESS && (flags & FTS_EXPAND)) {
@@ -3756,7 +3759,10 @@ dberr_t fts_query(trx_t *trx, dict_index_t *index, uint flags,
     if (query.error == DB_SUCCESS) {
       *result = fts_query_get_result(&query, *result);
     }
-
+    if (trx_is_interrupted(trx)) {
+      error = DB_INTERRUPTED;
+      goto func_exit;
+    }
     error = query.error;
   } else {
     /* still return an empty result set */
