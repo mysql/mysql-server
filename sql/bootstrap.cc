@@ -389,6 +389,16 @@ bool run_bootstrap_thread(MYSQL_FILE *file, bootstrap_functor boot_handler,
   pthread_attr_setscope(&thr_attr, PTHREAD_SCOPE_SYSTEM);
 #endif
   my_thread_attr_setdetachstate(&thr_attr, MY_THREAD_CREATE_JOINABLE);
+
+  // Default stack size may be too small.
+  size_t stacksize = 0;
+  my_thread_attr_getstacksize(&thr_attr, &stacksize);
+  if (stacksize < my_thread_stack_size) {
+    if (0 != my_thread_attr_setstacksize(&thr_attr, my_thread_stack_size)) {
+      DBUG_ASSERT(false);
+    }
+  }
+
   my_thread_handle thread_handle;
   // What about setting THD::real_id?
   int error = mysql_thread_create(key_thread_bootstrap, &thread_handle,
