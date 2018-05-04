@@ -1785,7 +1785,11 @@ thr_send_threads::insert_node(NodeId node)
   }
 }
 
-/* Called under mutex protection of send_thread_mutex */
+/**
+ * Called under mutex protection of send_thread_mutex
+ * The timer is taken before grabbing the mutex and can thus be a
+ * bit older than now when compared to other times.
+ */
 void 
 thr_send_threads::set_max_delay(NodeId node, NDB_TICKS now, Uint32 delay_usec)
 {
@@ -1798,7 +1802,11 @@ thr_send_threads::set_max_delay(NodeId node, NDB_TICKS now, Uint32 delay_usec)
   node_state.m_overload_counter++;
 }
 
-/* Called under mutex protection of send_thread_mutex */
+/**
+ * Called under mutex protection of send_thread_mutex
+ * The time is taken before grabbing the mutex, so this timer
+ * could be older time than now in rare cases.
+ */
 void 
 thr_send_threads::set_overload_delay(NodeId node, NDB_TICKS now, Uint32 delay_usec)
 {
@@ -1810,7 +1818,18 @@ thr_send_threads::set_overload_delay(NodeId node, NDB_TICKS now, Uint32 delay_us
   node_state.m_overload_counter++;
 }
 
-/* Called under mutex protection of send_thread_mutex */
+/**
+ * Called under mutex protection of send_thread_mutex
+ * The now can be older than what is set in m_inserted_time since
+ * now is not taken holding the mutex, thus we can take the time,
+ * be scheduled away for a while and return, in the meantime
+ * another thread could insert a new event with a newer insert
+ * time.
+ *
+ * We ensure in code below that if this type of event happens that
+ * we set the timer to be expired and we use the more recent time
+ * as now.
+ */
 Uint32 
 thr_send_threads::check_delay_expired(NodeId node, NDB_TICKS now)
 {
@@ -1821,8 +1840,17 @@ thr_send_threads::check_delay_expired(NodeId node, NDB_TICKS now)
   if (micros_delayed == 0)
     return 0;
 
-  const Uint64 micros_passed = NdbTick_Elapsed(node_state.m_inserted_time,
-                                               now).microSec();
+  Uint64 micros_passed;
+  if (now.getUint64() > node_state.m_inserted_time.getUint64())
+  {
+    micros_passed = NdbTick_Elapsed(node_state.m_inserted_time,
+                                    now).microSec();
+  }
+  else
+  {
+    now = node_state.m_inserted_time;
+    micros_passed = micros_delayed;
+  }
   if (micros_passed >= micros_delayed) //Expired
   {
     node_state.m_inserted_time = now;
