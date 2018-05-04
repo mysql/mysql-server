@@ -39,7 +39,6 @@ import os.path
 import logging
 import optparse
 import webbrowser
-import zipfile
 import tempfile
 import threading
 import random
@@ -723,12 +722,6 @@ def main(prefix, cfgdir):
     true_port_val = 0
     configdir = cfgdir
     basedir = prefix
-    frontend = os.path.join(cfgdir, 'frontend')
-    if not os.path.exists(os.path.join(frontend, 'dojo')):
-        dojoz = zipfile.ZipFile(os.path.join(frontend, 'dojo.zip'), 'r')
-        dojoz.extractall(path=frontend)
-        dojoz.close()
-
     def_server_name = 'localhost'
     
     if hasattr(webbrowser, 'WindowsDefault') and isinstance(webbrowser.get(), webbrowser.WindowsDefault):

@@ -104,9 +104,6 @@ if(WIN32 AND MCC_PYTHON_TO_BUNDLE)
 
 endif()
 
-CONFIGURE_FILE("${CMAKE_CURRENT_SOURCE_DIR}/post-install.py.in"
-        "${CMAKE_CURRENT_BINARY_DIR}/post-install.py")
-
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/mcc_config.py.in" "${CMAKE_CURRENT_BINARY_DIR}/mcc_config_for_install.py")
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/mcc_config_for_install.py"  
   DESTINATION "${MCC_INSTALL_BINDIR}"
@@ -118,7 +115,7 @@ install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/${MCC_SCRIPT_NAME}"
   COMPONENT ClusterTools)
 
 install(FILES clusterhost.py remote_clusterhost.py request_handler.py 
-  util.py config_parser.py cfg.pem ${CMAKE_CURRENT_BINARY_DIR}/post-install.py DESTINATION "${MCC_INSTALL_SUBDIR}"
+  util.py config_parser.py cfg.pem DESTINATION "${MCC_INSTALL_SUBDIR}"
   COMPONENT ClusterTools)
 
 install(DIRECTORY tst DESTINATION "${MCC_INSTALL_SUBDIR}"  
