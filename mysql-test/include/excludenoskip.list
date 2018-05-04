@@ -189,8 +189,6 @@ have_transaction_write_set_extraction.inc
 not_sparc_debug.inc
 # This also fails with non-debug
 statement_digest_long_query.test
-# few test cannot run on Solaris discover
-not_discover.inc
 
 # 17.0 Reason for inclusion: the extra JSON cause on builds with other
 # storage engines than InnoDB is hard to
