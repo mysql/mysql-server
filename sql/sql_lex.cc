@@ -467,6 +467,7 @@ void LEX::reset() {
   opt_hints_global = NULL;
   binlog_need_explicit_defaults_ts = false;
   m_extended_show = false;
+  option_type = OPT_DEFAULT;
 
   clear_privileges();
 }
