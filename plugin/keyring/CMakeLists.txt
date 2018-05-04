@@ -80,10 +80,6 @@ ELSE()
                      MODULE_OUTPUT_NAME "keyring_file")
 ENDIF()
 
-IF(WITH_KEYRING_TEST)
-  ADD_SUBDIRECTORY(keyring-test)
-ENDIF()
-
 IF(HAVE_DLOPEN)
     SET(DYNLIB_EXTENSION "so")
 ENDIF()
