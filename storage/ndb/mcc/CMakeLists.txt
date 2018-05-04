@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2017 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2018 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -46,7 +46,6 @@ set(MCC_INSTALL_BINDIR "${INSTALL_BINDIR}")
 set(MCC_INSTALL_SUBDIR "${INSTALL_MYSQLSHAREDIR}/mcc")
 set(MCC_INSTALL_FRONTENDDIR "${MCC_INSTALL_SUBDIR}/frontend")
 
-ADD_SUBDIRECTORY(host_info)
 ADD_SUBDIRECTORY(frontend)
 
 if(WIN32 AND MCC_PYTHON_TO_BUNDLE)
@@ -142,7 +141,6 @@ IF (WITH_MCC_DEV)
 	${CMAKE_COMMAND} "-DCMAKE_INSTALL_CONFIG_NAME=${CMAKE_INSTALL_CONFIG_NAME}" "-DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}" 
 	-P "${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake" 
 	VERBATIM)
-  ADD_DEPENDENCIES(mcc_install host_info)
 
   # Convenience target for mcc development which runs the mcc tests on installed files
   add_custom_target(mcc_run
