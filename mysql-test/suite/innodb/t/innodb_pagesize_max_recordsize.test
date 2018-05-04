@@ -48,6 +48,8 @@ let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-i
 --exec $NEW_CMD
 
 --echo # Start the DB server with page size 32k
+# Wait for 300 seconds instead of the default 100
+--let $wait_counter= 3000
 --replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
 --let $restart_parameters="restart: --innodb_page_size=32K --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2"
 --source include/start_mysqld.inc
@@ -206,6 +208,8 @@ let SEARCH_PATTERN= \[Warning\] .*MY-\\d+.* innodb-page-size has been changed fr
 
 # Restart the datadir with same page size 32k and check , server should be started
 --echo # Restart the DB server with datadir1 with same 32k page size 
+# Wait for 300 seconds instead of the default 100
+--let $wait_counter= 3000
 --replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
 --let $restart_parameters="restart: --innodb_page_size=32K --datadir=$MYSQLD_DATADIR1  --innodb_log_file_size=5M --innodb_log_files_in_group=2"
 --source include/start_mysqld.inc
@@ -226,6 +230,8 @@ let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-i
 --exec $NEW_CMD
 
 --echo # Start the DB server with page size 64K
+# Wait for 300 seconds instead of the default 100
+--let $wait_counter= 3000
 --replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
 --let restart_parameters="restart: --innodb_page_size=64K --datadir=$MYSQLD_DATADIR1  --innodb_log_file_size=5M --innodb_log_files_in_group=2"
 --source include/start_mysqld.inc
@@ -266,6 +272,8 @@ col60 CHAR(255),col61 CHAR(255),col62 CHAR(255),col63 CHAR(255),col64  CHAR(255)
 
 DROP TABLE tab5;
 
+# Wait for 300 seconds instead of the default 100
+--let $wait_counter= 3000
 --let $restart_parameters=
 --source include/restart_mysqld.inc
 
