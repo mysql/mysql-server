@@ -122,6 +122,10 @@ bool String::mem_realloc(size_t alloc_length, bool force_on_heap) {
     } else
       return true;  // Signal error
     m_ptr = new_ptr;
+    // Assert on debug build if len exceeds uint32 max on 64-bit word platform.
+#if defined(__WORDSIZE) && (__WORDSIZE == 64)
+    DBUG_ASSERT(len <= std::numeric_limits<uint32>::max());
+#endif
     m_alloced_length = static_cast<uint32>(len);
   }
   m_ptr[alloc_length] = 0;  // This make other funcs shorter
