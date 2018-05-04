@@ -18074,6 +18074,9 @@ ER_REGEXP_INVALID_FLAG
 ER_XA_REPLICATION_FILTERS
   eng "The use of replication filters with XA transactions is not supported, and can lead to an undefined state in the replication slave."
 
+ER_UPDATE_GTID_PURGED_WITH_GR
+  eng "Cannot update GTID_PURGED with the Group Replication plugin running"
+
 #
 # End of 8.0 Server error messages.
 # (Please read comments from the header of this section before adding error

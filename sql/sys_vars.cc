@@ -5656,6 +5656,15 @@ static Sys_var_gtid_executed Sys_gtid_executed(
 static bool check_gtid_purged(sys_var *self, THD *thd, set_var *var) {
   DBUG_ENTER("check_gtid_purged");
 
+  /*
+    GTID_PURGED must not be set / updated when GR is running (it goes against
+    the whole purpose of update everywhere replication).
+  */
+  if (is_group_replication_running()) {
+    my_error(ER_UPDATE_GTID_PURGED_WITH_GR, MYF(0));
+    DBUG_RETURN(true);
+  }
+
   if (!var->value ||
       check_super_outside_trx_outside_sf_outside_sp(self, thd, var))
     DBUG_RETURN(true);
