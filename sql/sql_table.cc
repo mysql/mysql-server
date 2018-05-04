@@ -6135,6 +6135,7 @@ static bool set_table_default_charset(THD *thd, HA_CREATE_INFO *create_info,
       return true;
   } else {
     DBUG_ASSERT((create_info->used_fields & HA_CREATE_USED_CHARSET) == 0 ||
+                (create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET) ||
                 create_info->default_table_charset ==
                     create_info->table_charset);
 
