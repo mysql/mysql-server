@@ -150,6 +150,12 @@ if ($proceed_with_check_of_files) {
   CREATE TEMPORARY TABLE file_tbl (filename varchar(1024));
 
   if ($mysql_errno == 0) {
+
+# A failed test may leave $infile behind, which makes the write_file below fail.
+# To prevent an avalanche of subsequent failures, remove the file first.
+--error 0,1
+--remove_file $infile
+
 --write_file $infile
 # These are the files, directory etc. found in some important directories.
 EOF
