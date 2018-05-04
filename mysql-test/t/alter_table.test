@@ -3016,3 +3016,19 @@ ALTER TABLE t1 ADD COLUMN l INT, ALGORITHM=INSTANT;
 --error ER_ALTER_OPERATION_NOT_SUPPORTED
 ALTER TABLE t1 ALTER COLUMN i SET DEFAULT 12, DROP COLUMN j, ALGORITHM=INSTANT;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#27864226: ASSERTION `(CREATE_INFO->USED_FIELDS & (1L << 8)) == 0 ||
+--echo #
+
+CREATE TABLE t1 (a INT) ENGINE=INNODB;
+
+--echo # Verify that ALTER can have both a CONVERT clause and a
+--echo # DEFAULT CHARACTER SET clause with different charsets
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf16 COLLATE utf16_turkish_ci,
+DEFAULT CHARACTER SET utf16 COLLATE utf16_slovak_ci;
+
+--echo # Verify that last default (utf16) overrides
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
