@@ -251,4 +251,18 @@ VARIABLE_NAME	VARIABLE_VALUE
 keyring_operations	ON
 mandatory_roles	
 RESET PERSIST;
+#
+# Bug #27903874: [MYSQL 8.0 GA DEBUG BUILD] ASSERTION `!THD ||
+#                THD->LOCKED_TABLES_MODE || !THD->M
+#
+CREATE DATABASE bug27903874;
+USE bug27903874;
+SET @@autocommit=FALSE;
+CREATE TABLE t(a CHAR (1))ENGINE=InnoDB;
+RESET PERSIST size;
+ERROR HY000: Variable size does not exist in persisted config file
+SELECT JSON_OBJECTAGG(id,x) FROM t;
+ERROR 42S22: Unknown column 'id' in 'field list'
+RESET SLAVE;
+DROP DATABASE bug27903874;
 # End of the 8.0 tests

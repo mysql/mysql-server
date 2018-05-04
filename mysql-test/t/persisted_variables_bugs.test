@@ -219,5 +219,22 @@ SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 # Cleanup
 RESET PERSIST;
 
+--echo #
+--echo # Bug #27903874: [MYSQL 8.0 GA DEBUG BUILD] ASSERTION `!THD ||
+--echo #                THD->LOCKED_TABLES_MODE || !THD->M
+--echo #
+
+CREATE DATABASE bug27903874;
+USE bug27903874;
+SET @@autocommit=FALSE;
+CREATE TABLE t(a CHAR (1))ENGINE=InnoDB;
+--error ER_VAR_DOES_NOT_EXIST
+RESET PERSIST size;
+--error ER_BAD_FIELD_ERROR
+SELECT JSON_OBJECTAGG(id,x) FROM t;
+RESET SLAVE;
+# cleanup
+DROP DATABASE bug27903874;
+
 --echo # End of the 8.0 tests
 
