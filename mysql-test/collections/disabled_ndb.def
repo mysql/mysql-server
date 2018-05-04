@@ -181,9 +181,6 @@ ndb.ndb_dd_initial_lg: Needs WL#9185 MySQL Cluster support for new DD
 # database name, affects lower_case_table_names=2 platform
 ndb.ndb_addnode_restart @darwin: Bug#27307793 IDENTIFIERS AND LOWER_CASE_TABLE_NAMES=2 INCONCISTENCY
 
-# Failed with wrong errno 1625, instead of 1296
-ndb.ndb_err4012: See Bug 27844953 - NDB_ERR4012.TEST FAILS WITH WRONG ERROR NO
-
 # Problem with distribution of rows in fully replicated tables where the
 # distribution is not as expected. This occurs only on Windows platforms
 ndb.ndb_fully_replicated @windows: Bug#27924016 INCORRECT DISTRIBUTION OF ROWS IN FULLY REPLICATED TABLES ON WINDOWS
