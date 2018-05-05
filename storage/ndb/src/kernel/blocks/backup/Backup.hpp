@@ -219,6 +219,10 @@ public:
   {
     return m_enable_partial_lcp != 0;
   }
+  bool is_redo_control_enabled()
+  {
+    return m_enable_redo_control != 0;
+  }
 
   Uint32 get_recovery_work()
   {
@@ -306,6 +310,7 @@ public:
 
   Uint32 m_newestRestorableGci;
   bool m_delete_lcp_files_ongoing;
+  Uint32 m_enable_redo_control;
   Uint32 m_enable_partial_lcp;
   Uint32 m_recovery_work;
   Uint32 m_insert_recovery_work;

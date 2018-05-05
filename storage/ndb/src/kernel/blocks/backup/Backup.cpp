@@ -1544,7 +1544,7 @@ Backup::measure_change_speed(Signal *signal, Uint64 millis_since_last_call)
 Uint64
 Backup::calculate_proposed_disk_write_speed()
 {
-  if (m_enable_partial_lcp == 0)
+  if (!is_partial_lcp_enabled() || !is_redo_control_enabled())
   {
     jam();
     return 0;

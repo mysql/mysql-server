@@ -2262,6 +2262,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   },
 
   {
+    CFG_DB_ENABLE_REDO_CONTROL,
+    "EnableRedoControl",
+    DB_TOKEN,
+    "Enable adaptive speed of checkpointing to control REDO log usage",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_BOOL,
+    "true",
+    "false",
+    "true"
+  },
+
+  {
     CFG_DB_ENABLE_PARTIAL_LCP,
     "EnablePartialLcp",
     DB_TOKEN,
@@ -2275,6 +2288,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "false",
     "true"
   },
+
   {
     CFG_DB_RECOVERY_WORK,
     "RecoveryWork",
